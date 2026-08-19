@@ -1,0 +1,10 @@
+[Unit]
+Description=tuweb.dev — ciclo de propuestas cada 6 horas
+
+[Timer]
+OnCalendar=*-*-* 00/6:15:00
+Persistent=true
+RandomizedDelaySec=90
+
+[Install]
+WantedBy=timers.target

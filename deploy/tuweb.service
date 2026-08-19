@@ -1,0 +1,17 @@
+[Unit]
+Description=tuweb.dev
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/tuweb
+EnvironmentFile=/opt/tuweb/.env
+ExecStart=/usr/bin/node dist/server/entry.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

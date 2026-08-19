@@ -1,0 +1,12 @@
+[Unit]
+Description=tuweb.dev — procesar ciclo de propuestas
+After=tuweb.service
+Requires=tuweb.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/tuweb
+EnvironmentFile=/opt/tuweb/.env
+ExecStart=/usr/bin/node --env-file=/opt/tuweb/.env scripts/process-prompts.mjs
