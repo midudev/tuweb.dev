@@ -84,6 +84,10 @@ function takeLock() {
 	return true;
 }
 
+// rollbackTo() y compañía salen con process.exit(), que se salta el finally del
+// final: sin este gancho el candado se quedaba puesto y bloqueaba al siguiente.
+process.on('exit', releaseLock);
+
 function releaseLock() {
 	// Sin esto, el proceso que sale por "ya hay una iteración en marcha"
 	// borraría el candado del que sí lo tiene.
@@ -277,20 +281,17 @@ function repair(cycle, failure) {
 	return reviewChanges().error ?? null;
 }
 
+/** El ciclo cerrado, o { error } si la web no ha podido cerrarlo. */
 async function closeWindow() {
-	if (!SECRET) {
-		log('Falta CRON_SECRET.');
-		process.exit(1);
+	try {
+		const response = await fetch(`${BASE}/api/cron/process`, {
+			headers: { Authorization: `Bearer ${SECRET}` },
+		});
+		if (!response.ok) return { error: `la web no pudo cerrar la ventana (${response.status})` };
+		return await response.json();
+	} catch (error) {
+		return { error: `la web no responde: ${error.message}` };
 	}
-
-	const response = await fetch(`${BASE}/api/cron/process`, {
-		headers: { Authorization: `Bearer ${SECRET}` },
-	});
-	if (!response.ok) {
-		log(`No se pudo cerrar la ventana: ${response.status}`);
-		process.exit(1);
-	}
-	return response.json();
 }
 
 function commitMessage(cycle, repairs) {
@@ -307,6 +308,11 @@ function commitMessage(cycle, repairs) {
 }
 
 async function main() {
+	if (!SECRET) {
+		log('Falta CRON_SECRET.');
+		return;
+	}
+
 	if (!takeLock()) {
 		log('Ya hay una iteración en marcha. Me salgo.');
 		return;
@@ -326,6 +332,12 @@ async function main() {
 
 	const previousSha = currentSha();
 	const cycle = await closeWindow();
+
+	if (cycle.error) {
+		await report({ commitSha: previousSha, previousSha, status: 'failed', error: cycle.error });
+		log(cycle.error);
+		return;
+	}
 
 	if (cycle.skipped || !cycle.winner) {
 		log(`Nada que implementar: ${cycle.reason ?? 'no hubo idea ganadora'}`);

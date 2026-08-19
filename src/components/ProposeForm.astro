@@ -1,6 +1,7 @@
 ---
 import type { SessionUser } from '../lib/auth';
 import { getGithubConfig } from '../lib/env';
+import type { SiteState } from '../lib/releases';
 import { DISCARD_LABELS } from '../lib/window';
 import Icon from './Icon.astro';
 import WindowClock from './WindowClock.astro';
@@ -9,13 +10,16 @@ interface Props {
 	user: SessionUser | null;
 	myPrompt: { body: string; status: string; discardReason: string | null } | null;
 	endsAt: string;
+	state: SiteState;
 }
 
-const { user, myPrompt, endsAt } = Astro.props;
+const { user, myPrompt, endsAt, state } = Astro.props;
 const githubReady = getGithubConfig().configured;
 const discarded = myPrompt?.status === 'discarded';
 // Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
 const overdue = new Date(endsAt).getTime() <= Date.now();
+// Con la IA trabajando lo que toca no es "espera", es "manda la siguiente".
+const working = state === 'building' || state === 'repairing';
 ---
 
 <section id="proponer" class="border border-line bg-bg px-8 py-7">
@@ -37,7 +41,9 @@ const overdue = new Date(endsAt).getTime() <= Date.now();
 							La siguiente se abre en <WindowClock endsAt={endsAt} />
 						</span>
 						<span data-window-closed hidden={!overdue}>
-							La ventana ha cerrado. La IA elige la idea ganadora en breve.
+							{working
+								? 'La IA está implementando la idea ganadora. La siguiente ventana se abre en cuanto termine.'
+								: 'La ventana ha cerrado. La IA elige la idea ganadora en breve.'}
 						</span>
 					</p>
 				</div>
@@ -66,8 +72,9 @@ const overdue = new Date(endsAt).getTime() <= Date.now();
 							una IA implementa lo que más se repita.
 						</span>
 						<span data-window-closed hidden={!overdue}>
-							Una idea por persona en cada ventana. Esta ya ha cerrado: la IA elige en breve la
-							idea ganadora y tu idea entra en la siguiente.
+							{working
+								? 'La IA está implementando la idea ganadora de la ventana anterior. Manda la tuya igualmente: entra en la siguiente.'
+								: 'Una idea por persona en cada ventana. Esta ya ha cerrado: la IA elige en breve la idea ganadora y la tuya entra en la siguiente.'}
 						</span>
 					</p>
 

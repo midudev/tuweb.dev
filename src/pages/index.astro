@@ -44,7 +44,7 @@ const deployedAt =
 			<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
 				<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
 				{flash && <p class="text-sm text-mark">{flash}</p>}
-				<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} />
+				<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
 				<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
 			</div>
 		</section>
