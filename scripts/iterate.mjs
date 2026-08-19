@@ -17,7 +17,16 @@ import {
 	leakedSecrets,
 	stageForReview,
 } from './lib/guards.mjs';
-import { buildAndRestart, currentSha, log, report, rollbackTo, smoke, stampSha } from './lib/release-utils.mjs';
+import {
+	buildAndRestart,
+	currentSha,
+	log,
+	pruneBuildLeftovers,
+	report,
+	rollbackTo,
+	smoke,
+	stampSha,
+} from './lib/release-utils.mjs';
 
 const PORT = process.env.PORT || '4321';
 const BASE = (process.env.HEALTH_URL || process.env.SITE_URL || `http://127.0.0.1:${PORT}`).replace(/\/$/, '');
@@ -256,6 +265,8 @@ function summarize(details) {
  * "no se ha enterado nadie" de "hay que restaurar ya".
  */
 async function deploy() {
+	const startedAt = Date.now();
+
 	try {
 		buildAndRestart();
 	} catch (error) {
@@ -265,6 +276,9 @@ async function deploy() {
 
 	const failure = await smoke();
 	if (failure) return { reason: `no pasa las comprobaciones: ${failure}`, details: failure, deployed: true };
+
+	// Con la versión nueva ya respondiendo, los restos de la anterior sobran.
+	pruneBuildLeftovers(startedAt);
 	return null;
 }
 

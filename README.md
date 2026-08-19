@@ -104,6 +104,12 @@ pnpm ideas:clear                                 # borra todas las ideas, previa
 `pnpm iterate` coge un candado (`.iterate.lock`) para que dos iteraciones no se
 pisen. En producción lo lanza un proceso de pm2 cada 30 minutos.
 
+El build no vacía `dist/`. El servidor que está vivo carga cada ruta cuando se
+la piden, y como Astro pone un hash en el nombre de cada chunk, borrar los del
+build anterior deja al proceso en marcha pidiendo ficheros que ya no están: esa
+ruta devuelve 500 hasta que alguien reinicie. Los restos se tiran solos al final
+de la iteración, cuando la versión nueva ya responde.
+
 ---
 
 ## Estructura

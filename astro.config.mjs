@@ -18,6 +18,9 @@ export default defineConfig({
 	vite: {
 		plugins: [tailwindcss()],
 		// Sin scripts en línea: así la CSP puede ser script-src 'self' a secas.
-		build: { assetsInlineLimit: 0 },
+		// Sin borrar dist/: el servidor que está vivo carga sus rutas cuando se
+		// piden, y si el build de al lado se lleva por delante los chunks viejos,
+		// esas rutas devuelven 500 hasta que alguien reinicie.
+		build: { assetsInlineLimit: 0, emptyOutDir: false },
 	},
 });

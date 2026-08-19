@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const PORT = process.env.PORT || '4321';
 const BASE = (process.env.HEALTH_URL || process.env.SITE_URL || `http://127.0.0.1:${PORT}`).replace(/\/$/, '');
@@ -45,6 +46,43 @@ export function buildAndRestart() {
 	runCapturing(BUILD_CMD);
 	// El reinicio va con la salida en directo: aquí ya no hay nada que arreglar.
 	run(RESTART_CMD);
+}
+
+// Los dos sitios donde Astro escribe ficheros con hash en el nombre. El resto
+// de dist/ conserva sus nombres y se sobrescribe en cada build.
+const HASHED_DIRS = ['dist/server/chunks', 'dist/client/_astro'];
+
+/**
+ * Tira los restos de builds anteriores. Solo se puede llamar con el servidor
+ * nuevo ya en pie y respondiendo: hasta ese momento, el proceso viejo todavía
+ * puede pedir sus chunks, que es justo lo que evita el 500.
+ */
+export function pruneBuildLeftovers(before) {
+	let removed = 0;
+
+	for (const dir of HASHED_DIRS) {
+		let entries;
+		try {
+			entries = readdirSync(dir);
+		} catch {
+			continue;
+		}
+
+		for (const entry of entries) {
+			const file = join(dir, entry);
+			try {
+				// El build vigente reescribe todos sus ficheros, incluidos los que no
+				// han cambiado: lo que conserva la fecha vieja ya no lo usa nadie.
+				if (statSync(file).mtimeMs >= before) continue;
+				rmSync(file, { recursive: true, force: true });
+				removed += 1;
+			} catch {
+				// Si no se puede borrar, es basura que ocupa. No es un problema.
+			}
+		}
+	}
+
+	if (removed > 0) log(`${removed} ficheros de builds anteriores tirados.`);
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
