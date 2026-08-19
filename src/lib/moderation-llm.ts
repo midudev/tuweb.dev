@@ -2,7 +2,13 @@ import { getLlmConfig } from './env';
 import type { DiscardReason, PromptReview } from './moderation';
 
 const REASONS = new Set<DiscardReason>(['injection', 'vulnerability', 'spam', 'off_topic', 'harmful']);
-const TIMEOUT_MS = 8000;
+// gpt-5.6-luna razona antes de responder, así que damos algo más de margen que
+// a un modelo normal. Si se pasa, manda la heurística y el envío no se queda colgado.
+const TIMEOUT_MS = 12000;
+
+// El tope de razonamiento del modelo. La moderación es la puerta de entrada a
+// lo que la IA acabará implementando: aquí interesa acertar, no ir rápido.
+const REASONING_EFFORT = 'xhigh';
 
 /**
  * Segunda opinión sobre una propuesta, con modelo. La heurística pilla lo obvio;
@@ -28,7 +34,7 @@ export async function reviewWithLlm(body: string): Promise<PromptReview | null> 
 			},
 			body: JSON.stringify({
 				model: llm.model,
-				temperature: 0,
+				reasoning_effort: REASONING_EFFORT,
 				response_format: { type: 'json_object' },
 				messages: [
 					{

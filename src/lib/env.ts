@@ -53,7 +53,7 @@ export function getLlmConfig() {
 	return {
 		apiKey,
 		baseUrl: read('OPENAI_BASE_URL', 'https://api.openai.com').replace(/\/$/, ''),
-		model: read('OPENAI_MODEL', 'gpt-4o-mini'),
+		model: read('OPENAI_MODEL', 'gpt-5.6-luna'),
 		configured: Boolean(apiKey),
 	};
 }
