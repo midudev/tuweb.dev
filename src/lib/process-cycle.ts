@@ -135,8 +135,22 @@ export async function processCycle() {
 		"SELECT id, body FROM prompts WHERE status = 'pending'",
 	);
 
+	// Ventana vacía: no es un fallo ni hay nada que implementar. Se deja
+	// constancia igual para que la ventana ruede y la siguiente empiece a
+	// contar; sin el ciclo, la web se quedaría con la cuenta atrás a cero.
 	if (pending.length === 0) {
-		return { skipped: true as const, reason: 'No hay propuestas pendientes' };
+		const empty = get<{ id: number }>(
+			`INSERT INTO cycles (processed_at, discarded_count, considered_count, pending_count)
+			 VALUES (?, 0, 0, 0)
+			 RETURNING id`,
+			nowIso(),
+		);
+
+		return {
+			skipped: true as const,
+			cycleId: empty?.id ?? null,
+			reason: 'No hay propuestas pendientes',
+		};
 	}
 
 	const fallback = heuristicDecision(pending);
