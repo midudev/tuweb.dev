@@ -98,6 +98,7 @@ pnpm process                                     # cierra la ventana: agrupa ide
 pnpm iterate                                     # el ciclo entero: ventana + IA + verificación + push
 pnpm release -- --pull                           # despliega los cambios del remoto, con vuelta atrás
 pnpm rollback                                    # vuelve al último commit que estuvo vivo y sano
+pnpm ideas:clear                                 # borra todas las ideas, previa confirmación
 ```
 
 `pnpm iterate` coge un candado (`.iterate.lock`) para que dos iteraciones no se

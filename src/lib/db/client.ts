@@ -124,10 +124,22 @@ const SAMPLE_IDEAS = [
 
 /** Contenido inicial, solo la primera vez que se abre la base de datos. */
 function seed(sqlite: DatabaseSync) {
-	const now = new Date().toISOString();
-	const features = sqlite.prepare('SELECT count(*) AS n FROM features').get() as { n: number };
+	// La marca va antes de sembrar: sin ella, borrar las ideas de ejemplo no
+	// servía de nada porque el siguiente arranque las volvía a meter.
+	const { user_version: sembrada } = sqlite.prepare('PRAGMA user_version').get() as {
+		user_version: number;
+	};
+	if (sembrada >= 1) return;
+	sqlite.exec('PRAGMA user_version = 1');
 
-	if (features.n === 0) {
+	// Una base con funcionalidades ya ha vivido: no le metemos contenido de
+	// ejemplo por mucho que se hayan borrado las ideas.
+	const features = sqlite.prepare('SELECT count(*) AS n FROM features').get() as { n: number };
+	if (features.n > 0) return;
+
+	const now = new Date().toISOString();
+
+	{
 		const insert = sqlite.prepare(
 			'INSERT INTO features (title, summary, status, created_at, shipped_at) VALUES (?, ?, ?, ?, ?)',
 		);
@@ -146,11 +158,6 @@ function seed(sqlite: DatabaseSync) {
 			now,
 		);
 	}
-
-	const pending = sqlite.prepare("SELECT count(*) AS n FROM prompts WHERE status = 'pending'").get() as {
-		n: number;
-	};
-	if (pending.n > 0) return;
 
 	const insertUser = sqlite.prepare(
 		`INSERT INTO users (github_id, login, name, avatar_url, created_at) VALUES (?, ?, ?, ?, ?)

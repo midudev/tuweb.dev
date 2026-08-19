@@ -15,7 +15,8 @@
 		"process": "node --env-file=.env scripts/process-prompts.mjs",
 		"release": "node --env-file=.env scripts/release.mjs",
 		"rollback": "node --env-file=.env scripts/rollback.mjs",
-		"iterate": "node --env-file=.env scripts/iterate.mjs"
+		"iterate": "node --env-file=.env scripts/iterate.mjs",
+		"ideas:clear": "node --env-file=.env scripts/clear-ideas.mjs"
 	},
 	"dependencies": {
 		"@astrojs/node": "11.1.2",
