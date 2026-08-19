@@ -1,0 +1,48 @@
+---
+/**
+ * La cuenta atrás de la ventana. Cuando llega a cero la ventana está vencida
+ * pero sigue abierta hasta que el cron pase a cerrarla, así que en vez de
+ * quedarse clavado en 00:00 se cambia el texto: lo marcado con
+ * data-window-open se esconde y sale lo de data-window-closed.
+ */
+interface Props {
+	endsAt: string;
+}
+
+const { endsAt } = Astro.props;
+---
+
+<span class="font-pixel text-lg tabular-nums text-accent" data-window-clock data-ends-at={endsAt}
+	>--:--</span
+>
+
+<script>
+	const clocks = document.querySelectorAll<HTMLElement>('[data-window-clock]');
+	const abiertos = document.querySelectorAll<HTMLElement>('[data-window-open]');
+	const cerrados = document.querySelectorAll<HTMLElement>('[data-window-closed]');
+
+	if (clocks.length > 0) {
+		const tick = () => {
+			let vencida = false;
+
+			for (const clock of clocks) {
+				const ends = new Date(clock.dataset.endsAt ?? '').getTime();
+				if (!Number.isFinite(ends)) continue;
+
+				const left = Math.max(0, ends - Date.now());
+				if (left === 0) vencida = true;
+
+				const total = Math.floor(left / 1000);
+				const minutes = String(Math.floor(total / 60)).padStart(2, '0');
+				const seconds = String(total % 60).padStart(2, '0');
+				clock.textContent = `${minutes}:${seconds}`;
+			}
+
+			for (const abierto of abiertos) abierto.hidden = vencida;
+			for (const cerrado of cerrados) cerrado.hidden = !vencida;
+		};
+
+		tick();
+		setInterval(tick, 1000);
+	}
+</script>

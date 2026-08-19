@@ -3,6 +3,7 @@ import type { SessionUser } from '../lib/auth';
 import { getGithubConfig } from '../lib/env';
 import { DISCARD_LABELS } from '../lib/window';
 import Icon from './Icon.astro';
+import WindowClock from './WindowClock.astro';
 
 interface Props {
 	user: SessionUser | null;
@@ -13,6 +14,8 @@ interface Props {
 const { user, myPrompt, endsAt } = Astro.props;
 const githubReady = getGithubConfig().configured;
 const discarded = myPrompt?.status === 'discarded';
+// Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
+const overdue = new Date(endsAt).getTime() <= Date.now();
 ---
 
 <section id="proponer" class="border border-line bg-bg px-8 py-7">
@@ -30,11 +33,12 @@ const discarded = myPrompt?.status === 'discarded';
 						<p class="text-muted">Ya has enviado tu idea en esta ventana.</p>
 					)}
 					<p class="text-muted">
-						La siguiente se abre en <span
-							class="font-pixel text-lg tabular-nums text-accent"
-							data-window-clock
-							data-ends-at={endsAt}>--:--</span
-						>
+						<span data-window-open hidden={overdue}>
+							La siguiente se abre en <WindowClock endsAt={endsAt} />
+						</span>
+						<span data-window-closed hidden={!overdue}>
+							La ventana ha cerrado. La IA elige la idea ganadora en breve.
+						</span>
 					</p>
 				</div>
 			</div>
@@ -57,11 +61,14 @@ const discarded = myPrompt?.status === 'discarded';
 
 				<div class="flex flex-wrap items-center justify-between gap-6 border-t border-line pt-5">
 					<p class="max-w-lg text-sm text-muted">
-						Una idea por persona en cada ventana. Se cierra en <span
-							class="font-pixel text-lg tabular-nums text-accent"
-							data-window-clock
-							data-ends-at={endsAt}>--:--</span
-						> y una IA implementa lo que más se repita.
+						<span data-window-open hidden={overdue}>
+							Una idea por persona en cada ventana. Se cierra en <WindowClock endsAt={endsAt} /> y
+							una IA implementa lo que más se repita.
+						</span>
+						<span data-window-closed hidden={!overdue}>
+							Una idea por persona en cada ventana. Esta ya ha cerrado: la IA elige en breve la
+							idea ganadora y tu idea entra en la siguiente.
+						</span>
 					</p>
 
 					{
@@ -101,17 +108,4 @@ const discarded = myPrompt?.status === 'discarded';
 		update();
 	}
 
-	const clock = document.querySelector<HTMLElement>('[data-window-clock]');
-	if (clock) {
-		const ends = new Date(clock.dataset.endsAt ?? '').getTime();
-		const tick = () => {
-			const left = Math.max(0, ends - Date.now());
-			const total = Math.floor(left / 1000);
-			const minutes = String(Math.floor(total / 60)).padStart(2, '0');
-			const seconds = String(total % 60).padStart(2, '0');
-			clock.textContent = `${minutes}:${seconds}`;
-		};
-		tick();
-		setInterval(tick, 1000);
-	}
 </script>

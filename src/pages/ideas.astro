@@ -1,11 +1,14 @@
 ---
 import Footer from '../components/Footer.astro';
 import SectionLabel from '../components/SectionLabel.astro';
+import WindowClock from '../components/WindowClock.astro';
 import { getIdeasData } from '../lib/db/queries';
 import Layout from '../layouts/Layout.astro';
 import { DISCARD_LABELS } from '../lib/window';
 
 const data = await getIdeasData();
+// Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
+const overdue = new Date(data.window.endsAt).getTime() <= Date.now();
 
 function hhmm(iso: string) {
 	return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -28,11 +31,10 @@ const received = data.ideas.length + data.discarded.length;
 				<div class="flex flex-wrap items-end justify-between gap-6">
 					<h1 class="font-pixel text-3xl leading-tight font-normal">Ideas de esta ventana</h1>
 					<p class="text-sm text-muted">
-						se cierra en <span
-							class="font-pixel text-lg tabular-nums text-accent"
-							data-window-clock
-							data-ends-at={data.window.endsAt}>--:--</span
-						>
+						<span data-window-open hidden={overdue}>
+							se cierra en <WindowClock endsAt={data.window.endsAt} />
+						</span>
+						<span data-window-closed hidden={!overdue}>ha cerrado: la IA elige en breve</span>
 					</p>
 				</div>
 
@@ -89,18 +91,3 @@ const received = data.ideas.length + data.discarded.length;
 	</div>
 </Layout>
 
-<script>
-	const clock = document.querySelector<HTMLElement>('[data-window-clock]');
-	if (clock) {
-		const ends = new Date(clock.dataset.endsAt ?? '').getTime();
-		const tick = () => {
-			const left = Math.max(0, ends - Date.now());
-			const total = Math.floor(left / 1000);
-			const minutes = String(Math.floor(total / 60)).padStart(2, '0');
-			const seconds = String(total % 60).padStart(2, '0');
-			clock.textContent = `${minutes}:${seconds}`;
-		};
-		tick();
-		setInterval(tick, 1000);
-	}
-</script>
