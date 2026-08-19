@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { getLastLiveSha, getLastRelease, recordRelease, type ReleaseStatus } from '../../lib/releases';
 import { matchesCronSecret as authorized } from '../../lib/secrets';
 
-const STATUSES = new Set<ReleaseStatus>(['building', 'live', 'rolled_back', 'failed']);
+const STATUSES = new Set<ReleaseStatus>(['building', 'repairing', 'live', 'rolled_back', 'failed']);
 
 export const GET: APIRoute = async ({ request, url }) => {
 	if (!authorized(request)) {

@@ -30,5 +30,9 @@ pnpm-debug.log*
 .idea/
 .release-sha
 
+# candado de la iteración en marcha y el cambio que la IA está arreglando
+.iterate.lock
+.iterate-broken.patch
+
 # guía de despliegue local
 GUIDE.md

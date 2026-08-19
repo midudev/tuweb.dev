@@ -19,13 +19,31 @@ export function run(command) {
 	execSync(command, { stdio: 'inherit' });
 }
 
+/**
+ * Como run(), pero se queda con la salida además de escribirla. Cuando el build
+ * peta, ese texto es justo lo que la IA necesita leer para arreglar lo suyo.
+ */
+export function runCapturing(command) {
+	log(`$ ${command}`);
+	try {
+		const output = execSync(command, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+		process.stdout.write(output);
+		return output;
+	} catch (error) {
+		error.details = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+		process.stdout.write(`${error.details}\n`);
+		throw error;
+	}
+}
+
 export function currentSha() {
 	return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
 }
 
 export function buildAndRestart() {
-	run(INSTALL_CMD);
-	run(BUILD_CMD);
+	runCapturing(INSTALL_CMD);
+	runCapturing(BUILD_CMD);
+	// El reinicio va con la salida en directo: aquí ya no hay nada que arreglar.
 	run(RESTART_CMD);
 }
 
@@ -64,7 +82,7 @@ export async function smoke({ attempts = 12, waitMs = 2500 } = {}) {
 	return null;
 }
 
-export async function report({ commitSha, previousSha, status, error }) {
+export async function report({ commitSha, previousSha, status, error, featureId = null }) {
 	if (!SECRET) {
 		log('Sin CRON_SECRET: no se puede dejar constancia del despliegue.');
 		return;
@@ -74,7 +92,7 @@ export async function report({ commitSha, previousSha, status, error }) {
 		const response = await fetch(`${BASE}/api/releases`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${SECRET}`, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ commitSha, previousSha, status, error }),
+			body: JSON.stringify({ commitSha, previousSha, status, error, featureId }),
 		});
 		if (!response.ok) log(`No se pudo registrar el despliegue: ${response.status}`);
 	} catch (fetchError) {

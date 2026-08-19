@@ -1,5 +1,6 @@
 ---
 import type { Feature, Release } from '../lib/db/schema';
+import type { SiteState } from '../lib/releases';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -7,22 +8,37 @@ interface Props {
 	lastShipped: Feature | null;
 	next: Feature | null;
 	lastRelease: Release | null;
+	state: SiteState;
 }
 
-const { version, lastShipped, next, lastRelease } = Astro.props;
-const reverted = lastRelease?.status === 'rolled_back';
-const broken = lastRelease?.status === 'failed';
+const { version, lastShipped, next, lastRelease, state } = Astro.props;
+
+/** Cuando algo va mal se cuenta aquí, con el motivo tal cual salió. */
+const AVISOS: Partial<Record<SiteState, { icon: string; text: string }>> = {
+	repairing: {
+		icon: 'tool',
+		text: 'La última actualización falló y la IA la está arreglando sola. La web sigue en la versión anterior.',
+	},
+	reverted: {
+		icon: 'alert-triangle',
+		text: 'La última actualización rompía algo y la web volvió sola a la versión anterior.',
+	},
+	broken: {
+		icon: 'alert-triangle',
+		text: 'La última actualización falló y hace falta mirarla a mano.',
+	},
+};
+
+const aviso = AVISOS[state];
 ---
 
 <div class="flex flex-col gap-5">
 	{
-		(reverted || broken) && (
+		aviso && (
 			<p class="flex items-start gap-2.5 text-sm text-mark">
-				<Icon name="alert-triangle" class="mt-0.5 size-4 shrink-0" />
+				<Icon name={aviso.icon} class="mt-0.5 size-4 shrink-0" />
 				<span>
-					{reverted
-						? 'La última actualización rompía algo y la web volvió sola a la versión anterior.'
-						: 'La última actualización falló y hace falta mirarla a mano.'}
+					{aviso.text}
 					{lastRelease?.error && <span class="text-muted"> {lastRelease.error}</span>}
 				</span>
 			</p>

@@ -28,6 +28,8 @@ function open() {
 		sqlite.exec(statement);
 	}
 
+	migrateReleaseStatuses(sqlite);
+
 	// Antes existía la regla de una idea por ventana solo en el código, así que
 	// una base de datos vieja puede traer dos pendientes del mismo usuario. Sin
 	// esto, el índice único no se puede crear y la web no arranca.
@@ -41,6 +43,46 @@ function open() {
 
 	seed(sqlite);
 	return sqlite;
+}
+
+/**
+ * CREATE TABLE IF NOT EXISTS no cambia una tabla que ya existe, así que una base
+ * de datos creada antes de que existiera 'repairing' rechazaría ese estado con
+ * un CHECK y el cron se quedaría sin poder contar que está arreglando algo.
+ * Se rehace la tabla conservando las filas.
+ */
+function migrateReleaseStatuses(sqlite: DatabaseSync) {
+	const table = sqlite
+		.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'releases'")
+		.get() as { sql: string } | undefined;
+
+	if (!table || table.sql.includes("'repairing'")) return;
+
+	// Nada apunta a releases, así que la copia no rompe ninguna clave foránea.
+	sqlite.exec('PRAGMA foreign_keys = OFF');
+	sqlite.exec('BEGIN');
+	try {
+		sqlite.exec(`CREATE TABLE releases_nuevo (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			feature_id INTEGER REFERENCES features(id) ON DELETE SET NULL,
+			commit_sha TEXT NOT NULL,
+			previous_sha TEXT,
+			status TEXT NOT NULL DEFAULT 'live'
+				CHECK (status IN ('building', 'repairing', 'live', 'rolled_back', 'failed')),
+			error TEXT,
+			created_at TEXT NOT NULL
+		)`);
+		sqlite.exec(`INSERT INTO releases_nuevo (id, feature_id, commit_sha, previous_sha, status, error, created_at)
+			SELECT id, feature_id, commit_sha, previous_sha, status, error, created_at FROM releases`);
+		sqlite.exec('DROP TABLE releases');
+		sqlite.exec('ALTER TABLE releases_nuevo RENAME TO releases');
+		sqlite.exec('COMMIT');
+	} catch (error) {
+		sqlite.exec('ROLLBACK');
+		throw error;
+	} finally {
+		sqlite.exec('PRAGMA foreign_keys = ON');
+	}
 }
 
 export function getDb() {

@@ -53,7 +53,7 @@ export const TABLES = [
 		commit_sha TEXT NOT NULL,
 		previous_sha TEXT,
 		status TEXT NOT NULL DEFAULT 'live'
-			CHECK (status IN ('building', 'live', 'rolled_back', 'failed')),
+			CHECK (status IN ('building', 'repairing', 'live', 'rolled_back', 'failed')),
 		error TEXT,
 		created_at TEXT NOT NULL
 	)`,

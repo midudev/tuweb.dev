@@ -8,6 +8,7 @@ import SectionLabel from '../components/SectionLabel.astro';
 import Toolbox from '../components/Toolbox.astro';
 import { getSessionUser } from '../lib/auth';
 import { getHomeData } from '../lib/db/queries';
+import { siteState } from '../lib/releases';
 import Layout from '../layouts/Layout.astro';
 
 const user = await getSessionUser(Astro);
@@ -29,11 +30,7 @@ const flashesError: Record<string, string> = {
 };
 const flash = (ok && flashesOk[ok]) || (error && flashesError[error]) || null;
 
-// Un 'building' viejo es una iteración que se quedó a medias: no lo damos por vivo.
-const BUILDING_MAX_MS = 30 * 60 * 1000;
-const building =
-	data.lastRelease?.status === 'building' &&
-	Date.now() - new Date(data.lastRelease.createdAt).getTime() < BUILDING_MAX_MS;
+const state = siteState(data.lastRelease);
 
 const deployedAt =
 	(data.lastRelease?.status === 'live' ? data.lastRelease.createdAt : null) ??
@@ -45,7 +42,7 @@ const deployedAt =
 	<div class="flex min-h-screen flex-col">
 		<section class="border-b border-line bg-panel" aria-label="Tu idea">
 			<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
-				<Header user={user} version={data.version} deployedAt={deployedAt} building={building} />
+				<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
 				{flash && <p class="text-sm text-mark">{flash}</p>}
 				<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} />
 				<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
@@ -68,6 +65,7 @@ const deployedAt =
 					lastShipped={data.lastShipped}
 					next={data.next}
 					lastRelease={data.lastRelease}
+					state={state}
 				/>
 			</div>
 		</div>
