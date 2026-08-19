@@ -1,0 +1,117 @@
+---
+import type { SessionUser } from '../lib/auth';
+import { getGithubConfig } from '../lib/env';
+import { DISCARD_LABELS } from '../lib/window';
+import Icon from './Icon.astro';
+
+interface Props {
+	user: SessionUser | null;
+	myPrompt: { body: string; status: string; discardReason: string | null } | null;
+	endsAt: string;
+}
+
+const { user, myPrompt, endsAt } = Astro.props;
+const githubReady = getGithubConfig().configured;
+const discarded = myPrompt?.status === 'discarded';
+---
+
+<section id="proponer" class="border border-line bg-bg px-8 py-7">
+	{
+		myPrompt ? (
+			<div class="flex flex-col gap-6">
+				<p class="text-2xl/snug text-pretty">{myPrompt.body}</p>
+
+				<div class="flex flex-wrap items-center justify-between gap-6 border-t border-line pt-5 text-sm">
+					{discarded ? (
+						<p class="text-mark">
+							La IA descartó tu idea: {DISCARD_LABELS[myPrompt.discardReason ?? 'spam'] ?? 'no encaja'}.
+						</p>
+					) : (
+						<p class="text-muted">Ya has enviado tu idea en esta ventana.</p>
+					)}
+					<p class="text-muted">
+						La siguiente se abre en <span
+							class="font-pixel text-lg tabular-nums text-accent"
+							data-window-clock
+							data-ends-at={endsAt}>--:--</span
+						>
+					</p>
+				</div>
+			</div>
+		) : (
+			<form method="post" action="/api/prompts" class="flex flex-col gap-6">
+				<label class="block">
+					<span class="sr-only">Tu idea</span>
+					<textarea
+						name="body"
+						required
+						minlength="16"
+						maxlength="280"
+						rows="2"
+						data-prompt-input
+						disabled={!user}
+						placeholder="Escribe lo que le falta a esta web"
+						class="w-full resize-none border-0 bg-transparent p-0 text-2xl/snug outline-none placeholder:text-[#444444] disabled:cursor-not-allowed"
+					/>
+				</label>
+
+				<div class="flex flex-wrap items-center justify-between gap-6 border-t border-line pt-5">
+					<p class="max-w-lg text-sm text-muted">
+						Una idea por persona en cada ventana. Se cierra en <span
+							class="font-pixel text-lg tabular-nums text-accent"
+							data-window-clock
+							data-ends-at={endsAt}>--:--</span
+						> y una IA implementa lo que más se repita.
+					</p>
+
+					{
+						user ? (
+							<div class="flex items-center gap-5 text-sm">
+								<span class="text-muted"><span data-prompt-count>0</span>/280</span>
+								<button type="submit" class="bg-accent px-6 py-3.5 text-bg hover:bg-mark">
+									Enviar mi idea
+								</button>
+							</div>
+						) : githubReady ? (
+							<a
+								href="/api/auth/github"
+								class="inline-flex items-center gap-2.5 bg-accent px-6 py-3.5 text-bg no-underline hover:bg-mark hover:no-underline"
+							>
+								<Icon name="brand-github" class="size-[18px] shrink-0" />
+								Entra para enviar tu idea
+							</a>
+						) : (
+							<p class="text-sm text-muted">Falta configurar GitHub.</p>
+						)
+					}
+				</div>
+			</form>
+		)
+	}
+</section>
+
+<script>
+	const input = document.querySelector<HTMLTextAreaElement>('[data-prompt-input]');
+	const count = document.querySelector('[data-prompt-count]');
+	if (input && count) {
+		const update = () => {
+			count.textContent = String(input.value.length);
+		};
+		input.addEventListener('input', update);
+		update();
+	}
+
+	const clock = document.querySelector<HTMLElement>('[data-window-clock]');
+	if (clock) {
+		const ends = new Date(clock.dataset.endsAt ?? '').getTime();
+		const tick = () => {
+			const left = Math.max(0, ends - Date.now());
+			const total = Math.floor(left / 1000);
+			const minutes = String(Math.floor(total / 60)).padStart(2, '0');
+			const seconds = String(total % 60).padStart(2, '0');
+			clock.textContent = `${minutes}:${seconds}`;
+		};
+		tick();
+		setInterval(tick, 1000);
+	}
+</script>
