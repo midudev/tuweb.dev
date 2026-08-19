@@ -1,4 +1,5 @@
-export const WINDOW_MINUTES = 30;
+// Seis horas. Tiene que coincidir con el cron_restart de ecosystem.config.cjs.
+export const WINDOW_MINUTES = 6 * 60;
 export const WINDOW_MS = WINDOW_MINUTES * 60 * 1000;
 
 export function windowEndFrom(startedAt: string) {
@@ -7,9 +8,10 @@ export function windowEndFrom(startedAt: string) {
 
 export function formatCountdown(ms: number) {
 	const total = Math.max(0, Math.floor(ms / 1000));
-	const minutes = String(Math.floor(total / 60)).padStart(2, '0');
+	const hours = Math.floor(total / 3600);
+	const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
 	const seconds = String(total % 60).padStart(2, '0');
-	return `${minutes}:${seconds}`;
+	return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 }
 
 export const DISCARD_LABELS: Record<string, string> = {
@@ -19,6 +21,7 @@ export const DISCARD_LABELS: Record<string, string> = {
 	off_topic: 'no es una funcionalidad',
 	harmful: 'dañina',
 	duplicate: 'repetida',
+	external: 'necesitaba algo de fuera y aquí todo se sirve desde esta web',
 };
 
 export function agoLabel(iso: string) {

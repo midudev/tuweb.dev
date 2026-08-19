@@ -1,4 +1,10 @@
-export type DiscardReason = 'injection' | 'vulnerability' | 'spam' | 'off_topic' | 'harmful';
+export type DiscardReason =
+	| 'injection'
+	| 'vulnerability'
+	| 'spam'
+	| 'off_topic'
+	| 'harmful'
+	| 'external';
 
 export type PromptReview = {
 	id: number;
@@ -32,6 +38,21 @@ const EXFIL_RE =
 
 const VULN_RE =
 	/\b(xss|csrf|ssrf|rce|sqli|sql injection|path traversal|remote code|reverse shell|exploit|0-day|0day|malware|keylogger|steal (cookies?|tokens?|secrets?)|dump (secrets?|credentials|env)|child_process|webshell)\b/i;
+
+/**
+ * El servidor y su reloj no se tocan desde una idea: ni el cron, ni lo que se
+ * instala, ni nada que ejecute comandos.
+ */
+const SERVER_RE =
+	/\b(cron|crontab|systemd|pm2|nginx|docker|ssh|apt(-get)?\s+install|npm\s+(i|install)|pnpm\s+(add|install)|yarn\s+add|instala\w*\s+(algo\s+)?(en\s+)?el\s+servidor|ejecut\w+\s+(comandos?|c(o|ó)digo|scripts?\s+del\s+servidor)|shell|bash)\b/i;
+
+/**
+ * Todo se sirve desde esta web: sin CDNs, sin APIs de terceros y sin nada
+ * incrustado de fuera. La CSP lo bloquearía en el navegador, así que aceptarlo
+ * sería publicar algo roto.
+ */
+const EXTERNAL_RE =
+	/\b(cdn|jsdelivr|unpkg|cloudflare|api\s+(externa|de\s+terceros|p(u|ú)blica\s+de)|webhook|scrap\w+|iframe|incrust\w+|google\s+(analytics|fonts|maps)|tag\s+manager|font\s?awesome|youtube|spotify|openai|chatgpt)\b/i;
 
 const REPEAT_RE = /(.)\1{9,}/i;
 const URL_RE = /https?:\/\//gi;
@@ -70,8 +91,11 @@ export function heuristicReview(prompt: PromptInput): PromptReview {
 	if (EXFIL_RE.test(body)) {
 		return { id: prompt.id, verdict: 'discard', reason: 'injection' };
 	}
-	if (VULN_RE.test(body)) {
+	if (VULN_RE.test(body) || SERVER_RE.test(body)) {
 		return { id: prompt.id, verdict: 'discard', reason: 'vulnerability' };
+	}
+	if (EXTERNAL_RE.test(body)) {
+		return { id: prompt.id, verdict: 'discard', reason: 'external' };
 	}
 	if (REPEAT_RE.test(body) || (body.match(URL_RE) ?? []).length >= 3) {
 		return { id: prompt.id, verdict: 'discard', reason: 'spam' };

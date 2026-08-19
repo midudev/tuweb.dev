@@ -34,9 +34,10 @@ const { endsAt } = Astro.props;
 				if (left === 0) vencida = true;
 
 				const total = Math.floor(left / 1000);
-				const minutes = String(Math.floor(total / 60)).padStart(2, '0');
+				const hours = Math.floor(total / 3600);
+				const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
 				const seconds = String(total % 60).padStart(2, '0');
-				clock.textContent = `${minutes}:${seconds}`;
+				clock.textContent = hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 			}
 
 			for (const abierto of abiertos) abierto.hidden = vencida;
