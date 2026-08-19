@@ -1,0 +1,480 @@
+---
+/**
+ * Un minijuego para la espera entre ventanas: la serpiente de toda la vida.
+ * Todo pasa en el navegador y nada se guarda en el servidor; el récord vive en
+ * el localStorage de quien juega.
+ */
+import Icon from './Icon.astro';
+
+const COLS = 20;
+const ROWS = 14;
+
+const PAD = [
+	{ id: 'up', label: 'Arriba', icon: 'chevron-up', class: 'col-start-2' },
+	{ id: 'left', label: 'Izquierda', icon: 'chevron-left', class: 'col-start-1 row-start-2' },
+	{ id: 'down', label: 'Abajo', icon: 'chevron-down', class: 'col-start-2 row-start-2' },
+	{ id: 'right', label: 'Derecha', icon: 'chevron-right', class: 'col-start-3 row-start-2' },
+];
+---
+
+<section id="minijuego" class="flex flex-col gap-7 border-t border-line pt-8">
+	<div class="flex flex-col gap-2">
+		<h2 class="flex items-center gap-2.5 font-pixel text-[22px] font-normal">
+			<Icon name="device-gamepad-2" class="size-5 shrink-0 text-accent" />
+			Minijuego
+		</h2>
+		<p class="max-w-[60ch] text-sm text-muted">
+			Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para
+			pausar. En el móvil, desliza sobre el tablero.
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-6 md:flex-row md:items-start">
+		<div class="relative w-full max-w-md shrink-0">
+			<div
+				data-board
+				data-cols={COLS}
+				data-rows={ROWS}
+				tabindex="0"
+				role="application"
+				aria-label="Tablero de la serpiente"
+				class="grid touch-none gap-px border border-line bg-line select-none"
+				style={`grid-template-columns: repeat(${COLS}, minmax(0, 1fr))`}
+			>
+				{Array.from({ length: COLS * ROWS }, () => <span class="aspect-square bg-panel" />)}
+			</div>
+
+			<div
+				data-overlay
+				class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg/85 px-6 text-center"
+			>
+				<p data-overlay-title class="font-pixel text-lg text-accent">Serpiente</p>
+				<p data-overlay-text class="text-sm text-muted">Toca el tablero y no te choques.</p>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 grow flex-col gap-6">
+			<dl class="flex flex-col gap-1.5 text-sm">
+				<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+					<dt class="text-muted">puntos</dt>
+					<dd data-score class="font-pixel tabular-nums text-accent">0</dd>
+				</div>
+				<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+					<dt class="flex items-baseline gap-2 text-muted">
+						<Icon name="trophy" class="size-3.5 shrink-0 self-center" />
+						récord
+					</dt>
+					<dd data-best class="tabular-nums">0</dd>
+				</div>
+			</dl>
+
+			<div class="flex flex-wrap gap-2 text-sm">
+				<button
+					type="button"
+					data-play
+					class="inline-flex items-center gap-2 border border-line px-4 py-3 text-muted hover:border-accent hover:text-accent"
+				>
+					<span data-icon="play" class="inline-flex"><Icon name="player-play" class="size-4" /></span>
+					<span data-icon="pause" class="inline-flex"><Icon name="player-pause" class="size-4" /></span>
+					<span data-play-label>Jugar</span>
+				</button>
+				<button
+					type="button"
+					data-reset
+					class="inline-flex items-center gap-2 border border-line px-4 py-3 text-muted hover:border-accent hover:text-accent"
+				>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Reiniciar
+				</button>
+			</div>
+
+			<div class="grid w-44 grid-cols-3 gap-2" role="group" aria-label="Dirección">
+				{
+					PAD.map((key) => (
+						<button
+							type="button"
+							data-pad={key.id}
+							aria-label={key.label}
+							class:list={[
+								'flex items-center justify-center border border-line py-3 text-muted hover:border-accent hover:text-accent',
+								key.class,
+							]}
+						>
+							<Icon name={key.icon} class="size-4 shrink-0" />
+						</button>
+					))
+				}
+			</div>
+
+			<p data-status class="sr-only" role="status" aria-live="polite"></p>
+		</div>
+	</div>
+</section>
+
+<style>
+	[data-board] span[data-k='cuerpo'] {
+		background: var(--color-accent);
+	}
+
+	[data-board] span[data-k='cabeza'] {
+		background: var(--color-mark);
+	}
+
+	[data-board] span[data-k='comida'] {
+		background: var(--color-fg);
+	}
+
+	[data-play] [data-icon='pause'] {
+		display: none;
+	}
+
+	[data-play][data-state='jugando'] [data-icon='play'] {
+		display: none;
+	}
+
+	[data-play][data-state='jugando'] [data-icon='pause'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	const section = document.querySelector<HTMLElement>('#minijuego');
+	const board = section?.querySelector<HTMLElement>('[data-board]');
+
+	if (section && board) {
+		// El tamaño lo manda el tablero ya pintado: aquí no se adivina.
+		const COLS = Number(board.dataset.cols);
+		const ROWS = Number(board.dataset.rows);
+		// Empieza lenta y se va apretando con cada bocado, hasta un tope.
+		const MS_INICIAL = 150;
+		const MS_MINIMO = 70;
+		const MS_POR_PUNTO = 4;
+		const CLAVE_RECORD = 'tuweb:serpiente:record';
+
+		type Giro = { x: number; y: number };
+		type Estado = 'listo' | 'jugando' | 'pausa' | 'fin';
+
+		const casillas = Array.from(board.children) as HTMLElement[];
+		const capa = section.querySelector<HTMLElement>('[data-overlay]');
+		const capaTitulo = section.querySelector<HTMLElement>('[data-overlay-title]');
+		const capaTexto = section.querySelector<HTMLElement>('[data-overlay-text]');
+		const marcador = section.querySelector<HTMLElement>('[data-score]');
+		const marcadorRecord = section.querySelector<HTMLElement>('[data-best]');
+		const botonJugar = section.querySelector<HTMLButtonElement>('[data-play]');
+		const etiquetaJugar = section.querySelector<HTMLElement>('[data-play-label]');
+		const aviso = section.querySelector<HTMLElement>('[data-status]');
+
+		const GIROS: Record<string, Giro> = {
+			arrowup: { x: 0, y: -1 },
+			arrowdown: { x: 0, y: 1 },
+			arrowleft: { x: -1, y: 0 },
+			arrowright: { x: 1, y: 0 },
+			w: { x: 0, y: -1 },
+			s: { x: 0, y: 1 },
+			a: { x: -1, y: 0 },
+			d: { x: 1, y: 0 },
+			up: { x: 0, y: -1 },
+			down: { x: 0, y: 1 },
+			left: { x: -1, y: 0 },
+			right: { x: 1, y: 0 },
+		};
+
+		let estado: Estado = 'listo';
+		let serpiente: number[] = [];
+		let direccion: Giro = { x: 1, y: 0 };
+		let pendientes: Giro[] = [];
+		let comida = -1;
+		let puntos = 0;
+		let velocidad = MS_INICIAL;
+		let temporizador = 0;
+		let pintadas: number[] = [];
+
+		function leerRecord() {
+			try {
+				return Number(localStorage.getItem(CLAVE_RECORD)) || 0;
+			} catch {
+				// Sin almacenamiento (modo privado): se juega igual, sin récord.
+				return 0;
+			}
+		}
+
+		function guardarRecord(valor: number) {
+			try {
+				localStorage.setItem(CLAVE_RECORD, String(valor));
+			} catch {
+				// Da igual: el récord es un lujo, no el juego.
+			}
+		}
+
+		let record = leerRecord();
+
+		function pintar() {
+			for (const i of pintadas) casillas[i]?.removeAttribute('data-k');
+			pintadas = [];
+
+			serpiente.forEach((i, n) => {
+				const casilla = casillas[i];
+				if (!casilla) return;
+				casilla.dataset.k = n === 0 ? 'cabeza' : 'cuerpo';
+				pintadas.push(i);
+			});
+
+			if (comida >= 0 && casillas[comida]) {
+				casillas[comida].dataset.k = 'comida';
+				pintadas.push(comida);
+			}
+		}
+
+		function capaVisible(titulo: string | null, texto = '') {
+			if (!capa) return;
+			capa.style.display = titulo === null ? 'none' : '';
+			if (titulo !== null) {
+				if (capaTitulo) capaTitulo.textContent = titulo;
+				if (capaTexto) capaTexto.textContent = texto;
+			}
+		}
+
+		function refrescarBoton() {
+			const etiquetas: Record<Estado, string> = {
+				listo: 'Jugar',
+				jugando: 'Pausa',
+				pausa: 'Seguir',
+				fin: 'Otra vez',
+			};
+			if (etiquetaJugar) etiquetaJugar.textContent = etiquetas[estado];
+			if (botonJugar) {
+				if (estado === 'jugando') botonJugar.dataset.state = 'jugando';
+				else botonJugar.removeAttribute('data-state');
+			}
+		}
+
+		function marcar() {
+			if (marcador) marcador.textContent = String(puntos);
+			if (marcadorRecord) marcadorRecord.textContent = String(record);
+		}
+
+		function decir(texto: string) {
+			if (aviso) aviso.textContent = texto;
+		}
+
+		function libre() {
+			const ocupadas = new Set(serpiente);
+			const huecos: number[] = [];
+			for (let i = 0; i < COLS * ROWS; i += 1) {
+				if (!ocupadas.has(i)) huecos.push(i);
+			}
+			return huecos;
+		}
+
+		function nuevaComida() {
+			const huecos = libre();
+			comida = huecos.length === 0 ? -1 : huecos[Math.floor(Math.random() * huecos.length)];
+			return huecos.length > 0;
+		}
+
+		function programar() {
+			clearTimeout(temporizador);
+			temporizador = window.setTimeout(paso, velocidad);
+		}
+
+		function parar() {
+			clearTimeout(temporizador);
+			temporizador = 0;
+		}
+
+		function terminar(titulo: string, texto: string) {
+			parar();
+			estado = 'fin';
+			if (puntos > record) {
+				record = puntos;
+				guardarRecord(record);
+			}
+			marcar();
+			capaVisible(titulo, texto);
+			refrescarBoton();
+			decir(`${titulo} ${puntos} puntos. Récord ${record}.`);
+		}
+
+		function paso() {
+			const siguienteGiro = pendientes.shift();
+			if (siguienteGiro) direccion = siguienteGiro;
+
+			const cabeza = serpiente[0];
+			const x = (cabeza % COLS) + direccion.x;
+			const y = Math.floor(cabeza / COLS) + direccion.y;
+
+			if (x < 0 || x >= COLS || y < 0 || y >= ROWS) {
+				terminar('Contra la pared.', `${puntos} puntos. Dale a otra vez.`);
+				return;
+			}
+
+			const destino = y * COLS + x;
+			const crece = destino === comida;
+			const cuerpo = crece ? serpiente : serpiente.slice(0, -1);
+
+			if (cuerpo.includes(destino)) {
+				terminar('Te has mordido.', `${puntos} puntos. Dale a otra vez.`);
+				return;
+			}
+
+			serpiente.unshift(destino);
+			if (!crece) {
+				serpiente.pop();
+			} else {
+				puntos += 1;
+				velocidad = Math.max(MS_MINIMO, MS_INICIAL - puntos * MS_POR_PUNTO);
+				marcar();
+				if (!nuevaComida()) {
+					pintar();
+					terminar('Tablero lleno.', `${puntos} puntos. No se puede más.`);
+					return;
+				}
+			}
+
+			pintar();
+			programar();
+		}
+
+		function empezar() {
+			const centro = Math.floor(ROWS / 2) * COLS + Math.floor(COLS / 3);
+			serpiente = [centro, centro - 1, centro - 2];
+			direccion = { x: 1, y: 0 };
+			pendientes = [];
+			puntos = 0;
+			velocidad = MS_INICIAL;
+			estado = 'jugando';
+			nuevaComida();
+			marcar();
+			pintar();
+			capaVisible(null);
+			refrescarBoton();
+			decir('Empieza la partida.');
+			programar();
+		}
+
+		function pausar() {
+			if (estado !== 'jugando') return;
+			parar();
+			estado = 'pausa';
+			capaVisible('En pausa', 'Dale a seguir cuando quieras.');
+			refrescarBoton();
+		}
+
+		function seguir() {
+			if (estado !== 'pausa') return;
+			estado = 'jugando';
+			capaVisible(null);
+			refrescarBoton();
+			programar();
+		}
+
+		function alternar() {
+			if (estado === 'jugando') pausar();
+			else if (estado === 'pausa') seguir();
+			else empezar();
+		}
+
+		function encolar(giro: Giro) {
+			if (estado === 'listo' || estado === 'fin') {
+				empezar();
+			} else if (estado === 'pausa') {
+				seguir();
+			}
+
+			// El último giro que cuenta es el de la cola, no el que se ve pintado.
+			const ultimo = pendientes.at(-1) ?? direccion;
+			if (giro.x === -ultimo.x && giro.y === -ultimo.y) return;
+			if (giro.x === ultimo.x && giro.y === ultimo.y) return;
+			if (pendientes.length < 2) pendientes.push(giro);
+		}
+
+		board.addEventListener('keydown', (event) => {
+			if (event.key === ' ' || event.key === 'Enter') {
+				event.preventDefault();
+				alternar();
+				return;
+			}
+
+			const giro = GIROS[event.key.toLowerCase()];
+			if (!giro) return;
+			event.preventDefault();
+			encolar(giro);
+		});
+
+		// Deslizar sobre el tablero gira; un toque seco juega o pausa.
+		let toque: { x: number; y: number } | null = null;
+
+		board.addEventListener('pointerdown', (event) => {
+			toque = { x: event.clientX, y: event.clientY };
+		});
+
+		board.addEventListener('pointerup', (event) => {
+			if (!toque) return;
+			const dx = event.clientX - toque.x;
+			const dy = event.clientY - toque.y;
+			toque = null;
+
+			if (Math.abs(dx) < 16 && Math.abs(dy) < 16) {
+				alternar();
+				return;
+			}
+
+			encolar(
+				Math.abs(dx) > Math.abs(dy)
+					? { x: Math.sign(dx), y: 0 }
+					: { x: 0, y: Math.sign(dy) },
+			);
+		});
+
+		board.addEventListener('pointercancel', () => {
+			toque = null;
+		});
+
+		/**
+		 * Tras un clic de ratón o de dedo el foco vuelve al tablero para que las
+		 * flechas sigan funcionando. Con el teclado no se toca el foco: quien va
+		 * tabulando por los botones se quedaría sin poder salir de ahí.
+		 */
+		function devolverFoco(event: MouseEvent) {
+			if (event.detail > 0) board.focus({ preventScroll: true });
+		}
+
+		botonJugar?.addEventListener('click', (event) => {
+			alternar();
+			devolverFoco(event);
+		});
+
+		section.querySelector<HTMLButtonElement>('[data-reset]')?.addEventListener('click', (event) => {
+			empezar();
+			devolverFoco(event);
+		});
+
+		section.querySelectorAll<HTMLButtonElement>('[data-pad]').forEach((boton) => {
+			boton.addEventListener('click', (event) => {
+				const giro = GIROS[boton.dataset.pad ?? ''];
+				if (giro) encolar(giro);
+				devolverFoco(event);
+			});
+		});
+
+		// Con la pestaña de fondo la partida no corre sola.
+		document.addEventListener('visibilitychange', () => {
+			if (document.hidden) pausar();
+		});
+
+		// Y si el tablero se va de la pantalla, tampoco: quien juega ya no lo ve.
+		if ('IntersectionObserver' in window) {
+			new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						if (!entry.isIntersecting) pausar();
+					}
+				},
+				{ threshold: 0 },
+			).observe(board);
+		}
+
+		marcar();
+		refrescarBoton();
+	}
+</script>
