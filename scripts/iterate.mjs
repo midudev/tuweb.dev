@@ -97,6 +97,16 @@ function takeLock() {
 // final: sin este gancho el candado se quedaba puesto y bloqueaba al siguiente.
 process.on('exit', releaseLock);
 
+// Y una señal (pm2 reiniciando el cron, un Ctrl+C) mata el proceso sin pasar ni
+// por el finally ni por 'exit'. Soltamos el candado a mano y nos vamos.
+for (const signal of ['SIGTERM', 'SIGINT']) {
+	process.on(signal, () => {
+		log(`Recibido ${signal}. Suelto el candado y me voy.`);
+		releaseLock();
+		process.exit(1);
+	});
+}
+
 function releaseLock() {
 	// Sin esto, el proceso que sale por "ya hay una iteración en marcha"
 	// borraría el candado del que sí lo tiene.
