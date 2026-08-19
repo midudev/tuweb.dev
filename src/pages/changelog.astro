@@ -38,7 +38,7 @@ function fecha(iso: string | null) {
 					<p class="text-sm text-muted">{data.version} {data.version === 1 ? 'versión' : 'versiones'}</p>
 				</div>
 
-				<p class="max-w-2xl text-sm text-muted">
+				<p class="max-w-[62ch] text-sm text-muted">
 					Todo lo que hay aquí lo pidió alguien. Cada versión es una ventana de ideas que cerró y
 					una IA implementó.
 				</p>
@@ -67,7 +67,7 @@ function fecha(iso: string | null) {
 							{data.entries.map((entry) => (
 								<li class="flex flex-col gap-2 border-t border-line py-6 last:border-b sm:flex-row sm:gap-8">
 									<p class="w-16 shrink-0 font-pixel text-lg text-accent">v{entry.version}</p>
-									<div class="flex grow flex-col gap-1.5">
+									<div class="flex grow flex-col gap-1.5 sm:max-w-[68ch]">
 										<p class="text-lg text-pretty">{entry.title}</p>
 										{entry.summary !== entry.title && (
 											<p class="text-sm text-muted text-pretty">{entry.summary}</p>

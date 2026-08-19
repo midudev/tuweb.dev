@@ -46,9 +46,25 @@
 @theme {
 	--font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, monospace;
 	--font-pixel: "Geist Pixel", ui-monospace, monospace;
+
+	/*
+	 * Escala pensada para leer, no para caber. En monoespaciada cada letra ocupa
+	 * lo mismo y las líneas se hacen densas, así que el cuerpo sube un punto y el
+	 * interlineado se abre. Nada baja de 13px.
+	 */
+	--text-xs: 0.8125rem;
+	--text-xs--line-height: 1.5;
+	--text-sm: 0.9375rem;
+	--text-sm--line-height: 1.6;
+	--text-base: 1rem;
+	--text-base--line-height: 1.65;
+	--text-lg: 1.125rem;
+	--text-lg--line-height: 1.55;
+
 	--color-bg: #0a0a0a;
 	--color-fg: #ececec;
-	--color-muted: #737373;
+	/* Antes era #737373 y se quedaba en 4.2:1 sobre el fondo. Ahora pasa AA. */
+	--color-muted: #8a8a8a;
 	--color-line: #222222;
 	--color-panel: #111111;
 	--color-accent: #00c2ff;
@@ -67,6 +83,23 @@ html {
 body {
 	min-height: 100vh;
 	background: var(--color-bg);
+	line-height: 1.65;
+	/* Cortes de línea menos huérfanos y palabras largas que no se salen. */
+	text-wrap: pretty;
+	overflow-wrap: break-word;
+}
+
+/* Los subrayados no deben tocar las letras. */
+a {
+	text-underline-offset: 0.2em;
+}
+
+/* Los campos heredan la escala del texto, pero cortan las líneas a lo bruto:
+   lo que se escribe ahí suele ser código y no quiere reparto bonito. */
+input,
+textarea {
+	line-height: inherit;
+	text-wrap: wrap;
 }
 
 ::selection {

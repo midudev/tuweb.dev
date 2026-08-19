@@ -26,7 +26,7 @@ const working = state === 'building' || state === 'repairing';
 	{
 		myPrompt ? (
 			<div class="flex flex-col gap-6">
-				<p class="text-2xl/snug text-pretty">{myPrompt.body}</p>
+				<p class="max-w-[52ch] text-2xl/normal text-pretty">{myPrompt.body}</p>
 
 				<div class="flex flex-wrap items-center justify-between gap-6 border-t border-line pt-5 text-sm">
 					{discarded ? (
@@ -61,7 +61,7 @@ const working = state === 'building' || state === 'repairing';
 						data-prompt-input
 						disabled={!user}
 						placeholder="Escribe lo que le falta a esta web"
-						class="w-full resize-none border-0 bg-transparent p-0 text-2xl/snug outline-none placeholder:text-[#444444] disabled:cursor-not-allowed"
+						class="w-full resize-none border-0 bg-transparent p-0 text-2xl/normal outline-none placeholder:text-muted disabled:cursor-not-allowed"
 					/>
 				</label>
 
