@@ -40,19 +40,32 @@ const VULN_RE =
 	/\b(xss|csrf|ssrf|rce|sqli|sql injection|path traversal|remote code|reverse shell|exploit|0-day|0day|malware|keylogger|steal (cookies?|tokens?|secrets?)|dump (secrets?|credentials|env)|child_process|webshell)\b/i;
 
 /**
- * El servidor y su reloj no se tocan desde una idea: ni el cron, ni lo que se
- * instala, ni nada que ejecute comandos.
+ * El servidor y su reloj no se tocan desde una idea. Va por intención, no por
+ * palabra suelta: en la caja de herramientas hay un "Cron en cristiano", y una
+ * idea que lo nombre habla de la utilidad, no de la tarea programada.
  */
-const SERVER_RE =
-	/\b(cron|crontab|systemd|pm2|nginx|docker|ssh|apt(-get)?\s+install|npm\s+(i|install)|pnpm\s+(add|install)|yarn\s+add|instala\w*\s+(algo\s+)?(en\s+)?el\s+servidor|ejecut\w+\s+(comandos?|c(o|ó)digo|scripts?\s+del\s+servidor)|shell|bash)\b/i;
+const SERVER_RE = [
+	/\b(crontab|cron[_-]?restart|systemctl|pm2\s+\w+)\b/i,
+	/\b(apt(-get)?\s+install|npm\s+(i|install)\b|pnpm\s+(add|install)\b|yarn\s+add)/i,
+	/\b(cambia\w*|modific\w*|ajust\w*|configur\w*|pon\w*|baja\w*|sub\w*|reduc\w*|aument\w*)\s+(el\s+|la\s+|los\s+)?(cron\b|ventana|frecuencia|intervalo|periodicidad)/i,
+	/\b(cada\s+cu(a|á)nto\s+(se\s+)?(cierra|abre|itera|publica))/i,
+	/\b(duraci(o|ó)n|frecuencia)\s+de\s+(la\s+)?ventana/i,
+	/\binstal\w+\s+(\S+\s+){0,3}(en\s+el\s+servidor|como\s+dependencia)/i,
+	/\bejecut\w+\s+(\S+\s+){0,2}(comandos?|c(o|ó)digo\s+arbitrario|scripts?\s+del\s+servidor)/i,
+];
 
 /**
  * Todo se sirve desde esta web: sin CDNs, sin APIs de terceros y sin nada
  * incrustado de fuera. La CSP lo bloquearía en el navegador, así que aceptarlo
  * sería publicar algo roto.
  */
-const EXTERNAL_RE =
-	/\b(cdn|jsdelivr|unpkg|cloudflare|api\s+(externa|de\s+terceros|p(u|ú)blica\s+de)|webhook|scrap\w+|iframe|incrust\w+|google\s+(analytics|fonts|maps)|tag\s+manager|font\s?awesome|youtube|spotify|openai|chatgpt)\b/i;
+const EXTERNAL_RE = [
+	// Sitios que solo salen cuando alguien quiere traerse algo de fuera.
+	/\b(jsdelivr|unpkg|cdnjs|googleapis|google\s+(analytics|fonts|maps)|tag\s+manager|font\s?awesome)\b/i,
+	// Y lo demás, solo si se pide traerlo o llamarlo. Nombrar YouTube en una
+	// idea no es lo mismo que pedir que se incruste un vídeo de YouTube.
+	/\b(carg\w+|us\w+|trae\w*|import\w+|enlaz\w+|integr\w+|conect\w+|llam\w+|consult\w+|incrust\w+|inserta\w*|embeb\w+)\s+(\S+\s+){0,4}\b(cdn|api\s+(externa|de\s+terceros|de\s+\w+)|webhook|iframe|youtube|spotify|twitter|discord|openai|chatgpt|servicio\s+externo)\b/i,
+];
 
 const REPEAT_RE = /(.)\1{9,}/i;
 const URL_RE = /https?:\/\//gi;
@@ -91,10 +104,10 @@ export function heuristicReview(prompt: PromptInput): PromptReview {
 	if (EXFIL_RE.test(body)) {
 		return { id: prompt.id, verdict: 'discard', reason: 'injection' };
 	}
-	if (VULN_RE.test(body) || SERVER_RE.test(body)) {
+	if (VULN_RE.test(body) || SERVER_RE.some((rule) => rule.test(body))) {
 		return { id: prompt.id, verdict: 'discard', reason: 'vulnerability' };
 	}
-	if (EXTERNAL_RE.test(body)) {
+	if (EXTERNAL_RE.some((rule) => rule.test(body))) {
 		return { id: prompt.id, verdict: 'discard', reason: 'external' };
 	}
 	if (REPEAT_RE.test(body) || (body.match(URL_RE) ?? []).length >= 3) {
