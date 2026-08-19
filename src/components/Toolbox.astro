@@ -1,10 +1,12 @@
 ---
+import ColorTool from './ColorTool.astro';
 import Icon from './Icon.astro';
 
 const tools = [
 	{ id: 'json', label: 'JSON → YAML', icon: 'braces' },
 	{ id: 'cron', label: 'Cron en cristiano', icon: 'clock' },
 	{ id: 'regex', label: 'Probador de regex', icon: 'regex' },
+	{ id: 'color', label: 'Colores', icon: 'palette' },
 ];
 ---
 
@@ -113,6 +115,8 @@ const tools = [
 		</label>
 		<p data-regex-output class="text-sm text-mark"></p>
 	</div>
+
+	<ColorTool />
 </section>
 
 <script>

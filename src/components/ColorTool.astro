@@ -1,0 +1,282 @@
+---
+import Icon from './Icon.astro';
+
+const FORMATS = [
+	{ id: 'hex', label: 'HEX' },
+	{ id: 'rgb', label: 'RGB' },
+	{ id: 'hsl', label: 'HSL' },
+	{ id: 'hwb', label: 'HWB' },
+	{ id: 'oklch', label: 'OKLCH' },
+	{ id: 'oklab', label: 'OKLAB' },
+	{ id: 'cmyk', label: 'CMYK' },
+];
+
+const SLIDERS = [
+	{ id: 'l', label: 'Claridad', min: 0, max: 1, step: 0.001 },
+	{ id: 'c', label: 'Croma', min: 0, max: 0.4, step: 0.001 },
+	{ id: 'h', label: 'Tono', min: 0, max: 360, step: 0.5 },
+	{ id: 'alpha', label: 'Alfa', min: 0, max: 1, step: 0.01 },
+];
+
+const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 55%)', 'rgb(236 236 236 / 0.6)'];
+---
+
+<div
+	role="tabpanel"
+	id="panel-color"
+	aria-labelledby="tab-color"
+	data-panel="color"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 md:grid-cols-2">
+		<div class="flex flex-col gap-4">
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Color en cualquier formato</span>
+				<input
+					type="text"
+					data-color-input
+					value="#00c2ff"
+					spellcheck="false"
+					autocomplete="off"
+					class="w-full border border-line bg-panel p-4 text-lg outline-none focus-visible:border-accent"
+				/>
+			</label>
+			<p data-color-note class="text-sm text-muted" aria-live="polite"></p>
+
+			<div class="flex items-center gap-4">
+				<div class="relative size-20 shrink-0 border border-line" data-color-checker>
+					<div data-color-preview class="absolute inset-0"></div>
+				</div>
+				<label class="flex flex-col gap-2">
+					<span class="text-sm text-muted">Selector</span>
+					<input
+						type="color"
+						data-color-picker
+						value="#00c2ff"
+						class="h-12 w-24 cursor-pointer border border-line bg-panel p-1"
+					/>
+				</label>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				{
+					SLIDERS.map((slider) => (
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between text-sm text-muted">
+								<span>{slider.label}</span>
+								<span data-slider-value={slider.id} class="text-mark"></span>
+							</span>
+							<input
+								type="range"
+								data-slider={slider.id}
+								min={slider.min}
+								max={slider.max}
+								step={slider.step}
+								class="w-full accent-accent"
+							/>
+						</label>
+					))
+				}
+			</div>
+
+			<div class="flex flex-wrap gap-2 text-sm">
+				{
+					SAMPLES.map((sample) => (
+						<button
+							type="button"
+							data-color-sample={sample}
+							class="border border-line px-3 py-2 text-muted hover:border-accent hover:text-accent"
+						>
+							{sample}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<ul class="flex flex-col gap-2">
+			{
+				FORMATS.map((format) => (
+					<li class="flex items-center gap-3 border border-line bg-panel p-3">
+						<span class="w-16 shrink-0 text-sm text-muted">{format.label}</span>
+						<code data-format={format.id} class="min-w-0 grow overflow-x-auto text-sm text-mark"></code>
+						<button
+							type="button"
+							data-copy-format={format.id}
+							aria-label={`Copiar ${format.label}`}
+							class="shrink-0 text-muted hover:text-accent"
+						>
+							<span data-icon="copy" class="inline-flex">
+								<Icon name="copy" class="size-4" />
+							</span>
+							<span data-icon="check" class="inline-flex">
+								<Icon name="check" class="size-4" />
+							</span>
+						</button>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</div>
+
+<style>
+	/* Tablero de ajedrez para que se vea la transparencia. */
+	[data-color-checker] {
+		background-image: repeating-conic-gradient(#2a2a2a 0% 25%, #141414 0% 50%);
+		background-size: 16px 16px;
+	}
+
+	[data-copy-format] [data-icon='check'] {
+		display: none;
+	}
+	[data-copy-format][data-state='done'] {
+		color: var(--color-accent);
+	}
+	[data-copy-format][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-copy-format][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	import { type Color, formats, outOfGamut, parseColor, toHex, toRgb } from '../lib/color';
+
+	const input = document.querySelector<HTMLInputElement>('[data-color-input]');
+	const picker = document.querySelector<HTMLInputElement>('[data-color-picker]');
+	const preview = document.querySelector<HTMLElement>('[data-color-preview]');
+	const note = document.querySelector<HTMLElement>('[data-color-note]');
+	const sliders = document.querySelectorAll<HTMLInputElement>('[data-slider]');
+
+	// El valor inicial es el que ya viene escrito en el campo.
+	let color: Color = parseColor(input?.value ?? '') ?? { l: 1, c: 0, h: 0, alpha: 1 };
+
+	// Los nombres de CSS (red, rebeccapurple…) los resuelve el navegador: no hace
+	// falta cargarse la lista entera para eso.
+	const probe = document.createElement('span');
+	probe.style.display = 'none';
+
+	function resolveNamed(text: string) {
+		if (!/^[a-z]+$/i.test(text)) return null;
+		probe.style.color = '';
+		probe.style.color = text;
+		if (!probe.style.color) return null;
+		document.body.append(probe);
+		const computed = getComputedStyle(probe).color;
+		probe.remove();
+		return parseColor(computed);
+	}
+
+	function read(text: string) {
+		return parseColor(text) ?? resolveNamed(text.trim());
+	}
+
+	function cssColor(value: Color) {
+		const { r, g, b } = toRgb(value);
+		return `rgb(${r * 255} ${g * 255} ${b * 255} / ${value.alpha})`;
+	}
+
+	function render() {
+		const values = formats(color);
+		for (const format of values) {
+			const cell = document.querySelector<HTMLElement>(`[data-format="${format.id}"]`);
+			if (cell) cell.textContent = format.value;
+		}
+
+		if (preview) preview.style.background = cssColor(color);
+		if (picker) picker.value = toHex({ ...color, alpha: 1 });
+
+		const shown: Record<string, string> = {
+			l: `${(color.l * 100).toFixed(1)}%`,
+			c: color.c.toFixed(3),
+			h: `${color.h.toFixed(1)}°`,
+			alpha: color.alpha.toFixed(2),
+		};
+		sliders.forEach((slider) => {
+			const key = slider.dataset.slider as keyof Color;
+			slider.value = String(color[key]);
+			const label = document.querySelector<HTMLElement>(`[data-slider-value="${slider.dataset.slider}"]`);
+			if (label) label.textContent = shown[slider.dataset.slider ?? ''] ?? '';
+		});
+
+		if (note) {
+			note.textContent =
+				outOfGamut(color) ? 'Este color no cabe en sRGB: el HEX y el RGB van recortados.' : '';
+		}
+	}
+
+	function update(next: Color, text?: string) {
+		color = next;
+		if (input && text !== undefined) input.value = text;
+		render();
+	}
+
+	input?.addEventListener('input', () => {
+		if (!input) return;
+		const parsed = read(input.value);
+		if (!parsed) {
+			if (note) note.textContent = input.value.trim() ? 'No entiendo ese color.' : '';
+			return;
+		}
+		update(parsed);
+	});
+
+	picker?.addEventListener('input', () => {
+		if (!picker) return;
+		const parsed = parseColor(picker.value);
+		if (!parsed) return;
+		const next = { ...parsed, alpha: color.alpha };
+		update(next, toHex(next));
+	});
+
+	sliders.forEach((slider) => {
+		slider.addEventListener('input', () => {
+			const key = slider.dataset.slider as keyof Color;
+			const next: Color = { ...color, [key]: Number(slider.value) };
+			update(next, formats(next).find((format) => format.id === 'oklch')?.value);
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-color-sample]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const sample = button.dataset.colorSample ?? '';
+			const parsed = read(sample);
+			if (parsed) update(parsed, sample);
+		});
+	});
+
+	const timers = new Map<HTMLButtonElement, number>();
+
+	document.querySelectorAll<HTMLButtonElement>('[data-copy-format]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			const cell = document.querySelector<HTMLElement>(`[data-format="${button.dataset.copyFormat}"]`);
+			const text = cell?.textContent ?? '';
+			if (!text) return;
+			try {
+				await navigator.clipboard.writeText(text);
+				button.dataset.state = 'done';
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				const field = document.createElement('textarea');
+				field.value = text;
+				field.readOnly = true;
+				field.style.position = 'fixed';
+				field.style.opacity = '0';
+				document.body.append(field);
+				field.select();
+				if (document.execCommand('copy')) button.dataset.state = 'done';
+				field.remove();
+			}
+			clearTimeout(timers.get(button));
+			timers.set(
+				button,
+				window.setTimeout(() => button.removeAttribute('data-state'), 1500),
+			);
+		});
+	});
+
+	render();
+</script>
