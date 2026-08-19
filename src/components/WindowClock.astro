@@ -16,7 +16,60 @@ const { endsAt } = Astro.props;
 	>--:--</span
 >
 
+<style is:global>
+	/*
+	 * Ni Geist Pixel ni Geist Mono traen la tabla 'tnum', así que tabular-nums
+	 * no hace nada: cada cifra ocupa lo suyo, el 1 menos que el 8, y la frase
+	 * entera baila una vez por segundo. Cada dígito va en una casilla del ancho
+	 * del más ancho, medido en el navegador con la fuente ya cargada.
+	 */
+	[data-window-clock] > [data-digito] {
+		display: inline-block;
+		width: var(--casilla, 1ch);
+		text-align: center;
+	}
+</style>
+
 <script>
+	/** Lo que mide el dígito más ancho, que es lo que mide la casilla. */
+	function medirCasilla(clock: HTMLElement) {
+		const medidor = document.createElement('span');
+		medidor.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+		clock.append(medidor);
+
+		let ancho = 0;
+		for (const digito of '0123456789') {
+			medidor.textContent = digito;
+			ancho = Math.max(ancho, medidor.getBoundingClientRect().width);
+		}
+
+		medidor.remove();
+		if (ancho > 0) clock.style.setProperty('--casilla', `${ancho}px`);
+	}
+
+	/** Pinta la hora en casillas y solo toca lo que cambia. */
+	function pintar(clock: HTMLElement, texto: string) {
+		if (clock.childElementCount !== texto.length) {
+			clock.replaceChildren(
+				...Array.from(texto, (caracter) => {
+					const casilla = document.createElement('span');
+					// Los dos puntos no bailan, y en una casilla de dígito se
+					// quedarían flotando en medio del hueco.
+					if (caracter !== ':') casilla.dataset.digito = '';
+					casilla.textContent = caracter;
+					return casilla;
+				}),
+			);
+			medirCasilla(clock);
+			return;
+		}
+
+		Array.from(texto).forEach((caracter, i) => {
+			const casilla = clock.children[i];
+			if (casilla.textContent !== caracter) casilla.textContent = caracter;
+		});
+	}
+
 	// Se busca en cada vuelta: la portada cambia trozos enteros por su cuenta y
 	// una lista guardada al cargar se quedaría apuntando a lo que ya no está.
 	if (document.querySelector('[data-window-clock]')) {
@@ -37,7 +90,7 @@ const { endsAt } = Astro.props;
 				const hours = Math.floor(total / 3600);
 				const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
 				const seconds = String(total % 60).padStart(2, '0');
-				clock.textContent = hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
+				pintar(clock, hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`);
 			}
 
 			for (const abierto of abiertos) abierto.hidden = vencida;
@@ -48,5 +101,13 @@ const { endsAt } = Astro.props;
 		setInterval(tick, 1000);
 		// La portada avisa cuando cambia un trozo con reloj dentro.
 		document.addEventListener('window-clock-tick', tick);
+
+		// La primera medida sale con la fuente de respaldo si la de verdad aún no
+		// ha llegado. Cuando llega, se vuelve a medir.
+		document.fonts?.ready.then(() => {
+			for (const clock of document.querySelectorAll<HTMLElement>('[data-window-clock]')) {
+				medirCasilla(clock);
+			}
+		});
 	}
 </script>
