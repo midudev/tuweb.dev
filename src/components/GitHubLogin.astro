@@ -1,0 +1,14 @@
+---
+import Icon from './Icon.astro';
+
+interface Props {
+	label?: string;
+}
+
+const { label = 'Entrar con GitHub' } = Astro.props;
+---
+
+<a href="/api/auth/github" class="inline-flex items-center gap-2 text-accent hover:underline">
+	<Icon name="brand-github" class="size-4 shrink-0" />
+	{label}
+</a>
