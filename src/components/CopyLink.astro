@@ -1,0 +1,73 @@
+---
+import Icon from './Icon.astro';
+---
+
+<button
+	type="button"
+	data-copy-link
+	class="inline-flex items-center gap-2 text-accent hover:underline"
+>
+	<span data-icon="link" class="inline-flex"><Icon name="link" class="size-4 shrink-0" /></span>
+	<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+	<span data-copy-label aria-live="polite">Copiar enlace</span>
+</button>
+
+<style>
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-copy-link] [data-icon='check'] {
+		display: none;
+	}
+	[data-copy-link][data-state='done'] [data-icon='link'] {
+		display: none;
+	}
+	[data-copy-link][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-copy-link][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	const button = document.querySelector<HTMLButtonElement>('[data-copy-link]');
+	const label = button?.querySelector('[data-copy-label]');
+	let timer: number | undefined;
+
+	async function copy(text: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const field = document.createElement('textarea');
+				field.value = text;
+				field.readOnly = true;
+				field.style.position = 'fixed';
+				field.style.top = '0';
+				field.style.opacity = '0';
+				document.body.append(field);
+				field.select();
+				const done = document.execCommand('copy');
+				field.remove();
+				return done;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	button?.addEventListener('click', async () => {
+		// Sin la query: lo que se comparte es la página, no el mensaje de turno.
+		const done = await copy(`${location.origin}${location.pathname}`);
+
+		button.dataset.state = done ? 'done' : 'error';
+		if (label) label.textContent = done ? 'Enlace copiado' : 'No se pudo copiar';
+
+		clearTimeout(timer);
+		timer = window.setTimeout(() => {
+			button.removeAttribute('data-state');
+			if (label) label.textContent = 'Copiar enlace';
+		}, 2000);
+	});
+</script>
