@@ -16,6 +16,7 @@ export const TABLES = [
 			CHECK (status IN ('pending', 'grouped', 'selected', 'discarded')),
 		discard_reason TEXT,
 		cluster_id INTEGER REFERENCES clusters(id) ON DELETE SET NULL,
+		edits INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL
 	)`,
 	`CREATE TABLE IF NOT EXISTS clusters (
@@ -95,6 +96,8 @@ export interface Prompt {
 	status: string;
 	discardReason: string | null;
 	clusterId: number | null;
+	/** Veces que su autor la ha cambiado en esta ventana. */
+	edits: number;
 	createdAt: string;
 }
 

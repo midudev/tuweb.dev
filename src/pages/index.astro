@@ -21,14 +21,15 @@ const ok = Astro.url.searchParams.get('ok');
 const error = Astro.url.searchParams.get('error');
 const flashesOk: Record<string, string> = {
 	prompt: 'Tu idea entra en esta ventana.',
+	cambio: 'Idea cambiada.',
 };
 const flashesError: Record<string, string> = {
 	login: 'Entra con GitHub para continuar.',
 	oauth: 'Falta configurar GitHub para poder entrar.',
 	auth: 'No se pudo entrar con GitHub.',
 	length: 'Entre 16 y 280 caracteres.',
-	filtro: 'La IA ha descartado tu idea.',
 	enviada: 'Ya enviaste tu idea en esta ventana. Espera a la siguiente.',
+	cambios: 'Ya has gastado los cambios de esta ventana.',
 	origin: 'Petición no válida.',
 };
 const flash = (ok && flashesOk[ok]) || (error && flashesError[error]) || null;

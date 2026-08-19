@@ -29,6 +29,7 @@ function open() {
 	}
 
 	migrateReleaseStatuses(sqlite);
+	migratePromptEdits(sqlite);
 
 	// Antes existía la regla de una idea por ventana solo en el código, así que
 	// una base de datos vieja puede traer dos pendientes del mismo usuario. Sin
@@ -83,6 +84,17 @@ function migrateReleaseStatuses(sqlite: DatabaseSync) {
 	} finally {
 		sqlite.exec('PRAGMA foreign_keys = ON');
 	}
+}
+
+/**
+ * La columna de cambios llegó después: en una base ya creada hay que añadirla a
+ * mano, porque CREATE TABLE IF NOT EXISTS se encuentra la tabla y no hace nada.
+ */
+function migratePromptEdits(sqlite: DatabaseSync) {
+	const columnas = sqlite.prepare('PRAGMA table_info(prompts)').all() as { name: string }[];
+	if (columnas.some((columna) => columna.name === 'edits')) return;
+
+	sqlite.exec('ALTER TABLE prompts ADD COLUMN edits INTEGER NOT NULL DEFAULT 0');
 }
 
 export function getDb() {

@@ -22,7 +22,11 @@ export interface MyPrompt {
 	body: string;
 	status: string;
 	discardReason: string | null;
+	edits: number;
 }
+
+/** Cambios que se permiten por idea. Al cerrar la ventana empieza otra idea. */
+export const MAX_EDITS = 3;
 
 /** La ventana abierta va desde el último ciclo hasta WINDOW_MS después. */
 function getWindow() {
@@ -41,7 +45,7 @@ function getWindow() {
 export function getMyPromptInWindow(userId: number) {
 	const { startedAt } = getWindow();
 	return get<MyPrompt>(
-		`SELECT id, body, status, discard_reason AS discardReason
+		`SELECT id, body, status, discard_reason AS discardReason, edits
 		 FROM prompts
 		 WHERE user_id = ? AND created_at >= ?
 		 ORDER BY created_at DESC LIMIT 1`,
@@ -145,6 +149,23 @@ export function createPrompt(userId: number, body: string, verdict: { keep: bool
 		status,
 		discardReason,
 		nowIso(),
+	);
+}
+
+/**
+ * Cambiar una idea que ya estaba enviada. Pasa el mismo filtro que la primera
+ * vez, así que un cambio puede acabar descartado o rescatar una descartada.
+ */
+export function updatePrompt(id: number, body: string, verdict: { keep: boolean; reason?: string }) {
+	return get<MyPrompt>(
+		`UPDATE prompts
+		 SET body = ?, status = ?, discard_reason = ?, edits = edits + 1
+		 WHERE id = ?
+		 RETURNING id, body, status, discard_reason AS discardReason, edits`,
+		body,
+		verdict.keep ? 'pending' : 'discarded',
+		verdict.keep ? null : (verdict.reason ?? 'spam'),
+		id,
 	);
 }
 

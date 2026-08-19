@@ -1,6 +1,7 @@
 ---
 import type { SessionUser } from '../lib/auth';
 import { getGithubConfig } from '../lib/env';
+import { MAX_EDITS } from '../lib/db/queries';
 import type { SiteState } from '../lib/releases';
 import { DISCARD_LABELS } from '../lib/window';
 import Icon from './Icon.astro';
@@ -8,7 +9,7 @@ import WindowClock from './WindowClock.astro';
 
 interface Props {
 	user: SessionUser | null;
-	myPrompt: { body: string; status: string; discardReason: string | null } | null;
+	myPrompt: { body: string; status: string; discardReason: string | null; edits: number } | null;
 	endsAt: string;
 	state: SiteState;
 }
@@ -16,6 +17,10 @@ interface Props {
 const { user, myPrompt, endsAt, state } = Astro.props;
 const githubReady = getGithubConfig().configured;
 const discarded = myPrompt?.status === 'discarded';
+// La idea se puede cambiar unas cuantas veces mientras la ventana siga abierta.
+// Al cerrarse empieza otra idea, así que la cuenta vuelve a cero sola.
+const left = myPrompt ? MAX_EDITS - myPrompt.edits : MAX_EDITS;
+const editable = left > 0;
 // Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
 const overdue = new Date(endsAt).getTime() <= Date.now();
 // Con la IA trabajando lo que toca no es "espera", es "manda la siguiente".
@@ -24,7 +29,7 @@ const working = state === 'building' || state === 'repairing';
 
 <section id="proponer" class="border border-line bg-bg px-8 py-7" data-live="propose">
 	{
-		myPrompt ? (
+		myPrompt && !editable ? (
 			<div class="flex flex-col gap-6">
 				<p class="max-w-[52ch] text-2xl/normal text-pretty">{myPrompt.body}</p>
 
@@ -34,7 +39,7 @@ const working = state === 'building' || state === 'repairing';
 							La IA descartó tu idea: {DISCARD_LABELS[myPrompt.discardReason ?? 'spam'] ?? 'no encaja'}.
 						</p>
 					) : (
-						<p class="text-muted">Ya has enviado tu idea en esta ventana.</p>
+						<p class="text-muted">Ya has gastado los {MAX_EDITS} cambios de esta ventana.</p>
 					)}
 					<p class="text-muted">
 						<span data-window-open hidden={overdue}>
@@ -62,11 +67,25 @@ const working = state === 'building' || state === 'repairing';
 						disabled={!user}
 						placeholder="Escribe lo que le falta a esta web"
 						class="w-full resize-none border-0 bg-transparent p-0 text-2xl/normal outline-none placeholder:text-muted disabled:cursor-not-allowed"
+						set:text={myPrompt?.body ?? ''}
 					/>
 				</label>
 
 				<div class="flex flex-wrap items-center justify-between gap-6 border-t border-line pt-5">
 					<p class="max-w-lg text-sm text-muted">
+						{myPrompt && discarded && (
+							<span class="block text-mark">
+								La IA descartó tu idea:{' '}
+								{DISCARD_LABELS[myPrompt.discardReason ?? 'spam'] ?? 'no encaja'}. Cámbiala y vuelve
+								a intentarlo.
+							</span>
+						)}
+						{myPrompt && !discarded && (
+							<span class="block">
+								Tu idea está enviada. Puedes cambiarla {left} {left === 1 ? 'vez' : 'veces'} más en
+								esta ventana.
+							</span>
+						)}
 						<span data-window-open hidden={overdue}>
 							Una idea por persona en cada ventana. Se cierra en <WindowClock endsAt={endsAt} /> y
 							una IA implementa lo que más se repita.
@@ -83,7 +102,7 @@ const working = state === 'building' || state === 'repairing';
 							<div class="flex items-center gap-5 text-sm">
 								<span class="text-muted"><span data-prompt-count>0</span>/280</span>
 								<button type="submit" class="bg-accent px-6 py-3.5 text-bg hover:bg-mark">
-									Enviar mi idea
+									{myPrompt ? 'Cambiar mi idea' : 'Enviar mi idea'}
 								</button>
 							</div>
 						) : githubReady ? (
