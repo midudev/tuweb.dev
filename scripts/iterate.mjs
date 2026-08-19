@@ -222,12 +222,36 @@ function repairPrompt(winner, failure) {
 		.join('\n');
 }
 
+/**
+ * Lo que la IA no puede ni mirar. Las verjas de después atrapan un secreto que
+ * salga en el diff, pero esto es mejor: no llega a tenerlo nunca. Y escribir
+ * pesa aún más, porque .env y la base están fuera de git: si las machacara, un
+ * reset --hard no las devuelve.
+ */
+const CLAUDE_SETTINGS = JSON.stringify({
+	permissions: {
+		deny: [
+			'Read(**/.env*)',
+			'Edit(**/.env*)',
+			'Write(**/.env*)',
+			'Read(**/*.db)',
+			'Edit(**/*.db*)',
+			'Write(**/*.db*)',
+			'Read(**/.iterate*)',
+			'Edit(**/.iterate*)',
+			'Write(**/.iterate*)',
+		],
+	},
+});
+
 function runClaude(prompt, timeout) {
 	return spawnSync(
 		CLAUDE_CMD,
 		[
 			'-p',
 			prompt,
+			'--settings',
+			CLAUDE_SETTINGS,
 			'--permission-mode',
 			'acceptEdits',
 			'--allowedTools',
