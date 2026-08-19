@@ -17,12 +17,13 @@ const { endsAt } = Astro.props;
 >
 
 <script>
-	const clocks = document.querySelectorAll<HTMLElement>('[data-window-clock]');
-	const abiertos = document.querySelectorAll<HTMLElement>('[data-window-open]');
-	const cerrados = document.querySelectorAll<HTMLElement>('[data-window-closed]');
-
-	if (clocks.length > 0) {
+	// Se busca en cada vuelta: la portada cambia trozos enteros por su cuenta y
+	// una lista guardada al cargar se quedaría apuntando a lo que ya no está.
+	if (document.querySelector('[data-window-clock]')) {
 		const tick = () => {
+			const clocks = document.querySelectorAll<HTMLElement>('[data-window-clock]');
+			const abiertos = document.querySelectorAll<HTMLElement>('[data-window-open]');
+			const cerrados = document.querySelectorAll<HTMLElement>('[data-window-closed]');
 			let vencida = false;
 
 			for (const clock of clocks) {
@@ -44,5 +45,7 @@ const { endsAt } = Astro.props;
 
 		tick();
 		setInterval(tick, 1000);
+		// La portada avisa cuando cambia un trozo con reloj dentro.
+		document.addEventListener('window-clock-tick', tick);
 	}
 </script>

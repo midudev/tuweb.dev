@@ -4,6 +4,7 @@ import FeatureLog from '../components/FeatureLog.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import IdeasLink from '../components/IdeasLink.astro';
+import LiveState from '../components/LiveState.astro';
 import ProposeForm from '../components/ProposeForm.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import Toolbox from '../components/Toolbox.astro';
@@ -58,10 +59,14 @@ const deployedAt =
 			<div class="flex min-w-0 grow flex-col">
 				<section class="border-b border-line bg-panel" aria-label="Tu idea">
 					<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
-						<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
+						<div data-live="header">
+							<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
+						</div>
 						{flash && <p class="text-sm text-mark">{flash}</p>}
 						<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
-						<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
+						<div data-live="ideas">
+							<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
+						</div>
 					</div>
 				</section>
 
@@ -75,7 +80,7 @@ const deployedAt =
 
 				<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
 				<div class="border-t border-line bg-panel">
-					<div class="mx-auto w-full max-w-5xl px-6 py-8">
+					<div class="mx-auto w-full max-w-5xl px-6 py-8" data-live="featurelog">
 						<FeatureLog
 							version={data.version}
 							lastShipped={data.lastShipped}
@@ -90,4 +95,6 @@ const deployedAt =
 
 		<Footer />
 	</div>
+
+	<LiveState />
 </Layout>

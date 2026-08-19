@@ -22,7 +22,7 @@ const overdue = new Date(endsAt).getTime() <= Date.now();
 const working = state === 'building' || state === 'repairing';
 ---
 
-<section id="proponer" class="border border-line bg-bg px-8 py-7">
+<section id="proponer" class="border border-line bg-bg px-8 py-7" data-live="propose">
 	{
 		myPrompt ? (
 			<div class="flex flex-col gap-6">
@@ -105,14 +105,17 @@ const working = state === 'building' || state === 'repairing';
 </section>
 
 <script>
-	const input = document.querySelector<HTMLTextAreaElement>('[data-prompt-input]');
-	const count = document.querySelector('[data-prompt-count]');
-	if (input && count) {
-		const update = () => {
-			count.textContent = String(input.value.length);
-		};
-		input.addEventListener('input', update);
-		update();
-	}
+	// El contador escucha en el documento: la portada puede cambiar este
+	// formulario entero al ponerse al día y el textarea de antes desaparece.
+	const update = () => {
+		const input = document.querySelector<HTMLTextAreaElement>('[data-prompt-input]');
+		const count = document.querySelector('[data-prompt-count]');
+		if (input && count) count.textContent = String(input.value.length);
+	};
 
+	document.addEventListener('input', (event) => {
+		if ((event.target as HTMLElement | null)?.closest?.('[data-prompt-input]')) update();
+	});
+
+	update();
 </script>

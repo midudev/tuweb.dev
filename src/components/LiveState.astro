@@ -1,0 +1,79 @@
+---
+/**
+ * La portada se pone al día sola cada minuto: vuelve a pedir la página y
+ * cambia solo los trozos marcados con data-live. No recarga nada, así que lo
+ * que alguien esté escribiendo o tenga en el foco se queda tal cual.
+ */
+---
+
+<script>
+	const CADA_MS = 60_000;
+
+	/**
+	 * Para comparar hay que quitar lo que cambia solo en el navegador: la cuenta
+	 * atrás va por su cuenta cada segundo y en la página recién pedida marca
+	 * otra cosa. Sin esto todo parecería distinto siempre.
+	 */
+	function firma(zona: HTMLElement) {
+		const copia = zona.cloneNode(true) as HTMLElement;
+
+		for (const clock of copia.querySelectorAll('[data-window-clock]')) clock.textContent = '';
+		for (const span of copia.querySelectorAll('[data-window-open], [data-window-closed]')) {
+			span.removeAttribute('hidden');
+		}
+
+		return copia.innerHTML;
+	}
+
+	/** No se pisa una zona con el foco dentro ni con algo escrito a medias. */
+	function ocupada(zona: HTMLElement) {
+		if (zona.contains(document.activeElement)) return true;
+
+		const campos = zona.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+		return Array.from(campos).some((campo) => campo.value !== campo.defaultValue);
+	}
+
+	let pidiendo = false;
+
+	async function refrescar() {
+		// Con la pestaña de fondo no se gasta petición: al volver ya se pide.
+		if (pidiendo || document.hidden) return;
+		pidiendo = true;
+
+		try {
+			// Sin la query: el mensaje de turno no tiene que volver a salir.
+			const respuesta = await fetch(location.pathname, {
+				headers: { accept: 'text/html' },
+				cache: 'no-store',
+			});
+			if (!respuesta.ok) return;
+
+			const fresca = new DOMParser().parseFromString(await respuesta.text(), 'text/html');
+
+			let cambiado = false;
+
+			for (const zona of document.querySelectorAll<HTMLElement>('[data-live]')) {
+				const nueva = fresca.querySelector<HTMLElement>(`[data-live="${zona.dataset.live}"]`);
+				if (!nueva || ocupada(zona) || firma(nueva) === firma(zona)) continue;
+
+				zona.innerHTML = nueva.innerHTML;
+				cambiado = true;
+			}
+
+			// La cuenta atrás recién puesta marca --:--: se pone en hora ya, antes
+			// de que se pinte, en vez de esperar al siguiente segundo.
+			if (cambiado) document.dispatchEvent(new Event('window-clock-tick'));
+		} catch {
+			// Si la red falla se deja lo que hay y se reintenta al minuto.
+		} finally {
+			pidiendo = false;
+		}
+	}
+
+	setInterval(refrescar, CADA_MS);
+
+	// Al volver a la pestaña lo que se ve puede llevar rato parado.
+	document.addEventListener('visibilitychange', () => {
+		if (!document.hidden) refrescar();
+	});
+</script>
