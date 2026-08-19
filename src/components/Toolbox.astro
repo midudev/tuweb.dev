@@ -1,0 +1,327 @@
+---
+import Icon from './Icon.astro';
+
+const tools = [
+	{ id: 'json', label: 'JSON → YAML', icon: 'braces' },
+	{ id: 'cron', label: 'Cron en cristiano', icon: 'clock' },
+	{ id: 'regex', label: 'Probador de regex', icon: 'regex' },
+];
+---
+
+<section id="herramientas" class="flex flex-col gap-7">
+	<h2 class="font-pixel text-[22px] font-normal">Caja de herramientas</h2>
+
+	<div role="tablist" aria-label="Herramientas" class="flex flex-wrap gap-2">
+		{
+			tools.map((tool, index) => (
+				<button
+					type="button"
+					role="tab"
+					id={`tab-${tool.id}`}
+					aria-controls={`panel-${tool.id}`}
+					aria-selected={index === 0 ? 'true' : 'false'}
+					data-tool={tool.id}
+					class="inline-flex items-center gap-2 border border-line px-4 py-3 text-sm text-muted hover:text-fg aria-selected:border-accent aria-selected:text-accent"
+				>
+					<Icon name={tool.icon} class="size-4 shrink-0" />
+					{tool.label}
+				</button>
+			))
+		}
+	</div>
+
+	<div role="tabpanel" id="panel-json" aria-labelledby="tab-json" data-panel="json" class="grid gap-4 md:grid-cols-2">
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">JSON</span>
+			<textarea
+				data-json-input
+				rows="10"
+				spellcheck="false"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+			>{'{\n  "nombre": "tuweb",\n  "version": 3,\n  "tags": ["astro", "sqlite"]\n}'}</textarea>
+		</label>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">YAML</span>
+			<textarea
+				data-json-output
+				rows="10"
+				readonly
+				spellcheck="false"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"
+			></textarea>
+		</label>
+	</div>
+
+	<div role="tabpanel" id="panel-cron" aria-labelledby="tab-cron" data-panel="cron" hidden class="flex flex-col gap-4">
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Expresión cron (min hora día mes día-semana)</span>
+			<input
+				type="text"
+				data-cron-input
+				value="*/30 * * * *"
+				spellcheck="false"
+				class="w-full border border-line bg-panel p-4 text-lg outline-none focus-visible:border-accent"
+			/>
+		</label>
+		<p data-cron-output class="text-lg text-mark"></p>
+		<div class="flex flex-wrap gap-2 text-sm">
+			{
+				['*/30 * * * *', '0 9 * * 1-5', '15 3 1 * *', '0 0 * * 0'].map((sample) => (
+					<button
+						type="button"
+						data-cron-sample={sample}
+						class="border border-line px-3 py-2 text-muted hover:border-accent hover:text-accent"
+					>
+						{sample}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div role="tabpanel" id="panel-regex" aria-labelledby="tab-regex" data-panel="regex" hidden class="flex flex-col gap-4">
+		<div class="flex flex-wrap gap-4">
+			<label class="flex flex-1 flex-col gap-2">
+				<span class="text-sm text-muted">Patrón</span>
+				<input
+					type="text"
+					data-regex-pattern
+					value="\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b"
+					spellcheck="false"
+					class="w-full border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+				/>
+			</label>
+			<label class="flex w-32 flex-col gap-2">
+				<span class="text-sm text-muted">Flags</span>
+				<input
+					type="text"
+					data-regex-flags
+					value="gi"
+					spellcheck="false"
+					class="w-full border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+				/>
+			</label>
+		</div>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Texto</span>
+			<textarea
+				data-regex-text
+				rows="6"
+				spellcheck="false"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+			>Escribe a hola@tuweb.dev o a soporte@ejemplo.org y te contestamos.</textarea>
+		</label>
+		<p data-regex-output class="text-sm text-mark"></p>
+	</div>
+</section>
+
+<script>
+	const panels = document.querySelectorAll<HTMLElement>('[data-panel]');
+	const tabs = document.querySelectorAll<HTMLButtonElement>('[data-tool]');
+
+	tabs.forEach((tab) => {
+		tab.addEventListener('click', () => {
+			tabs.forEach((other) => other.setAttribute('aria-selected', String(other === tab)));
+			panels.forEach((panel) => {
+				panel.hidden = panel.dataset.panel !== tab.dataset.tool;
+			});
+		});
+	});
+
+	// JSON → YAML
+	const jsonInput = document.querySelector<HTMLTextAreaElement>('[data-json-input]');
+	const jsonOutput = document.querySelector<HTMLTextAreaElement>('[data-json-output]');
+
+	function scalar(value: unknown) {
+		if (value === null) return 'null';
+		if (typeof value === 'boolean' || typeof value === 'number') return String(value);
+		const text = String(value);
+		if (text === '' || /^[\s#&*!|>%@`'"]|[:#]\s|\s$|^(true|false|null|-?\d+(\.\d+)?)$/i.test(text)) {
+			return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+		}
+		return text;
+	}
+
+	function toYaml(value: unknown, depth = 0): string {
+		const pad = '  '.repeat(depth);
+
+		if (Array.isArray(value)) {
+			if (value.length === 0) return `${pad}[]`;
+			return value
+				.map((item) => {
+					if (item !== null && typeof item === 'object') {
+						return `${pad}-\n${toYaml(item, depth + 1)}`;
+					}
+					return `${pad}- ${scalar(item)}`;
+				})
+				.join('\n');
+		}
+
+		if (value !== null && typeof value === 'object') {
+			const entries = Object.entries(value as Record<string, unknown>);
+			if (entries.length === 0) return `${pad}{}`;
+			return entries
+				.map(([key, item]) => {
+					if (item !== null && typeof item === 'object' && Object.keys(item).length > 0) {
+						return `${pad}${key}:\n${toYaml(item, depth + 1)}`;
+					}
+					if (item !== null && typeof item === 'object') {
+						return `${pad}${key}: ${Array.isArray(item) ? '[]' : '{}'}`;
+					}
+					return `${pad}${key}: ${scalar(item)}`;
+				})
+				.join('\n');
+		}
+
+		return `${pad}${scalar(value)}`;
+	}
+
+	function renderYaml() {
+		if (!jsonInput || !jsonOutput) return;
+		const raw = jsonInput.value.trim();
+		if (!raw) {
+			jsonOutput.value = '';
+			return;
+		}
+		try {
+			jsonOutput.value = toYaml(JSON.parse(raw));
+		} catch (error) {
+			jsonOutput.value = `JSON no válido: ${(error as Error).message}`;
+		}
+	}
+
+	jsonInput?.addEventListener('input', renderYaml);
+	renderYaml();
+
+	// Cron → texto
+	const cronInput = document.querySelector<HTMLInputElement>('[data-cron-input]');
+	const cronOutput = document.querySelector<HTMLElement>('[data-cron-output]');
+	const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+	const DAYS_PLURAL = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
+	const RANGES: [number, number][] = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
+	const MONTHS = [
+		'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+		'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+	];
+
+	function listOf(field: string, names?: string[]) {
+		const parts = field.split(',').map((part) => {
+			const range = part.match(/^(\d+)-(\d+)$/);
+			if (range) {
+				const from = Number(range[1]);
+				const to = Number(range[2]);
+				return names ? `de ${names[from]} a ${names[to]}` : `del ${from} al ${to}`;
+			}
+			const value = Number(part);
+			return names ? names[value] : String(value);
+		});
+		if (parts.length === 1) return parts[0];
+		return `${parts.slice(0, -1).join(', ')} y ${parts.at(-1)}`;
+	}
+
+	function describeCron(expression: string) {
+		const fields = expression.trim().split(/\s+/);
+		if (fields.length !== 5) return 'Hacen falta cinco campos: minuto, hora, día, mes y día de la semana.';
+
+		if (!fields.every((field) => /^(\*|\d+|\*\/\d+|\d+(-\d+)?(,\d+(-\d+)?)*)$/.test(field))) {
+			return 'No entiendo esa expresión. Se admiten *, números, listas (1,2), rangos (1-5) y pasos (*/5).';
+		}
+
+		let stepError = '';
+		const names = ['minuto', 'hora', 'día del mes', 'mes', 'día de la semana'];
+		const outOfRange = fields.findIndex((field, index) => {
+			const [min, max] = RANGES[index];
+			const step = field.match(/^\*\/(\d+)$/);
+			if (step) {
+				const invalid = Number(step[1]) < 1 || Number(step[1]) > max;
+				if (invalid) stepError = `El paso de ${names[index]} tiene que estar entre 1 y ${max}.`;
+				return invalid;
+			}
+			return field
+				.split(/[,-]/)
+				.filter((part) => part !== '*')
+				.some((part) => Number(part) < min || Number(part) > max);
+		});
+		if (outOfRange >= 0) {
+			if (stepError) return stepError;
+			const [min, max] = RANGES[outOfRange];
+			return `El ${names[outOfRange]} tiene que estar entre ${min} y ${max}.`;
+		}
+
+		// El domingo se escribe 0 o 7.
+		const [minute, hour, dayOfMonth, month] = fields;
+		const dayOfWeek = fields[4].replace(/\b7\b/g, '0');
+
+		const parts: string[] = [];
+		const everyMinute = minute.match(/^\*\/(\d+)$/);
+		const everyHour = hour.match(/^\*\/(\d+)$/);
+
+		if (minute === '*' && hour === '*') parts.push('cada minuto');
+		else if (everyMinute && hour === '*') parts.push(`cada ${everyMinute[1]} minutos`);
+		else if (everyHour) parts.push(`cada ${everyHour[1]} horas, en el minuto ${minute === '*' ? '0' : minute}`);
+		else if (hour === '*') parts.push(`en el minuto ${listOf(minute)} de cada hora`);
+		else if (/^\d+$/.test(hour) && /^\d+$/.test(minute)) {
+			parts.push(`a las ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`);
+		} else if (/^\d+$/.test(minute) && /^[\d,]+$/.test(hour)) {
+			const times = hour.split(',').map((value) => `${value.padStart(2, '0')}:${minute.padStart(2, '0')}`);
+			parts.push(`a las ${times.slice(0, -1).join(', ')} y ${times.at(-1)}`);
+		} else parts.push(`en las horas ${listOf(hour)}, minuto ${listOf(minute)}`);
+
+		if (dayOfWeek !== '*') {
+			parts.push(dayOfWeek.includes('-') ? listOf(dayOfWeek, DAYS) : `los ${listOf(dayOfWeek, DAYS_PLURAL)}`);
+		}
+		if (dayOfMonth !== '*') {
+			parts.push(/^\d+$/.test(dayOfMonth) ? `el día ${dayOfMonth} del mes` : `los días ${listOf(dayOfMonth)} del mes`);
+		}
+		if (month !== '*') parts.push(`en ${listOf(month.replace(/\d+/g, (n) => String(Number(n) - 1)), MONTHS)}`);
+		if (dayOfWeek === '*' && dayOfMonth === '*' && month === '*' && !parts[0].startsWith('cada')) {
+			parts.push('todos los días');
+		}
+
+		return `${parts.join(', ')}.`;
+	}
+
+	function renderCron() {
+		if (!cronInput || !cronOutput) return;
+		cronOutput.textContent = describeCron(cronInput.value);
+	}
+
+	cronInput?.addEventListener('input', renderCron);
+	document.querySelectorAll<HTMLButtonElement>('[data-cron-sample]').forEach((button) => {
+		button.addEventListener('click', () => {
+			if (!cronInput) return;
+			cronInput.value = button.dataset.cronSample ?? '';
+			renderCron();
+		});
+	});
+	renderCron();
+
+	// Regex
+	const regexPattern = document.querySelector<HTMLInputElement>('[data-regex-pattern]');
+	const regexFlags = document.querySelector<HTMLInputElement>('[data-regex-flags]');
+	const regexText = document.querySelector<HTMLTextAreaElement>('[data-regex-text]');
+	const regexOutput = document.querySelector<HTMLElement>('[data-regex-output]');
+
+	function renderRegex() {
+		if (!regexPattern || !regexFlags || !regexText || !regexOutput) return;
+		if (!regexPattern.value) {
+			regexOutput.textContent = '';
+			return;
+		}
+		try {
+			const flags = regexFlags.value.includes('g') ? regexFlags.value : `${regexFlags.value}g`;
+			const matches = [...regexText.value.matchAll(new RegExp(regexPattern.value, flags))];
+			if (matches.length === 0) {
+				regexOutput.textContent = 'Ninguna coincidencia.';
+				return;
+			}
+			const shown = matches.slice(0, 20).map((match) => `${match.index}: ${match[0]}`);
+			regexOutput.textContent = `${matches.length} coincidencias · ${shown.join(' · ')}`;
+		} catch (error) {
+			regexOutput.textContent = `Patrón no válido: ${(error as Error).message}`;
+		}
+	}
+
+	[regexPattern, regexFlags, regexText].forEach((element) => element?.addEventListener('input', renderRegex));
+	renderRegex();
+</script>

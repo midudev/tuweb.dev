@@ -1,0 +1,23 @@
+---
+import Icon from './Icon.astro';
+---
+
+<footer class="border-t border-line bg-panel">
+	<div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-7 text-sm text-muted">
+		<p class="inline-flex items-center gap-1.5">
+			Desarrollado con
+			<Icon name="heart-filled" class="size-4 shrink-0 text-heart" />
+			con <a href="https://midu.dev" class="text-accent hover:underline">@midudev</a>
+		</p>
+		<div class="flex flex-wrap items-center gap-6">
+			<a href="/changelog" class="text-accent hover:underline">Changelog</a>
+			<a
+				href="https://github.com/midudev/tuweb.dev"
+				class="inline-flex items-center gap-2 text-accent hover:underline"
+			>
+				<Icon name="brand-github" class="size-4 shrink-0" />
+				El código de esta web
+			</a>
+		</div>
+	</div>
+</footer>

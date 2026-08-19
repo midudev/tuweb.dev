@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/*
+ * Las fuentes van servidas por nosotros y precargadas desde el <head>, con
+ * font-display: block. Así el texto nunca se pinta con la tipografía de
+ * respaldo para cambiar después: o sale ya bien, o tarda unos milisegundos.
+ * Solo latin y latin-ext; el resto de alfabetos no hacen falta aquí.
+ */
+@font-face {
+	font-family: 'Geist Mono Variable';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: block;
+	src: url('/fonts/geist-mono-latin-wght-normal.woff2') format('woff2-variations');
+	unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+	font-family: 'Geist Mono Variable';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: block;
+	src: url('/fonts/geist-mono-latin-ext-wght-normal.woff2') format('woff2-variations');
+	unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+	font-family: 'Geist Pixel';
+	font-style: normal;
+	font-weight: 400;
+	font-display: block;
+	src: url('/fonts/geist-pixel-latin-400-normal.woff2') format('woff2');
+	unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+	font-family: 'Geist Pixel';
+	font-style: normal;
+	font-weight: 400;
+	font-display: block;
+	src: url('/fonts/geist-pixel-latin-ext-400-normal.woff2') format('woff2');
+	unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+
+@theme {
+	--font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, monospace;
+	--font-pixel: "Geist Pixel", ui-monospace, monospace;
+	--color-bg: #0a0a0a;
+	--color-fg: #ececec;
+	--color-muted: #737373;
+	--color-line: #222222;
+	--color-panel: #111111;
+	--color-accent: #00c2ff;
+	--color-mark: #6ad6ff;
+	--color-heart: oklch(0.7 0.14 18);
+	--color-ok: oklch(0.72 0.15 150);
+	--color-building: oklch(0.8 0.14 85);
+}
+
+html {
+	color-scheme: dark;
+	background: var(--color-bg);
+	color: var(--color-fg);
+}
+
+body {
+	min-height: 100vh;
+	background: var(--color-bg);
+}
+
+::selection {
+	background: var(--color-accent);
+	color: var(--color-bg);
+}
+
+:focus-visible {
+	outline: 1px solid var(--color-fg);
+	outline-offset: 2px;
+}

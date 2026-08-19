@@ -1,0 +1,79 @@
+---
+import type { SessionUser } from '../lib/auth';
+import { agoLabel } from '../lib/window';
+import GitHubLogin from './GitHubLogin.astro';
+import Icon from './Icon.astro';
+
+interface Props {
+	user: SessionUser | null;
+	version: number;
+	deployedAt?: string | null;
+	building?: boolean;
+	as?: 'h1' | 'p';
+}
+
+const { user, version, deployedAt = null, building = false, as: Tag = 'h1' } = Astro.props;
+const ago = deployedAt ? agoLabel(deployedAt) : null;
+const exactDate = deployedAt
+	? new Date(deployedAt).toLocaleDateString('es-ES', {
+			day: 'numeric',
+			month: 'long',
+			hour: '2-digit',
+			minute: '2-digit',
+		})
+	: null;
+---
+
+<header class="flex items-center justify-between gap-8">
+	<a href="/" class="group/logo inline-flex items-start gap-1.5 no-underline">
+		<Tag class="font-pixel text-[26px] leading-none font-normal">esta web es tuya</Tag>
+		<span class="group/ver relative inline-flex items-start gap-1.5">
+			<span class="font-pixel text-xs leading-none text-accent">v{version}</span>
+			<span
+				class:list={[
+					'mt-px size-1.5 shrink-0 rounded-full',
+					building ? 'animate-pulse bg-building motion-reduce:animate-none' : 'bg-ok',
+				]}
+			/>
+			<span class="sr-only">
+				{building ? 'Construyendo una versión nueva' : 'Sin cambios en marcha'}
+			</span>
+			{
+				ago && (
+					<span
+						role="tooltip"
+						class="pointer-events-none absolute top-full left-1/2 z-10 mt-2 -translate-x-1/2 border border-line bg-panel px-3 py-2 text-xs whitespace-nowrap text-muted opacity-0 transition-opacity group-hover/ver:opacity-100 group-focus-visible/logo:opacity-100"
+					>
+						{building ? 'Construyendo una versión nueva. ' : ''}Desplegada {ago} · {exactDate}
+					</span>
+				)
+			}
+		</span>
+	</a>
+
+	{
+		user ? (
+			<div class="flex items-center gap-4 text-sm">
+				<span class="flex items-center gap-2.5">
+					<img
+						src={user.avatarUrl}
+						alt=""
+						width="24"
+						height="24"
+						loading="lazy"
+						class="size-6 shrink-0 bg-panel"
+					/>
+					<span class="text-muted">{user.login}</span>
+				</span>
+				<form method="post" action="/api/auth/logout" class="flex">
+					<button type="submit" class="inline-flex items-center gap-1.5 text-muted hover:text-fg">
+						<Icon name="logout" class="size-4 shrink-0" />
+						Salir
+					</button>
+				</form>
+			</div>
+		) : (
+			<GitHubLogin />
+		)
+	}
+</header>

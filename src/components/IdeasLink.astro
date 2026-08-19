@@ -1,0 +1,18 @@
+---
+interface Props {
+	ideaCount: number;
+	discardedCount: number;
+}
+
+const { ideaCount, discardedCount } = Astro.props;
+---
+
+<div class="flex flex-wrap items-center justify-between gap-4 text-sm">
+	<a href="/ideas" class="inline-flex items-center gap-2 text-accent hover:underline">
+		{ideaCount === 0 ? 'Todavía no hay ideas en esta ventana' : `Ver las ${ideaCount} ideas de esta ventana`}
+		<svg class="size-4 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+			<path d="M5 12h14m-6 6l6-6m-6-6l6 6" />
+		</svg>
+	</a>
+	{discardedCount > 0 && <p class="text-muted">{discardedCount} descartadas por la IA</p>}
+</div>

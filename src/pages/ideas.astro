@@ -1,0 +1,106 @@
+---
+import Footer from '../components/Footer.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import { getIdeasData } from '../lib/db/queries';
+import Layout from '../layouts/Layout.astro';
+import { DISCARD_LABELS } from '../lib/window';
+
+const data = await getIdeasData();
+
+function hhmm(iso: string) {
+	return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
+const received = data.ideas.length + data.discarded.length;
+---
+
+<Layout title="Ideas de esta ventana — tuweb.dev">
+	<div class="flex min-h-screen flex-col">
+		<section class="flex flex-col gap-8 px-6 py-10">
+			<div class="mx-auto flex w-full max-w-5xl flex-col gap-8">
+				<a href="/" class="inline-flex items-center gap-2 self-start text-sm text-accent hover:underline">
+					<svg class="size-4 shrink-0 rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M5 12h14m-6 6l6-6m-6-6l6 6" />
+					</svg>
+					Volver a tuweb.dev
+				</a>
+
+				<div class="flex flex-wrap items-end justify-between gap-6">
+					<h1 class="font-pixel text-3xl leading-tight font-normal">Ideas de esta ventana</h1>
+					<p class="text-sm text-muted">
+						se cierra en <span
+							class="font-pixel text-lg tabular-nums text-accent"
+							data-window-clock
+							data-ends-at={data.window.endsAt}>--:--</span
+						>
+					</p>
+				</div>
+
+				<p class="max-w-2xl text-sm text-muted">
+					{received} recibidas · {data.ideas.length} pasan el filtro de la IA. Cuando se cierre la
+					ventana, gana lo que más se repita.
+				</p>
+
+				{
+					data.ideas.length === 0 ? (
+						<p class="text-muted">Todavía no hay ninguna idea en esta ventana.</p>
+					) : (
+						<ul class="flex flex-col">
+							{data.ideas.map((idea) => (
+								<li class="flex gap-5 border-t border-line py-3.5 last:border-b">
+									<span class="w-12 shrink-0 text-sm tabular-nums text-muted">{hhmm(idea.createdAt)}</span>
+									<p class="grow text-pretty">{idea.body}</p>
+									<span class="shrink-0 text-sm text-muted">@{idea.login}</span>
+								</li>
+							))}
+						</ul>
+					)
+				}
+			</div>
+		</section>
+
+		{
+			data.discarded.length > 0 && (
+				<section class="grow border-t border-line bg-panel px-6 py-9" aria-labelledby="label-descartadas">
+					<div class="mx-auto flex w-full max-w-5xl flex-col gap-5">
+						<div class="flex flex-wrap items-baseline justify-between gap-4">
+							<SectionLabel forId="label-descartadas">DESCARTADAS POR LA IA</SectionLabel>
+							<p class="text-sm text-muted">{data.discarded.length} de {received}</p>
+						</div>
+
+						<ul class="flex flex-col">
+							{data.discarded.map((item) => (
+								<li class="flex gap-5 border-t border-line py-3 text-sm text-muted last:border-b">
+									<p class="grow text-pretty">{item.body}</p>
+									<span class="shrink-0">{DISCARD_LABELS[item.reason ?? 'spam'] ?? 'no encaja'}</span>
+								</li>
+							))}
+						</ul>
+
+						<p class="text-sm text-muted">
+							Se descartan por repetidas, por no ser una funcionalidad o por pedir algo peligroso.
+						</p>
+					</div>
+				</section>
+			)
+		}
+
+		<Footer />
+	</div>
+</Layout>
+
+<script>
+	const clock = document.querySelector<HTMLElement>('[data-window-clock]');
+	if (clock) {
+		const ends = new Date(clock.dataset.endsAt ?? '').getTime();
+		const tick = () => {
+			const left = Math.max(0, ends - Date.now());
+			const total = Math.floor(left / 1000);
+			const minutes = String(Math.floor(total / 60)).padStart(2, '0');
+			const seconds = String(total % 60).padStart(2, '0');
+			clock.textContent = `${minutes}:${seconds}`;
+		};
+		tick();
+		setInterval(tick, 1000);
+	}
+</script>

@@ -1,0 +1,22 @@
+---
+import Icon from './Icon.astro';
+
+interface Props {
+	icon: string;
+	as?: 'h1' | 'h2' | 'h3';
+}
+
+const { icon, as: Tag = 'h2' } = Astro.props;
+const heading =
+	Tag === 'h1'
+		? 'font-pixel text-3xl leading-tight sm:text-4xl'
+		: Tag === 'h3'
+			? 'font-pixel text-lg'
+			: 'font-pixel text-xl';
+const glyph = Tag === 'h1' ? 'size-7' : 'size-5';
+---
+
+<Tag class:list={['flex items-center gap-2', heading]}>
+	<Icon name={icon} class:list={[glyph, 'shrink-0 text-accent']} />
+	<span><slot /></span>
+</Tag>

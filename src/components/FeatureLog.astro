@@ -1,0 +1,61 @@
+---
+import type { Feature, Release } from '../lib/db/schema';
+import Icon from './Icon.astro';
+
+interface Props {
+	version: number;
+	lastShipped: Feature | null;
+	next: Feature | null;
+	lastRelease: Release | null;
+}
+
+const { version, lastShipped, next, lastRelease } = Astro.props;
+const reverted = lastRelease?.status === 'rolled_back';
+const broken = lastRelease?.status === 'failed';
+---
+
+<div class="flex flex-col gap-5">
+	{
+		(reverted || broken) && (
+			<p class="flex items-start gap-2.5 text-sm text-mark">
+				<Icon name="alert-triangle" class="mt-0.5 size-4 shrink-0" />
+				<span>
+					{reverted
+						? 'La última actualización rompía algo y la web volvió sola a la versión anterior.'
+						: 'La última actualización falló y hace falta mirarla a mano.'}
+					{lastRelease?.error && <span class="text-muted"> {lastRelease.error}</span>}
+				</span>
+			</p>
+		)
+	}
+
+	<div class="grid gap-6 sm:grid-cols-2 sm:gap-10">
+		{
+			lastShipped && (
+				<div class="flex flex-col gap-2">
+					<p class="flex items-center gap-2 font-pixel text-xs tracking-wide text-accent">
+						<Icon name="check" class="size-3.5 shrink-0" />
+						ÚLTIMO CAMBIO
+					</p>
+					<p class="text-sm text-pretty">
+						<span class="font-pixel text-accent">v{version}</span>
+						<span class="text-muted"> · </span>
+						{lastShipped.title}
+					</p>
+				</div>
+			)
+		}
+
+		{
+			next && (
+				<div class="flex flex-col gap-2 sm:border-l sm:border-line sm:pl-10">
+					<p class="flex items-center gap-2 font-pixel text-xs tracking-wide text-muted">
+						<Icon name="hammer" class="size-3.5 shrink-0" />
+						EN CONSTRUCCIÓN
+					</p>
+					<p class="text-sm text-pretty">{next.title}</p>
+				</div>
+			)
+		}
+	</div>
+</div>

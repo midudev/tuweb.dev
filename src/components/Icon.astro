@@ -1,0 +1,27 @@
+---
+import { icons } from '@iconify-json/tabler';
+
+interface Props {
+	name: string;
+	class?: string;
+}
+
+const { name, class: className } = Astro.props;
+const icon = icons.icons[name];
+
+if (!icon) {
+	throw new Error(`Icono de Tabler desconocido: ${name}`);
+}
+
+const size = icons.width ?? 24;
+---
+
+<svg
+	class={className}
+	xmlns="http://www.w3.org/2000/svg"
+	width={size}
+	height={size}
+	viewBox={`0 0 ${size} ${size}`}
+	aria-hidden="true"
+	set:html={icon.body}
+/>

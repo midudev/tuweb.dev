@@ -1,0 +1,14 @@
+---
+interface Props {
+	forId?: string;
+}
+
+const { forId } = Astro.props;
+---
+
+<p
+	id={forId}
+	class="font-pixel text-xs tracking-wide text-accent"
+>
+	<slot />
+</p>
