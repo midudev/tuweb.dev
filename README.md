@@ -167,3 +167,11 @@ la web responde de verdad antes de dar el cambio por bueno y deshace solo si no.
 El repositorio trae la configuración de pm2 (`ecosystem.config.cjs`) y las
 unidades de systemd (`deploy/`) por si prefieres ese camino. Usa uno o el otro,
 no los dos.
+
+---
+
+## Licencia
+
+[Apache 2.0](LICENSE). Puedes usarlo, modificarlo y distribuirlo, también en
+proyectos comerciales, siempre que mantengas el aviso de copyright y digas qué
+has cambiado. Incluye una concesión expresa de patentes.
