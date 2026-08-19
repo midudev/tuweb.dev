@@ -17,8 +17,18 @@ pnpm-debug.log*
 .env
 .env.production
 
+# local Turso / libSQL
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
 # macOS-specific files
 .DS_Store
 
 # jetbrains setting folder
 .idea/
+.release-sha
+
+# guía de despliegue local
+GUIDE.md
