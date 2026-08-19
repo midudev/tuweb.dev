@@ -1,4 +1,5 @@
 ---
+import Dashboard from '../components/Dashboard.astro';
 import FeatureLog from '../components/FeatureLog.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
@@ -7,12 +8,13 @@ import ProposeForm from '../components/ProposeForm.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import Toolbox from '../components/Toolbox.astro';
 import { getSessionUser } from '../lib/auth';
-import { getHomeData } from '../lib/db/queries';
+import { getDashboardData, getHomeData } from '../lib/db/queries';
 import { siteState } from '../lib/releases';
 import Layout from '../layouts/Layout.astro';
 
 const user = await getSessionUser(Astro);
 const data = await getHomeData(user?.id);
+const dashboard = await getDashboardData();
 
 const ok = Astro.url.searchParams.get('ok');
 const error = Astro.url.searchParams.get('error');
@@ -39,34 +41,50 @@ const deployedAt =
 ---
 
 <Layout>
+	<!-- El dashboard es un raíl a la izquierda; el pie cruza por debajo de las dos columnas. -->
 	<div class="flex min-h-screen flex-col">
-		<section class="border-b border-line bg-panel" aria-label="Tu idea">
-			<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
-				<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
-				{flash && <p class="text-sm text-mark">{flash}</p>}
-				<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
-				<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
-			</div>
-		</section>
+		<div class="flex grow flex-col lg:flex-row">
+			<Dashboard
+				version={data.version}
+				state={state}
+				ideaCount={data.ideaCount}
+				discardedCount={data.discardedCount}
+				endsAt={data.window.endsAt}
+				next={data.next}
+				totals={dashboard}
+				points={dashboard.points}
+			/>
 
-		<section class="grow bg-bg" aria-labelledby="label-app">
-			<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
-				<SectionLabel forId="label-app">Y ESTO ES LO QUE YA FUNCIONA</SectionLabel>
+			<div class="flex min-w-0 grow flex-col">
+				<section class="border-b border-line bg-panel" aria-label="Tu idea">
+					<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
+						<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
+						{flash && <p class="text-sm text-mark">{flash}</p>}
+						<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
+						<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
+					</div>
+				</section>
 
-				<Toolbox />
-			</div>
-		</section>
+				<section class="grow bg-bg" aria-labelledby="label-app">
+					<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
+						<SectionLabel forId="label-app">Y ESTO ES LO QUE YA FUNCIONA</SectionLabel>
 
-		<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
-		<div class="border-t border-line bg-panel">
-			<div class="mx-auto w-full max-w-5xl px-6 py-8">
-				<FeatureLog
-					version={data.version}
-					lastShipped={data.lastShipped}
-					next={data.next}
-					lastRelease={data.lastRelease}
-					state={state}
-				/>
+						<Toolbox />
+					</div>
+				</section>
+
+				<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
+				<div class="border-t border-line bg-panel">
+					<div class="mx-auto w-full max-w-5xl px-6 py-8">
+						<FeatureLog
+							version={data.version}
+							lastShipped={data.lastShipped}
+							next={data.next}
+							lastRelease={data.lastRelease}
+							state={state}
+						/>
+					</div>
+				</div>
 			</div>
 		</div>
 

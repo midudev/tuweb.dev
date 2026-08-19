@@ -1,0 +1,161 @@
+---
+/**
+ * El panel de la izquierda: los números de la web de un vistazo. En pantallas
+ * grandes es un raíl fijo que no se mueve al hacer scroll; en el móvil se
+ * queda arriba, en dos columnas y sin el gráfico, para no tapar el formulario.
+ */
+import type { CyclePoint } from '../lib/db/queries';
+import type { Feature } from '../lib/db/schema';
+import type { SiteState } from '../lib/releases';
+import Icon from './Icon.astro';
+import WindowClock from './WindowClock.astro';
+
+interface Props {
+	version: number;
+	state: SiteState;
+	ideaCount: number;
+	discardedCount: number;
+	endsAt: string;
+	next: Feature | null;
+	totals: { prompts: number; people: number; cycles: number };
+	points: CyclePoint[];
+}
+
+const { version, state, ideaCount, discardedCount, endsAt, next, totals, points } = Astro.props;
+
+const ESTADOS: Record<SiteState, { icon: string; text: string }> = {
+	idle: { icon: 'activity', text: 'sin cambios en marcha' },
+	building: { icon: 'hammer', text: 'construyendo una versión' },
+	repairing: { icon: 'tool', text: 'arreglando la última' },
+	broken: { icon: 'alert-triangle', text: 'rota, hay que mirarla' },
+	reverted: { icon: 'alert-triangle', text: 'vuelta a la anterior' },
+};
+
+// Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
+const overdue = new Date(endsAt).getTime() <= Date.now();
+const working = state === 'building' || state === 'repairing';
+
+const totales = [
+	{ label: 'ideas recibidas', value: totals.prompts },
+	{ label: 'personas', value: totals.people },
+	{ label: 'ventanas cerradas', value: totals.cycles },
+	{ label: 'versiones', value: version },
+];
+
+// La barra más larga es la ventana con más ideas; el resto va en proporción.
+const maxIdeas = Math.max(1, ...points.map((point) => point.ideas));
+
+function hhmm(iso: string) {
+	return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+---
+
+<aside
+	aria-label="Dashboard"
+	class="shrink-0 border-b border-line bg-panel px-6 py-7 lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:self-start lg:overflow-y-auto lg:border-r lg:border-b-0"
+>
+	<div class="mx-auto flex w-full max-w-5xl flex-col gap-7 lg:max-w-none">
+		<p class="flex items-center gap-2 font-pixel text-xs tracking-wide text-accent">
+			<Icon name="layout-dashboard" class="size-3.5 shrink-0" />
+			DASHBOARD
+		</p>
+
+		<div class="grid gap-7 sm:grid-cols-2 lg:grid-cols-1">
+			<section class="flex flex-col gap-3" aria-label="Esta ventana">
+				<h2 class="font-pixel text-xs tracking-wide text-muted">ESTA VENTANA</h2>
+
+				<p class="flex items-baseline gap-2">
+					<span data-window-open hidden={overdue}>
+						<WindowClock endsAt={endsAt} />
+						<span class="text-sm text-muted"> para cerrar</span>
+					</span>
+					<span data-window-closed hidden={!overdue} class="text-sm text-muted">
+						{working ? 'la IA está implementando' : 'cerrada, la IA elige en breve'}
+					</span>
+				</p>
+
+				<dl class="flex flex-col gap-1.5 text-sm">
+					<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+						<dt class="text-muted">ideas</dt>
+						<dd class="font-pixel text-accent tabular-nums">{ideaCount}</dd>
+					</div>
+					<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+						<dt class="text-muted">descartadas</dt>
+						<dd class="tabular-nums">{discardedCount}</dd>
+					</div>
+				</dl>
+			</section>
+
+			<section class="flex flex-col gap-3" aria-label="Estado">
+				<h2 class="font-pixel text-xs tracking-wide text-muted">ESTADO</h2>
+
+				<p class="flex items-baseline gap-2 text-sm">
+					<span class="font-pixel text-accent">v{version}</span>
+					<span
+						class:list={[
+							'flex items-baseline gap-1.5',
+							working && 'text-building',
+							!working && (state === 'idle' ? 'text-muted' : 'text-mark'),
+						]}
+					>
+						<Icon name={ESTADOS[state].icon} class="size-3.5 shrink-0 self-center" />
+						{ESTADOS[state].text}
+					</span>
+				</p>
+
+				{
+					next && (
+						<div class="flex flex-col gap-1 border-t border-line pt-2 text-sm">
+							<p class="text-muted">en construcción</p>
+							<p class="text-pretty">{next.title}</p>
+						</div>
+					)
+				}
+			</section>
+
+			<section class="flex flex-col gap-3" aria-label="Totales">
+				<h2 class="font-pixel text-xs tracking-wide text-muted">DESDE EL PRINCIPIO</h2>
+
+				<dl class="flex flex-col gap-1.5 text-sm">
+					{
+						totales.map((total) => (
+							<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+								<dt class="text-muted">{total.label}</dt>
+								<dd class="tabular-nums">{total.value}</dd>
+							</div>
+						))
+					}
+				</dl>
+			</section>
+
+			{
+				points.length > 0 && (
+					<section class="hidden flex-col gap-3 lg:flex" aria-label="Ideas por ventana">
+						<h2 class="font-pixel text-xs tracking-wide text-muted">IDEAS POR VENTANA</h2>
+
+						<ul class="flex flex-col gap-1.5">
+							{points.map((point) => (
+								<li class="flex items-center gap-2 text-xs">
+									<span class="w-10 shrink-0 tabular-nums text-muted">{hhmm(point.processedAt)}</span>
+									<span class="flex h-1.5 grow bg-line" title={point.title ?? 'ventana sin ideas'}>
+										<span
+											class="h-full bg-accent"
+											style={`width: ${Math.round((point.ideas / maxIdeas) * 100)}%`}
+										/>
+									</span>
+									<span class="w-5 shrink-0 text-right tabular-nums text-muted">{point.ideas}</span>
+								</li>
+							))}
+						</ul>
+					</section>
+				)
+			}
+		</div>
+
+		<nav class="flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-4 text-sm" aria-label="Atajos">
+			<a href="/ideas" class="text-accent hover:underline">Ideas</a>
+			<a href="#herramientas" class="text-accent hover:underline">Herramientas</a>
+			<a href="/changelog" class="text-accent hover:underline">Changelog</a>
+		</nav>
+	</div>
+</aside>

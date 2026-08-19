@@ -103,6 +103,35 @@ export function getIdeasData() {
 	return { window, ideas, discarded, version: version?.n ?? 0 };
 }
 
+export interface CyclePoint {
+	id: number;
+	processedAt: string;
+	ideas: number;
+	title: string | null;
+}
+
+/** Los números del dashboard: totales de siempre y las últimas ventanas. */
+export function getDashboardData() {
+	const totals = get<{ prompts: number; people: number }>(
+		'SELECT count(*) AS prompts, count(DISTINCT user_id) AS people FROM prompts',
+	);
+	const cycles = get<{ n: number }>('SELECT count(*) AS n FROM cycles');
+
+	// Se piden de la más nueva a la más vieja y se le da la vuelta: en el
+	// gráfico el tiempo baja, la última ventana queda abajo del todo.
+	const points = all<CyclePoint>(
+		`SELECT id, processed_at AS processedAt, pending_count AS ideas, winner_title AS title
+		 FROM cycles ORDER BY id DESC LIMIT 8`,
+	).reverse();
+
+	return {
+		prompts: totals?.prompts ?? 0,
+		people: totals?.people ?? 0,
+		cycles: cycles?.n ?? 0,
+		points,
+	};
+}
+
 export function createPrompt(userId: number, body: string, verdict: { keep: boolean; reason?: string }) {
 	const status = verdict.keep ? 'pending' : 'discarded';
 	const discardReason = verdict.keep ? null : (verdict.reason ?? 'spam');
