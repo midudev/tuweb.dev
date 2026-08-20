@@ -80,6 +80,25 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 				}
 			</div>
 
+			<div class="flex flex-col gap-3 border border-line bg-panel p-4">
+				<span class="text-sm text-muted">Color primario de la web</span>
+				<p class="text-sm">
+					Lo que elijas aquí repinta la web al momento y se guarda en este navegador.
+				</p>
+				<div class="flex flex-wrap items-center gap-3">
+					<button
+						type="button"
+						data-theme-reset
+						class="inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+					>
+						<Icon name="rotate" class="size-4 shrink-0" />
+						Restaurar el de siempre
+					</button>
+					<code data-theme-value class="text-sm text-mark"></code>
+				</div>
+				<p data-theme-note class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+			</div>
+
 			<div class="flex flex-wrap gap-2 text-sm">
 				{
 					SAMPLES.map((sample) => (
@@ -144,6 +163,7 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 
 <script>
 	import { type Color, formats, outOfGamut, parseColor, toHex, toRgb } from '../lib/color';
+	import { DEFAULT_ACCENT, accentFrom, applyAccent, readAccent, saveAccent, wasLifted } from '../lib/theme';
 
 	const input = document.querySelector<HTMLInputElement>('[data-color-input]');
 	const picker = document.querySelector<HTMLInputElement>('[data-color-picker]');
@@ -151,8 +171,38 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 	const note = document.querySelector<HTMLElement>('[data-color-note]');
 	const sliders = document.querySelectorAll<HTMLInputElement>('[data-slider]');
 
-	// El valor inicial es el que ya viene escrito en el campo.
+	// Si esta visita ya eligió color primario, el selector arranca con ese; si no,
+	// con el que viene escrito en el campo.
+	const saved = readAccent();
+	if (saved && input) input.value = saved;
+
 	let color: Color = parseColor(input?.value ?? '') ?? { l: 1, c: 0, h: 0, alpha: 1 };
+
+	const themeValue = document.querySelector<HTMLElement>('[data-theme-value]');
+	const themeNote = document.querySelector<HTMLElement>('[data-theme-note]');
+
+	/*
+	 * La web se repinta en cuanto se toca el color, pero guardarlo se espera un
+	 * poco: arrastrando un deslizador salen decenas de cambios por segundo y no
+	 * hace falta escribir en el localStorage en todos.
+	 */
+	const SAVE_DELAY = 400;
+	let saveTimer = 0;
+
+	function showTheme(hex: string, lifted: boolean) {
+		if (themeValue) themeValue.textContent = hex;
+		if (themeNote) {
+			themeNote.textContent = lifted ? 'Era muy oscuro para el fondo: lo hemos aclarado.' : '';
+		}
+	}
+
+	function paint(next: Color) {
+		const hex = accentFrom(next);
+		applyAccent(hex);
+		showTheme(hex, wasLifted(next));
+		clearTimeout(saveTimer);
+		saveTimer = window.setTimeout(() => saveAccent(hex), SAVE_DELAY);
+	}
 
 	// Los nombres de CSS (red, rebeccapurple…) los resuelve el navegador: no hace
 	// falta cargarse la lista entera para eso.
@@ -212,6 +262,7 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 		color = next;
 		if (input && text !== undefined) input.value = text;
 		render();
+		paint(next);
 	}
 
 	input?.addEventListener('input', () => {
@@ -248,6 +299,11 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 		});
 	});
 
+	document.querySelector<HTMLButtonElement>('[data-theme-reset]')?.addEventListener('click', () => {
+		const parsed = parseColor(DEFAULT_ACCENT);
+		if (parsed) update(parsed, DEFAULT_ACCENT);
+	});
+
 	const timers = new Map<HTMLButtonElement, number>();
 
 	document.querySelectorAll<HTMLButtonElement>('[data-copy-format]').forEach((button) => {
@@ -279,4 +335,6 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 	});
 
 	render();
+	// Al abrir solo se enseña el color que ya está puesto: nada que aplicar ni que guardar.
+	showTheme(accentFrom(color), wasLifted(color));
 </script>

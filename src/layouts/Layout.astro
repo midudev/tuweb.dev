@@ -40,6 +40,18 @@ const {
 		<meta name="generator" content={Astro.generator} />
 		<meta name="description" content={description} />
 		<title>{title}</title>
+
+		<!--
+			El color primario que se haya elegido en la caja de herramientas se aplica
+			en cuanto carga este script. Va en la cabecera y no en línea porque la CSP
+			es script-src 'self': lo más pronto que puede correr es esto.
+		-->
+		<script>
+			import { applyAccent, readAccent } from '../lib/theme';
+
+			const saved = readAccent();
+			if (saved) applyAccent(saved);
+		</script>
 	</head>
 	<body class="bg-bg font-mono text-fg antialiased">
 		<slot />
