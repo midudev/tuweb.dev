@@ -1,0 +1,595 @@
+---
+/**
+ * Un canal de chat a la vieja usanza, con pinta de IRC. No hay servidor detrás:
+ * los mensajes viven en el navegador de quien escribe y viajan en tiempo real
+ * entre las pestañas abiertas del mismo equipo. En el canal está claude, que es
+ * quien escribe el código de la web y responde con lo que sabe de la ventana.
+ */
+import type { Feature } from '../lib/db/schema';
+import Icon from './Icon.astro';
+
+interface Props {
+	login: string | null;
+	version: number;
+	ideaCount: number;
+	endsAt: string;
+	next: Feature | null;
+	lastShipped: Feature | null;
+}
+
+const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
+---
+
+<section
+	id="chat"
+	class="flex flex-col gap-7 border-t border-line pt-8"
+	data-nick={login}
+	data-version={version}
+	data-ideas={ideaCount}
+	data-ends-at={endsAt}
+	data-next={next?.title ?? ''}
+	data-last={lastShipped?.title ?? ''}
+>
+	<div class="flex flex-col gap-2">
+		<h2 class="flex items-center gap-2.5 font-pixel text-[22px] font-normal">
+			<Icon name="message-2" class="size-5 shrink-0 text-accent" />
+			Chat
+		</h2>
+		<p class="max-w-[60ch] text-sm text-muted">
+			Un canal como los de antes. Sin servidor: lo que escribes se queda en tu navegador y se ve al
+			momento en el resto de pestañas que tengas abiertas. En el canal está claude, que es quien
+			escribe el código; pregúntale lo que quieras. Escribe /help para los comandos.
+		</p>
+	</div>
+
+	<div class="flex flex-col border border-line bg-panel">
+		<div
+			class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-3"
+		>
+			<span class="flex items-center gap-1 font-pixel text-accent">
+				<Icon name="hash" class="size-4 shrink-0" />
+				tuweb
+			</span>
+			<span class="text-xs text-muted">
+				tema: esta web la cambias tú · v{version} · las ideas se proponen arriba
+			</span>
+		</div>
+
+		<div class="flex flex-col md:flex-row">
+			<div
+				data-log
+				role="log"
+				aria-live="polite"
+				aria-label="Mensajes del canal"
+				class="flex h-80 min-w-0 grow flex-col gap-1 overflow-y-auto px-4 py-3 text-sm"
+			>
+			</div>
+
+			<ul
+				data-users
+				aria-label="Quién hay en el canal"
+				class="flex shrink-0 flex-wrap gap-x-4 gap-y-1 border-t border-line px-4 py-3 text-sm md:w-44 md:flex-col md:border-t-0 md:border-l"
+			>
+			</ul>
+		</div>
+
+		<form data-form class="flex items-center gap-3 border-t border-line px-4 py-3">
+			<span data-nick-label aria-hidden="true" class="shrink-0 text-sm text-mark">&lt;tú&gt;</span>
+			<input
+				id="chat-input"
+				data-input
+				type="text"
+				maxlength="300"
+				autocomplete="off"
+				spellcheck="false"
+				aria-label="Mensaje para el canal #tuweb"
+				placeholder="Escribe y pulsa enter"
+				class="min-w-0 grow bg-transparent text-sm"
+			/>
+			<button
+				type="submit"
+				class="inline-flex shrink-0 items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+			>
+				<Icon name="send" class="size-4 shrink-0" />
+				Enviar
+			</button>
+		</form>
+	</div>
+</section>
+
+<style is:global>
+	/*
+	 * El color del nick sale de su nombre, siempre de la paleta de la casa. Va
+	 * global porque estas líneas las pinta el script y no llevan la marca del
+	 * componente; por eso todas cuelgan de #chat.
+	 */
+	#chat [data-c='0'] {
+		color: var(--color-accent);
+	}
+	#chat [data-c='1'] {
+		color: var(--color-mark);
+	}
+	#chat [data-c='2'] {
+		color: var(--color-ok);
+	}
+	#chat [data-c='3'] {
+		color: var(--color-building);
+	}
+	#chat [data-c='4'] {
+		color: var(--color-heart);
+	}
+	#chat [data-c='5'] {
+		color: var(--color-fg);
+	}
+</style>
+
+<script>
+	import { formatCountdown } from '../lib/window';
+
+	const section = document.querySelector<HTMLElement>('#chat');
+	const log = section?.querySelector<HTMLElement>('[data-log]');
+	const lista = section?.querySelector<HTMLElement>('[data-users]');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const input = section?.querySelector<HTMLInputElement>('[data-input]');
+	const etiqueta = section?.querySelector<HTMLElement>('[data-nick-label]');
+
+	if (section && log && lista && form && input && etiqueta) {
+		const CANAL = '#tuweb';
+		const BOT = 'claude';
+		const CLAVE_LOG = 'tuweb:irc:log';
+		const CLAVE_NICK = 'tuweb:irc:nick';
+		const CLAVE_BUS = 'tuweb:irc:bus';
+		const MAX_LINEAS = 200;
+		const LATIDO_MS = 10_000;
+		const OLVIDO_MS = 35_000;
+
+		type Linea = { id: string; at: number; nick: string; text: string; kind: 'msg' | 'me' };
+		type Aviso =
+			| { t: 'linea'; linea: Linea }
+			| { t: 'hola' | 'eco' | 'latido' | 'adios'; id: string; nick: string }
+			| { t: 'nick'; id: string; nick: string; antes: string };
+
+		// La sesión es la pestaña: dos pestañas del mismo navegador son dos personas
+		// distintas en el canal, como dos clientes de IRC en la misma máquina.
+		const yo = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+		const vecinos = new Map<string, { nick: string; visto: number }>();
+		let historial: Linea[] = [];
+		let dentro = true;
+		let contador = 0;
+
+		function guardado(clave: string) {
+			try {
+				return localStorage.getItem(clave);
+			} catch {
+				// Sin almacenamiento (modo privado): se chatea igual, sin memoria.
+				return null;
+			}
+		}
+
+		function guardar(clave: string, valor: string) {
+			try {
+				localStorage.setItem(clave, valor);
+			} catch {
+				// Da igual: el historial es un extra, no el chat.
+			}
+		}
+
+		function limpiarNick(texto: string) {
+			// Los nicks de IRC no llevan espacios y son cortos.
+			const limpio = texto
+				.trim()
+				.replace(/\s+/g, '_')
+				.replace(/[^\w[\]{}\\^`|-]/g, '')
+				.slice(0, 16);
+			return limpio.toLowerCase() === BOT ? '' : limpio;
+		}
+
+		// Con sesión de GitHub el nick es el de siempre; si no, el que se haya
+		// puesto en este navegador, y en el peor caso uno de invitado.
+		const deGitHub = limpiarNick(section.dataset.nick ?? '');
+		let nick =
+			deGitHub ||
+			limpiarNick(guardado(CLAVE_NICK) ?? '') ||
+			`invitado${Math.floor(Math.random() * 900 + 100)}`;
+		if (!deGitHub) guardar(CLAVE_NICK, nick);
+
+		const bus = 'BroadcastChannel' in window ? new BroadcastChannel('tuweb:irc') : null;
+
+		function emitir(aviso: Aviso) {
+			if (bus) {
+				bus.postMessage(aviso);
+				return;
+			}
+			// Sin BroadcastChannel el aviso viaja por el almacenamiento: las otras
+			// pestañas lo reciben en el evento storage. El contador evita que dos
+			// avisos iguales seguidos pasen desapercibidos.
+			contador += 1;
+			guardar(CLAVE_BUS, JSON.stringify({ ...aviso, n: contador }));
+		}
+
+		function color(quien: string) {
+			let suma = 0;
+			for (const letra of quien) suma = (suma * 31 + letra.charCodeAt(0)) % 997;
+			return String(suma % 6);
+		}
+
+		function hora(at: number) {
+			return new Date(at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+		}
+
+		function abajo() {
+			// Solo se sigue el hilo si ya se estaba mirando el final.
+			return log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+		}
+
+		function pintar(at: number, trozos: (Node | string)[]) {
+			const seguir = abajo();
+			const linea = document.createElement('p');
+			linea.className = 'flex gap-2';
+
+			const marca = document.createElement('span');
+			marca.className = 'shrink-0 text-muted';
+			marca.textContent = `[${hora(at)}]`;
+
+			const cuerpo = document.createElement('span');
+			cuerpo.className = 'min-w-0';
+			cuerpo.append(...trozos);
+
+			linea.append(marca, cuerpo);
+			log.append(linea);
+			while (log.childElementCount > MAX_LINEAS) log.firstElementChild?.remove();
+			if (seguir) log.scrollTop = log.scrollHeight;
+		}
+
+		function nickEl(quien: string) {
+			const span = document.createElement('span');
+			span.dataset.c = color(quien);
+			span.textContent = `<${quien}>`;
+			return span;
+		}
+
+		function sistema(texto: string, at = Date.now()) {
+			const span = document.createElement('span');
+			span.className = 'text-muted';
+			span.textContent = `-!- ${texto}`;
+			pintar(at, [span]);
+		}
+
+		function pintarLinea(linea: Linea) {
+			if (linea.kind === 'me') {
+				const span = document.createElement('span');
+				span.className = 'text-mark';
+				span.textContent = `* ${linea.nick} ${linea.text}`;
+				pintar(linea.at, [span]);
+				return;
+			}
+			pintar(linea.at, [nickEl(linea.nick), ' ', linea.text]);
+		}
+
+		function recordar(linea: Linea) {
+			historial = [...historial, linea].slice(-MAX_LINEAS);
+			guardar(CLAVE_LOG, JSON.stringify(historial));
+		}
+
+		function decir(quien: string, texto: string, kind: Linea['kind'] = 'msg') {
+			const linea: Linea = {
+				id: `${yo}-${(contador += 1)}`,
+				at: Date.now(),
+				nick: quien,
+				text: texto,
+				kind,
+			};
+			recordar(linea);
+			pintarLinea(linea);
+			emitir({ t: 'linea', linea });
+		}
+
+		function pintarUsuarios() {
+			const nicks = [
+				`@${BOT}`,
+				dentro ? nick : null,
+				...[...vecinos.values()].map((vecino) => vecino.nick),
+			].filter((quien): quien is string => Boolean(quien));
+
+			lista.replaceChildren(
+				...nicks.map((quien) => {
+					const item = document.createElement('li');
+					const span = document.createElement('span');
+					span.dataset.c = color(quien.replace(/^@/, ''));
+					span.textContent = quien;
+					item.append(span);
+					if (quien === nick) {
+						const tuyo = document.createElement('span');
+						tuyo.className = 'text-muted';
+						tuyo.textContent = ' (tú)';
+						item.append(tuyo);
+					}
+					return item;
+				}),
+			);
+		}
+
+		// --- El bot: responde con lo que la página ya sabe de la ventana ---
+
+		const version = section.dataset.version ?? '0';
+		const ideas = Number(section.dataset.ideas ?? '0');
+		const siguiente = section.dataset.next ?? '';
+		const ultima = section.dataset.last ?? '';
+
+		function cuantoQueda() {
+			const fin = new Date(section.dataset.endsAt ?? '').getTime();
+			if (!Number.isFinite(fin)) return 'poco';
+			const resto = fin - Date.now();
+			return resto <= 0 ? 'nada, está a punto de cerrarse' : formatCountdown(resto);
+		}
+
+		function respuesta(texto: string) {
+			const t = texto.toLowerCase();
+			const preguntan = (...palabras: string[]) => palabras.some((palabra) => t.includes(palabra));
+
+			if (preguntan('hola', 'buenas', 'hey', 'qué tal', 'que tal')) {
+				return 'Buenas. Pregunta lo que quieras del proceso o de la web.';
+			}
+			if (preguntan('gracias', 'grasias')) return 'A mandar.';
+			if (preguntan('quién eres', 'quien eres', 'quién es', 'quien es', 'eres humano')) {
+				return 'Soy claude, quien escribe el código de esta web. Las ideas las ponéis vosotros.';
+			}
+			if (preguntan('ventana', 'queda', 'cuánto', 'cuanto tiempo', 'cierra', 'reloj')) {
+				return `La ventana cierra en ${cuantoQueda()}. Ahora mismo hay ${ideas} ${ideas === 1 ? 'idea' : 'ideas'} compitiendo.`;
+			}
+			if (preguntan('idea', 'proponer', 'propongo', 'propuesta', 'sugerencia')) {
+				return `Hay ${ideas} ${ideas === 1 ? 'idea' : 'ideas'} en esta ventana. Escribe la tuya en el formulario de arriba: al cerrarse se elige una y la implemento. Puedes cambiarla hasta tres veces.`;
+			}
+			if (preguntan('versión', 'version', 'changelog', 'último cambio', 'ultimo cambio')) {
+				return ultima ? `Vamos por la v${version}. Lo último: ${ultima}.` : `Vamos por la v${version}.`;
+			}
+			if (preguntan('siguiente', 'próxim', 'proxim', 'construy', 'haciendo', 'ahora mismo')) {
+				return siguiente
+					? `Estoy con esto: ${siguiente}.`
+					: 'Ahora mismo no hay nada en marcha. A por la siguiente ventana.';
+			}
+			if (preguntan('servidor', 'tiempo real', 'guarda', 'privacidad', 'quién lee', 'quien lee')) {
+				return 'Este canal no tiene servidor: los mensajes se quedan en tu navegador y solo se ven entre tus pestañas. Para que os lea alguien de verdad, proponedlo como idea.';
+			}
+			if (preguntan('irc', 'mirc', 'old school', 'noventa')) {
+				return 'Como en los noventa, pero sin servidor. Solo falta el ruido del módem.';
+			}
+			if (preguntan('bug', 'error', 'roto', 'falla', 'no funciona')) {
+				return 'Si algo falla, cuéntalo como idea y lo arreglo en la siguiente ventana.';
+			}
+			if (preguntan('código', 'codigo', 'github', 'fuente', 'repo')) {
+				return 'Cada cambio se despliega solo y queda en el changelog, con su versión y su commit.';
+			}
+			return 'De eso no sé. Prueba /help, o mejor: proponlo como idea y lo construyo.';
+		}
+
+		let pensando = 0;
+
+		function quizaResponder(texto: string) {
+			const t = texto.toLowerCase();
+			const llamado = new RegExp(`(^|[^\\w])${BOT}([^\\w]|$)`).test(t);
+			if (!llamado && !texto.includes('?')) return;
+
+			// Una pausa corta para que no conteste antes de que se lea la pregunta.
+			clearTimeout(pensando);
+			pensando = window.setTimeout(() => decir(BOT, respuesta(texto)), 600);
+		}
+
+		// --- Comandos ---
+
+		const AYUDA = [
+			'/help — esta lista',
+			'/nick <nombre> — cambiar de nombre',
+			'/me <acción> — hablar en tercera persona',
+			'/names — quién hay en el canal',
+			'/topic — el tema del canal',
+			'/clear — limpiar el historial de este navegador',
+			'/quit — salir del canal · /join — volver',
+		];
+
+		function comando(linea: string) {
+			const [orden, ...resto] = linea.slice(1).split(' ');
+			const argumento = resto.join(' ').trim();
+
+			switch (orden.toLowerCase()) {
+				case 'help':
+				case 'ayuda':
+					for (const fila of AYUDA) sistema(fila);
+					return;
+
+				case 'nick': {
+					if (deGitHub) {
+						sistema('Con sesión de GitHub el nick es el tuyo.');
+						return;
+					}
+					const nuevo = limpiarNick(argumento);
+					if (!nuevo) {
+						sistema('Uso: /nick <nombre>. Letras, números, guiones; claude está pillado.');
+						return;
+					}
+					const antes = nick;
+					nick = nuevo;
+					guardar(CLAVE_NICK, nick);
+					etiqueta.textContent = `<${nick}>`;
+					sistema(`${antes} ahora se llama ${nick}`);
+					pintarUsuarios();
+					emitir({ t: 'nick', id: yo, nick, antes });
+					return;
+				}
+
+				case 'me':
+					if (!argumento) {
+						sistema('Uso: /me <acción>.');
+						return;
+					}
+					decir(nick, argumento, 'me');
+					return;
+
+				case 'names':
+				case 'users':
+					sistema(
+						`En ${CANAL}: @${BOT}, ${[dentro ? nick : null, ...[...vecinos.values()].map((v) => v.nick)].filter(Boolean).join(', ') || 'nadie más'}`,
+					);
+					return;
+
+				case 'topic':
+					sistema(`Tema de ${CANAL}: esta web la cambias tú. Vamos por la v${version}.`);
+					return;
+
+				case 'clear':
+					historial = [];
+					guardar(CLAVE_LOG, '[]');
+					log.replaceChildren();
+					sistema('Historial limpiado en este navegador.');
+					return;
+
+				case 'quit':
+				case 'part':
+					if (!dentro) {
+						sistema(`No estás en ${CANAL}.`);
+						return;
+					}
+					dentro = false;
+					emitir({ t: 'adios', id: yo, nick });
+					sistema(`Has salido de ${CANAL}${argumento ? ` (${argumento})` : ''}. Escribe /join para volver.`);
+					pintarUsuarios();
+					return;
+
+				case 'join':
+					if (dentro) {
+						sistema(`Ya estás en ${CANAL}.`);
+						return;
+					}
+					dentro = true;
+					emitir({ t: 'hola', id: yo, nick });
+					sistema(`Has entrado en ${CANAL}.`);
+					pintarUsuarios();
+					return;
+
+				default:
+					sistema(`No conozco /${orden}. Prueba /help.`);
+			}
+		}
+
+		// --- Lo que llega de otras pestañas ---
+
+		function recibir(aviso: Aviso) {
+			if (aviso.t === 'linea') {
+				if (historial.some((linea) => linea.id === aviso.linea.id)) return;
+				historial = [...historial, aviso.linea].slice(-MAX_LINEAS);
+				if (dentro) pintarLinea(aviso.linea);
+				return;
+			}
+
+			if (aviso.id === yo) return;
+
+			if (aviso.t === 'adios') {
+				if (vecinos.delete(aviso.id) && dentro) sistema(`${aviso.nick} ha salido de ${CANAL}`);
+				pintarUsuarios();
+				return;
+			}
+
+			if (aviso.t === 'nick') {
+				vecinos.set(aviso.id, { nick: aviso.nick, visto: Date.now() });
+				if (dentro) sistema(`${aviso.antes} ahora se llama ${aviso.nick}`);
+				pintarUsuarios();
+				return;
+			}
+
+			const conocido = vecinos.has(aviso.id);
+			vecinos.set(aviso.id, { nick: aviso.nick, visto: Date.now() });
+			if (!conocido && dentro) sistema(`${aviso.nick} ha entrado en ${CANAL}`);
+			pintarUsuarios();
+
+			// A quien acaba de llegar hay que contestarle para que sepa que estamos.
+			if (aviso.t === 'hola' && dentro) emitir({ t: 'eco', id: yo, nick });
+		}
+
+		bus?.addEventListener('message', (evento) => recibir(evento.data as Aviso));
+
+		window.addEventListener('storage', (evento) => {
+			if (evento.key !== CLAVE_BUS || !evento.newValue) return;
+			try {
+				recibir(JSON.parse(evento.newValue) as Aviso);
+			} catch {
+				// Un aviso ilegible se ignora; el siguiente llegará bien.
+			}
+		});
+
+		// --- Arranque ---
+
+		// Lo escrito se recuerda para poder repetirlo con las flechas, como en
+		// cualquier cliente de IRC.
+		const escrito: string[] = [];
+		let cursor = 0;
+
+		input.addEventListener('keydown', (evento) => {
+			if (evento.key !== 'ArrowUp' && evento.key !== 'ArrowDown') return;
+			if (!escrito.length) return;
+			evento.preventDefault();
+
+			cursor = Math.min(escrito.length, Math.max(0, cursor + (evento.key === 'ArrowUp' ? -1 : 1)));
+			input.value = escrito[cursor] ?? '';
+			input.setSelectionRange(input.value.length, input.value.length);
+		});
+
+		form.addEventListener('submit', (evento) => {
+			evento.preventDefault();
+			const texto = input.value.trim().slice(0, 300);
+			if (!texto) return;
+			input.value = '';
+
+			if (escrito.at(-1) !== texto) escrito.push(texto);
+			cursor = escrito.length;
+
+			if (texto.startsWith('/')) {
+				comando(texto);
+				return;
+			}
+			if (!dentro) {
+				sistema(`No estás en ${CANAL}. Escribe /join para volver.`);
+				return;
+			}
+
+			decir(nick, texto);
+			quizaResponder(texto);
+		});
+
+		try {
+			const previo = JSON.parse(guardado(CLAVE_LOG) ?? '[]');
+			if (Array.isArray(previo)) historial = previo.slice(-MAX_LINEAS);
+		} catch {
+			historial = [];
+		}
+
+		etiqueta.textContent = `<${nick}>`;
+		for (const linea of historial) pintarLinea(linea);
+		log.scrollTop = log.scrollHeight;
+
+		sistema(`Bienvenido a ${CANAL}, ${nick}`);
+		sistema(`Tema: esta web la cambias tú · v${version}`);
+		sistema(`${BOT} tiene el canal. Escribe /help para ver los comandos.`);
+		if (!historial.length) sistema('Aquí no hay servidor: esto se queda en tu navegador.');
+
+		pintarUsuarios();
+		emitir({ t: 'hola', id: yo, nick });
+
+		// Cada pestaña avisa de que sigue viva; a quien lleva rato callado se le da
+		// por desconectado, como un ping timeout de toda la vida.
+		setInterval(() => {
+			if (dentro) emitir({ t: 'latido', id: yo, nick });
+
+			const ahora = Date.now();
+			for (const [id, vecino] of vecinos) {
+				if (ahora - vecino.visto <= OLVIDO_MS) continue;
+				vecinos.delete(id);
+				if (dentro) sistema(`${vecino.nick} ha salido de ${CANAL} (sin señal)`);
+				pintarUsuarios();
+			}
+		}, LATIDO_MS);
+
+		window.addEventListener('pagehide', () => {
+			if (dentro) emitir({ t: 'adios', id: yo, nick });
+		});
+	}
+</script>
