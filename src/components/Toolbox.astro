@@ -2,12 +2,18 @@
 import ColorTool from './ColorTool.astro';
 import Icon from './Icon.astro';
 
+// El id de cada herramienta es también su sitio en la URL: tuweb.dev/#cron abre
+// esa pestaña directamente. Por eso el panel lleva el id pelado, sin prefijo.
 const tools = [
-	{ id: 'json', label: 'JSON → YAML', icon: 'braces' },
+	{ id: 'json-yaml', label: 'JSON → YAML', icon: 'braces' },
 	{ id: 'cron', label: 'Cron en cristiano', icon: 'clock' },
 	{ id: 'regex', label: 'Probador de regex', icon: 'regex' },
-	{ id: 'color', label: 'Colores', icon: 'palette' },
+	{ id: 'colores', label: 'Colores', icon: 'palette' },
 ];
+
+// Sin JS todavía no sabemos qué pestaña toca, así que el enlace de arranque es
+// el de la primera; el script lo reescribe al cargar y en cada cambio.
+const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 ---
 
 <section id="herramientas" class="flex flex-col gap-7">
@@ -20,7 +26,7 @@ const tools = [
 					type="button"
 					role="tab"
 					id={`tab-${tool.id}`}
-					aria-controls={`panel-${tool.id}`}
+					aria-controls={tool.id}
 					aria-selected={index === 0 ? 'true' : 'false'}
 					data-tool={tool.id}
 					class="inline-flex items-center gap-2 border border-line px-4 py-3 text-sm text-muted hover:text-fg aria-selected:border-accent aria-selected:text-accent"
@@ -32,7 +38,23 @@ const tools = [
 		}
 	</div>
 
-	<div role="tabpanel" id="panel-json" aria-labelledby="tab-json" data-panel="json" class="grid gap-4 md:grid-cols-2">
+	<p class="-mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">
+		<span>Enlace directo:</span>
+		<a data-tool-link href={`#${tools[0].id}`} class="text-mark hover:underline">
+			<code data-tool-url>{firstLink}</code>
+		</a>
+		<button
+			type="button"
+			data-tool-copy
+			class="inline-flex items-center gap-2 text-accent hover:underline"
+		>
+			<span data-icon="link" class="inline-flex"><Icon name="link" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-tool-copy-label aria-live="polite">Copiar</span>
+		</button>
+	</p>
+
+	<div role="tabpanel" id="json-yaml" aria-labelledby="tab-json-yaml" data-panel="json-yaml" class="grid gap-4 md:grid-cols-2">
 		<label class="flex flex-col gap-2">
 			<span class="text-sm text-muted">JSON</span>
 			<textarea
@@ -54,7 +76,7 @@ const tools = [
 		</label>
 	</div>
 
-	<div role="tabpanel" id="panel-cron" aria-labelledby="tab-cron" data-panel="cron" hidden class="flex flex-col gap-4">
+	<div role="tabpanel" id="cron" aria-labelledby="tab-cron" data-panel="cron" hidden class="flex flex-col gap-4">
 		<label class="flex flex-col gap-2">
 			<span class="text-sm text-muted">Expresión cron (min hora día mes día-semana)</span>
 			<input
@@ -81,7 +103,7 @@ const tools = [
 		</div>
 	</div>
 
-	<div role="tabpanel" id="panel-regex" aria-labelledby="tab-regex" data-panel="regex" hidden class="flex flex-col gap-4">
+	<div role="tabpanel" id="regex" aria-labelledby="tab-regex" data-panel="regex" hidden class="flex flex-col gap-4">
 		<div class="flex flex-wrap gap-4">
 			<label class="flex flex-1 flex-col gap-2">
 				<span class="text-sm text-muted">Patrón</span>
@@ -119,18 +141,121 @@ const tools = [
 	<ColorTool />
 </section>
 
+<style>
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-tool-copy] [data-icon='check'] {
+		display: none;
+	}
+	[data-tool-copy][data-state='done'] [data-icon='link'] {
+		display: none;
+	}
+	[data-tool-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-tool-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
 <script>
 	const panels = document.querySelectorAll<HTMLElement>('[data-panel]');
 	const tabs = document.querySelectorAll<HTMLButtonElement>('[data-tool]');
 
-	tabs.forEach((tab) => {
-		tab.addEventListener('click', () => {
-			tabs.forEach((other) => other.setAttribute('aria-selected', String(other === tab)));
-			panels.forEach((panel) => {
-				panel.hidden = panel.dataset.panel !== tab.dataset.tool;
-			});
+	// Cada herramienta vive en su propio trozo de URL: tuweb.dev/#regex abre esa y
+	// solo esa. El hash manda al entrar y se actualiza al cambiar de pestaña.
+	const ids = [...tabs].map((tab) => tab.dataset.tool ?? '');
+	const toolLink = document.querySelector<HTMLAnchorElement>('[data-tool-link]');
+	const toolUrl = document.querySelector<HTMLElement>('[data-tool-url]');
+	const toolCopy = document.querySelector<HTMLButtonElement>('[data-tool-copy]');
+	const toolCopyLabel = toolCopy?.querySelector('[data-tool-copy-label]');
+	let current = ids[0] ?? '';
+
+	function currentHash() {
+		// Un hash mal escrito (%) revienta el decode: mejor el crudo que nada.
+		try {
+			return decodeURIComponent(location.hash.slice(1));
+		} catch {
+			return location.hash.slice(1);
+		}
+	}
+
+	function show(id: string, options: { scroll?: boolean; hash?: boolean } = {}) {
+		if (!ids.includes(id)) return false;
+
+		current = id;
+		tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.tool === id)));
+		panels.forEach((panel) => {
+			panel.hidden = panel.dataset.panel !== id;
 		});
+
+		if (toolLink) toolLink.href = `#${id}`;
+		if (toolUrl) toolUrl.textContent = `${location.host}${location.pathname}#${id}`;
+
+		// replaceState y no un hash a pelo: cambiar de pestaña no debería llenar el
+		// historial ni dar un salto de scroll.
+		if (options.hash !== false && currentHash() !== id) {
+			history.replaceState(null, '', `#${id}`);
+		}
+		// El panel estaba oculto cuando el navegador intentó saltar al ancla, así
+		// que el salto lo hacemos nosotros una vez está visible. Y saltamos a la
+		// sección entera: quien llega de fuera quiere ver también qué pestaña es.
+		if (options.scroll) {
+			document.getElementById(id)?.closest('section')?.scrollIntoView({ block: 'start' });
+		}
+
+		return true;
+	}
+
+	tabs.forEach((tab) => {
+		tab.addEventListener('click', () => show(tab.dataset.tool ?? ''));
 	});
+
+	window.addEventListener('hashchange', () => {
+		show(currentHash(), { scroll: true, hash: false });
+	});
+
+	let copyTimer: number | undefined;
+
+	async function copy(text: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const field = document.createElement('textarea');
+				field.value = text;
+				field.readOnly = true;
+				field.style.position = 'fixed';
+				field.style.top = '0';
+				field.style.opacity = '0';
+				document.body.append(field);
+				field.select();
+				const done = document.execCommand('copy');
+				field.remove();
+				return done;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	toolCopy?.addEventListener('click', async () => {
+		const done = await copy(`${location.origin}${location.pathname}#${current}`);
+
+		toolCopy.dataset.state = done ? 'done' : 'error';
+		if (toolCopyLabel) toolCopyLabel.textContent = done ? 'Copiado' : 'No se pudo copiar';
+
+		clearTimeout(copyTimer);
+		copyTimer = window.setTimeout(() => {
+			toolCopy.removeAttribute('data-state');
+			if (toolCopyLabel) toolCopyLabel.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	// Al entrar: si el hash apunta a una herramienta, esa; si no, la primera y sin
+	// escribir nada en la URL.
+	if (!show(currentHash(), { scroll: true, hash: false })) show(ids[0] ?? '', { hash: false });
 
 	// JSON → YAML
 	const jsonInput = document.querySelector<HTMLTextAreaElement>('[data-json-input]');
