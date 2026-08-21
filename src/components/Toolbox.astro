@@ -1,5 +1,6 @@
 ---
 import ColorTool from './ColorTool.astro';
+import ConfigTool from './ConfigTool.astro';
 import Icon from './Icon.astro';
 import ThemeTool from './ThemeTool.astro';
 
@@ -11,6 +12,7 @@ const tools = [
 	{ id: 'regex', label: 'Probador de regex', icon: 'regex' },
 	{ id: 'colores', label: 'Colores', icon: 'palette' },
 	{ id: 'tema', label: 'Tema', icon: 'contrast' },
+	{ id: 'config', label: 'Config', icon: 'adjustments' },
 ];
 
 // Sin JS todavía no sabemos qué pestaña toca, así que el enlace de arranque es
@@ -143,6 +145,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ColorTool />
 
 	<ThemeTool />
+
+	<ConfigTool />
 </section>
 
 <style>

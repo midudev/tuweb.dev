@@ -44,14 +44,16 @@ const {
 
 		<!--
 			El tema que se haya elegido en la caja de herramientas —modo, color y
-			fondo— se aplica en cuanto carga este script. Va en la cabecera y no en
-			línea porque la CSP es script-src 'self': lo más pronto que puede correr
-			es esto.
+			fondo— se aplica en cuanto carga este script, junto con las variables
+			tocadas en el panel de Config. Va en la cabecera y no en línea porque la
+			CSP es script-src 'self': lo más pronto que puede correr es esto.
 		-->
 		<script>
+			import { applyConfig, readConfig } from '../lib/config';
 			import { applyTheme, readTheme } from '../lib/theme';
 
 			applyTheme(readTheme());
+			applyConfig(readConfig());
 
 			// Con el modo del sistema puesto, la web va detrás de lo que haga el sistema.
 			window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {

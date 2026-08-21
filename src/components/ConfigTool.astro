@@ -1,0 +1,487 @@
+---
+/**
+ * El panel de Config: una tabla con las variables de esta web y un input por
+ * variable. Lo que se cambia se ve al momento en toda la página y se guarda en
+ * este navegador. Abajo sale el CSS listo para pegarlo en el repo, que es como
+ * un cambio se hace de todos: proponiéndolo.
+ */
+import { CONFIG_VARS, GROUPS, SIZE_MAX, SIZE_MIN } from '../lib/config';
+import { DEFAULT_THEME } from '../lib/theme';
+import Icon from './Icon.astro';
+
+const CELL = 'border-b border-line p-3 align-top';
+const FIELD = 'border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+---
+
+<div
+	role="tabpanel"
+	id="config"
+	aria-labelledby="tab-config"
+	data-panel="config"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<p class="text-sm text-muted">
+		Las variables de <code class="text-mark">src/styles/global.css</code>, con un input cada una. Lo
+		que toques manda sobre el modo claro y el oscuro hasta que lo restablezcas.
+	</p>
+
+	<div class="overflow-x-auto border border-line">
+		<table class="w-full min-w-[36rem] border-collapse text-sm">
+			<thead>
+				<tr class="text-left text-muted">
+					<th scope="col" class="border-b border-line p-3 font-normal">Variable</th>
+					<th scope="col" class="border-b border-line p-3 font-normal">Valor</th>
+					<th scope="col" class="border-b border-line p-3 font-normal">Por defecto</th>
+					<th scope="col" class="border-b border-line p-3 font-normal">
+						<span class="sr-only">Restablecer</span>
+					</th>
+				</tr>
+			</thead>
+			<tbody>
+				{
+					GROUPS.map((group) => (
+						<>
+							<tr class="bg-panel">
+								<th
+									scope="colgroup"
+									colspan="4"
+									class="border-b border-line p-3 text-left font-normal text-muted"
+								>
+									{group}
+								</th>
+							</tr>
+
+							{CONFIG_VARS.filter((item) => item.group === group).map((item) => (
+								<tr data-config-row={item.name}>
+									<th scope="row" class={`${CELL} text-left font-normal`}>
+										<code>{item.name}</code>
+										<span class="block text-muted">{item.label}</span>
+									</th>
+									<td class={CELL}>
+										{item.kind === 'color' ? (
+											<span class="flex items-center gap-2">
+												<input
+													type="color"
+													data-config-color={item.name}
+													aria-label={`Selector de ${item.name}`}
+													class="h-9 w-12 shrink-0 cursor-pointer border border-line bg-panel p-1"
+												/>
+												<input
+													type="text"
+													data-config-text={item.name}
+													aria-label={`Valor de ${item.name}`}
+													spellcheck="false"
+													autocomplete="off"
+													class={`${FIELD} w-28`}
+												/>
+											</span>
+										) : (
+											<span class="flex items-center gap-2">
+												<input
+													type="number"
+													data-config-size={item.name}
+													aria-label={`Valor de ${item.name}`}
+													min={SIZE_MIN}
+													max={SIZE_MAX}
+													step="1"
+													class={`${FIELD} w-20`}
+												/>
+												<span class="text-muted">px</span>
+											</span>
+										)}
+									</td>
+									<td class={CELL}>
+										<code data-config-default={item.name} class="text-muted">
+											{item.base}
+										</code>
+									</td>
+									<td class={`${CELL} text-right`}>
+										<button type="button" data-config-reset={item.name} class={BOTON} disabled>
+											<Icon name="rotate" class="size-4 shrink-0" />
+											<span class="sr-only">Restablecer {item.name}</span>
+										</button>
+									</td>
+								</tr>
+							))}
+
+							{group === 'Colores' && (
+								<>
+									<tr data-config-row="--color-accent">
+										<th scope="row" class={`${CELL} text-left font-normal`}>
+											<code>--color-accent</code>
+											<span class="block text-muted">Acento</span>
+										</th>
+										<td class={CELL}>
+											<span class="flex items-center gap-2">
+												<input
+													type="color"
+													data-accent-color
+													aria-label="Selector del acento"
+													class="h-9 w-12 shrink-0 cursor-pointer border border-line bg-panel p-1"
+												/>
+												<input
+													type="text"
+													data-accent-text
+													aria-label="Valor del acento"
+													spellcheck="false"
+													autocomplete="off"
+													class={`${FIELD} w-28`}
+												/>
+											</span>
+										</td>
+										<td class={CELL}>
+											<code class="text-muted">{DEFAULT_THEME.accent}</code>
+										</td>
+										<td class={`${CELL} text-right`}>
+											<button type="button" data-accent-reset class={BOTON} disabled>
+												<Icon name="rotate" class="size-4 shrink-0" />
+												<span class="sr-only">Restablecer el acento</span>
+											</button>
+										</td>
+									</tr>
+
+									<tr>
+										<th scope="row" class={`${CELL} text-left font-normal`}>
+											<code>--color-mark</code>
+											<span class="block text-muted">Realce</span>
+										</th>
+										<td class={CELL} colspan="3">
+											<span class="flex items-center gap-2">
+												<span
+													class="size-4 shrink-0 border border-line"
+													style="background: var(--color-mark)"
+												/>
+												<code data-config-mark class="text-muted" />
+											</span>
+											<span class="block text-muted">Se calcula desde el acento.</span>
+										</td>
+									</tr>
+								</>
+							)}
+						</>
+					))
+				}
+			</tbody>
+		</table>
+	</div>
+
+	<div class="flex flex-wrap items-center gap-3">
+		<button type="button" data-config-reset-all class={BOTON} disabled>
+			<Icon name="rotate" class="size-4 shrink-0" />
+			Restablecer todo
+		</button>
+		<button type="button" data-config-copy class={BOTON} disabled>
+			<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-config-copy-label>Copiar el CSS</span>
+		</button>
+		<span data-config-count class="text-sm text-muted" aria-live="polite"></span>
+	</div>
+
+	<pre
+		data-config-css
+		hidden
+		class="overflow-x-auto border border-line bg-panel p-4 text-sm text-mark"></pre>
+
+	<p class="text-sm text-muted">
+		Esto solo cambia tu navegador. Para que lo vea todo el mundo, copia el CSS y proponlo como idea.
+	</p>
+</div>
+
+<style>
+	/* La variable que está tocada se ve de un vistazo. */
+	[data-config-row][data-changed] th code {
+		color: var(--color-accent);
+	}
+
+	[data-config-row] th code {
+		color: var(--color-mark);
+	}
+
+	[data-state='error'] {
+		border-color: var(--color-heart);
+	}
+
+	[data-config-copy] [data-icon='check'] {
+		display: none;
+	}
+	[data-config-copy][data-state='done'] {
+		color: var(--color-accent);
+	}
+	[data-config-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-config-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	import { parseColor, toHex } from '../lib/color';
+	import {
+		CONFIG_VARS,
+		type Config,
+		SIZE_MAX,
+		SIZE_MIN,
+		applyConfig,
+		configCss,
+		defaultOf,
+		isValid,
+		readConfig,
+		saveConfig,
+		varOf,
+	} from '../lib/config';
+	import {
+		DEFAULT_THEME,
+		type Scheme,
+		type ThemeEvent,
+		accentFor,
+		applyTheme,
+		readTheme,
+		saveTheme,
+		schemeOf,
+	} from '../lib/theme';
+
+	/*
+	 * Arrastrando un selector de color salen decenas de cambios por segundo: la
+	 * web se repinta en todos, pero al localStorage solo se escribe al parar.
+	 */
+	const SAVE_DELAY = 400;
+
+	let config = readConfig();
+	let theme = readTheme();
+	let scheme: Scheme = schemeOf(theme.mode);
+	let configTimer = 0;
+	let themeTimer = 0;
+
+	const accentColor = document.querySelector<HTMLInputElement>('[data-accent-color]');
+	const accentText = document.querySelector<HTMLInputElement>('[data-accent-text]');
+	const accentReset = document.querySelector<HTMLButtonElement>('[data-accent-reset]');
+	const markOut = document.querySelector<HTMLElement>('[data-config-mark]');
+	const cssBox = document.querySelector<HTMLElement>('[data-config-css]');
+	const countOut = document.querySelector<HTMLElement>('[data-config-count]');
+	const resetAll = document.querySelector<HTMLButtonElement>('[data-config-reset-all]');
+	const copyButton = document.querySelector<HTMLButtonElement>('[data-config-copy]');
+	const copyLabel = document.querySelector<HTMLElement>('[data-config-copy-label]');
+
+	function find<T extends Element>(attribute: string, name: string) {
+		return document.querySelector<T>(`[${attribute}="${name}"]`);
+	}
+
+	/** Lo que hay cambiado ahora mismo, en el orden en que sale en la tabla. */
+	function changes(): [string, string][] {
+		const entries = CONFIG_VARS.filter((item) => config[item.name]).map(
+			(item): [string, string] => [item.name, config[item.name]],
+		);
+
+		if (theme.accent !== DEFAULT_THEME.accent) {
+			const color = parseColor(theme.accent);
+			if (color) entries.push(['--color-accent', accentFor(color, scheme)]);
+		}
+
+		return entries;
+	}
+
+	function render() {
+		for (const item of CONFIG_VARS) {
+			const changed = Boolean(config[item.name]);
+			const value = config[item.name] ?? defaultOf(item, scheme);
+
+			find<HTMLElement>('data-config-row', item.name)?.toggleAttribute('data-changed', changed);
+
+			const fallback = find<HTMLElement>('data-config-default', item.name);
+			if (fallback) fallback.textContent = defaultOf(item, scheme);
+
+			const reset = find<HTMLButtonElement>('data-config-reset', item.name);
+			if (reset) reset.disabled = !changed;
+
+			if (item.kind === 'color') {
+				const picker = find<HTMLInputElement>('data-config-color', item.name);
+				if (picker) picker.value = value;
+				write(find<HTMLInputElement>('data-config-text', item.name), value);
+			} else {
+				write(find<HTMLInputElement>('data-config-size', item.name), String(parseInt(value, 10)));
+			}
+		}
+
+		find<HTMLElement>('data-config-row', '--color-accent')?.toggleAttribute(
+			'data-changed',
+			theme.accent !== DEFAULT_THEME.accent,
+		);
+		if (accentColor) accentColor.value = theme.accent;
+		write(accentText, theme.accent);
+		if (accentReset) accentReset.disabled = theme.accent === DEFAULT_THEME.accent;
+		if (markOut) {
+			markOut.textContent = getComputedStyle(document.documentElement)
+				.getPropertyValue('--color-mark')
+				.trim();
+		}
+
+		const entries = changes();
+		const css = configCss(entries, scheme);
+		if (cssBox) {
+			cssBox.textContent = css;
+			cssBox.hidden = !css;
+		}
+		if (resetAll) resetAll.disabled = entries.length === 0;
+		if (copyButton) copyButton.disabled = !css;
+		if (countOut) {
+			countOut.textContent =
+				entries.length === 0
+					? 'Nada tocado: la web va con lo del repo.'
+					: `${entries.length} ${entries.length === 1 ? 'variable cambiada' : 'variables cambiadas'} en este navegador.`;
+		}
+	}
+
+	/** Al campo que se está escribiendo no se le toca el valor: movería el cursor. */
+	function write(field: HTMLInputElement | null, value: string) {
+		if (!field || document.activeElement === field) return;
+		field.value = value;
+		delete field.dataset.state;
+	}
+
+	function commit(next: Config, deferred = false) {
+		config = next;
+		applyConfig(config);
+
+		clearTimeout(configTimer);
+		if (deferred) configTimer = window.setTimeout(() => saveConfig(config), SAVE_DELAY);
+		else saveConfig(config);
+
+		render();
+	}
+
+	function setVar(name: string, value: string, deferred = false) {
+		const item = varOf(name);
+		if (!item || !isValid(item, value)) return;
+
+		const next = { ...config };
+		// Lo que vuelve a ser lo de fábrica deja de estar cambiado.
+		if (value === defaultOf(item, scheme)) delete next[name];
+		else next[name] = value;
+
+		commit(next, deferred);
+	}
+
+	function setAccent(hex: string, deferred = false) {
+		theme = { ...theme, accent: hex };
+		// applyTheme avisa por su cuenta y de repintar la tabla se encarga el aviso.
+		applyTheme(theme);
+
+		clearTimeout(themeTimer);
+		if (deferred) themeTimer = window.setTimeout(() => saveTheme(theme), SAVE_DELAY);
+		else saveTheme(theme);
+	}
+
+	document.querySelectorAll<HTMLInputElement>('[data-config-color]').forEach((picker) => {
+		picker.addEventListener('input', () => {
+			setVar(picker.dataset.configColor ?? '', picker.value.toLowerCase(), true);
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-config-text]').forEach((field) => {
+		field.addEventListener('input', () => {
+			const color = parseColor(field.value.trim());
+			if (!color) {
+				field.dataset.state = 'error';
+				return;
+			}
+			delete field.dataset.state;
+			// Se guarda hex de seis dígitos, se escriba en el formato que se escriba.
+			setVar(field.dataset.configText ?? '', toHex({ ...color, alpha: 1 }), true);
+		});
+		field.addEventListener('blur', render);
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-config-size]').forEach((field) => {
+		field.addEventListener('input', () => {
+			const px = Math.round(Number(field.value));
+			if (!Number.isFinite(px) || px < SIZE_MIN || px > SIZE_MAX) {
+				field.dataset.state = 'error';
+				return;
+			}
+			delete field.dataset.state;
+			setVar(field.dataset.configSize ?? '', `${px}px`);
+		});
+		field.addEventListener('blur', render);
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-config-reset]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const next = { ...config };
+			delete next[button.dataset.configReset ?? ''];
+			commit(next);
+		});
+	});
+
+	accentColor?.addEventListener('input', () => setAccent(accentColor.value.toLowerCase(), true));
+
+	accentText?.addEventListener('input', () => {
+		const color = parseColor(accentText.value.trim());
+		if (!color) {
+			accentText.dataset.state = 'error';
+			return;
+		}
+		delete accentText.dataset.state;
+		setAccent(toHex({ ...color, alpha: 1 }), true);
+	});
+	accentText?.addEventListener('blur', render);
+
+	accentReset?.addEventListener('click', () => setAccent(DEFAULT_THEME.accent));
+
+	resetAll?.addEventListener('click', () => {
+		commit({});
+		if (theme.accent !== DEFAULT_THEME.accent) setAccent(DEFAULT_THEME.accent);
+	});
+
+	let copyTimer = 0;
+
+	copyButton?.addEventListener('click', async () => {
+		const text = cssBox?.textContent ?? '';
+		if (!text) return;
+
+		let done = false;
+		try {
+			await navigator.clipboard.writeText(text);
+			done = true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			const field = document.createElement('textarea');
+			field.value = text;
+			field.readOnly = true;
+			field.style.position = 'fixed';
+			field.style.opacity = '0';
+			document.body.append(field);
+			field.select();
+			done = document.execCommand('copy');
+			field.remove();
+		}
+
+		copyButton.dataset.state = done ? 'done' : 'error';
+		if (copyLabel) copyLabel.textContent = done ? 'Copiado' : 'No se pudo copiar';
+
+		clearTimeout(copyTimer);
+		copyTimer = window.setTimeout(() => {
+			copyButton.removeAttribute('data-state');
+			if (copyLabel) copyLabel.textContent = 'Copiar el CSS';
+		}, 2000);
+	});
+
+	/*
+	 * El tema se toca desde la cabecera y desde otras dos pestañas, y al cambiar
+	 * de esquema cambia lo que es «por defecto»: la tabla se repinta con lo que
+	 * venga en el aviso.
+	 */
+	document.addEventListener('tuweb:tema', (event) => {
+		const detail = (event as CustomEvent<ThemeEvent>).detail;
+		theme = detail.theme;
+		scheme = detail.scheme;
+		render();
+	});
+
+	// Lo guardado ya lo aplica el script de la cabecera; aquí solo se enseña.
+	render();
+</script>
