@@ -17,7 +17,8 @@ const {
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width" />
-		<meta name="color-scheme" content="dark" />
+		<!-- Oscuro primero: es el de casa. El claro lo pone el selector de temas. -->
+		<meta name="color-scheme" content="dark light" />
 		<meta name="theme-color" content="#0a0a0a" />
 		<link rel="icon" href="/favicon.ico" sizes="32x32" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -42,18 +43,24 @@ const {
 		<title>{title}</title>
 
 		<!--
-			El color primario que se haya elegido en la caja de herramientas se aplica
-			en cuanto carga este script. Va en la cabecera y no en línea porque la CSP
-			es script-src 'self': lo más pronto que puede correr es esto.
+			El tema que se haya elegido en la caja de herramientas —modo, color y
+			fondo— se aplica en cuanto carga este script. Va en la cabecera y no en
+			línea porque la CSP es script-src 'self': lo más pronto que puede correr
+			es esto.
 		-->
 		<script>
-			import { applyAccent, readAccent } from '../lib/theme';
+			import { applyTheme, readTheme } from '../lib/theme';
 
-			const saved = readAccent();
-			if (saved) applyAccent(saved);
+			applyTheme(readTheme());
+
+			// Con el modo del sistema puesto, la web va detrás de lo que haga el sistema.
+			window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+				const theme = readTheme();
+				if (theme.mode === 'auto') applyTheme(theme);
+			});
 		</script>
 	</head>
-	<body class="bg-bg font-mono text-fg antialiased">
+	<body data-canvas class="bg-bg font-mono text-fg antialiased">
 		<slot />
 	</body>
 </html>

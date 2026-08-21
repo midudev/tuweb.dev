@@ -1,15 +1,51 @@
 /*
- * El color primario de la web. Vive en dos sitios: en las variables CSS del
- * <html> (para que el cambio se vea al momento) y en el localStorage de quien
- * lo eligió (para que siga ahí al volver). No sale de este navegador.
+ * El tema de la web: modo (claro, oscuro o el del sistema), color primario y
+ * fondo. Vive en dos sitios: en el <html> —atributos y variables CSS, para que
+ * el cambio se vea al momento— y en el localStorage de quien lo eligió, para
+ * que siga ahí al volver. No sale de este navegador.
  */
 
-import { type Color, toHex } from './color';
+import { type Color, parseColor, toHex } from './color';
 
+/** Lo que se elige. «auto» es lo que pida el sistema en cada momento. */
+export type Mode = 'auto' | 'claro' | 'oscuro';
+/** Lo que acaba pintado: «auto» ya resuelto a uno de los dos. */
+export type Scheme = 'claro' | 'oscuro';
+export type Surface = 'plano' | 'degradado' | 'trama';
+
+export interface Theme {
+	mode: Mode;
+	/** Hex de seis dígitos tal cual se eligió; al pintarlo se ajusta al esquema. */
+	accent: string;
+	surface: Surface;
+}
+
+export const MODES: readonly Mode[] = ['auto', 'claro', 'oscuro'];
+export const SURFACES: readonly Surface[] = ['plano', 'degradado', 'trama'];
+
+/*
+ * Lo de fábrica: el azul y el oscuro de src/styles/global.css. Quien no toque
+ * nada sigue viendo la web de siempre; el modo del sistema está ahí, pero hay
+ * que pedirlo.
+ */
+export const DEFAULT_THEME: Theme = { mode: 'oscuro', accent: '#00c2ff', surface: 'plano' };
+
+/** Los colores del selector rápido. El primero es el de toda la vida. */
+export const PRESETS = [
+	{ label: 'Azul', hex: '#00c2ff' },
+	{ label: 'Menta', hex: '#2fd3a5' },
+	{ label: 'Lima', hex: '#a8e04a' },
+	{ label: 'Ámbar', hex: '#f5a524' },
+	{ label: 'Coral', hex: '#ff6f5e' },
+	{ label: 'Rosa', hex: '#ff7ac6' },
+	{ label: 'Violeta', hex: '#a78bfa' },
+	{ label: 'Grafito', hex: '#b6bcc4' },
+] as const;
+
+const MODE_KEY = 'tuweb:modo';
+/** El de antes, cuando el tema era solo el color: lo que ya haya guardado vale. */
 const ACCENT_KEY = 'tuweb:accent';
-
-/** Cuánto acento lleva la mezcla con blanco que da el color de realce (mark). */
-const MARK_MIX = 62;
+const SURFACE_KEY = 'tuweb:fondo';
 
 /**
  * Solo hex de seis dígitos: es lo único que guardamos, y así lo que se lee del
@@ -17,51 +53,110 @@ const MARK_MIX = 62;
  */
 const ACCENT_PATTERN = /^#[0-9a-f]{6}$/;
 
-/** El de siempre, el de src/styles/global.css. */
-export const DEFAULT_ACCENT = '#00c2ff';
-
 /*
- * Sobre el fondo #0a0a0a un acento oscuro no se lee: es texto, bordes y foco.
- * Por debajo de esta claridad OKLCH lo subimos, aunque quien lo eligió haya
- * pedido otra cosa.
+ * El acento es texto, bordes y foco: tiene que leerse sobre el fondo. Sobre el
+ * oscuro no puede bajar de esta claridad OKLCH; sobre el claro no puede
+ * pasarla, aunque quien lo eligió haya pedido otra cosa.
  */
-const MIN_L = 0.62;
+const LIMITS: Record<Scheme, { min: number; max: number }> = {
+	oscuro: { min: 0.62, max: 1 },
+	claro: { min: 0, max: 0.54 },
+};
 
-/** El hex opaco y legible que le corresponde a un color del selector. */
-export function accentFrom(color: Color) {
-	return toHex({ l: Math.max(color.l, MIN_L), c: color.c, h: color.h, alpha: 1 });
+/** El realce (mark) es el acento llevado al extremo contrario del fondo. */
+const MARK: Record<Scheme, { amount: number; towards: string }> = {
+	oscuro: { amount: 62, towards: '#ffffff' },
+	claro: { amount: 70, towards: '#000000' },
+};
+
+/** El fondo de cada esquema, el mismo que pinta global.css. */
+const PAGE_BG: Record<Scheme, string> = { oscuro: '#0a0a0a', claro: '#fbfbfa' };
+
+/** El hex opaco y legible que le corresponde a un color en este esquema. */
+export function accentFor(color: Color, scheme: Scheme) {
+	const { min, max } = LIMITS[scheme];
+	return toHex({ l: Math.min(max, Math.max(min, color.l)), c: color.c, h: color.h, alpha: 1 });
 }
 
-/** True si hubo que aclararlo para que se leyera. */
-export function wasLifted(color: Color) {
-	return color.l < MIN_L;
+/** Aviso de que hubo que tocarle la claridad para que se leyera. Vacío si no. */
+export function adjustNote(color: Color, scheme: Scheme) {
+	if (color.l < LIMITS[scheme].min) return 'Era muy oscuro para el fondo: lo hemos aclarado.';
+	if (color.l > LIMITS[scheme].max) return 'Era muy claro para el fondo: lo hemos oscurecido.';
+	return '';
 }
 
-function markColor(hex: string) {
-	return `color-mix(in oklab, ${hex} ${MARK_MIX}%, #ffffff)`;
+export function schemeOf(mode: Mode): Scheme {
+	if (mode !== 'auto') return mode;
+	return window.matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro';
 }
 
-export function applyAccent(hex: string) {
-	const root = document.documentElement.style;
-	root.setProperty('--color-accent', hex);
-	root.setProperty('--color-mark', markColor(hex));
+/** El tema puesto ahora mismo, para quien escuche los cambios. */
+export interface ThemeEvent {
+	theme: Theme;
+	scheme: Scheme;
 }
 
-export function readAccent(): string | null {
+export function applyTheme(theme: Theme) {
+	const scheme = schemeOf(theme.mode);
+	const root = document.documentElement;
+
+	root.dataset.modo = theme.mode;
+	root.dataset.tema = scheme;
+	root.dataset.fondo = theme.surface;
+
+	const color = parseColor(theme.accent);
+	if (color) {
+		const hex = accentFor(color, scheme);
+		const { amount, towards } = MARK[scheme];
+		root.style.setProperty('--color-accent', hex);
+		root.style.setProperty('--color-mark', `color-mix(in oklab, ${hex} ${amount}%, ${towards})`);
+	}
+
+	// La barra del navegador en el móvil, del color del fondo que toca.
+	document.querySelector('meta[name="theme-color"]')?.setAttribute('content', PAGE_BG[scheme]);
+
+	const detail: ThemeEvent = { theme, scheme };
+	document.dispatchEvent(new CustomEvent('tuweb:tema', { detail }));
+}
+
+function readOption<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+	try {
+		const saved = localStorage.getItem(key) as T | null;
+		return saved && allowed.includes(saved) ? saved : fallback;
+	} catch {
+		// Sin localStorage (modo privado o permisos): el tema dura la visita.
+		return fallback;
+	}
+}
+
+export function readTheme(): Theme {
+	let accent = DEFAULT_THEME.accent;
 	try {
 		const saved = localStorage.getItem(ACCENT_KEY);
-		return saved && ACCENT_PATTERN.test(saved) ? saved : null;
+		if (saved && ACCENT_PATTERN.test(saved)) accent = saved;
 	} catch {
-		// Sin localStorage (modo privado o permisos): el color dura la visita.
-		return null;
+		// Ídem: se queda el de siempre.
+	}
+
+	return {
+		mode: readOption(MODE_KEY, MODES, DEFAULT_THEME.mode),
+		accent,
+		surface: readOption(SURFACE_KEY, SURFACES, DEFAULT_THEME.surface),
+	};
+}
+
+/** Lo que es igual a lo de fábrica no se guarda: así el localStorage queda limpio. */
+function write(key: string, value: string, fallback: string) {
+	try {
+		if (value === fallback) localStorage.removeItem(key);
+		else localStorage.setItem(key, value);
+	} catch {
+		// Si no deja guardar, no pasa nada: el tema dura la visita.
 	}
 }
 
-export function saveAccent(hex: string) {
-	try {
-		if (hex === DEFAULT_ACCENT) localStorage.removeItem(ACCENT_KEY);
-		else localStorage.setItem(ACCENT_KEY, hex);
-	} catch {
-		// Ídem: si no deja guardar, no pasa nada.
-	}
+export function saveTheme(theme: Theme) {
+	write(MODE_KEY, theme.mode, DEFAULT_THEME.mode);
+	write(ACCENT_KEY, theme.accent.toLowerCase(), DEFAULT_THEME.accent);
+	write(SURFACE_KEY, theme.surface, DEFAULT_THEME.surface);
 }

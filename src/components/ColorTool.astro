@@ -83,7 +83,8 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 			<div class="flex flex-col gap-3 border border-line bg-panel p-4">
 				<span class="text-sm text-muted">Color primario de la web</span>
 				<p class="text-sm">
-					Lo que elijas aquí repinta la web al momento y se guarda en este navegador.
+					Lo que elijas aquí repinta la web al momento y se guarda en este navegador. El modo y el
+					fondo están en la pestaña de Tema.
 				</p>
 				<div class="flex flex-wrap items-center gap-3">
 					<button
@@ -141,9 +142,13 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 </div>
 
 <style>
-	/* Tablero de ajedrez para que se vea la transparencia. */
+	/* Tablero de ajedrez para que se vea la transparencia. Con los colores del
+	   tema, que en modo claro un tablero negro canta. */
 	[data-color-checker] {
-		background-image: repeating-conic-gradient(#2a2a2a 0% 25%, #141414 0% 50%);
+		background-image: repeating-conic-gradient(
+			var(--color-line) 0% 25%,
+			var(--color-panel) 0% 50%
+		);
 		background-size: 16px 16px;
 	}
 
@@ -163,7 +168,16 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 
 <script>
 	import { type Color, formats, outOfGamut, parseColor, toHex, toRgb } from '../lib/color';
-	import { DEFAULT_ACCENT, accentFrom, applyAccent, readAccent, saveAccent, wasLifted } from '../lib/theme';
+	import {
+		DEFAULT_THEME,
+		type ThemeEvent,
+		accentFor,
+		adjustNote,
+		applyTheme,
+		readTheme,
+		saveTheme,
+		schemeOf,
+	} from '../lib/theme';
 
 	const input = document.querySelector<HTMLInputElement>('[data-color-input]');
 	const picker = document.querySelector<HTMLInputElement>('[data-color-picker]');
@@ -173,8 +187,8 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 
 	// Si esta visita ya eligió color primario, el selector arranca con ese; si no,
 	// con el que viene escrito en el campo.
-	const saved = readAccent();
-	if (saved && input) input.value = saved;
+	let theme = readTheme();
+	if (input && theme.accent !== DEFAULT_THEME.accent) input.value = theme.accent;
 
 	let color: Color = parseColor(input?.value ?? '') ?? { l: 1, c: 0, h: 0, alpha: 1 };
 
@@ -189,19 +203,20 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 	const SAVE_DELAY = 400;
 	let saveTimer = 0;
 
-	function showTheme(hex: string, lifted: boolean) {
-		if (themeValue) themeValue.textContent = hex;
-		if (themeNote) {
-			themeNote.textContent = lifted ? 'Era muy oscuro para el fondo: lo hemos aclarado.' : '';
-		}
+	/** El acento no es el color a pelo: se ajusta al esquema que esté puesto. */
+	function showTheme(next: Color) {
+		const scheme = schemeOf(theme.mode);
+		if (themeValue) themeValue.textContent = accentFor(next, scheme);
+		if (themeNote) themeNote.textContent = adjustNote(next, scheme);
 	}
 
 	function paint(next: Color) {
-		const hex = accentFrom(next);
-		applyAccent(hex);
-		showTheme(hex, wasLifted(next));
+		// Se guarda el color tal cual se eligió: cada esquema lo ajusta a lo suyo.
+		theme = { ...theme, accent: toHex({ ...next, alpha: 1 }) };
+		applyTheme(theme);
+		showTheme(next);
 		clearTimeout(saveTimer);
-		saveTimer = window.setTimeout(() => saveAccent(hex), SAVE_DELAY);
+		saveTimer = window.setTimeout(() => saveTheme(theme), SAVE_DELAY);
 	}
 
 	// Los nombres de CSS (red, rebeccapurple…) los resuelve el navegador: no hace
@@ -300,8 +315,26 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 	});
 
 	document.querySelector<HTMLButtonElement>('[data-theme-reset]')?.addEventListener('click', () => {
-		const parsed = parseColor(DEFAULT_ACCENT);
-		if (parsed) update(parsed, DEFAULT_ACCENT);
+		const parsed = parseColor(DEFAULT_THEME.accent);
+		if (parsed) update(parsed, DEFAULT_THEME.accent);
+	});
+
+	/*
+	 * El tema también se toca desde la cabecera y desde la pestaña de Tema. Aquí
+	 * solo se refresca lo que se enseña: aplicar y guardar ya lo ha hecho quien
+	 * lo cambió, y volver a hacerlo sería dar vueltas.
+	 */
+	document.addEventListener('tuweb:tema', (event) => {
+		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
+		const parsed = parseColor(theme.accent);
+		if (!parsed) return;
+
+		if (toHex({ ...color, alpha: 1 }) !== theme.accent) {
+			color = parsed;
+			if (input) input.value = theme.accent;
+			render();
+		}
+		showTheme(color);
 	});
 
 	const timers = new Map<HTMLButtonElement, number>();
@@ -336,5 +369,5 @@ const SAMPLES = ['#00c2ff', 'rebeccapurple', 'oklch(72% 0.15 150)', 'hsl(38 92% 
 
 	render();
 	// Al abrir solo se enseña el color que ya está puesto: nada que aplicar ni que guardar.
-	showTheme(accentFrom(color), wasLifted(color));
+	showTheme(color);
 </script>

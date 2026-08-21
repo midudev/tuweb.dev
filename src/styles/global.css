@@ -80,6 +80,68 @@ html {
 	color: var(--color-fg);
 }
 
+/*
+ * El esquema claro. El oscuro es el de arriba y sigue siendo el de casa; este
+ * repisa las mismas variables cuando el <html> lleva data-tema="claro", que es
+ * lo que pone el selector de temas. Un selector con atributo gana a :root, así
+ * que no hace falta tocar nada más: toda la web va detrás de estos siete
+ * colores.
+ */
+html[data-tema='claro'] {
+	color-scheme: light;
+
+	--color-bg: #fbfbfa;
+	--color-fg: #17171a;
+	/* 6.1:1 sobre el fondo claro; el apagado también tiene que leerse. */
+	--color-muted: #5f5f66;
+	--color-line: #dcdcd6;
+	--color-panel: #f2f2ee;
+	/* El azul de siempre, bajado de claridad hasta que se lee sobre blanco. */
+	--color-accent: oklch(0.54 0.147 226);
+	--color-mark: oklch(0.38 0.11 226);
+	--color-heart: oklch(0.55 0.17 18);
+	--color-ok: oklch(0.5 0.14 150);
+	--color-building: oklch(0.55 0.13 75);
+}
+
+/*
+ * El fondo de las zonas grandes, solo en los contenedores marcados con
+ * data-canvas: los paneles pequeños y los campos se quedan planos, que si no
+ * se lee peor. El degradado va anclado a la pantalla para que las secciones
+ * apiladas parezcan una sola pieza.
+ */
+html[data-fondo='degradado'] [data-canvas] {
+	background-image: linear-gradient(
+		155deg,
+		color-mix(in oklab, var(--color-accent) 16%, transparent),
+		transparent 62%
+	);
+	background-attachment: fixed;
+}
+
+html[data-fondo='trama'] [data-canvas] {
+	background-image:
+		linear-gradient(var(--color-line) 1px, transparent 1px),
+		linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+	background-size: 34px 34px;
+}
+
+/*
+ * El botón del tema enseña solo el icono del modo que está puesto. Lo decide
+ * el atributo del <html>, no un script: así sobrevive a los refrescos de
+ * data-live, que reescriben la cabecera entera cada minuto.
+ */
+[data-tema-toggle] > [data-modo] {
+	display: none;
+}
+
+html[data-modo='auto'] [data-tema-toggle] > [data-modo='auto'],
+html[data-modo='claro'] [data-tema-toggle] > [data-modo='claro'],
+html[data-modo='oscuro'] [data-tema-toggle] > [data-modo='oscuro'],
+html:not([data-modo]) [data-tema-toggle] > [data-modo='oscuro'] {
+	display: inline-flex;
+}
+
 body {
 	min-height: 100vh;
 	background: var(--color-bg);

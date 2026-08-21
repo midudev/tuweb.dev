@@ -1,0 +1,194 @@
+---
+/**
+ * El selector de temas: modo (claro, oscuro o el del sistema), color primario y
+ * fondo. Todo se aplica al momento sobre la web entera y se guarda en este
+ * navegador; no viaja a ningún sitio.
+ */
+import { MODES, PRESETS, SURFACES } from '../lib/theme';
+import Icon from './Icon.astro';
+
+const MODOS: Record<string, { label: string; icon: string }> = {
+	auto: { label: 'El del sistema', icon: 'device-desktop' },
+	claro: { label: 'Claro', icon: 'sun' },
+	oscuro: { label: 'Oscuro', icon: 'moon' },
+};
+
+const FONDOS: Record<string, { label: string; icon: string }> = {
+	plano: { label: 'Plano', icon: 'square' },
+	degradado: { label: 'Degradado', icon: 'gradienter' },
+	trama: { label: 'Trama', icon: 'grid-dots' },
+};
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<div
+	role="tabpanel"
+	id="tema"
+	aria-labelledby="tab-tema"
+	data-panel="tema"
+	hidden
+	class="flex flex-col gap-7"
+>
+	<div class="flex flex-col gap-3">
+		<h3 id="tema-modo" class="text-sm text-muted">Modo</h3>
+		<div role="group" aria-labelledby="tema-modo" class="flex flex-wrap gap-2">
+			{
+				MODES.map((modo) => (
+					<button type="button" data-modo-set={modo} aria-pressed="false" class={OPCION}>
+						<Icon name={MODOS[modo].icon} class="size-4 shrink-0" />
+						{MODOS[modo].label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<h3 id="tema-color" class="text-sm text-muted">Color primario</h3>
+		<div role="group" aria-labelledby="tema-color" class="flex flex-wrap gap-2">
+			{
+				PRESETS.map((preset) => (
+					<button type="button" data-color-set={preset.hex} aria-pressed="false" class={OPCION}>
+						<span class="size-3.5 shrink-0 border border-line" style={`background:${preset.hex}`} />
+						{preset.label}
+					</button>
+				))
+			}
+		</div>
+		<div class="flex flex-wrap items-center gap-3 text-sm">
+			<label class="inline-flex items-center gap-2 text-muted">
+				A medida
+				<input
+					type="color"
+					data-tema-picker
+					value="#00c2ff"
+					class="h-9 w-14 cursor-pointer border border-line bg-panel p-1"
+				/>
+			</label>
+			<button type="button" data-tema-reset class={OPCION}>
+				<Icon name="rotate" class="size-4 shrink-0" />
+				El de siempre
+			</button>
+			<code data-tema-hex class="text-mark"></code>
+		</div>
+		<p data-tema-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+		<p class="text-sm text-muted">
+			En la pestaña de Colores puedes afinarlo en cualquier formato.
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<h3 id="tema-fondo" class="text-sm text-muted">Fondo</h3>
+		<div role="group" aria-labelledby="tema-fondo" class="flex flex-wrap gap-2">
+			{
+				SURFACES.map((fondo) => (
+					<button type="button" data-fondo-set={fondo} aria-pressed="false" class={OPCION}>
+						<Icon name={FONDOS[fondo].icon} class="size-4 shrink-0" />
+						{FONDOS[fondo].label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-3 border border-line bg-panel p-4">
+		<p class="text-sm">
+			Así queda: <span class="text-accent">acento</span>, <span class="text-mark">realce</span>,
+			<span class="text-muted">apagado</span> y
+			<span class="bg-accent px-2 py-1 text-bg">un botón</span>.
+		</p>
+		<p class="text-sm text-muted">
+			Se guarda en este navegador y solo lo ves tú. Los demás siguen viendo el suyo.
+		</p>
+	</div>
+</div>
+
+<script>
+	import { parseColor, toHex } from '../lib/color';
+	import {
+		DEFAULT_THEME,
+		type Mode,
+		type Surface,
+		type Theme,
+		type ThemeEvent,
+		accentFor,
+		adjustNote,
+		applyTheme,
+		readTheme,
+		saveTheme,
+		schemeOf,
+	} from '../lib/theme';
+
+	const picker = document.querySelector<HTMLInputElement>('[data-tema-picker]');
+	const hexOut = document.querySelector<HTMLElement>('[data-tema-hex]');
+	const noteOut = document.querySelector<HTMLElement>('[data-tema-nota]');
+
+	/*
+	 * Arrastrando el selector de color salen decenas de cambios por segundo: la
+	 * web se repinta en todos, pero al localStorage solo se escribe al parar.
+	 */
+	const SAVE_DELAY = 400;
+	let saveTimer = 0;
+
+	let theme = readTheme();
+
+	function marcar(selector: string, clave: string, valor: string) {
+		document.querySelectorAll<HTMLButtonElement>(selector).forEach((button) => {
+			const suyo = button.dataset[clave] ?? '';
+			button.setAttribute('aria-pressed', String(suyo.toLowerCase() === valor.toLowerCase()));
+		});
+	}
+
+	function render() {
+		marcar('[data-modo-set]', 'modoSet', theme.mode);
+		marcar('[data-fondo-set]', 'fondoSet', theme.surface);
+		marcar('[data-color-set]', 'colorSet', theme.accent);
+
+		const color = parseColor(theme.accent);
+		if (!color) return;
+
+		const scheme = schemeOf(theme.mode);
+		if (hexOut) hexOut.textContent = accentFor(color, scheme);
+		if (noteOut) noteOut.textContent = adjustNote(color, scheme);
+		// El campo nativo solo entiende hex de seis dígitos, que es lo que guardamos.
+		if (picker) picker.value = toHex({ ...color, alpha: 1 });
+	}
+
+	function cambiar(patch: Partial<Theme>, deferred = false) {
+		theme = { ...theme, ...patch };
+		// applyTheme avisa por su cuenta, y de repintar este panel se encarga el aviso.
+		applyTheme(theme);
+
+		clearTimeout(saveTimer);
+		if (deferred) saveTimer = window.setTimeout(() => saveTheme(theme), SAVE_DELAY);
+		else saveTheme(theme);
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-modo-set]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ mode: button.dataset.modoSet as Mode }));
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-fondo-set]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ surface: button.dataset.fondoSet as Surface }));
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-color-set]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ accent: button.dataset.colorSet ?? '' }));
+	});
+
+	picker?.addEventListener('input', () => cambiar({ accent: picker.value }, true));
+
+	document.querySelector<HTMLButtonElement>('[data-tema-reset]')?.addEventListener('click', () => {
+		cambiar({ accent: DEFAULT_THEME.accent });
+	});
+
+	// El tema también se toca desde la cabecera y desde la pestaña de Colores.
+	document.addEventListener('tuweb:tema', (event) => {
+		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
+		render();
+	});
+
+	render();
+</script>

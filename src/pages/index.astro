@@ -60,7 +60,7 @@ const deployedAt =
 			/>
 
 			<div class="flex min-w-0 grow flex-col">
-				<section class="border-b border-line bg-panel" aria-label="Tu idea">
+				<section data-canvas class="border-b border-line bg-panel" aria-label="Tu idea">
 					<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
 						<div data-live="header">
 							<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
@@ -73,7 +73,7 @@ const deployedAt =
 					</div>
 				</section>
 
-				<section class="grow bg-bg" aria-labelledby="label-app">
+				<section data-canvas class="grow bg-bg" aria-labelledby="label-app">
 					<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
 						<SectionLabel forId="label-app">Y ESTO ES LO QUE YA FUNCIONA</SectionLabel>
 
@@ -93,7 +93,7 @@ const deployedAt =
 				</section>
 
 				<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
-				<div class="border-t border-line bg-panel">
+				<div data-canvas class="border-t border-line bg-panel">
 					<div class="mx-auto w-full max-w-5xl px-6 py-8" data-live="featurelog">
 						<FeatureLog
 							version={data.version}
