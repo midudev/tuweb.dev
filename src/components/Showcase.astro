@@ -1,0 +1,385 @@
+---
+/**
+ * El escaparate: una sección para publicar los SaaS y los proyectos ya
+ * terminados. Como el chat, no tiene servidor detrás: cada ficha se guarda en
+ * el navegador de quien la publica y desde ahí se copia para proponerla como
+ * idea, que es la única forma de que entre en esta web.
+ */
+import Icon from './Icon.astro';
+import { NAME_MAX, PITCH_MAX, TAGS } from '../lib/showcase';
+
+const FIELD =
+	'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-accent';
+---
+
+<section id="escaparate" class="flex flex-col gap-7 border-t border-line pt-8">
+	<div class="flex flex-col gap-2">
+		<h2 class="flex items-center gap-2.5 font-pixel text-[22px] font-normal">
+			<Icon name="rocket" class="size-5 shrink-0 text-accent" />
+			Escaparate
+		</h2>
+		<p class="max-w-[60ch] text-sm text-muted">
+			Lo que ya está terminado y en pie: tu SaaS, tu app, esa herramienta que usa medio mundo.
+			Aquí tampoco hay servidor: la ficha se queda en tu navegador. Cuando la tengas, cópiala y
+			proponla como idea; así entra para todos.
+		</p>
+	</div>
+
+	<form data-form class="grid gap-4 border border-line bg-panel p-4 md:grid-cols-2">
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Nombre</span>
+			<input
+				type="text"
+				data-field="name"
+				maxlength={NAME_MAX}
+				autocomplete="off"
+				spellcheck="false"
+				placeholder="Mi SaaS"
+				class={FIELD}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Enlace</span>
+			<input
+				type="text"
+				data-field="url"
+				inputmode="url"
+				autocomplete="off"
+				spellcheck="false"
+				placeholder="misaas.com"
+				class={FIELD}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-2 md:col-span-2">
+			<span class="text-sm text-muted">En una línea</span>
+			<input
+				type="text"
+				data-field="pitch"
+				maxlength={PITCH_MAX}
+				autocomplete="off"
+				placeholder="Qué hace y para quién"
+				class={FIELD}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Etiqueta</span>
+			<select data-field="tag" class={FIELD}>
+				{TAGS.map((tag) => <option value={tag}>{tag}</option>)}
+			</select>
+		</label>
+
+		<div class="flex items-end justify-between gap-4 md:col-span-1">
+			<button type="submit" class={BOTON}>
+				<Icon name="plus" class="size-4 shrink-0" />
+				Publicar
+			</button>
+			<p data-error role="status" class="text-sm text-heart"></p>
+		</div>
+	</form>
+
+	<div
+		data-filters
+		hidden
+		role="group"
+		aria-label="Filtrar por etiqueta"
+		class="flex flex-wrap gap-2 text-sm"
+	>
+	</div>
+
+	<ul data-list class="grid gap-4 md:grid-cols-2">
+		<li data-house class="flex flex-col gap-3 border border-accent bg-panel p-4">
+			<div class="flex items-start justify-between gap-3">
+				<a href="/" class="inline-flex items-center gap-2 font-pixel text-accent hover:underline">
+					tuweb.dev
+				</a>
+				<span class="shrink-0 border border-line px-2 py-1 text-xs text-muted">de la casa</span>
+			</div>
+			<p class="text-sm">Una web que cambia con las ideas de quien la visita. Esta misma.</p>
+			<p class="text-xs text-muted"><code>tuweb.dev</code> · en obras siempre</p>
+		</li>
+	</ul>
+
+	<div class="flex flex-wrap items-center justify-between gap-4">
+		<p data-count class="text-sm text-muted" aria-live="polite"></p>
+		<button type="button" data-clear class={BOTON} hidden>
+			<Icon name="trash" class="size-4 shrink-0" />
+			Vaciar el escaparate
+		</button>
+	</div>
+
+	<template data-card>
+		<li class="flex flex-col gap-3 border border-line bg-panel p-4">
+			<div class="flex items-start justify-between gap-3">
+				<a
+					data-link
+					target="_blank"
+					rel="noopener noreferrer nofollow"
+					class="inline-flex items-center gap-2 font-pixel text-accent hover:underline"
+				>
+					<span data-name></span>
+					<Icon name="external-link" class="size-4 shrink-0" />
+				</a>
+				<span data-tag-label class="shrink-0 border border-line px-2 py-1 text-xs text-muted"></span>
+			</div>
+			<p data-pitch class="text-sm"></p>
+			<p class="text-xs text-muted"><code data-host></code> · <span data-at></span></p>
+			<div class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
+				<button type="button" data-copy class={ENLACE}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-copy-label>Copiar la ficha</span>
+				</button>
+				<button type="button" data-remove class={ENLACE}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Quitar
+				</button>
+			</div>
+		</li>
+	</template>
+
+	<p class="text-sm text-muted">
+		Esto solo está en tu navegador. Para que lo vea todo el mundo, copia la ficha y proponla arriba.
+	</p>
+</section>
+
+<style is:global>
+	/*
+	 * Va global porque las fichas y los chips los pinta el script y no llevan la
+	 * marca del componente; por eso todo cuelga de #escaparate.
+	 */
+
+	/* El check solo sale cuando la copia ha ido bien. */
+	#escaparate [data-copy] [data-icon='check'] {
+		display: none;
+	}
+	#escaparate [data-copy][data-state='done'] {
+		color: var(--color-accent);
+	}
+	#escaparate [data-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	#escaparate [data-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	#escaparate [data-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+
+	#escaparate [data-filtro][aria-pressed='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+</style>
+
+<script>
+	import {
+		MAX_PROJECTS,
+		type Project,
+		hostOf,
+		pitchOf,
+		readProjects,
+		saveProjects,
+		toProject,
+	} from '../lib/showcase';
+
+	const section = document.querySelector<HTMLElement>('#escaparate');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const list = section?.querySelector<HTMLElement>('[data-list]');
+	const template = section?.querySelector<HTMLTemplateElement>('[data-card]');
+	const filters = section?.querySelector<HTMLElement>('[data-filters]');
+	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const countOut = section?.querySelector<HTMLElement>('[data-count]');
+	const clearButton = section?.querySelector<HTMLButtonElement>('[data-clear]');
+	const house = section?.querySelector<HTMLElement>('[data-house]');
+
+	if (section && form && list && template && filters && countOut) {
+		const CHIP =
+			'border border-line px-3 py-2 text-muted hover:border-accent hover:text-accent';
+
+		let projects = readProjects();
+		let filter = '';
+
+		function field(name: string) {
+			return form!.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`);
+		}
+
+		function fail(message: string) {
+			if (errorOut) errorOut.textContent = message;
+		}
+
+		function fecha(at: number) {
+			return new Date(at).toLocaleDateString('es-ES', {
+				day: 'numeric',
+				month: 'short',
+				year: 'numeric',
+			});
+		}
+
+		async function copy(text: string) {
+			try {
+				await navigator.clipboard.writeText(text);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const helper = document.createElement('textarea');
+					helper.value = text;
+					helper.readOnly = true;
+					helper.style.position = 'fixed';
+					helper.style.opacity = '0';
+					document.body.append(helper);
+					helper.select();
+					const done = document.execCommand('copy');
+					helper.remove();
+					return done;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		function card(project: Project) {
+			const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+			node.dataset.tag = project.tag;
+
+			const link = node.querySelector<HTMLAnchorElement>('[data-link]')!;
+			// La URL viene ya limpia de toProject: solo http o https.
+			link.href = project.url;
+			node.querySelector('[data-name]')!.textContent = project.name;
+			node.querySelector('[data-tag-label]')!.textContent = project.tag;
+			node.querySelector('[data-pitch]')!.textContent = project.pitch;
+			node.querySelector('[data-host]')!.textContent = hostOf(project.url);
+			node.querySelector('[data-at]')!.textContent = fecha(project.at);
+
+			const copyButton = node.querySelector<HTMLButtonElement>('[data-copy]')!;
+			const copyLabel = node.querySelector<HTMLElement>('[data-copy-label]')!;
+			let timer = 0;
+
+			copyButton.addEventListener('click', async () => {
+				const done = await copy(pitchOf(project));
+
+				copyButton.dataset.state = done ? 'done' : 'error';
+				copyLabel.textContent = done ? 'Copiada' : 'No se pudo copiar';
+
+				clearTimeout(timer);
+				timer = window.setTimeout(() => {
+					copyButton.removeAttribute('data-state');
+					copyLabel.textContent = 'Copiar la ficha';
+				}, 2000);
+			});
+
+			node.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
+				commit(projects.filter((item) => item.id !== project.id));
+			});
+
+			return node;
+		}
+
+		/** Los chips: «Todo» y las etiquetas que de verdad hay publicadas. */
+		function renderFilters() {
+			const tags = [...new Set(projects.map((project) => project.tag))].sort();
+
+			// Con una etiqueta sola no hay nada que filtrar: fuera los chips y fuera
+			// el filtro, no vaya a quedarse uno puesto sin forma de quitarlo.
+			filters!.hidden = tags.length < 2;
+			if (tags.length < 2) {
+				filter = '';
+				filters!.replaceChildren();
+				return;
+			}
+
+			if (filter && !tags.includes(filter)) filter = '';
+
+			filters!.replaceChildren(
+				...['', ...tags].map((tag) => {
+					const chip = document.createElement('button');
+					chip.type = 'button';
+					chip.dataset.filtro = tag;
+					chip.className = CHIP;
+					chip.setAttribute('aria-pressed', String(tag === filter));
+					chip.textContent = tag
+						? `${tag} (${projects.filter((project) => project.tag === tag).length})`
+						: `Todo (${projects.length})`;
+					chip.addEventListener('click', () => {
+						filter = tag;
+						render();
+					});
+					return chip;
+				}),
+			);
+		}
+
+		function render() {
+			// Primero los chips, que son los que deciden si el filtro sigue en pie.
+			renderFilters();
+
+			const shown = filter ? projects.filter((project) => project.tag === filter) : projects;
+
+			for (const old of list!.querySelectorAll('li:not([data-house])')) old.remove();
+			list!.append(...shown.map(card));
+
+			// La ficha de la casa está siempre, salvo cuando se filtra: entonces manda
+			// la etiqueta y esta no tiene ninguna.
+			if (house) house.hidden = Boolean(filter);
+
+			const total = projects.length;
+			countOut!.textContent =
+				total === 0
+					? 'Todavía no has publicado nada. Empieza por lo tuyo.'
+					: `${total} ${total === 1 ? 'proyecto publicado' : 'proyectos publicados'} en este navegador · quedan ${MAX_PROJECTS - total} huecos.`;
+			if (clearButton) clearButton.hidden = total === 0;
+		}
+
+		function commit(next: Project[]) {
+			projects = next;
+			saveProjects(projects);
+			render();
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			fail('');
+
+			if (projects.length >= MAX_PROJECTS) {
+				fail(`El escaparate está lleno: ${MAX_PROJECTS} como mucho. Quita alguno.`);
+				return;
+			}
+
+			const project = toProject({
+				name: field('name')?.value,
+				url: field('url')?.value,
+				pitch: field('pitch')?.value,
+				tag: field('tag')?.value,
+			});
+
+			if (typeof project === 'string') {
+				fail(project);
+				return;
+			}
+
+			if (projects.some((item) => item.url === project.url)) {
+				fail('Ese enlace ya está en el escaparate.');
+				return;
+			}
+
+			// Lo último publicado, primero: un escaparate se mira por delante.
+			commit([project, ...projects]);
+
+			form.reset();
+			field('name')?.focus();
+		});
+
+		clearButton?.addEventListener('click', () => {
+			if (!projects.length) return;
+			commit([]);
+		});
+
+		render();
+	}
+</script>

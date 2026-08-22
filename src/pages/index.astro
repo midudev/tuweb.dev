@@ -9,6 +9,7 @@ import LiveState from '../components/LiveState.astro';
 import Minigame from '../components/Minigame.astro';
 import ProposeForm from '../components/ProposeForm.astro';
 import SectionLabel from '../components/SectionLabel.astro';
+import Showcase from '../components/Showcase.astro';
 import Toolbox from '../components/Toolbox.astro';
 import { getSessionUser } from '../lib/auth';
 import { getDashboardData, getHomeData } from '../lib/db/queries';
@@ -80,6 +81,8 @@ const deployedAt =
 						<Toolbox />
 
 						<Minigame />
+
+						<Showcase />
 
 						<Chat
 							login={user?.login ?? null}
