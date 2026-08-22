@@ -142,6 +142,17 @@ html:not([data-modo]) [data-tema-toggle] > [data-modo='oscuro'] {
 	display: inline-flex;
 }
 
+/*
+ * La sección de la que habla el tour de bienvenida. La regla va aquí y no en
+ * el componente porque las secciones las pinta cada uno por su lado, y los
+ * estilos de Astro son de su componente y de nadie más.
+ */
+[data-tour-focus] {
+	outline: 1px solid var(--color-accent);
+	outline-offset: 6px;
+	scroll-margin-block: 1.5rem;
+}
+
 body {
 	min-height: 100vh;
 	background: var(--color-bg);

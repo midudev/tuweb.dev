@@ -1,0 +1,270 @@
+---
+/**
+ * El recibimiento: un pop-up que sale la primera vez y cuenta de qué va esto,
+ * con una parada en cada sección de la portada. Va en un <dialog> modal, así
+ * que el foco y el Escape los lleva el navegador. Lo de si ya se ha visto vive
+ * en el localStorage de quien mira; no sale de su navegador.
+ *
+ * Cada parada apunta a un trozo de la página con un selector. Ese trozo se
+ * busca en el momento —no al cargar— porque la portada se repinta sola cada
+ * minuto y los nodos de dentro cambian.
+ */
+import Icon from './Icon.astro';
+
+const steps = [
+	{
+		icon: 'sparkles',
+		title: 'Esta web es tuya',
+		target: '',
+		body: 'Aquí no manda nadie: la web la cambia quien pasa por ella. Se abre una ventana, tú propones un cambio, se cierra, una IA elige la idea que más se repite y la implementa. Cuando termina, la web sube de versión. Un repaso rápido y te dejo en paz.',
+	},
+	{
+		icon: 'bulb',
+		title: 'Tu idea',
+		target: '#proponer',
+		body: 'Entra con GitHub y escribe en una línea qué le falta a esta web. Una idea por persona en cada ventana, y puedes cambiarla mientras siga abierta. Justo debajo están todas las ideas que van entrando.',
+	},
+	{
+		icon: 'layout-dashboard',
+		title: 'El panel',
+		target: '[data-live="dashboard"]',
+		body: 'Los números en vivo: lo que queda para que cierre la ventana, las ideas que han entrado, en qué anda la IA ahora mismo y el total desde el primer día.',
+	},
+	{
+		icon: 'adjustments',
+		title: 'Caja de herramientas',
+		target: '#herramientas',
+		body: 'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, colores, tema y config. Cada pestaña tiene su propio enlace para compartirla.',
+	},
+	{
+		icon: 'device-gamepad-2',
+		title: 'Minijuego',
+		target: '#minijuego',
+		body: 'Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para pausar; en el móvil, desliza sobre el tablero.',
+	},
+	{
+		icon: 'rocket',
+		title: 'Escaparate',
+		target: '#escaparate',
+		body: 'Para enseñar lo que ya tienes en pie. No hay servidor: la ficha se queda en tu navegador, así que cópiala y proponla como idea si quieres que entre para todos.',
+	},
+	{
+		icon: 'message-2',
+		title: 'Chat',
+		target: '#chat',
+		body: 'Un canal como los de antes, sin servidor: lo que escribes se queda en tu navegador. En el canal está claude, que es quien escribe el código. Escribe /help para ver los comandos.',
+	},
+	{
+		icon: 'history',
+		title: 'Lo que ya se ha construido',
+		target: '[data-live="featurelog"]',
+		body: 'Al final de la página, el último cambio que entró y el que está en marcha. El histórico completo, ventana a ventana, está en el changelog.',
+	},
+];
+
+const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 text-sm';
+---
+
+<dialog data-tour data-pos="centro" aria-label="Cómo funciona esta web" class="text-fg">
+	<div class="flex flex-col gap-5 border border-line bg-panel p-6">
+		<div class="flex items-baseline justify-between gap-4">
+			<p class="font-pixel text-xs tracking-wide text-accent">CÓMO FUNCIONA</p>
+			<p class="text-xs tabular-nums text-muted">
+				<span data-tour-count>1</span>/{steps.length}
+			</p>
+		</div>
+
+		<div data-tour-live aria-live="polite">
+			{
+				steps.map((step, index) => (
+					<article data-tour-step data-tour-target={step.target} hidden={index > 0} class="flex flex-col gap-3">
+						<h2 class="flex items-center gap-2.5 font-pixel text-[22px] font-normal">
+							<Icon name={step.icon} class="size-5 shrink-0 text-accent" />
+							{step.title}
+						</h2>
+						<p class="text-sm text-pretty text-muted">{step.body}</p>
+					</article>
+				))
+			}
+		</div>
+
+		<div class="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+			<button type="button" data-tour-skip class="text-sm text-muted hover:text-fg">
+				Saltar el tour
+			</button>
+
+			<div class="flex items-center gap-2">
+				<button
+					type="button"
+					data-tour-prev
+					class:list={[BOTON, 'text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40']}
+				>
+					<Icon name="arrow-left" class="size-4 shrink-0" />
+					Atrás
+				</button>
+				<button
+					type="button"
+					data-tour-next
+					autofocus
+					class:list={[BOTON, 'border-accent bg-accent text-bg hover:border-mark hover:bg-mark']}
+				>
+					<span data-tour-next-label>Siguiente</span>
+					<Icon name="arrow-right" class="size-4 shrink-0" />
+				</button>
+			</div>
+		</div>
+	</div>
+</dialog>
+
+<style>
+	/*
+	 * El <dialog> se coloca a mano: la bienvenida en medio de la pantalla y el
+	 * resto de paradas abajo, que arriba está la sección de la que se habla.
+	 */
+	[data-tour] {
+		position: fixed;
+		inset: auto;
+		left: 50%;
+		width: min(36rem, calc(100vw - 2rem));
+		max-height: calc(100dvh - 3rem);
+		margin: 0;
+		overflow-y: auto;
+		border: 0;
+		padding: 0;
+		background: transparent;
+	}
+
+	[data-tour][data-pos='centro'] {
+		top: 50%;
+		translate: -50% -50%;
+	}
+
+	[data-tour][data-pos='abajo'] {
+		bottom: 1.5rem;
+		translate: -50%;
+	}
+
+	/* Un velo flojo: la sección marcada tiene que seguir leyéndose por detrás. */
+	[data-tour]::backdrop {
+		background: color-mix(in oklab, var(--color-bg, #0a0a0a) 45%, transparent);
+	}
+</style>
+
+<script>
+	const dialog = document.querySelector<HTMLDialogElement>('[data-tour]');
+	const steps = [...document.querySelectorAll<HTMLElement>('[data-tour-step]')];
+	const count = document.querySelector<HTMLElement>('[data-tour-count]');
+	const nextLabel = document.querySelector<HTMLElement>('[data-tour-next-label]');
+	const prev = document.querySelector<HTMLButtonElement>('[data-tour-prev]');
+	const next = document.querySelector<HTMLButtonElement>('[data-tour-next]');
+
+	// La clave lleva versión: si algún día el tour cambia de verdad, se sube el
+	// número y vuelve a salir una vez.
+	const KEY = 'tuweb:tour';
+	const VALUE = '1';
+
+	const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const behavior: ScrollBehavior = quieto ? 'auto' : 'smooth';
+
+	let index = 0;
+
+	function visto() {
+		try {
+			return localStorage.getItem(KEY) === VALUE;
+		} catch {
+			// Sin localStorage no hay forma de saberlo: mejor no dar la lata.
+			return true;
+		}
+	}
+
+	function marcar() {
+		try {
+			localStorage.setItem(KEY, VALUE);
+		} catch {
+			// Si no deja guardar, el tour se queda en esta visita.
+		}
+	}
+
+	function limpiar() {
+		for (const el of document.querySelectorAll('[data-tour-focus]')) {
+			el.removeAttribute('data-tour-focus');
+		}
+	}
+
+	function mostrar(n: number) {
+		if (!dialog || steps.length === 0) return;
+
+		index = Math.min(Math.max(n, 0), steps.length - 1);
+		steps.forEach((step, i) => {
+			step.hidden = i !== index;
+		});
+
+		if (count) count.textContent = String(index + 1);
+		if (nextLabel) nextLabel.textContent = index === steps.length - 1 ? 'Empezar' : 'Siguiente';
+		if (prev) prev.disabled = index === 0;
+
+		limpiar();
+
+		// El selector se resuelve ahora: la portada se repinta sola cada minuto.
+		const selector = steps[index].dataset.tourTarget ?? '';
+		const target = selector ? document.querySelector<HTMLElement>(selector) : null;
+
+		dialog.dataset.pos = target ? 'abajo' : 'centro';
+
+		if (!target) {
+			window.scrollTo({ top: 0, behavior });
+			return;
+		}
+
+		target.setAttribute('data-tour-focus', '');
+		// Lo que no cabe entero se enseña por arriba; lo demás, centrado.
+		const alta = target.getBoundingClientRect().height > window.innerHeight * 0.7;
+		target.scrollIntoView({ block: alta ? 'start' : 'center', behavior });
+	}
+
+	function abrir() {
+		if (!dialog) return;
+		if (!dialog.open) dialog.showModal();
+		mostrar(0);
+	}
+
+	dialog?.addEventListener('close', () => {
+		limpiar();
+		marcar();
+	});
+
+	// Un clic fuera de la tarjeta cae en el propio <dialog>: eso es el velo, y el
+	// velo cierra. El Escape ya lo lleva el navegador.
+	dialog?.addEventListener('click', (event) => {
+		if (event.target === dialog) dialog?.close();
+	});
+
+	next?.addEventListener('click', () => {
+		if (index < steps.length - 1) {
+			mostrar(index + 1);
+			return;
+		}
+
+		// Al terminar se sale por donde se empieza: el formulario de la idea.
+		dialog?.close();
+		document.querySelector('#proponer')?.scrollIntoView({ block: 'center', behavior });
+	});
+
+	prev?.addEventListener('click', () => mostrar(index - 1));
+	document.querySelector('[data-tour-skip]')?.addEventListener('click', () => dialog?.close());
+
+	// El botón para volver a verlo vive en el panel, que se repinta solo: por eso
+	// el clic se escucha en el documento y no en el botón de ahora.
+	document.addEventListener('click', (event) => {
+		const target = event.target as Element | null;
+		if (!target?.closest('[data-tour-open]')) return;
+		abrir();
+	});
+
+	// Sale sola la primera vez. Si alguien llega a una herramienta concreta o
+	// vuelve de enviar su idea, ya está en otra cosa: ese día no se abre.
+	if (!visto() && !location.hash && !location.search) {
+		marcar();
+		abrir();
+	}
+</script>

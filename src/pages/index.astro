@@ -11,6 +11,7 @@ import ProposeForm from '../components/ProposeForm.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import Showcase from '../components/Showcase.astro';
 import Toolbox from '../components/Toolbox.astro';
+import Tour from '../components/Tour.astro';
 import { getSessionUser } from '../lib/auth';
 import { getDashboardData, getHomeData } from '../lib/db/queries';
 import { siteState } from '../lib/releases';
@@ -112,6 +113,8 @@ const deployedAt =
 
 		<Footer />
 	</div>
+
+	<Tour />
 
 	<LiveState />
 </Layout>
