@@ -1,0 +1,388 @@
+---
+/**
+ * Chat anónimo. Al lado del canal de IRC, que tiene nicks y memoria, este es lo
+ * contrario: no se pide nombre, el alias es un número que cambia cuando quieras
+ * y nada se guarda en ningún sitio. Los mensajes viven en la memoria de la
+ * pestaña, viajan por BroadcastChannel a las demás pestañas abiertas y se
+ * borran solos a los diez minutos. Al cerrar, no queda rastro.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex shrink-0 items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<section id="anonimo" class="flex flex-col gap-7 border-t border-line pt-8">
+	<div class="flex flex-col gap-2">
+		<h2 class="flex items-center gap-2.5 font-pixel text-[22px] font-normal">
+			<Icon name="eye-off" class="size-5 shrink-0 text-accent" />
+			Chat anónimo
+		</h2>
+		<p class="max-w-[60ch] text-sm text-muted">
+			Sin nombre y sin memoria. Tu alias es un número que puedes cambiar cuando quieras, cada
+			mensaje se borra solo a los diez minutos y nada se guarda: ni en un servidor, ni en tu
+			navegador. Lo que escribes se ve al momento en el resto de pestañas que tengas abiertas.
+		</p>
+	</div>
+
+	<div class="flex flex-col border border-line bg-panel">
+		<div
+			class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-4 py-3"
+		>
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+				<span class="flex items-center gap-1 font-pixel text-accent">
+					<Icon name="hash" class="size-4 shrink-0" />
+					anónimo
+				</span>
+				<span class="text-sm text-muted">eres <span data-alias>…</span></span>
+				<button
+					type="button"
+					data-rotar
+					class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent"
+				>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Cambiar de alias
+				</button>
+			</div>
+			<span class="flex items-center gap-3 text-xs text-muted">
+				<span data-aqui aria-live="polite">1 aquí</span>
+				<span class="flex items-center gap-1">
+					<Icon name="hourglass" class="size-3.5 shrink-0" />
+					se borra a los 10 min
+				</span>
+			</span>
+		</div>
+
+		<ul
+			data-log
+			role="log"
+			aria-live="polite"
+			aria-label="Mensajes anónimos"
+			class="flex h-80 min-w-0 flex-col gap-3 overflow-y-auto px-4 py-3"
+		>
+		</ul>
+
+		<p data-vacio class="border-t border-line px-4 py-3 text-sm text-muted">
+			Aquí no hay nada. Lo de antes ya se ha borrado y lo que escribas se borrará también.
+		</p>
+
+		<form data-form class="flex items-center gap-3 border-t border-line px-4 py-3">
+			<input
+				id="anonimo-input"
+				data-input
+				type="text"
+				maxlength="300"
+				autocomplete="off"
+				spellcheck="false"
+				aria-label="Mensaje anónimo"
+				placeholder="Di lo que quieras, nadie sabe quién eres"
+				class="min-w-0 grow bg-transparent text-sm"
+			/>
+			<button type="submit" class={BOTON}>
+				<Icon name="send" class="size-4 shrink-0" />
+				Enviar
+			</button>
+		</form>
+	</div>
+
+	<div class="flex flex-wrap items-center justify-between gap-4">
+		<p data-nota class="text-sm text-muted" role="status"></p>
+		<button type="button" data-quemar class={BOTON}>
+			<Icon name="flame" class="size-4 shrink-0" />
+			Borrar lo mío
+		</button>
+	</div>
+</section>
+
+<style is:global>
+	/*
+	 * El color del alias sale de su número, siempre de la paleta de la casa. Va
+	 * global porque estas líneas las pinta el script y no llevan la marca del
+	 * componente; por eso todas cuelgan de #anonimo.
+	 */
+	#anonimo [data-c='0'] {
+		color: var(--color-accent);
+	}
+	#anonimo [data-c='1'] {
+		color: var(--color-mark);
+	}
+	#anonimo [data-c='2'] {
+		color: var(--color-ok);
+	}
+	#anonimo [data-c='3'] {
+		color: var(--color-building);
+	}
+	#anonimo [data-c='4'] {
+		color: var(--color-heart);
+	}
+	#anonimo [data-c='5'] {
+		color: var(--color-fg);
+	}
+</style>
+
+<script>
+	const section = document.querySelector<HTMLElement>('#anonimo');
+	const log = section?.querySelector<HTMLElement>('[data-log]');
+	const vacio = section?.querySelector<HTMLElement>('[data-vacio]');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const input = section?.querySelector<HTMLInputElement>('[data-input]');
+	const aliasEl = section?.querySelector<HTMLElement>('[data-alias]');
+	const aqui = section?.querySelector<HTMLElement>('[data-aqui]');
+	const nota = section?.querySelector<HTMLElement>('[data-nota]');
+	const rotar = section?.querySelector<HTMLButtonElement>('[data-rotar]');
+	const quemar = section?.querySelector<HTMLButtonElement>('[data-quemar]');
+
+	if (section && log && vacio && form && input && aliasEl && aqui && nota && rotar && quemar) {
+		const VIDA_MS = 10 * 60_000;
+		const MAX_LINEAS = 80;
+		const MAX_TEXTO = 300;
+		const LATIDO_MS = 8_000;
+		const OLVIDO_MS = 25_000;
+		const REPASO_MS = 15_000;
+		const ESPERA_MS = 900;
+
+		type Entrada = { id: string; at: number; text: string; alias: string; mio: boolean };
+		// Por el canal solo viaja lo justo: un mensaje sin firma y un identificador
+		// de pestaña para contar cuánta gente hay. El alias no va en los avisos de
+		// presencia, así que cambiarlo no deja ninguna pista de quién eras antes.
+		type Aviso =
+			| { t: 'msg'; id: string; at: number; text: string; alias: string }
+			| { t: 'hola' | 'eco' | 'latido' | 'adios'; de: string }
+			| { t: 'borrar'; ids: string[] };
+
+		function azar(largo: number) {
+			const bytes = new Uint8Array(largo);
+			crypto.getRandomValues(bytes);
+			return [...bytes]
+				.map((byte) => byte.toString(16).padStart(2, '0'))
+				.join('')
+				.slice(0, largo);
+		}
+
+		// La pestaña es la persona: dos pestañas son dos anónimos distintos.
+		const yo = azar(12);
+		const vecinos = new Map<string, number>();
+		const vivos = new Map<string, { at: number; fila: HTMLElement; queda: HTMLElement }>();
+		const mios = new Set<string>();
+		let alias = `anónimo#${azar(4)}`;
+		let ultimo = 0;
+
+		const bus = 'BroadcastChannel' in window ? new BroadcastChannel('tuweb:anon') : null;
+
+		function emitir(aviso: Aviso) {
+			bus?.postMessage(aviso);
+		}
+
+		function color(quien: string) {
+			let suma = 0;
+			for (const letra of quien) suma = (suma * 31 + letra.charCodeAt(0)) % 997;
+			return String(suma % 6);
+		}
+
+		function restante(at: number) {
+			const minutos = Math.ceil((at + VIDA_MS - Date.now()) / 60_000);
+			if (minutos <= 1) return 'queda menos de 1 min';
+			return `quedan ${minutos} min`;
+		}
+
+		function avisar(texto: string) {
+			nota.textContent = texto;
+		}
+
+		function repintarVacio() {
+			vacio.hidden = vivos.size > 0;
+		}
+
+		function abajo() {
+			// Solo se sigue el hilo si ya se estaba mirando el final.
+			return log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+		}
+
+		function olvidar(id: string) {
+			const entrada = vivos.get(id);
+			if (!entrada) return;
+			entrada.fila.remove();
+			vivos.delete(id);
+			mios.delete(id);
+		}
+
+		function pintar(entrada: Entrada) {
+			if (vivos.has(entrada.id)) return;
+			const seguir = abajo();
+
+			const fila = document.createElement('li');
+			fila.className = 'flex min-w-0 flex-col gap-0.5 border-l border-line pl-3';
+
+			const cabecera = document.createElement('p');
+			cabecera.className = 'flex items-baseline justify-between gap-3 text-xs';
+
+			const quien = document.createElement('span');
+			quien.dataset.c = color(entrada.alias);
+			quien.textContent = entrada.alias;
+			cabecera.append(quien);
+
+			if (entrada.mio) {
+				const tuyo = document.createElement('span');
+				tuyo.className = 'grow text-muted';
+				tuyo.textContent = ' (tú)';
+				cabecera.append(tuyo);
+			}
+
+			const queda = document.createElement('span');
+			queda.className = 'shrink-0 tabular-nums text-muted';
+			queda.textContent = restante(entrada.at);
+			cabecera.append(queda);
+
+			const cuerpo = document.createElement('p');
+			cuerpo.className = 'min-w-0 text-sm';
+			cuerpo.textContent = entrada.text;
+
+			fila.append(cabecera, cuerpo);
+			log.append(fila);
+			vivos.set(entrada.id, { at: entrada.at, fila, queda });
+			if (entrada.mio) mios.add(entrada.id);
+
+			// El tope es de la lista entera: lo más viejo se cae aunque no haya
+			// cumplido sus diez minutos.
+			while (vivos.size > MAX_LINEAS) {
+				const primero = vivos.keys().next();
+				if (primero.done) break;
+				olvidar(primero.value);
+			}
+
+			repintarVacio();
+			if (seguir) log.scrollTop = log.scrollHeight;
+		}
+
+		function contar() {
+			aqui.textContent = `${vecinos.size + 1} aquí`;
+		}
+
+		// --- Lo que llega de otras pestañas ---
+
+		function recibir(aviso: Aviso) {
+			if (aviso.t === 'msg') {
+				const id = String(aviso.id ?? '').slice(0, 32);
+				const texto = String(aviso.text ?? '').slice(0, MAX_TEXTO);
+				// Un reloj adelantado en otra pestaña no puede alargar la vida del
+				// mensaje más allá de lo que dura aquí; uno atrasado lo trae ya muerto.
+				const at = Math.min(Number(aviso.at) || Date.now(), Date.now());
+				if (!id || !texto || Date.now() - at >= VIDA_MS) return;
+				pintar({
+					id,
+					at,
+					text: texto,
+					alias: String(aviso.alias ?? 'anónimo').slice(0, 24),
+					mio: false,
+				});
+				return;
+			}
+
+			if (aviso.t === 'borrar') {
+				if (!Array.isArray(aviso.ids)) return;
+				for (const id of aviso.ids) olvidar(String(id));
+				repintarVacio();
+				return;
+			}
+
+			if (aviso.de === yo) return;
+
+			if (aviso.t === 'adios') {
+				vecinos.delete(aviso.de);
+				contar();
+				return;
+			}
+
+			const conocido = vecinos.has(aviso.de);
+			vecinos.set(aviso.de, Date.now());
+			contar();
+
+			// A quien acaba de llegar hay que contestarle para que sepa que estamos.
+			if (aviso.t === 'hola') emitir({ t: 'eco', de: yo });
+			if (conocido) return;
+			if (aviso.t === 'hola') avisar('Ha entrado alguien más.');
+			if (aviso.t === 'eco') avisar('Ya hay alguien más aquí.');
+		}
+
+		bus?.addEventListener('message', (evento) => recibir(evento.data as Aviso));
+
+		// --- Lo que se hace desde aquí ---
+
+		form.addEventListener('submit', (evento) => {
+			evento.preventDefault();
+			const texto = input.value.trim().slice(0, MAX_TEXTO);
+			if (!texto) return;
+
+			const ahora = Date.now();
+			if (ahora - ultimo < ESPERA_MS) {
+				avisar('Vas muy rápido. Espera un momento.');
+				return;
+			}
+			ultimo = ahora;
+			input.value = '';
+
+			const id = azar(16);
+			pintar({ id, at: ahora, text: texto, alias, mio: true });
+			emitir({ t: 'msg', id, at: ahora, text: texto, alias });
+			avisar('Enviado. Se borra en diez minutos.');
+		});
+
+		rotar.addEventListener('click', () => {
+			alias = `anónimo#${azar(4)}`;
+			aliasEl.textContent = alias;
+			aliasEl.dataset.c = color(alias);
+			// Lo ya dicho se queda con el alias viejo: nadie puede atar los dos.
+			avisar(`Ahora eres ${alias}. Lo de antes sigue con el alias anterior.`);
+		});
+
+		quemar.addEventListener('click', () => {
+			if (!mios.size) {
+				avisar('No has dicho nada todavía.');
+				return;
+			}
+			const ids = [...mios];
+			for (const id of ids) olvidar(id);
+			repintarVacio();
+			emitir({ t: 'borrar', ids });
+			avisar('Borrado en todas las pestañas.');
+		});
+
+		// --- Arranque ---
+
+		aliasEl.textContent = alias;
+		aliasEl.dataset.c = color(alias);
+		contar();
+		repintarVacio();
+
+		if (bus) {
+			emitir({ t: 'hola', de: yo });
+			avisar('Sin servidor: esto se queda entre tus pestañas y no se guarda.');
+		} else {
+			avisar('Tu navegador no pasa mensajes entre pestañas: aquí solo te ves tú.');
+		}
+
+		// Un repaso cada poco: lo que ha cumplido se va y al resto se le actualiza
+		// lo que le queda. De paso se da por ido a quien lleva rato sin señal.
+		setInterval(() => {
+			const ahora = Date.now();
+
+			for (const [id, entrada] of vivos) {
+				if (ahora - entrada.at >= VIDA_MS) {
+					olvidar(id);
+					continue;
+				}
+				entrada.queda.textContent = restante(entrada.at);
+			}
+			repintarVacio();
+
+			for (const [id, visto] of vecinos) {
+				if (ahora - visto > OLVIDO_MS) vecinos.delete(id);
+			}
+			contar();
+		}, REPASO_MS);
+
+		setInterval(() => emitir({ t: 'latido', de: yo }), LATIDO_MS);
+
+		window.addEventListener('pagehide', () => emitir({ t: 'adios', de: yo }));
+	}
+</script>
