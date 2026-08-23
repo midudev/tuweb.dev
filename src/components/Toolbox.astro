@@ -2,6 +2,7 @@
 import ColorTool from './ColorTool.astro';
 import ConfigTool from './ConfigTool.astro';
 import Icon from './Icon.astro';
+import PatternTool from './PatternTool.astro';
 import ThemeTool from './ThemeTool.astro';
 
 // El id de cada herramienta es también su sitio en la URL: tuweb.dev/#cron abre
@@ -11,6 +12,7 @@ const tools = [
 	{ id: 'cron', label: 'Cron en cristiano', icon: 'clock' },
 	{ id: 'regex', label: 'Probador de regex', icon: 'regex' },
 	{ id: 'colores', label: 'Colores', icon: 'palette' },
+	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tema', label: 'Tema', icon: 'contrast' },
 	{ id: 'config', label: 'Config', icon: 'adjustments' },
 ];
@@ -143,6 +145,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	</div>
 
 	<ColorTool />
+
+	<PatternTool />
 
 	<ThemeTool />
 

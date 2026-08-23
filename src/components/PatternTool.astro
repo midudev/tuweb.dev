@@ -1,0 +1,401 @@
+---
+/**
+ * Generador de tramas SVG para fondos: figura, tamaño, colores, borde, giro y
+ * opacidad. Sale un SVG y el CSS listo para pegar. Todo se pinta aquí, en el
+ * navegador; no se guarda ni se envía nada.
+ */
+import { RECIPES, SHAPES } from '../lib/pattern';
+import Icon from './Icon.astro';
+
+const SLIDERS = [
+	{ id: 'size', label: 'Baldosa', min: 6, max: 120, step: 1 },
+	{ id: 'scale', label: 'Figura', min: 0.05, max: 1, step: 0.01 },
+	{ id: 'stroke', label: 'Borde', min: 0, max: 8, step: 0.5 },
+	{ id: 'angle', label: 'Giro', min: 0, max: 180, step: 1 },
+	{ id: 'opacity', label: 'Opacidad', min: 0.05, max: 1, step: 0.01 },
+];
+
+const COLORS = [
+	{ id: 'fill', label: 'Relleno' },
+	{ id: 'border', label: 'Borde' },
+	{ id: 'background', label: 'Fondo' },
+];
+
+const SALIDAS = [
+	{ id: 'css', label: 'CSS', rows: 4 },
+	{ id: 'svg', label: 'SVG', rows: 9 },
+];
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<div
+	role="tabpanel"
+	id="patrones"
+	aria-labelledby="tab-patrones"
+	data-panel="patrones"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-7 md:grid-cols-2">
+		<div class="flex flex-col gap-6">
+			<div class="flex flex-col gap-3">
+				<h3 id="trama-figura" class="text-sm text-muted">Figura</h3>
+				<div role="group" aria-labelledby="trama-figura" class="flex flex-wrap gap-2">
+					{
+						SHAPES.map((shape) => (
+							<button type="button" data-trama-figura={shape.id} aria-pressed="false" class={OPCION}>
+								<Icon name={shape.icon} class="size-4 shrink-0" />
+								{shape.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				{
+					SLIDERS.map((slider) => (
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between text-sm text-muted">
+								<span>{slider.label}</span>
+								<span data-trama-valor={slider.id} class="text-mark"></span>
+							</span>
+							<input
+								type="range"
+								data-trama-rango={slider.id}
+								min={slider.min}
+								max={slider.max}
+								step={slider.step}
+								class="w-full accent-accent"
+							/>
+						</label>
+					))
+				}
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<h3 id="trama-colores" class="text-sm text-muted">Colores</h3>
+				<div role="group" aria-labelledby="trama-colores" class="flex flex-wrap gap-4">
+					{
+						COLORS.map((color) => (
+							<label class="inline-flex items-center gap-2 text-sm text-muted">
+								{color.label}
+								<input
+									type="color"
+									data-trama-color={color.id}
+									class="h-9 w-14 cursor-pointer border border-line bg-panel p-1 disabled:opacity-40"
+								/>
+							</label>
+						))
+					}
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						<input type="checkbox" data-trama-transparente class="size-4 accent-accent" />
+						Sin fondo
+					</label>
+				</div>
+				<p data-trama-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<h3 id="trama-recetas" class="text-sm text-muted">Recetas</h3>
+				<div role="group" aria-labelledby="trama-recetas" class="flex flex-wrap gap-2">
+					{
+						RECIPES.map((recipe) => (
+							<button type="button" data-trama-receta={recipe.label} class={OPCION}>
+								{recipe.label}
+							</button>
+						))
+					}
+					<button type="button" data-trama-azar class={OPCION}>
+						<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+						Al azar
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Así queda</span>
+				<div class="border border-line" data-trama-tablero>
+					<div data-trama-previo class="h-64 w-full sm:h-80"></div>
+				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-3">
+				<button
+					type="button"
+					data-trama-descarga
+					class="inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+				>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .svg
+				</button>
+				<span class="text-sm text-muted">El fichero sale a 1200×800.</span>
+			</div>
+
+			{
+				SALIDAS.map((salida) => (
+					<div class="flex flex-col gap-2">
+						<span class="flex items-center justify-between text-sm text-muted">
+							{salida.label}
+							<button
+								type="button"
+								data-trama-copia={salida.id}
+								class="inline-flex items-center gap-2 text-accent hover:underline"
+							>
+								<span data-icon="copy" class="inline-flex">
+									<Icon name="copy" class="size-4 shrink-0" />
+								</span>
+								<span data-icon="check" class="inline-flex">
+									<Icon name="check" class="size-4 shrink-0" />
+								</span>
+								<span data-trama-copia-texto aria-live="polite">
+									Copiar
+								</span>
+							</button>
+						</span>
+						<textarea
+							data-trama-salida={salida.id}
+							rows={salida.rows}
+							readonly
+							spellcheck="false"
+							class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"
+						></textarea>
+					</div>
+				))
+			}
+		</div>
+	</div>
+</div>
+
+<style>
+	/* Tablero de ajedrez detrás del previo, para que se vea el «sin fondo». */
+	[data-trama-tablero] {
+		background-image: repeating-conic-gradient(
+			var(--color-line) 0% 25%,
+			var(--color-panel) 0% 50%
+		);
+		background-size: 16px 16px;
+	}
+
+	[data-trama-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-trama-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-trama-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-trama-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import {
+		DEFAULT_PATTERN,
+		type Pattern,
+		RECIPES,
+		SHAPES,
+		buildSvg,
+		shapeOf,
+		toCss,
+		toDataUri,
+	} from '../lib/pattern';
+
+	const previo = document.querySelector<HTMLElement>('[data-trama-previo]');
+	const nota = document.querySelector<HTMLElement>('[data-trama-nota]');
+	const transparente = document.querySelector<HTMLInputElement>('[data-trama-transparente]');
+	const rangos = document.querySelectorAll<HTMLInputElement>('[data-trama-rango]');
+	const colores = document.querySelectorAll<HTMLInputElement>('[data-trama-color]');
+
+	/** Los ajustes que van por deslizador y los que van por selector de color. */
+	type Numerico = 'size' | 'scale' | 'stroke' | 'angle' | 'opacity';
+	type Tinta = 'fill' | 'border' | 'background';
+
+	/** Las figuras de línea no tienen relleno: solo se ven si el borde tiene grosor. */
+	const GROSOR_MINIMO = 1.5;
+
+	let trama: Pattern = { ...DEFAULT_PATTERN };
+
+	function mostrar(clave: Numerico, valor: number) {
+		if (clave === 'size' || clave === 'stroke') return `${valor}px`;
+		if (clave === 'angle') return `${valor}°`;
+		return `${Math.round(valor * 100)}%`;
+	}
+
+	function render() {
+		const figura = shapeOf(trama.shape);
+
+		document.querySelectorAll<HTMLButtonElement>('[data-trama-figura]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.tramaFigura === figura.id));
+		});
+
+		rangos.forEach((rango) => {
+			const clave = rango.dataset.tramaRango as Numerico;
+			const valor = trama[clave];
+			rango.value = String(valor);
+			const salida = document.querySelector<HTMLElement>(`[data-trama-valor="${clave}"]`);
+			if (salida) salida.textContent = mostrar(clave, valor);
+		});
+
+		colores.forEach((color) => {
+			const clave = color.dataset.tramaColor as Tinta;
+			color.value = trama[clave];
+			// El relleno no pinta nada en las figuras de línea, y el fondo tampoco
+			// si se ha pedido dejarlo transparente.
+			color.disabled =
+				(clave === 'fill' && Boolean(figura.line)) || (clave === 'background' && trama.transparent);
+		});
+
+		if (transparente) transparente.checked = trama.transparent;
+		if (nota) {
+			nota.textContent = figura.line
+				? `«${figura.label}» se dibuja a trazos: manda el color del borde.`
+				: '';
+		}
+
+		const svg = buildSvg(trama);
+		if (previo) previo.style.backgroundImage = `url("${toDataUri(svg)}")`;
+
+		const css = document.querySelector<HTMLTextAreaElement>('[data-trama-salida="css"]');
+		const codigo = document.querySelector<HTMLTextAreaElement>('[data-trama-salida="svg"]');
+		if (css) css.value = toCss(trama, svg);
+		if (codigo) codigo.value = svg;
+	}
+
+	function cambiar(patch: Partial<Pattern>) {
+		trama = { ...trama, ...patch };
+		// Cambiar a una figura de línea con el borde a cero dejaría el lienzo
+		// vacío: se le pone lo justo para que se vea algo.
+		if (shapeOf(trama.shape).line && trama.stroke < GROSOR_MINIMO) trama.stroke = GROSOR_MINIMO;
+		render();
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-trama-figura]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ shape: button.dataset.tramaFigura ?? '' }));
+	});
+
+	rangos.forEach((rango) => {
+		rango.addEventListener('input', () => {
+			const patch: Partial<Pattern> = {};
+			patch[rango.dataset.tramaRango as Numerico] = Number(rango.value);
+			cambiar(patch);
+		});
+	});
+
+	colores.forEach((color) => {
+		color.addEventListener('input', () => {
+			const patch: Partial<Pattern> = {};
+			patch[color.dataset.tramaColor as Tinta] = color.value;
+			cambiar(patch);
+		});
+	});
+
+	transparente?.addEventListener('change', () => cambiar({ transparent: transparente.checked }));
+
+	document.querySelectorAll<HTMLButtonElement>('[data-trama-receta]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const receta = RECIPES.find((item) => item.label === button.dataset.tramaReceta);
+			if (receta) cambiar(receta.pattern);
+		});
+	});
+
+	// Al azar: figura, medidas y colores de una paleta corta. Sirve para salir
+	// del folio en blanco, que es de donde cuesta arrancar.
+	const PALETA = ['#00c2ff', '#6ad6ff', '#2fd3a5', '#a8e04a', '#f5a524', '#ff6f5e', '#ff7ac6', '#a78bfa', '#ececec', '#222222'];
+
+	function alAzar<T>(items: readonly T[]) {
+		return items[Math.floor(Math.random() * items.length)];
+	}
+
+	function entre(min: number, max: number, paso = 1) {
+		const pasos = Math.floor((max - min) / paso) + 1;
+		return Number((min + Math.floor(Math.random() * pasos) * paso).toFixed(2));
+	}
+
+	document.querySelector<HTMLButtonElement>('[data-trama-azar]')?.addEventListener('click', () => {
+		cambiar({
+			shape: alAzar(SHAPES).id,
+			size: entre(12, 72),
+			scale: entre(0.15, 1, 0.05),
+			stroke: entre(0, 5, 0.5),
+			angle: entre(0, 180, 15),
+			opacity: entre(0.4, 1, 0.05),
+			fill: alAzar(PALETA),
+			border: alAzar(PALETA),
+			background: alAzar(['#0a0a0a', '#111111', '#fbfbfa', '#f2f2ee']),
+			transparent: false,
+		});
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-trama-descarga]')?.addEventListener('click', () => {
+		// El fichero lleva medidas de verdad: un SVG al 100% queda raro fuera del
+		// navegador. Se arma aquí mismo, sin pasar por ningún sitio.
+		const fichero = new Blob([buildSvg(trama, { width: 1200, height: 800 })], {
+			type: 'image/svg+xml',
+		});
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = `trama-${trama.shape}.svg`;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	const relojes = new Map<HTMLButtonElement, number>();
+
+	async function copiar(texto: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const campo = document.createElement('textarea');
+				campo.value = texto;
+				campo.readOnly = true;
+				campo.style.position = 'fixed';
+				campo.style.opacity = '0';
+				document.body.append(campo);
+				campo.select();
+				const hecho = document.execCommand('copy');
+				campo.remove();
+				return hecho;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-trama-copia]').forEach((button) => {
+		const etiqueta = button.querySelector('[data-trama-copia-texto]');
+
+		button.addEventListener('click', async () => {
+			const campo = document.querySelector<HTMLTextAreaElement>(
+				`[data-trama-salida="${button.dataset.tramaCopia}"]`,
+			);
+			if (!campo?.value) return;
+
+			const hecho = await copiar(campo.value);
+			button.dataset.state = hecho ? 'done' : 'error';
+			if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+			clearTimeout(relojes.get(button));
+			relojes.set(
+				button,
+				window.setTimeout(() => {
+					button.removeAttribute('data-state');
+					if (etiqueta) etiqueta.textContent = 'Copiar';
+				}, 2000),
+			);
+		});
+	});
+
+	render();
+</script>
