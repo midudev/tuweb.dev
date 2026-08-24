@@ -61,14 +61,18 @@
 	--text-lg: 1.125rem;
 	--text-lg--line-height: 1.55;
 
-	--color-bg: #0a0a0a;
-	--color-fg: #ececec;
-	/* Antes era #737373 y se quedaba en 4.2:1 sobre el fondo. Ahora pasa AA. */
-	--color-muted: #8a8a8a;
-	--color-line: #222222;
-	--color-panel: #111111;
-	--color-accent: #00c2ff;
-	--color-mark: #6ad6ff;
+	/*
+	 * Morado y negro. El negro no es puro: lleva una gota de violeta para que el
+	 * acento no flote encima, y paneles y líneas suben por esa misma rampa. El
+	 * apagado pasa AA (6.8:1) y el acento también (7.6:1).
+	 */
+	--color-bg: #07060c;
+	--color-fg: #ecebf5;
+	--color-muted: #928aa8;
+	--color-line: #251d38;
+	--color-panel: #0f0c17;
+	--color-accent: #a78bfa;
+	--color-mark: #cbb6ff;
 	--color-heart: oklch(0.7 0.14 18);
 	--color-ok: oklch(0.72 0.15 150);
 	--color-building: oklch(0.8 0.14 85);
@@ -78,6 +82,9 @@ html {
 	color-scheme: dark;
 	background: var(--color-bg);
 	color: var(--color-fg);
+	/* La barra de scroll también es de la casa: fina y morada. */
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-line)) transparent;
 }
 
 /*
@@ -90,15 +97,15 @@ html {
 html[data-tema='claro'] {
 	color-scheme: light;
 
-	--color-bg: #fbfbfa;
-	--color-fg: #17171a;
-	/* 6.1:1 sobre el fondo claro; el apagado también tiene que leerse. */
-	--color-muted: #5f5f66;
-	--color-line: #dcdcd6;
-	--color-panel: #f2f2ee;
-	/* El azul de siempre, bajado de claridad hasta que se lee sobre blanco. */
-	--color-accent: oklch(0.54 0.147 226);
-	--color-mark: oklch(0.38 0.11 226);
+	--color-bg: #faf9fd;
+	--color-fg: #16141f;
+	/* 6.4:1 sobre el fondo claro; el apagado también tiene que leerse. */
+	--color-muted: #5e5872;
+	--color-line: #e0dbec;
+	--color-panel: #f2eff9;
+	/* El mismo morado, bajado de claridad hasta que se lee sobre blanco. */
+	--color-accent: oklch(0.54 0.152 296);
+	--color-mark: oklch(0.38 0.115 296);
 	--color-heart: oklch(0.55 0.17 18);
 	--color-ok: oklch(0.5 0.14 150);
 	--color-building: oklch(0.55 0.13 75);
@@ -107,9 +114,30 @@ html[data-tema='claro'] {
 /*
  * El fondo de las zonas grandes, solo en los contenedores marcados con
  * data-canvas: los paneles pequeños y los campos se quedan planos, que si no
- * se lee peor. El degradado va anclado a la pantalla para que las secciones
+ * se lee peor. Todos van anclados a la pantalla para que las secciones
  * apiladas parezcan una sola pieza.
+ *
+ * La aurora es el de casa: dos halos morados, uno arriba a la izquierda y otro
+ * abajo a la derecha, que hacen de horizonte detrás del contenido. El selector
+ * de temas lo pone con data-fondo; el «:not» cubre el primer pintado, antes de
+ * que corra el script de la cabecera.
  */
+html[data-fondo='aurora'] [data-canvas],
+html:not([data-fondo]) [data-canvas] {
+	background-image:
+		radial-gradient(
+			60rem 34rem at 10% -10%,
+			color-mix(in oklab, var(--color-accent) 14%, transparent),
+			transparent 68%
+		),
+		radial-gradient(
+			46rem 30rem at 94% 108%,
+			color-mix(in oklab, var(--color-accent) 9%, transparent),
+			transparent 70%
+		);
+	background-attachment: fixed;
+}
+
 html[data-fondo='degradado'] [data-canvas] {
 	background-image: linear-gradient(
 		155deg,
@@ -160,6 +188,35 @@ body {
 	/* Cortes de línea menos huérfanos y palabras largas que no se salen. */
 	text-wrap: pretty;
 	overflow-wrap: break-word;
+}
+
+/*
+ * Una línea de luz cruzando lo alto de la página. Es un pelo de un píxel, va
+ * fija y no se puede pulsar: solo remata la web por arriba.
+ */
+body::before {
+	content: '';
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline: 0;
+	z-index: 60;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/*
+ * La pixel lleva un halo del color del acento. Solo en oscuro: sobre el fondo
+ * claro un resplandor no aporta y ensucia las letras.
+ */
+html:not([data-tema='claro']) .font-pixel {
+	text-shadow: 0 0 22px color-mix(in oklab, var(--color-accent) 32%, transparent);
+}
+
+/* Lo que va pintado del acento —botones, barras— reparte algo de esa luz. */
+html:not([data-tema='claro']) .bg-accent {
+	box-shadow: 0 0 26px -8px color-mix(in oklab, var(--color-accent) 65%, transparent);
 }
 
 /* Los subrayados no deben tocar las letras. */

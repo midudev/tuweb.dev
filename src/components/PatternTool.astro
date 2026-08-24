@@ -307,7 +307,7 @@ const OPCION =
 
 	// Al azar: figura, medidas y colores de una paleta corta. Sirve para salir
 	// del folio en blanco, que es de donde cuesta arrancar.
-	const PALETA = ['#00c2ff', '#6ad6ff', '#2fd3a5', '#a8e04a', '#f5a524', '#ff6f5e', '#ff7ac6', '#a78bfa', '#ececec', '#222222'];
+	const PALETA = ['#a78bfa', '#cbb6ff', '#d18bfa', '#8a9dff', '#00c2ff', '#2fd3a5', '#f5a524', '#ff7ac6', '#ecebf5', '#251d38'];
 
 	function alAzar<T>(items: readonly T[]) {
 		return items[Math.floor(Math.random() * items.length)];
@@ -328,7 +328,7 @@ const OPCION =
 			opacity: entre(0.4, 1, 0.05),
 			fill: alAzar(PALETA),
 			border: alAzar(PALETA),
-			background: alAzar(['#0a0a0a', '#111111', '#fbfbfa', '#f2f2ee']),
+			background: alAzar(['#07060c', '#0f0c17', '#faf9fd', '#f2eff9']),
 			transparent: false,
 		});
 	});

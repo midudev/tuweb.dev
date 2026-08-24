@@ -11,7 +11,7 @@ import { type Color, parseColor, toHex } from './color';
 export type Mode = 'auto' | 'claro' | 'oscuro';
 /** Lo que acaba pintado: «auto» ya resuelto a uno de los dos. */
 export type Scheme = 'claro' | 'oscuro';
-export type Surface = 'plano' | 'degradado' | 'trama';
+export type Surface = 'aurora' | 'plano' | 'degradado' | 'trama';
 
 export interface Theme {
 	mode: Mode;
@@ -21,24 +21,24 @@ export interface Theme {
 }
 
 export const MODES: readonly Mode[] = ['auto', 'claro', 'oscuro'];
-export const SURFACES: readonly Surface[] = ['plano', 'degradado', 'trama'];
+export const SURFACES: readonly Surface[] = ['aurora', 'plano', 'degradado', 'trama'];
 
 /*
- * Lo de fábrica: el azul y el oscuro de src/styles/global.css. Quien no toque
- * nada sigue viendo la web de siempre; el modo del sistema está ahí, pero hay
- * que pedirlo.
+ * Lo de fábrica: el morado, el negro y la aurora de src/styles/global.css.
+ * Quien no toque nada ve la web tal cual se diseñó; el modo del sistema está
+ * ahí, pero hay que pedirlo.
  */
-export const DEFAULT_THEME: Theme = { mode: 'oscuro', accent: '#00c2ff', surface: 'plano' };
+export const DEFAULT_THEME: Theme = { mode: 'oscuro', accent: '#a78bfa', surface: 'aurora' };
 
-/** Los colores del selector rápido. El primero es el de toda la vida. */
+/** Los colores del selector rápido. El primero es el de la casa. */
 export const PRESETS = [
+	{ label: 'Violeta', hex: '#a78bfa' },
+	{ label: 'Orquídea', hex: '#d18bfa' },
+	{ label: 'Índigo', hex: '#8a9dff' },
 	{ label: 'Azul', hex: '#00c2ff' },
 	{ label: 'Menta', hex: '#2fd3a5' },
-	{ label: 'Lima', hex: '#a8e04a' },
 	{ label: 'Ámbar', hex: '#f5a524' },
-	{ label: 'Coral', hex: '#ff6f5e' },
 	{ label: 'Rosa', hex: '#ff7ac6' },
-	{ label: 'Violeta', hex: '#a78bfa' },
 	{ label: 'Grafito', hex: '#b6bcc4' },
 ] as const;
 
@@ -70,7 +70,7 @@ const MARK: Record<Scheme, { amount: number; towards: string }> = {
 };
 
 /** El fondo de cada esquema, el mismo que pinta global.css. */
-const PAGE_BG: Record<Scheme, string> = { oscuro: '#0a0a0a', claro: '#fbfbfa' };
+const PAGE_BG: Record<Scheme, string> = { oscuro: '#07060c', claro: '#faf9fd' };
 
 /** El hex opaco y legible que le corresponde a un color en este esquema. */
 export function accentFor(color: Color, scheme: Scheme) {

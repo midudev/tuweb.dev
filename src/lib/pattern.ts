@@ -177,9 +177,9 @@ export const DEFAULT_PATTERN: Pattern = {
 	stroke: 0,
 	angle: 0,
 	opacity: 1,
-	fill: '#00c2ff',
-	border: '#222222',
-	background: '#0a0a0a',
+	fill: '#a78bfa',
+	border: '#251d38',
+	background: '#07060c',
 	transparent: false,
 };
 
@@ -188,7 +188,7 @@ export const RECIPES: readonly { label: string; pattern: Pattern }[] = [
 	{ label: 'Topos', pattern: DEFAULT_PATTERN },
 	{
 		label: 'Cuadrícula',
-		pattern: { ...DEFAULT_PATTERN, shape: 'rejilla', size: 34, scale: 1, stroke: 1, border: '#222222' },
+		pattern: { ...DEFAULT_PATTERN, shape: 'rejilla', size: 34, scale: 1, stroke: 1, border: '#251d38' },
 	},
 	{
 		label: 'Papel',
@@ -198,13 +198,13 @@ export const RECIPES: readonly { label: string; pattern: Pattern }[] = [
 			size: 40,
 			scale: 0.25,
 			stroke: 1,
-			border: '#8a8a8a',
+			border: '#928aa8',
 			opacity: 0.5,
 		},
 	},
 	{
 		label: 'Rayas',
-		pattern: { ...DEFAULT_PATTERN, shape: 'diagonales', size: 20, scale: 1, stroke: 4, border: '#111111' },
+		pattern: { ...DEFAULT_PATTERN, shape: 'diagonales', size: 20, scale: 1, stroke: 4, border: '#0f0c17' },
 	},
 	{
 		label: 'Tejado',
@@ -214,13 +214,13 @@ export const RECIPES: readonly { label: string; pattern: Pattern }[] = [
 			size: 44,
 			scale: 1,
 			stroke: 1.5,
-			border: '#00c2ff',
+			border: '#a78bfa',
 			opacity: 0.6,
 		},
 	},
 	{
 		label: 'Marea',
-		pattern: { ...DEFAULT_PATTERN, shape: 'ondas', size: 52, scale: 0.8, stroke: 2, border: '#6ad6ff', angle: 12 },
+		pattern: { ...DEFAULT_PATTERN, shape: 'ondas', size: 52, scale: 0.8, stroke: 2, border: '#cbb6ff', angle: 12 },
 	},
 ];
 
