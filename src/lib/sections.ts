@@ -72,6 +72,14 @@ export const SECTIONS: Section[] = [
 		card: 'Cada versión de esta web, con la idea que la pidió.',
 		intro: 'Todo lo que se ha construido, ventana a ventana.',
 	},
+	{
+		href: '/historial',
+		title: 'Historial',
+		icon: 'timeline',
+		card: 'Cada movimiento de la web: lo que salió bien y lo que no.',
+		intro:
+			'Todo lo que le ha pasado a esta web, en orden. La ventana que cerró, la idea que ganó, lo que se publicó y lo que hubo que revertir. El changelog cuenta las versiones; aquí no se esconde nada.',
+	},
 ];
 
 export function getSection(href: string) {

@@ -1,0 +1,154 @@
+---
+/**
+ * El historial entero, día a día. Cada fila es un movimiento: una publicación,
+ * una ventana que cerró, un intento a medias o algo que se rompió. Los botones
+ * de arriba filtran en el navegador; el orden y los datos vienen ya hechos del
+ * servidor.
+ */
+import { getHistoryData, hhmm, MAX_EVENTS, type HistoryKind } from '../lib/history';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+const data = getHistoryData();
+const REPO = 'https://github.com/midudev/tuweb.dev';
+
+/** Cada tipo de movimiento con su icono y su color. */
+const STYLES: Record<HistoryKind, { icon: string; tone: string }> = {
+	live: { icon: 'rocket', tone: 'text-ok' },
+	cycle: { icon: 'bulb', tone: 'text-accent' },
+	building: { icon: 'hammer', tone: 'text-building' },
+	repairing: { icon: 'tool', tone: 'text-building' },
+	rolled_back: { icon: 'arrow-back-up', tone: 'text-heart' },
+	failed: { icon: 'alert-triangle', tone: 'text-heart' },
+};
+
+const FILTERS = [
+	{ id: 'todo', label: 'Todo', count: data.totals.all },
+	{ id: 'version', label: 'Versiones', count: data.totals.version },
+	{ id: 'window', label: 'Ventanas', count: data.totals.window },
+	{ id: 'build', label: 'Intentos', count: data.totals.build },
+	{ id: 'incident', label: 'Incidencias', count: data.totals.incident },
+].filter((filter) => filter.id === 'todo' || filter.count > 0);
+---
+
+<section class="flex flex-col gap-7">
+	{
+		data.totals.all === 0 ? (
+			<p class="text-muted">Todavía no ha pasado nada: el historial empieza con la primera ventana.</p>
+		) : (
+			<>
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-wrap items-baseline justify-between gap-4">
+						<SectionLabel>TODO LO QUE HA PASADO</SectionLabel>
+						<p class="text-sm text-muted">
+							{data.totals.all} movimientos · versión {data.version}
+						</p>
+					</div>
+
+					<div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar el historial">
+						{FILTERS.map((filter, index) => (
+							<button
+								type="button"
+								data-filtro={filter.id}
+								aria-pressed={index === 0 ? 'true' : 'false'}
+								class="inline-flex items-center gap-2 border border-line px-4 py-2.5 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent"
+							>
+								{filter.label}
+								<span class="tabular-nums opacity-70">{filter.count}</span>
+							</button>
+						))}
+					</div>
+				</div>
+
+				<ol class="flex flex-col gap-8">
+					{data.days.map((day) => (
+						<li data-dia class="flex flex-col gap-3">
+							<h2 class="font-pixel text-xs tracking-wide text-muted">{day.label}</h2>
+
+							<ul class="flex flex-col">
+								{day.events.map((event) => (
+									<li
+										data-grupo={event.group}
+										class="flex flex-col gap-2 border-t border-line py-4 last:border-b sm:flex-row sm:gap-5"
+									>
+										<span class="w-12 shrink-0 text-sm tabular-nums text-muted">{hhmm(event.at)}</span>
+
+										<div class="flex min-w-0 grow flex-col gap-1.5 sm:max-w-[66ch]">
+											<p class="flex flex-wrap items-center gap-x-3 text-sm">
+												<span class={`inline-flex items-center gap-2 font-pixel ${STYLES[event.kind].tone}`}>
+													<Icon name={STYLES[event.kind].icon} class="size-4 shrink-0" />
+													{event.label}
+												</span>
+												{event.version && <span class="font-pixel text-accent">v{event.version}</span>}
+											</p>
+
+											{event.title && <p class="text-pretty">{event.title}</p>}
+											{event.detail && <p class="text-sm text-pretty text-muted">{event.detail}</p>}
+
+											{(event.note || event.commitSha) && (
+												<p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+													{event.note && <span class="text-pretty">{event.note}</span>}
+													{event.commitSha && (
+														<a
+															href={`${REPO}/commit/${event.commitSha}`}
+															class="text-accent hover:underline"
+														>
+															{event.commitSha.slice(0, 7)}
+														</a>
+													)}
+												</p>
+											)}
+										</div>
+									</li>
+								))}
+							</ul>
+						</li>
+					))}
+				</ol>
+
+				<p data-vacio hidden class="text-muted">Nada de esto ha pasado todavía.</p>
+
+				{data.truncated && (
+					<p class="text-sm text-muted">
+						Se enseñan los últimos {MAX_EVENTS} movimientos. Lo anterior sigue en el changelog.
+					</p>
+				)}
+			</>
+		)
+	}
+</section>
+
+<script>
+	/*
+	 * Filtrar es esconder filas: el historial entero ya está pintado. Cuando un
+	 * día se queda sin nada visible, se esconde también su fecha.
+	 */
+	const chips = document.querySelectorAll<HTMLButtonElement>('[data-filtro]');
+	const days = document.querySelectorAll<HTMLElement>('[data-dia]');
+	const empty = document.querySelector<HTMLElement>('[data-vacio]');
+
+	function apply(id: string) {
+		chips.forEach((chip) => chip.setAttribute('aria-pressed', String(chip.dataset.filtro === id)));
+
+		let visible = 0;
+
+		days.forEach((day) => {
+			let shown = 0;
+
+			day.querySelectorAll<HTMLElement>('[data-grupo]').forEach((item) => {
+				const match = id === 'todo' || item.dataset.grupo === id;
+				item.hidden = !match;
+				if (match) shown += 1;
+			});
+
+			day.hidden = shown === 0;
+			visible += shown;
+		});
+
+		if (empty) empty.hidden = visible > 0;
+	}
+
+	chips.forEach((chip) => {
+		chip.addEventListener('click', () => apply(chip.dataset.filtro ?? 'todo'));
+	});
+</script>
