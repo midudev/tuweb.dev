@@ -1,0 +1,76 @@
+---
+/**
+ * El índice de la portada: una tarjeta por sección. Cada sección vive ahora en
+ * su propia página, así que la portada solo enseña la puerta y se queda corta,
+ * sin cargar el JS de todo lo que hay dentro.
+ */
+import { SECTIONS } from '../lib/sections';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+---
+
+<section id="secciones" class="flex flex-col gap-7" aria-labelledby="label-app">
+	<div class="flex flex-col gap-2">
+		<SectionLabel forId="label-app">Y ESTO ES LO QUE YA FUNCIONA</SectionLabel>
+		<p class="max-w-[62ch] text-sm text-muted">
+			Cada sección tiene su página: entras en la que te interese y no cargas el resto.
+		</p>
+	</div>
+
+	<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+		{
+			SECTIONS.map((section) => (
+				<li class="flex">
+					<a
+						href={section.href}
+						class="group flex grow flex-col gap-2 border border-line bg-panel px-5 py-5 hover:border-accent"
+					>
+						<span class="flex items-center gap-2.5 font-pixel text-lg">
+							<Icon name={section.icon} class="size-5 shrink-0 text-accent" />
+							{section.title}
+						</span>
+						<span class="text-sm text-pretty text-muted">{section.card}</span>
+						<span class="mt-auto inline-flex items-center gap-2 pt-3 text-sm text-accent group-hover:underline">
+							Abrir
+							<Icon name="arrow-right" class="size-4 shrink-0" />
+						</span>
+					</a>
+				</li>
+			))
+		}
+	</ul>
+</section>
+
+<script>
+	/*
+	 * Los enlaces de antes apuntaban todos a la portada: tuweb.dev/#regex,
+	 * tuweb.dev/#chat. Ahora cada sección tiene su página, así que esos hashes se
+	 * mandan a su sitio. Con replace, para no dejar la portada en el historial.
+	 */
+	const VIEJOS: Record<string, string> = {
+		herramientas: '/herramientas',
+		'json-yaml': '/herramientas#json-yaml',
+		cron: '/herramientas#cron',
+		regex: '/herramientas#regex',
+		colores: '/herramientas#colores',
+		patrones: '/herramientas#patrones',
+		tema: '/herramientas#tema',
+		config: '/herramientas#config',
+		minijuego: '/minijuego',
+		escaparate: '/escaparate',
+		chat: '/chat',
+		anonimo: '/anonimo',
+	};
+
+	function hash() {
+		// Un hash mal escrito (%) revienta el decode: mejor el crudo que nada.
+		try {
+			return decodeURIComponent(location.hash.slice(1));
+		} catch {
+			return location.hash.slice(1);
+		}
+	}
+
+	const destino = VIEJOS[hash()];
+	if (destino) location.replace(destino);
+</script>

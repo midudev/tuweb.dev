@@ -32,33 +32,9 @@ const steps = [
 	},
 	{
 		icon: 'adjustments',
-		title: 'Caja de herramientas',
-		target: '#herramientas',
-		body: 'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, colores, tema y config. Cada pestaña tiene su propio enlace para compartirla.',
-	},
-	{
-		icon: 'device-gamepad-2',
-		title: 'Minijuego',
-		target: '#minijuego',
-		body: 'Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para pausar; en el móvil, desliza sobre el tablero.',
-	},
-	{
-		icon: 'rocket',
-		title: 'Escaparate',
-		target: '#escaparate',
-		body: 'Para enseñar lo que ya tienes en pie. No hay servidor: la ficha se queda en tu navegador, así que cópiala y proponla como idea si quieres que entre para todos.',
-	},
-	{
-		icon: 'message-2',
-		title: 'Chat',
-		target: '#chat',
-		body: 'Un canal como los de antes, sin servidor: lo que escribes se queda en tu navegador. En el canal está claude, que es quien escribe el código. Escribe /help para ver los comandos.',
-	},
-	{
-		icon: 'eye-off',
-		title: 'Chat anónimo',
-		target: '#anonimo',
-		body: 'El mismo canal, pero sin nombre: tu alias es un número que cambias cuando quieras y cada mensaje se borra solo a los diez minutos. No se guarda nada en ninguna parte.',
+		title: 'Las secciones',
+		target: '#secciones',
+		body: 'Todo lo que ha salido de ideas ganadoras, cada cosa en su página: la caja de herramientas, el minijuego, el escaparate de proyectos y los dos chats. Entras en la que quieras y no cargas el resto.',
 	},
 	{
 		icon: 'history',
@@ -167,7 +143,8 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 	// La clave lleva versión: si algún día el tour cambia de verdad, se sube el
 	// número y vuelve a salir una vez.
 	const KEY = 'tuweb:tour';
-	const VALUE = '1';
+	// Sube con el tour: ahora cada sección tiene su página y las paradas son otras.
+	const VALUE = '2';
 
 	const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	const behavior: ScrollBehavior = quieto ? 'auto' : 'smooth';

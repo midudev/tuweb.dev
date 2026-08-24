@@ -1,17 +1,12 @@
 ---
-import AnonChat from '../components/AnonChat.astro';
-import Chat from '../components/Chat.astro';
 import Dashboard from '../components/Dashboard.astro';
 import FeatureLog from '../components/FeatureLog.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import IdeasLink from '../components/IdeasLink.astro';
 import LiveState from '../components/LiveState.astro';
-import Minigame from '../components/Minigame.astro';
 import ProposeForm from '../components/ProposeForm.astro';
-import SectionLabel from '../components/SectionLabel.astro';
-import Showcase from '../components/Showcase.astro';
-import Toolbox from '../components/Toolbox.astro';
+import SectionGrid from '../components/SectionGrid.astro';
 import Tour from '../components/Tour.astro';
 import { getSessionUser } from '../lib/auth';
 import { getDashboardData, getHomeData } from '../lib/db/queries';
@@ -76,28 +71,11 @@ const deployedAt =
 					</div>
 				</section>
 
-				<section data-canvas class="grow bg-bg" aria-labelledby="label-app">
-					<div class="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
-						<SectionLabel forId="label-app">Y ESTO ES LO QUE YA FUNCIONA</SectionLabel>
-
-						<Toolbox />
-
-						<Minigame />
-
-						<Showcase />
-
-						<Chat
-							login={user?.login ?? null}
-							version={data.version}
-							ideaCount={data.ideaCount}
-							endsAt={data.window.endsAt}
-							next={data.next}
-							lastShipped={data.lastShipped}
-						/>
-
-						<AnonChat />
+				<div data-canvas class="grow bg-bg">
+					<div class="mx-auto w-full max-w-5xl px-6 py-10">
+						<SectionGrid />
 					</div>
-				</section>
+				</div>
 
 				<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
 				<div data-canvas class="border-t border-line bg-panel">

@@ -1,6 +1,8 @@
 ---
+import BackLink from '../components/BackLink.astro';
 import Footer from '../components/Footer.astro';
 import SectionLabel from '../components/SectionLabel.astro';
+import SectionNav from '../components/SectionNav.astro';
 import WindowClock from '../components/WindowClock.astro';
 import { getIdeasData } from '../lib/db/queries';
 import Layout from '../layouts/Layout.astro';
@@ -21,12 +23,7 @@ const received = data.ideas.length + data.discarded.length;
 	<div class="flex min-h-screen flex-col">
 		<section class="flex flex-col gap-8 px-6 py-10">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-8">
-				<a href="/" class="inline-flex items-center gap-2 self-start text-sm text-accent hover:underline">
-					<svg class="size-4 shrink-0 rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<path d="M5 12h14m-6 6l6-6m-6-6l6 6" />
-					</svg>
-					Volver a tuweb.dev
-				</a>
+				<BackLink />
 
 				<div class="flex flex-wrap items-end justify-between gap-6">
 					<h1 class="font-pixel text-3xl leading-tight font-normal">Ideas de esta ventana</h1>
@@ -87,6 +84,7 @@ const received = data.ideas.length + data.discarded.length;
 			)
 		}
 
+		<SectionNav href="/ideas" />
 		<Footer />
 	</div>
 </Layout>

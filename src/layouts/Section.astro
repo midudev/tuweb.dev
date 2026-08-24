@@ -1,0 +1,45 @@
+---
+/**
+ * El molde de las páginas de sección: vuelta a la portada, título con su icono,
+ * el párrafo que la presenta y, al final, el salto a las demás. Todo sale de
+ * src/lib/sections.ts, así que la página solo pone su contenido.
+ */
+import BackLink from '../components/BackLink.astro';
+import Footer from '../components/Footer.astro';
+import Icon from '../components/Icon.astro';
+import SectionNav from '../components/SectionNav.astro';
+import { getSection } from '../lib/sections';
+import Layout from './Layout.astro';
+
+interface Props {
+	href: string;
+}
+
+const { href } = Astro.props;
+const section = getSection(href);
+---
+
+<Layout title={`${section.title} — tuweb.dev`} description={section.intro}>
+	<div class="flex min-h-screen flex-col">
+		<div class="px-6 py-10">
+			<div class="mx-auto flex w-full max-w-5xl flex-col gap-8">
+				<BackLink />
+
+				<div class="flex flex-col gap-3">
+					<h1 class="flex items-center gap-3 font-pixel text-3xl leading-tight font-normal">
+						<Icon name={section.icon} class="size-6 shrink-0 text-accent" />
+						{section.title}
+					</h1>
+					<p class="max-w-[62ch] text-sm text-pretty text-muted">{section.intro}</p>
+				</div>
+
+				<slot />
+			</div>
+		</div>
+
+		<div class="grow"></div>
+
+		<SectionNav href={href} />
+		<Footer />
+	</div>
+</Layout>

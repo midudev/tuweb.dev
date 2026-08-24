@@ -1,0 +1,21 @@
+---
+import Chat from '../components/Chat.astro';
+import { getSessionUser } from '../lib/auth';
+import { getHomeData } from '../lib/db/queries';
+import Section from '../layouts/Section.astro';
+
+// El chat necesita saber de la ventana: claude contesta con estos datos.
+const user = await getSessionUser(Astro);
+const data = await getHomeData(user?.id);
+---
+
+<Section href="/chat">
+	<Chat
+		login={user?.login ?? null}
+		version={data.version}
+		ideaCount={data.ideaCount}
+		endsAt={data.window.endsAt}
+		next={data.next}
+		lastShipped={data.lastShipped}
+	/>
+</Section>

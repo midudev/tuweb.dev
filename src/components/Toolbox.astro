@@ -5,8 +5,9 @@ import Icon from './Icon.astro';
 import PatternTool from './PatternTool.astro';
 import ThemeTool from './ThemeTool.astro';
 
-// El id de cada herramienta es también su sitio en la URL: tuweb.dev/#cron abre
-// esa pestaña directamente. Por eso el panel lleva el id pelado, sin prefijo.
+// El id de cada herramienta es también su sitio en la URL:
+// tuweb.dev/herramientas#cron abre esa pestaña directamente. Por eso el panel
+// lleva el id pelado, sin prefijo.
 const tools = [
 	{ id: 'json-yaml', label: 'JSON → YAML', icon: 'braces' },
 	{ id: 'cron', label: 'Cron en cristiano', icon: 'clock' },
@@ -23,8 +24,6 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 ---
 
 <section id="herramientas" class="flex flex-col gap-7">
-	<h2 class="font-pixel text-[22px] font-normal">Caja de herramientas</h2>
-
 	<div role="tablist" aria-label="Herramientas" class="flex flex-wrap gap-2">
 		{
 			tools.map((tool, index) => (

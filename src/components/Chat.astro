@@ -22,7 +22,7 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 
 <section
 	id="chat"
-	class="flex flex-col gap-7 border-t border-line pt-8"
+	class="flex flex-col gap-7"
 	data-nick={login}
 	data-version={version}
 	data-ideas={ideaCount}
@@ -30,18 +30,6 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 	data-next={next?.title ?? ''}
 	data-last={lastShipped?.title ?? ''}
 >
-	<div class="flex flex-col gap-2">
-		<h2 class="flex items-center gap-2.5 font-pixel text-[22px] font-normal">
-			<Icon name="message-2" class="size-5 shrink-0 text-accent" />
-			Chat
-		</h2>
-		<p class="max-w-[60ch] text-sm text-muted">
-			Un canal como los de antes. Sin servidor: lo que escribes se queda en tu navegador y se ve al
-			momento en el resto de pestañas que tengas abiertas. En el canal está claude, que es quien
-			escribe el código; pregúntale lo que quieras. Escribe /help para los comandos.
-		</p>
-	</div>
-
 	<div class="flex flex-col border border-line bg-panel">
 		<div
 			class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-3"
@@ -51,7 +39,7 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 				tuweb
 			</span>
 			<span class="text-xs text-muted">
-				tema: esta web la cambias tú · v{version} · las ideas se proponen arriba
+				tema: esta web la cambias tú · v{version} · las ideas se proponen en la portada
 			</span>
 		</div>
 
@@ -338,7 +326,7 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 				return `La ventana cierra en ${cuantoQueda()}. Ahora mismo hay ${ideas} ${ideas === 1 ? 'idea' : 'ideas'} compitiendo.`;
 			}
 			if (preguntan('idea', 'proponer', 'propongo', 'propuesta', 'sugerencia')) {
-				return `Hay ${ideas} ${ideas === 1 ? 'idea' : 'ideas'} en esta ventana. Escribe la tuya en el formulario de arriba: al cerrarse se elige una y la implemento. Puedes cambiarla hasta tres veces.`;
+				return `Hay ${ideas} ${ideas === 1 ? 'idea' : 'ideas'} en esta ventana. Escribe la tuya en la portada: al cerrarse se elige una y la implemento. Puedes cambiarla hasta tres veces.`;
 			}
 			if (preguntan('versión', 'version', 'changelog', 'último cambio', 'ultimo cambio')) {
 				return ultima ? `Vamos por la v${version}. Lo último: ${ultima}.` : `Vamos por la v${version}.`;

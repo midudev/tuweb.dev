@@ -1,0 +1,37 @@
+---
+/**
+ * El pie de cada sección: desde aquí se salta a las demás sin pasar por la
+ * portada. La lista sale de src/lib/sections.ts, menos la sección en la que se
+ * está.
+ */
+import { SECTIONS } from '../lib/sections';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+	/** La ruta de la sección actual, que no se enseña a sí misma. */
+	href: string;
+}
+
+const { href } = Astro.props;
+const others = SECTIONS.filter((section) => section.href !== href);
+---
+
+<nav data-canvas class="border-t border-line bg-panel" aria-labelledby="label-otras">
+	<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-8">
+		<SectionLabel forId="label-otras">OTRAS SECCIONES</SectionLabel>
+
+		<ul class="flex flex-wrap gap-x-7 gap-y-3 text-sm">
+			{
+				others.map((section) => (
+					<li>
+						<a href={section.href} class="inline-flex items-center gap-2 text-accent hover:underline">
+							<Icon name={section.icon} class="size-4 shrink-0" />
+							{section.title}
+						</a>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</nav>
