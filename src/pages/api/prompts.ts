@@ -58,7 +58,10 @@ export const POST: APIRoute = async (context) => {
 
 	try {
 		if (mine) {
-			updatePrompt(mine.id, body, veredicto);
+			const updated = updatePrompt(mine.id, body, veredicto);
+			if (!updated) {
+				return context.redirect('/?error=cambios');
+			}
 			return context.redirect(review.verdict === 'discard' ? '/?error=filtro' : '/?ok=cambio');
 		}
 
