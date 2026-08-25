@@ -15,6 +15,24 @@ const PAD = [
 	{ id: 'down', label: 'Abajo', icon: 'chevron-down', class: 'col-start-2 row-start-2' },
 	{ id: 'right', label: 'Derecha', icon: 'chevron-right', class: 'col-start-3 row-start-2' },
 ];
+
+/*
+ * Los dos ajustes de siempre: si las paredes matan y a qué ritmo va. Cada
+ * combinación guarda su propio récord, que si no no hay quien los compare.
+ */
+const MODOS = [
+	{ id: 'paredes', label: 'Matan', icon: 'border-all' },
+	{ id: 'tunel', label: 'Se cruzan', icon: 'arrow-bar-both' },
+];
+
+const RITMOS = [
+	{ id: 'calma', label: 'Calmada', icon: 'walk' },
+	{ id: 'normal', label: 'Normal', icon: 'gauge' },
+	{ id: 'nervio', label: 'Nerviosa', icon: 'bolt' },
+];
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
 ---
 
 <section id="minijuego" class="flex flex-col gap-7">
@@ -51,7 +69,7 @@ const PAD = [
 				<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
 					<dt class="flex items-baseline gap-2 text-muted">
 						<Icon name="trophy" class="size-3.5 shrink-0 self-center" />
-						récord
+						récord <span data-best-tag class="text-xs">con paredes · normal</span>
 					</dt>
 					<dd data-best class="tabular-nums">0</dd>
 				</div>
@@ -95,6 +113,38 @@ const PAD = [
 				}
 			</div>
 
+			<div class="flex flex-col gap-3">
+				<h3 id="serpiente-paredes" class="text-sm text-muted">Paredes</h3>
+				<div role="group" aria-labelledby="serpiente-paredes" class="flex flex-wrap gap-2">
+					{
+						MODOS.map((modo) => (
+							<button type="button" data-juego-modo={modo.id} aria-pressed="false" class={OPCION}>
+								<Icon name={modo.icon} class="size-4 shrink-0" />
+								{modo.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<h3 id="serpiente-ritmo" class="text-sm text-muted">Ritmo</h3>
+				<div role="group" aria-labelledby="serpiente-ritmo" class="flex flex-wrap gap-2">
+					{
+						RITMOS.map((ritmo) => (
+							<button type="button" data-juego-ritmo={ritmo.id} aria-pressed="false" class={OPCION}>
+								<Icon name={ritmo.icon} class="size-4 shrink-0" />
+								{ritmo.label}
+							</button>
+						))
+					}
+				</div>
+				<p class="text-sm text-muted">
+					Cada ajuste lleva su récord y se guarda en este navegador. Tocarlos deja el tablero a
+					cero.
+				</p>
+			</div>
+
 			<p data-status class="sr-only" role="status" aria-live="polite"></p>
 		</div>
 	</div>
@@ -135,13 +185,23 @@ const PAD = [
 		const COLS = Number(board.dataset.cols);
 		const ROWS = Number(board.dataset.rows);
 		// Empieza lenta y se va apretando con cada bocado, hasta un tope.
-		const MS_INICIAL = 150;
-		const MS_MINIMO = 70;
 		const MS_POR_PUNTO = 4;
+		// El récord de antes era uno solo; el nuevo va por ajuste.
 		const CLAVE_RECORD = 'tuweb:serpiente:record';
+		const CLAVE_RECORDS = 'tuweb:serpiente:records';
+		const CLAVE_AJUSTES = 'tuweb:serpiente:ajustes';
 
 		type Giro = { x: number; y: number };
 		type Estado = 'listo' | 'jugando' | 'pausa' | 'fin';
+		type Modo = 'paredes' | 'tunel';
+		type Ritmo = 'calma' | 'normal' | 'nervio';
+		type Ajustes = { modo: Modo; ritmo: Ritmo };
+
+		const RITMOS: Record<Ritmo, { inicial: number; minimo: number; label: string }> = {
+			calma: { inicial: 200, minimo: 110, label: 'calmada' },
+			normal: { inicial: 150, minimo: 70, label: 'normal' },
+			nervio: { inicial: 100, minimo: 50, label: 'nerviosa' },
+		};
 
 		const casillas = Array.from(board.children) as HTMLElement[];
 		const capa = section.querySelector<HTMLElement>('[data-overlay]');
@@ -149,6 +209,7 @@ const PAD = [
 		const capaTexto = section.querySelector<HTMLElement>('[data-overlay-text]');
 		const marcador = section.querySelector<HTMLElement>('[data-score]');
 		const marcadorRecord = section.querySelector<HTMLElement>('[data-best]');
+		const etiquetaRecord = section.querySelector<HTMLElement>('[data-best-tag]');
 		const botonJugar = section.querySelector<HTMLButtonElement>('[data-play]');
 		const etiquetaJugar = section.querySelector<HTMLElement>('[data-play-label]');
 		const aviso = section.querySelector<HTMLElement>('[data-status]');
@@ -174,28 +235,59 @@ const PAD = [
 		let pendientes: Giro[] = [];
 		let comida = -1;
 		let puntos = 0;
-		let velocidad = MS_INICIAL;
 		let temporizador = 0;
 		let pintadas: number[] = [];
 
-		function leerRecord() {
+		function leerAjustes(): Ajustes {
 			try {
-				return Number(localStorage.getItem(CLAVE_RECORD)) || 0;
+				const guardado = JSON.parse(localStorage.getItem(CLAVE_AJUSTES) ?? 'null');
+				return {
+					modo: guardado?.modo === 'tunel' ? 'tunel' : 'paredes',
+					ritmo: guardado?.ritmo in RITMOS ? guardado.ritmo : 'normal',
+				};
 			} catch {
-				// Sin almacenamiento (modo privado): se juega igual, sin récord.
-				return 0;
+				// Sin almacenamiento (modo privado) o con basura dentro: los de casa.
+				return { modo: 'paredes', ritmo: 'normal' };
 			}
 		}
 
-		function guardarRecord(valor: number) {
+		function leerRecords(): Record<string, number> {
 			try {
-				localStorage.setItem(CLAVE_RECORD, String(valor));
+				const crudo = localStorage.getItem(CLAVE_RECORDS);
+				if (crudo) {
+					const limpio: Record<string, number> = {};
+					for (const [clave, valor] of Object.entries(JSON.parse(crudo) ?? {})) {
+						if (typeof valor === 'number' && Number.isFinite(valor)) limpio[clave] = valor;
+					}
+					return limpio;
+				}
+				// Quien ya tenía récord jugaba con paredes y a ritmo normal: ahí se queda.
+				const viejo = Number(localStorage.getItem(CLAVE_RECORD)) || 0;
+				return viejo > 0 ? { 'paredes:normal': viejo } : {};
+			} catch {
+				return {};
+			}
+		}
+
+		function guardar(clave: string, valor: unknown) {
+			try {
+				localStorage.setItem(clave, JSON.stringify(valor));
 			} catch {
 				// Da igual: el récord es un lujo, no el juego.
 			}
 		}
 
-		let record = leerRecord();
+		let ajustes = leerAjustes();
+		let records = leerRecords();
+		let velocidad = RITMOS[ajustes.ritmo].inicial;
+
+		function claveRecord() {
+			return `${ajustes.modo}:${ajustes.ritmo}`;
+		}
+
+		function record() {
+			return records[claveRecord()] ?? 0;
+		}
 
 		function pintar() {
 			for (const i of pintadas) casillas[i]?.removeAttribute('data-k');
@@ -239,7 +331,11 @@ const PAD = [
 
 		function marcar() {
 			if (marcador) marcador.textContent = String(puntos);
-			if (marcadorRecord) marcadorRecord.textContent = String(record);
+			if (marcadorRecord) marcadorRecord.textContent = String(record());
+			if (etiquetaRecord) {
+				const paredes = ajustes.modo === 'tunel' ? 'sin paredes' : 'con paredes';
+				etiquetaRecord.textContent = `${paredes} · ${RITMOS[ajustes.ritmo].label}`;
+			}
 		}
 
 		function decir(texto: string) {
@@ -274,14 +370,14 @@ const PAD = [
 		function terminar(titulo: string, texto: string) {
 			parar();
 			estado = 'fin';
-			if (puntos > record) {
-				record = puntos;
-				guardarRecord(record);
+			if (puntos > record()) {
+				records = { ...records, [claveRecord()]: puntos };
+				guardar(CLAVE_RECORDS, records);
 			}
 			marcar();
 			capaVisible(titulo, texto);
 			refrescarBoton();
-			decir(`${titulo} ${puntos} puntos. Récord ${record}.`);
+			decir(`${titulo} ${puntos} puntos. Récord ${record()}.`);
 		}
 
 		function paso() {
@@ -289,10 +385,14 @@ const PAD = [
 			if (siguienteGiro) direccion = siguienteGiro;
 
 			const cabeza = serpiente[0];
-			const x = (cabeza % COLS) + direccion.x;
-			const y = Math.floor(cabeza / COLS) + direccion.y;
+			let x = (cabeza % COLS) + direccion.x;
+			let y = Math.floor(cabeza / COLS) + direccion.y;
 
-			if (x < 0 || x >= COLS || y < 0 || y >= ROWS) {
+			// Sin paredes se sale por un lado y se entra por el otro; con ellas, adiós.
+			if (ajustes.modo === 'tunel') {
+				x = (x + COLS) % COLS;
+				y = (y + ROWS) % ROWS;
+			} else if (x < 0 || x >= COLS || y < 0 || y >= ROWS) {
 				terminar('Contra la pared.', `${puntos} puntos. Dale a otra vez.`);
 				return;
 			}
@@ -311,7 +411,8 @@ const PAD = [
 				serpiente.pop();
 			} else {
 				puntos += 1;
-				velocidad = Math.max(MS_MINIMO, MS_INICIAL - puntos * MS_POR_PUNTO);
+				const ritmo = RITMOS[ajustes.ritmo];
+				velocidad = Math.max(ritmo.minimo, ritmo.inicial - puntos * MS_POR_PUNTO);
 				marcar();
 				if (!nuevaComida()) {
 					pintar();
@@ -330,7 +431,7 @@ const PAD = [
 			direccion = { x: 1, y: 0 };
 			pendientes = [];
 			puntos = 0;
-			velocidad = MS_INICIAL;
+			velocidad = RITMOS[ajustes.ritmo].inicial;
 			estado = 'jugando';
 			nuevaComida();
 			marcar();
@@ -339,6 +440,24 @@ const PAD = [
 			refrescarBoton();
 			decir('Empieza la partida.');
 			programar();
+		}
+
+		/** Tablero vacío y a la espera: es donde deja el juego cambiar un ajuste. */
+		function reposar() {
+			parar();
+			estado = 'listo';
+			serpiente = [];
+			comida = -1;
+			puntos = 0;
+			pintar();
+			marcar();
+			capaVisible(
+				'Serpiente',
+				ajustes.modo === 'tunel'
+					? 'Las paredes no matan: sales por un lado y entras por el otro.'
+					: 'Toca el tablero y no te choques.',
+			);
+			refrescarBoton();
 		}
 
 		function pausar() {
@@ -446,6 +565,41 @@ const PAD = [
 			});
 		});
 
+		function marcarOpciones() {
+			section.querySelectorAll<HTMLButtonElement>('[data-juego-modo]').forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.juegoModo === ajustes.modo));
+			});
+			section.querySelectorAll<HTMLButtonElement>('[data-juego-ritmo]').forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.juegoRitmo === ajustes.ritmo));
+			});
+		}
+
+		/*
+		 * Un ajuste nuevo es otro juego y otro récord, así que la partida en curso
+		 * se corta aquí: seguir con la vieja a otra velocidad sería hacer trampa.
+		 */
+		function cambiarAjuste(patch: Partial<Ajustes>) {
+			ajustes = { ...ajustes, ...patch };
+			guardar(CLAVE_AJUSTES, ajustes);
+			marcarOpciones();
+			reposar();
+			decir('Ajuste cambiado. Tablero a cero.');
+		}
+
+		section.querySelectorAll<HTMLButtonElement>('[data-juego-modo]').forEach((boton) => {
+			boton.addEventListener('click', (event) => {
+				cambiarAjuste({ modo: boton.dataset.juegoModo as Modo });
+				devolverFoco(event);
+			});
+		});
+
+		section.querySelectorAll<HTMLButtonElement>('[data-juego-ritmo]').forEach((boton) => {
+			boton.addEventListener('click', (event) => {
+				cambiarAjuste({ ritmo: boton.dataset.juegoRitmo as Ritmo });
+				devolverFoco(event);
+			});
+		});
+
 		// Con la pestaña de fondo la partida no corre sola.
 		document.addEventListener('visibilitychange', () => {
 			if (document.hidden) pausar();
@@ -463,7 +617,7 @@ const PAD = [
 			).observe(board);
 		}
 
-		marcar();
-		refrescarBoton();
+		marcarOpciones();
+		reposar();
 	}
 </script>
