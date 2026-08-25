@@ -160,12 +160,13 @@ export function updatePrompt(id: number, body: string, verdict: { keep: boolean;
 	return get<MyPrompt>(
 		`UPDATE prompts
 		 SET body = ?, status = ?, discard_reason = ?, edits = edits + 1
-		 WHERE id = ?
+		 WHERE id = ? AND edits < ?
 		 RETURNING id, body, status, discard_reason AS discardReason, edits`,
 		body,
 		verdict.keep ? 'pending' : 'discarded',
 		verdict.keep ? null : (verdict.reason ?? 'spam'),
 		id,
+		MAX_EDITS,
 	);
 }
 
