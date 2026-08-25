@@ -30,9 +30,9 @@ export const SECTIONS: Section[] = [
 		href: '/minijuego',
 		title: 'Minijuego',
 		icon: 'device-gamepad-2',
-		card: 'La serpiente de siempre, con o sin paredes, para hacer tiempo.',
+		card: 'La serpiente de siempre, con o sin paredes, y su ranking.',
 		intro:
-			'Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para pausar. En el móvil, desliza sobre el tablero. Elige si las paredes matan y a qué ritmo va: cada combinación guarda su récord en tu navegador.',
+			'Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para pausar. En el móvil, desliza sobre el tablero. Elige si las paredes matan y a qué ritmo va. Al perder puedes firmar la marca con tu nombre: cada combinación guarda su récord y su ranking en tu navegador.',
 	},
 	{
 		href: '/escaparate',

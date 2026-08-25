@@ -1,13 +1,16 @@
 ---
 /**
  * Un minijuego para la espera entre ventanas: la serpiente de toda la vida.
- * Todo pasa en el navegador y nada se guarda en el servidor; el récord vive en
- * el localStorage de quien juega.
+ * Todo pasa en el navegador y nada se guarda en el servidor; el récord y el
+ * ranking viven en el localStorage de quien juega.
  */
 import Icon from './Icon.astro';
 
 const COLS = 20;
 const ROWS = 14;
+
+/** Lo que cabe en una línea del ranking sin romperla. */
+const NOMBRE_MAX = 14;
 
 const PAD = [
 	{ id: 'up', label: 'Arriba', icon: 'chevron-up', class: 'col-start-2' },
@@ -33,6 +36,9 @@ const RITMOS = [
 
 const OPCION =
 	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
 ---
 
 <section id="minijuego" class="flex flex-col gap-7">
@@ -74,6 +80,31 @@ const OPCION =
 					<dd data-best class="tabular-nums">0</dd>
 				</div>
 			</dl>
+
+			<form data-firma hidden class="flex flex-col gap-3 border border-accent bg-panel p-4">
+				<label class="flex flex-col gap-2">
+					<span class="text-sm">
+						Se acabó con <span data-firma-puntos class="font-pixel text-accent">0</span> puntos.
+						Firma la marca.
+					</span>
+					<input
+						type="text"
+						data-firma-nombre
+						maxlength={NOMBRE_MAX}
+						autocomplete="off"
+						spellcheck="false"
+						placeholder="Tu nombre"
+						class="w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent"
+					/>
+				</label>
+				<div class="flex flex-wrap items-center gap-3">
+					<button type="submit" class={BOTON}>
+						<Icon name="writing-sign" class="size-4 shrink-0" />
+						Firmar
+					</button>
+					<button type="button" data-firma-pasar class={BOTON}>Paso</button>
+				</div>
+			</form>
 
 			<div class="flex flex-wrap gap-2 text-sm">
 				<button
@@ -140,13 +171,45 @@ const OPCION =
 					}
 				</div>
 				<p class="text-sm text-muted">
-					Cada ajuste lleva su récord y se guarda en este navegador. Tocarlos deja el tablero a
-					cero.
+					Cada ajuste lleva su récord y su ranking, y se guardan en este navegador. Tocarlos deja el
+					tablero a cero.
 				</p>
 			</div>
 
 			<p data-status class="sr-only" role="status" aria-live="polite"></p>
 		</div>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<h3 class="flex items-baseline gap-2 text-sm text-muted">
+			<Icon name="list-numbers" class="size-3.5 shrink-0 self-center" />
+			Ranking <span data-ranking-tag class="text-xs">con paredes · normal</span>
+		</h3>
+
+		<ol data-ranking class="flex flex-col gap-1.5 text-sm"></ol>
+
+		<p data-ranking-vacio class="text-sm text-muted">
+			Aquí no ha firmado nadie. Pierde una partida y pon tu nombre.
+		</p>
+
+		<p data-ranking-aviso hidden class="text-sm text-muted"></p>
+
+		<div>
+			<button type="button" data-ranking-vaciar hidden class={BOTON}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Vaciar este ranking
+			</button>
+		</div>
+
+		<template data-fila>
+			<li class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+				<span class="flex min-w-0 items-baseline gap-3">
+					<span data-pos class="tabular-nums text-muted"></span>
+					<span data-nombre class="truncate"></span>
+				</span>
+				<span data-puntos class="font-pixel tabular-nums">0</span>
+			</li>
+		</template>
 	</div>
 </section>
 
@@ -190,12 +253,18 @@ const OPCION =
 		const CLAVE_RECORD = 'tuweb:serpiente:record';
 		const CLAVE_RECORDS = 'tuweb:serpiente:records';
 		const CLAVE_AJUSTES = 'tuweb:serpiente:ajustes';
+		// El ranking va por ajuste, como el récord, y recuerda el último nombre.
+		const CLAVE_RANKING = 'tuweb:serpiente:ranking';
+		const CLAVE_NOMBRE = 'tuweb:serpiente:nombre';
+		const NOMBRE_MAX = 14;
+		const TOPE = 10;
 
 		type Giro = { x: number; y: number };
 		type Estado = 'listo' | 'jugando' | 'pausa' | 'fin';
 		type Modo = 'paredes' | 'tunel';
 		type Ritmo = 'calma' | 'normal' | 'nervio';
 		type Ajustes = { modo: Modo; ritmo: Ritmo };
+		type Marca = { nombre: string; puntos: number; fecha: number };
 
 		const RITMOS: Record<Ritmo, { inicial: number; minimo: number; label: string }> = {
 			calma: { inicial: 200, minimo: 110, label: 'calmada' },
@@ -213,6 +282,15 @@ const OPCION =
 		const botonJugar = section.querySelector<HTMLButtonElement>('[data-play]');
 		const etiquetaJugar = section.querySelector<HTMLElement>('[data-play-label]');
 		const aviso = section.querySelector<HTMLElement>('[data-status]');
+		const firma = section.querySelector<HTMLFormElement>('[data-firma]');
+		const firmaNombre = section.querySelector<HTMLInputElement>('[data-firma-nombre]');
+		const firmaPuntos = section.querySelector<HTMLElement>('[data-firma-puntos]');
+		const listaRanking = section.querySelector<HTMLElement>('[data-ranking]');
+		const rankingVacio = section.querySelector<HTMLElement>('[data-ranking-vacio]');
+		const etiquetaRanking = section.querySelector<HTMLElement>('[data-ranking-tag]');
+		const avisoRanking = section.querySelector<HTMLElement>('[data-ranking-aviso]');
+		const botonVaciar = section.querySelector<HTMLButtonElement>('[data-ranking-vaciar]');
+		const plantillaFila = section.querySelector<HTMLTemplateElement>('[data-fila]');
 
 		const GIROS: Record<string, Giro> = {
 			arrowup: { x: 0, y: -1 },
@@ -269,6 +347,49 @@ const OPCION =
 			}
 		}
 
+		/** Del almacén solo sale lo que tiene forma de marca; lo demás se tira. */
+		function leerRanking(): Record<string, Marca[]> {
+			try {
+				const crudo = JSON.parse(localStorage.getItem(CLAVE_RANKING) ?? 'null');
+				const limpio: Record<string, Marca[]> = {};
+				for (const [clave, marcas] of Object.entries(crudo ?? {})) {
+					if (!Array.isArray(marcas)) continue;
+					const buenas = marcas
+						.filter(
+							(marca) => typeof marca?.nombre === 'string' && Number.isFinite(marca?.puntos),
+						)
+						.map((marca) => ({
+							nombre: limpiarNombre(marca.nombre) || 'anónimo',
+							puntos: Math.max(0, Math.floor(marca.puntos)),
+							fecha: Number.isFinite(marca.fecha) ? Number(marca.fecha) : 0,
+						}));
+					if (buenas.length > 0) limpio[clave] = ordenar(buenas).slice(0, TOPE);
+				}
+				return limpio;
+			} catch {
+				return {};
+			}
+		}
+
+		function leerNombre(): string {
+			try {
+				const guardado = JSON.parse(localStorage.getItem(CLAVE_NOMBRE) ?? 'null');
+				return typeof guardado === 'string' ? limpiarNombre(guardado) : '';
+			} catch {
+				return '';
+			}
+		}
+
+		/** Un nombre es una línea corta: sin saltos, sin dobles espacios y sin sobras. */
+		function limpiarNombre(valor: string) {
+			return valor.replace(/\s+/g, ' ').trim().slice(0, NOMBRE_MAX).trim();
+		}
+
+		/** Más puntos arriba y, en empate, primero quien llegó antes. */
+		function ordenar(marcas: Marca[]) {
+			return [...marcas].sort((a, b) => b.puntos - a.puntos || a.fecha - b.fecha);
+		}
+
 		function guardar(clave: string, valor: unknown) {
 			try {
 				localStorage.setItem(clave, JSON.stringify(valor));
@@ -279,6 +400,11 @@ const OPCION =
 
 		let ajustes = leerAjustes();
 		let records = leerRecords();
+		let ranking = leerRanking();
+		// La última marca firmada, para poder señalarla en la lista.
+		let mia: Marca | null = null;
+		// Los puntos con los que se abrió la firma; la partida puede seguir sin ella.
+		let puntosFirma = 0;
 		let velocidad = RITMOS[ajustes.ritmo].inicial;
 
 		function claveRecord() {
@@ -287,6 +413,15 @@ const OPCION =
 
 		function record() {
 			return records[claveRecord()] ?? 0;
+		}
+
+		function marcasAhora() {
+			return ranking[claveRecord()] ?? [];
+		}
+
+		function etiquetaAjuste() {
+			const paredes = ajustes.modo === 'tunel' ? 'sin paredes' : 'con paredes';
+			return `${paredes} · ${RITMOS[ajustes.ritmo].label}`;
 		}
 
 		function pintar() {
@@ -332,14 +467,68 @@ const OPCION =
 		function marcar() {
 			if (marcador) marcador.textContent = String(puntos);
 			if (marcadorRecord) marcadorRecord.textContent = String(record());
-			if (etiquetaRecord) {
-				const paredes = ajustes.modo === 'tunel' ? 'sin paredes' : 'con paredes';
-				etiquetaRecord.textContent = `${paredes} · ${RITMOS[ajustes.ritmo].label}`;
-			}
+			if (etiquetaRecord) etiquetaRecord.textContent = etiquetaAjuste();
 		}
 
 		function decir(texto: string) {
 			if (aviso) aviso.textContent = texto;
+		}
+
+		/** El ranking del ajuste que está puesto, de arriba abajo. */
+		function pintarRanking() {
+			if (etiquetaRanking) etiquetaRanking.textContent = etiquetaAjuste();
+
+			const marcas = marcasAhora();
+			if (rankingVacio) rankingVacio.hidden = marcas.length > 0;
+			if (botonVaciar) botonVaciar.hidden = marcas.length === 0;
+			const molde = plantillaFila?.content.firstElementChild;
+			if (!listaRanking || !molde) return;
+
+			const filas = marcas.map((marca, n) => {
+				const fila = molde.cloneNode(true) as HTMLElement;
+
+				const puesto = fila.querySelector<HTMLElement>('[data-pos]');
+				if (puesto) puesto.textContent = String(n + 1);
+
+				const nombre = fila.querySelector<HTMLElement>('[data-nombre]');
+				if (nombre) nombre.textContent = marca.nombre;
+
+				const tanteo = fila.querySelector<HTMLElement>('[data-puntos]');
+				if (tanteo) tanteo.textContent = String(marca.puntos);
+
+				// La marca recién firmada se distingue sin salirse de la lista.
+				if (marca === mia) {
+					nombre?.classList.add('text-accent');
+					tanteo?.classList.add('text-accent');
+				}
+
+				return fila;
+			});
+
+			listaRanking.replaceChildren(...filas);
+		}
+
+		/** Lo que pasó con la última firma, a la vista y también para el lector. */
+		function contarRanking(texto: string) {
+			if (avisoRanking) {
+				avisoRanking.textContent = texto;
+				avisoRanking.hidden = texto === '';
+			}
+			if (texto) decir(texto);
+		}
+
+		/** Al perder se pide nombre; con cero puntos no hay nada que firmar. */
+		function pedirFirma() {
+			if (!firma) return;
+			puntosFirma = puntos;
+			firma.hidden = puntos <= 0;
+			if (firma.hidden) return;
+			if (firmaPuntos) firmaPuntos.textContent = String(puntos);
+			if (firmaNombre) firmaNombre.value = leerNombre();
+		}
+
+		function cerrarFirma() {
+			if (firma) firma.hidden = true;
 		}
 
 		function libre() {
@@ -377,6 +566,7 @@ const OPCION =
 			marcar();
 			capaVisible(titulo, texto);
 			refrescarBoton();
+			pedirFirma();
 			decir(`${titulo} ${puntos} puntos. Récord ${record()}.`);
 		}
 
@@ -393,7 +583,7 @@ const OPCION =
 				x = (x + COLS) % COLS;
 				y = (y + ROWS) % ROWS;
 			} else if (x < 0 || x >= COLS || y < 0 || y >= ROWS) {
-				terminar('Contra la pared.', `${puntos} puntos. Dale a otra vez.`);
+				terminar('Contra la pared.', `${puntos} puntos. Firma y otra vez.`);
 				return;
 			}
 
@@ -402,7 +592,7 @@ const OPCION =
 			const cuerpo = crece ? serpiente : serpiente.slice(0, -1);
 
 			if (cuerpo.includes(destino)) {
-				terminar('Te has mordido.', `${puntos} puntos. Dale a otra vez.`);
+				terminar('Te has mordido.', `${puntos} puntos. Firma y otra vez.`);
 				return;
 			}
 
@@ -433,6 +623,7 @@ const OPCION =
 			puntos = 0;
 			velocidad = RITMOS[ajustes.ritmo].inicial;
 			estado = 'jugando';
+			cerrarFirma();
 			nuevaComida();
 			marcar();
 			pintar();
@@ -449,6 +640,7 @@ const OPCION =
 			serpiente = [];
 			comida = -1;
 			puntos = 0;
+			cerrarFirma();
 			pintar();
 			marcar();
 			capaVisible(
@@ -565,6 +757,54 @@ const OPCION =
 			});
 		});
 
+		/*
+		 * Firmar una marca: entra en el ranking del ajuste con el que se jugó, se
+		 * ordena por puntos y solo se quedan las diez primeras. El nombre se
+		 * recuerda para la próxima, que nadie quiere teclearlo cada vez.
+		 */
+		firma?.addEventListener('submit', (event) => {
+			event.preventDefault();
+			const nombre = limpiarNombre(firmaNombre?.value ?? '') || 'anónimo';
+			guardar(CLAVE_NOMBRE, nombre);
+
+			const marca: Marca = { nombre, puntos: puntosFirma, fecha: Date.now() };
+			const clave = claveRecord();
+			const marcas = ordenar([...(ranking[clave] ?? []), marca]).slice(0, TOPE);
+			ranking = { ...ranking, [clave]: marcas };
+			guardar(CLAVE_RANKING, ranking);
+
+			const puesto = marcas.indexOf(marca);
+			mia = puesto >= 0 ? marca : null;
+			// El formulario se va, así que el foco no puede quedarse dentro.
+			const dentro = firma?.contains(document.activeElement) === true;
+			cerrarFirma();
+			pintarRanking();
+			contarRanking(
+				puesto >= 0
+					? `${nombre}, ${marca.puntos} puntos: puesto ${puesto + 1}.`
+					: `${nombre}, ${marca.puntos} puntos: no entra en los diez primeros.`,
+			);
+			if (dentro) board.focus({ preventScroll: true });
+		});
+
+		section
+			.querySelector<HTMLButtonElement>('[data-firma-pasar]')
+			?.addEventListener('click', (event) => {
+				cerrarFirma();
+				contarRanking('Marca sin firmar.');
+				devolverFoco(event);
+			});
+
+		botonVaciar?.addEventListener('click', () => {
+			const { [claveRecord()]: fuera, ...resto } = ranking;
+			if (!fuera) return;
+			ranking = resto;
+			mia = null;
+			guardar(CLAVE_RANKING, ranking);
+			pintarRanking();
+			contarRanking('Ranking vacío.');
+		});
+
 		function marcarOpciones() {
 			section.querySelectorAll<HTMLButtonElement>('[data-juego-modo]').forEach((boton) => {
 				boton.setAttribute('aria-pressed', String(boton.dataset.juegoModo === ajustes.modo));
@@ -583,6 +823,8 @@ const OPCION =
 			guardar(CLAVE_AJUSTES, ajustes);
 			marcarOpciones();
 			reposar();
+			contarRanking('');
+			pintarRanking();
 			decir('Ajuste cambiado. Tablero a cero.');
 		}
 
@@ -619,5 +861,6 @@ const OPCION =
 
 		marcarOpciones();
 		reposar();
+		pintarRanking();
 	}
 </script>
