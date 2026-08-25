@@ -1,0 +1,214 @@
+---
+/**
+ * El ranking entero: una fila por persona, ordenada por puntos, y debajo las
+ * ideas que más gente pidió. Los números salen del servidor ya hechos; en el
+ * navegador solo se busca por nombre, que no hay nada que calcular aquí.
+ */
+import { getLeaderboardData, MAX_ROWS, POINTS, type RankRow } from '../lib/leaderboard';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+	/** Quien mira, si ha entrado: su fila se marca y se le busca aunque no esté arriba. */
+	userId?: number;
+}
+
+const data = getLeaderboardData(Astro.props.userId);
+
+// La barra más larga es la de quien va primero; el resto va en proporción.
+const maxPoints = Math.max(1, ...data.rows.map((row) => row.points));
+
+const BAREMO = [
+	{ icon: 'bulb', points: POINTS.idea, text: 'idea que pasa el filtro de la IA' },
+	{ icon: 'trophy', points: POINTS.win, text: 'más, si gana su ventana' },
+	{ icon: 'rocket', points: POINTS.shipped, text: 'más, si acaba publicada' },
+];
+
+/** El resumen de una fila: solo lo que esa persona tiene. */
+function detail(row: RankRow) {
+	const parts = [`${row.ideas} ${row.ideas === 1 ? 'idea' : 'ideas'}`];
+	if (row.wins > 0) parts.push(`${row.wins} ${row.wins === 1 ? 'ganada' : 'ganadas'}`);
+	if (row.shipped > 0) parts.push(`${row.shipped} ${row.shipped === 1 ? 'versión' : 'versiones'}`);
+	if (row.pending > 0) parts.push(`${row.pending} en juego`);
+	if (row.discarded > 0) parts.push(`${row.discarded} descartadas`);
+	return parts.join(' · ');
+}
+---
+
+<section class="flex flex-col gap-10">
+	{
+		data.rows.length === 0 ? (
+			<p class="text-muted">Todavía no hay ranking: empieza con la primera idea.</p>
+		) : (
+			<div class="flex flex-col gap-5">
+				<div class="flex flex-wrap items-baseline justify-between gap-4">
+					<SectionLabel forId="label-ranking">QUIÉN EMPUJA ESTA WEB</SectionLabel>
+					<p class="text-sm text-muted">
+						{data.totals.people} {data.totals.people === 1 ? 'persona' : 'personas'} ·{' '}
+						{data.totals.ideas} ideas · {data.totals.wins} ganadas · {data.totals.shipped} versiones
+					</p>
+				</div>
+
+				<label class="flex max-w-xs items-center gap-3 border border-line bg-panel px-4 py-2.5 focus-within:border-accent">
+					<Icon name="search" class="size-4 shrink-0 text-muted" />
+					<span class="sr-only">Buscar a alguien</span>
+					<input
+						type="text"
+						data-buscar
+						autocomplete="off"
+						spellcheck="false"
+						placeholder="Buscar a alguien"
+						class="w-full border-0 bg-transparent p-0 text-sm outline-none placeholder:text-muted"
+					/>
+				</label>
+
+				<ol class="flex flex-col" aria-labelledby="label-ranking">
+					{data.rows.map((row) => (
+						<li
+							data-fila
+							data-login={row.login.toLowerCase()}
+							class:list={[
+								'grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-4 gap-y-1.5 border-t border-line py-3.5 last:border-b',
+								row.me && 'bg-panel',
+							]}
+						>
+							<span
+								class:list={[
+									'font-pixel tabular-nums',
+									row.position <= 3 ? 'text-accent' : 'text-muted',
+								]}
+							>
+								{row.position}
+							</span>
+
+							<span class="flex min-w-0 flex-wrap items-baseline gap-x-3">
+								<span class="truncate">@{row.login}</span>
+								{row.me && <span class="font-pixel text-xs text-accent">TÚ</span>}
+							</span>
+
+							<span class="font-pixel tabular-nums text-accent">
+								{row.points}
+								<span class="text-xs text-muted"> pts</span>
+							</span>
+
+							<span class="col-span-2 col-start-2 flex items-center gap-3">
+								<span class="flex h-1 w-24 shrink-0 bg-line" aria-hidden="true">
+									<span
+										class="h-full bg-accent"
+										style={`width: ${Math.round((row.points / maxPoints) * 100)}%`}
+									/>
+								</span>
+								<span class="text-sm text-muted">{detail(row)}</span>
+							</span>
+						</li>
+					))}
+				</ol>
+
+				<p data-vacio hidden class="text-muted">Nadie con ese nombre en el ranking.</p>
+
+				{data.me && (
+					<p class="border border-line bg-panel px-4 py-3 text-sm">
+						<span class="font-pixel text-accent">{data.me.position}</span>
+						<span class="text-muted"> · tú, @{data.me.login} · {data.me.points} pts · {detail(data.me)}</span>
+					</p>
+				)}
+
+				{data.truncated > 0 && (
+					<p class="text-sm text-muted">
+						Se enseñan los {MAX_ROWS} primeros. Detrás hay {data.truncated}{' '}
+						{data.truncated === 1 ? 'persona más' : 'personas más'}.
+					</p>
+				)}
+			</div>
+		)
+	}
+
+	<div class="flex flex-col gap-4">
+		<SectionLabel forId="label-baremo">CÓMO SE PUNTÚA</SectionLabel>
+
+		<ul class="grid gap-3 sm:grid-cols-3" aria-labelledby="label-baremo">
+			{
+				BAREMO.map((item) => (
+					<li class="flex flex-col gap-1.5 border border-line bg-panel px-5 py-4">
+						<span class="flex items-baseline gap-2.5 font-pixel text-accent">
+							<Icon name={item.icon} class="size-4 shrink-0 self-center" />+{item.points}
+						</span>
+						<span class="text-sm text-pretty text-muted">{item.text}</span>
+					</li>
+				))
+			}
+		</ul>
+
+		<p class="max-w-[62ch] text-sm text-muted">
+			Las descartadas no restan y las ideas de la ventana abierta todavía no puntúan: están en juego
+			hasta que cierre. Nadie mantiene esto a mano, sale de lo que ya hay guardado.
+		</p>
+	</div>
+
+	{
+		data.ideas.length > 0 && (
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-wrap items-baseline justify-between gap-4">
+					<SectionLabel forId="label-ideas">LAS IDEAS MÁS PEDIDAS</SectionLabel>
+					<p class="text-sm text-muted">las que más gente repitió a la vez</p>
+				</div>
+
+				<ol class="flex flex-col" aria-labelledby="label-ideas">
+					{data.ideas.map((idea) => (
+						<li class="flex flex-col gap-1.5 border-t border-line py-3.5 last:border-b sm:flex-row sm:items-baseline sm:gap-5">
+							<span class="w-24 shrink-0 text-sm tabular-nums text-muted">
+								{idea.people} {idea.people === 1 ? 'persona' : 'personas'}
+							</span>
+
+							<div class="flex min-w-0 grow flex-col gap-1 sm:max-w-[62ch]">
+								<p class="text-pretty">{idea.title}</p>
+								{idea.summary && idea.summary !== idea.title && (
+									<p class="text-sm text-pretty text-muted">{idea.summary}</p>
+								)}
+							</div>
+
+							<span class="shrink-0 text-sm sm:ml-auto">
+								{idea.shipped ? (
+									<span class="inline-flex items-center gap-2 text-ok">
+										<Icon name="rocket" class="size-4 shrink-0" />
+										publicada
+									</span>
+								) : idea.won ? (
+									<span class="inline-flex items-center gap-2 text-accent">
+										<Icon name="trophy" class="size-4 shrink-0" />
+										ganó
+									</span>
+								) : (
+									<span class="text-muted">no ganó</span>
+								)}
+							</span>
+						</li>
+					))}
+				</ol>
+			</div>
+		)
+	}
+</section>
+
+<script>
+	/*
+	 * Buscar es esconder filas: el ranking entero ya está pintado. Cuando no queda
+	 * ninguna se enseña el aviso, y los puestos siguen siendo los de verdad.
+	 */
+	const input = document.querySelector<HTMLInputElement>('[data-buscar]');
+	const rows = document.querySelectorAll<HTMLElement>('[data-fila]');
+	const empty = document.querySelector<HTMLElement>('[data-vacio]');
+
+	input?.addEventListener('input', () => {
+		const query = input.value.trim().toLowerCase().replace(/^@/, '');
+		let visible = 0;
+
+		rows.forEach((row) => {
+			const match = query === '' || (row.dataset.login ?? '').includes(query);
+			row.hidden = !match;
+			if (match) visible += 1;
+		});
+
+		if (empty) empty.hidden = visible > 0;
+	});
+</script>

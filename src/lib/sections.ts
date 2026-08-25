@@ -66,6 +66,14 @@ export const SECTIONS: Section[] = [
 		intro: 'Todas las ideas de esta ventana.',
 	},
 	{
+		href: '/ranking',
+		title: 'Ranking',
+		icon: 'trophy',
+		card: 'Quién empuja esta web y las ideas que más gente pidió.',
+		intro:
+			'El ranking se hace solo con lo que ya hay guardado: cada idea que pasa el filtro suma, ganar la ventana suma más y acabar publicada suma todavía más. Debajo, las ideas que más gente repitió.',
+	},
+	{
 		href: '/changelog',
 		title: 'Changelog',
 		icon: 'history',

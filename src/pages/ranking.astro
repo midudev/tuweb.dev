@@ -1,0 +1,11 @@
+---
+import Leaderboard from '../components/Leaderboard.astro';
+import Section from '../layouts/Section.astro';
+import { getSessionUser } from '../lib/auth';
+
+const user = await getSessionUser(Astro);
+---
+
+<Section href="/ranking">
+	<Leaderboard userId={user?.id} />
+</Section>
