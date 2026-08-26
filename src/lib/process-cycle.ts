@@ -134,7 +134,26 @@ async function decideWithLlm(
 	}
 }
 
-export async function processCycle() {
+/**
+ * Un ciclo cada vez. Entre leer las pendientes y recibir la decisión del modelo
+ * pasan hasta 20 segundos, y en ese hueco un reintento del cron o un segundo
+ * disparo veían las MISMAS ideas: dos llamadas al modelo, dos ciclos y dos
+ * funcionalidades para la misma ventana. Quien llegue mientras hay uno en marcha
+ * se engancha al que ya corre en vez de abrir otro.
+ *
+ * Todo pasa por el mismo proceso web (el script del cron llama a /api/cron/process,
+ * no a la base de datos), así que con esto basta.
+ */
+let running: ReturnType<typeof runCycle> | null = null;
+
+export function processCycle() {
+	running ??= runCycle().finally(() => {
+		running = null;
+	});
+	return running;
+}
+
+async function runCycle() {
 	const pending = all<{ id: number; body: string }>(
 		"SELECT id, body FROM prompts WHERE status = 'pending'",
 	);
