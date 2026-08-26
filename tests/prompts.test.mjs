@@ -1,12 +1,12 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-const TEST_DB = 'file:test_concurrency.db';
+const TEST_DB = 'file:test_concurrency_deep.db';
 process.env.DATABASE_URL = TEST_DB;
 
 // Import database client and queries after setting DATABASE_URL
 const { getDb, run, get } = await import('../src/lib/db/client.ts');
-const { claimEdit, createPrompt, MAX_EDITS } = await import('../src/lib/db/queries.ts');
+const { claimEdit, createPrompt, applyReview, MAX_EDITS } = await import('../src/lib/db/queries.ts');
 
 function getOrCreateTestUser(githubId = 99999, login = 'testuser') {
 	const now = new Date().toISOString();
@@ -72,5 +72,34 @@ describe('Prompts Concurrency & Quota Enforcement', () => {
 		// Verify final database state
 		const finalRow = get('SELECT edits FROM prompts WHERE id = ?', promptId);
 		assert.equal(finalRow.edits, MAX_EDITS);
+	});
+
+	test('createPrompt UNIQUE index should prevent concurrent duplicate pending prompts for single user', () => {
+		const userId = getOrCreateTestUser(90003, 'user_unique_pending');
+		const created1 = createPrompt(userId, 'Primera propuesta pendiente valida de este usuario.', { keep: true });
+		assert.ok(created1?.id);
+
+		// Attempting to create a second pending prompt for the same user should throw a UNIQUE constraint error
+		assert.throws(
+			() => {
+				createPrompt(userId, 'Segunda propuesta pendiente simultanea que deberia fallar.', { keep: true });
+			},
+			(err) => String(err).includes('UNIQUE'),
+			'Should reject second pending prompt for same user via UNIQUE index'
+		);
+	});
+
+	test('applyReview should update prompt status without incrementing edits', () => {
+		const userId = getOrCreateTestUser(90004, 'user_apply_review');
+		const created = createPrompt(userId, 'Propuesta para revisar con el veredicto del modelo.', { keep: true });
+		assert.ok(created?.id);
+
+		const promptId = created.id;
+		claimEdit(promptId); // Edits = 1
+
+		const updated = applyReview(promptId, { keep: false, reason: 'spam' });
+		assert.equal(updated.status, 'discarded');
+		assert.equal(updated.discardReason, 'spam');
+		assert.equal(updated.edits, 1, 'applyReview must not increment edit counter');
 	});
 });
