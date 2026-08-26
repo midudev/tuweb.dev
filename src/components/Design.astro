@@ -1,0 +1,572 @@
+---
+/**
+ * El diseño de esta web, recreado: la portada en maqueta —que se puede
+ * recomponer— y debajo los colores, los tipos y las piezas con las que está
+ * montada. Nada de esto toca la web: lo que salga de aquí se copia como idea y
+ * lo vota la gente.
+ */
+import { COLUMNS, DEFAULT_DESIGN, DENSITIES, LAYOUTS, TOKENS, ideaFor, layoutOf } from '../lib/design';
+import { SECTIONS } from '../lib/sections';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+
+/** Las seis primeras secciones, que son las que caben en la maqueta. */
+const TARJETAS = SECTIONS.slice(0, 6);
+
+const ESCALA = [
+	{ label: 'xs', size: 'text-xs', note: '13px. Notas y pies.' },
+	{ label: 'sm', size: 'text-sm', note: '15px. Lo normal.' },
+	{ label: 'base', size: 'text-base', note: '16px. Cuerpo.' },
+	{ label: 'lg', size: 'text-lg', note: '18px. Titulares de tarjeta.' },
+];
+---
+
+<div class="flex flex-col gap-12">
+	<section class="flex flex-col gap-5" aria-labelledby="label-maqueta">
+		<div class="flex flex-col gap-2">
+			<SectionLabel forId="label-maqueta">LA PORTADA, EN MAQUETA</SectionLabel>
+			<p class="max-w-[62ch] text-sm text-muted">
+				Recompón la portada y mírala aquí mismo. Va con tus colores y tu tema.
+			</p>
+		</div>
+
+		<div class="grid gap-6 lg:grid-cols-[16rem_1fr]">
+			<div class="flex flex-col gap-6">
+				<div class="flex flex-col gap-3">
+					<h3 id="diseno-montaje" class="text-sm text-muted">Montaje</h3>
+					<div role="group" aria-labelledby="diseno-montaje" class="flex flex-wrap gap-2">
+						{
+							LAYOUTS.map((layout) => (
+								<button type="button" data-montaje-set={layout.id} aria-pressed="false" class={OPCION}>
+									<Icon name={layout.icon} class="size-4 shrink-0" />
+									{layout.label}
+								</button>
+							))
+						}
+					</div>
+					<p data-montaje-nota class="text-sm text-muted" aria-live="polite">
+						{layoutOf(DEFAULT_DESIGN.layout).note}
+					</p>
+				</div>
+
+				<div class="flex flex-col gap-3">
+					<h3 id="diseno-rejilla" class="text-sm text-muted">Rejilla</h3>
+					<div role="group" aria-labelledby="diseno-rejilla" class="flex flex-wrap gap-2">
+						{
+							COLUMNS.map((columns) => (
+								<button
+									type="button"
+									data-rejilla-set={String(columns)}
+									aria-pressed="false"
+									class={OPCION}
+								>
+									<Icon name="layout-columns" class="size-4 shrink-0" />
+									{columns} columnas
+								</button>
+							))
+						}
+					</div>
+				</div>
+
+				<div class="flex flex-col gap-3">
+					<h3 id="diseno-densidad" class="text-sm text-muted">Espaciado</h3>
+					<div role="group" aria-labelledby="diseno-densidad" class="flex flex-wrap gap-2">
+						{
+							DENSITIES.map((density) => (
+								<button
+									type="button"
+									data-densidad-set={density.id}
+									aria-pressed="false"
+									class={OPCION}
+								>
+									<Icon name="ruler" class="size-4 shrink-0" />
+									{density.label}
+								</button>
+							))
+						}
+					</div>
+				</div>
+			</div>
+
+			<div class="flex min-w-0 flex-col gap-4">
+				<div data-maqueta data-canvas class="border border-line" aria-hidden="true">
+					<div class="mq">
+						<aside class="mq-rail">
+							<span class="mq-marca">tuweb.dev</span>
+							<span class="mq-barra"></span>
+							<span class="mq-barra corta"></span>
+							<span class="mq-barra"></span>
+							<span class="mq-chip">v42</span>
+						</aside>
+
+						<div class="mq-cuerpo">
+							<div class="mq-hero">
+								<span class="mq-titulo">Esta web es tuya</span>
+								<span class="mq-campo"></span>
+								<span class="mq-boton">Proponer</span>
+							</div>
+
+							<div class="mq-rejilla">
+								{
+									TARJETAS.map((section) => (
+										<span class="mq-tarjeta">
+											<span class="mq-cabeza">
+												<Icon name={section.icon} class="size-3.5 shrink-0 text-accent" />
+												{section.title}
+											</span>
+											<span class="mq-barra"></span>
+										</span>
+									))
+								}
+							</div>
+
+							<div class="mq-pie">
+								<span class="mq-barra corta"></span>
+								<span class="mq-barra"></span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="flex flex-col gap-3 border border-line bg-panel p-4">
+					<p class="text-sm text-muted">Escrito como idea:</p>
+					<p data-diseno-idea class="text-sm text-mark">{ideaFor(DEFAULT_DESIGN)}</p>
+					<button
+						type="button"
+						data-diseno-copia
+						class="inline-flex items-center gap-2 self-start text-sm text-accent hover:underline"
+					>
+						<span data-icon="copy" class="inline-flex">
+							<Icon name="copy" class="size-4 shrink-0" />
+						</span>
+						<span data-icon="check" class="inline-flex">
+							<Icon name="check" class="size-4 shrink-0" />
+						</span>
+						<span data-diseno-copia-texto aria-live="polite">Copiar como idea</span>
+					</button>
+					<p class="text-sm text-muted">
+						La maqueta no cambia la web. Pega el texto en la portada y que lo vote la gente.
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="flex flex-col gap-5" aria-labelledby="label-colores">
+		<div class="flex flex-col gap-2">
+			<SectionLabel forId="label-colores">SIETE COLORES Y NADA MÁS</SectionLabel>
+			<p class="max-w-[62ch] text-sm text-muted">
+				Toda la web va detrás de estas variables. Los valores son los que tienes puestos ahora.
+			</p>
+		</div>
+
+		<ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+			{
+				TOKENS.map((token) => (
+					<li class="flex items-center gap-3 border border-line bg-panel p-3">
+						<span
+							class="size-10 shrink-0 border border-line"
+							style={`background: var(${token.name})`}
+						/>
+						<span class="flex min-w-0 flex-col">
+							<span class="text-sm">{token.label}</span>
+							<code class="truncate text-xs text-mark" data-token={token.name} />
+							<span class="text-xs text-muted">{token.note}</span>
+						</span>
+					</li>
+				))
+			}
+		</ul>
+	</section>
+
+	<section class="flex flex-col gap-5" aria-labelledby="label-tipos">
+		<div class="flex flex-col gap-2">
+			<SectionLabel forId="label-tipos">DOS TIPOS</SectionLabel>
+			<p class="max-w-[62ch] text-sm text-muted">
+				Geist Pixel para los títulos, Geist Mono para todo lo demás. Las dos las servimos
+				nosotros.
+			</p>
+		</div>
+
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="flex flex-col gap-3 border border-line bg-panel p-5">
+				<span class="text-xs text-muted">Geist Pixel</span>
+				<p class="font-pixel text-2xl leading-tight">Esta web es tuya</p>
+				<p class="font-pixel text-xs tracking-wide text-accent">Y ESTO ES LO QUE YA FUNCIONA</p>
+				<p class="text-sm text-muted">Títulos, etiquetas y poco más. En oscuro lleva halo.</p>
+			</div>
+
+			<div class="flex flex-col gap-3 border border-line bg-panel p-5">
+				<span class="text-xs text-muted">Geist Mono</span>
+				<ul class="flex flex-col gap-1">
+					{
+						ESCALA.map((paso) => (
+							<li class={`flex flex-wrap items-baseline gap-x-3 ${paso.size}`}>
+								<code class="text-mark">{paso.label}</code>
+								<span>Aa Bb Cc</span>
+								<span class="text-xs text-muted">{paso.note}</span>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<section class="flex flex-col gap-5" aria-labelledby="label-piezas">
+		<div class="flex flex-col gap-2">
+			<SectionLabel forId="label-piezas">LAS PIEZAS</SectionLabel>
+			<p class="max-w-[62ch] text-sm text-muted">
+				Con esto está montada la web entera. Bordes de un píxel, ninguna esquina redonda.
+			</p>
+		</div>
+
+		<ul class="grid gap-3 sm:grid-cols-2">
+			<li class="flex flex-col gap-3 border border-line p-5">
+				<span class="self-start bg-accent px-4 py-2 text-sm text-bg">Proponer</span>
+				<code class="text-xs text-mark">bg-accent px-4 py-2 text-sm text-bg</code>
+				<span class="text-xs text-muted">El botón que manda. Uno por pantalla.</span>
+			</li>
+
+			<li class="flex flex-col gap-3 border border-line p-5">
+				<span class="self-start border border-line px-3 py-2 text-sm text-muted">Otra opción</span>
+				<code class="text-xs text-mark">border border-line px-3 py-2 text-sm text-muted</code>
+				<span class="text-xs text-muted">El resto de botones, y los que se quedan pulsados.</span>
+			</li>
+
+			<li class="flex flex-col gap-3 border border-line p-5">
+				<span class="border border-line bg-panel p-4 text-sm text-muted">Una caja con su borde</span>
+				<code class="text-xs text-mark">border border-line bg-panel p-4</code>
+				<span class="text-xs text-muted">El panel. Plano, sin sombra y sin curva.</span>
+			</li>
+
+			<li class="flex flex-col gap-3 border border-line p-5">
+				<span class="w-full border border-line bg-panel p-3 text-sm text-muted">Escribe tu idea|</span>
+				<code class="text-xs text-mark">w-full border border-line bg-panel p-3 text-sm</code>
+				<span class="text-xs text-muted">Los campos. El foco es una línea del color del texto.</span>
+			</li>
+
+			<li class="flex flex-col gap-3 border border-line p-5">
+				<span class="font-pixel text-xs tracking-wide text-accent">UNA ETIQUETA</span>
+				<code class="text-xs text-mark">font-pixel text-xs tracking-wide text-accent</code>
+				<span class="text-xs text-muted">Abre cada bloque. Siempre en mayúsculas.</span>
+			</li>
+
+			<li class="flex flex-col gap-3 border border-line p-5">
+				<span class="inline-flex items-center gap-2 self-start text-sm text-accent underline">
+					Abrir
+					<Icon name="arrow-right" class="size-4 shrink-0" />
+				</span>
+				<code class="text-xs text-mark">inline-flex items-center gap-2 text-accent</code>
+				<span class="text-xs text-muted">Los enlaces, con su icono de Tabler al lado.</span>
+			</li>
+		</ul>
+	</section>
+</div>
+
+<style>
+	/*
+	 * La maqueta: la portada en pequeño, hecha con los mismos colores de la web.
+	 * El montaje, las columnas y el espaciado los manda el atributo del contenedor,
+	 * así que cambiar de diseño es cambiar una palabra.
+	 */
+	[data-maqueta] {
+		--mq-gap: 1rem;
+		--mq-pad: 1.25rem;
+		--mq-cols: 3;
+	}
+
+	[data-maqueta][data-densidad='compacta'] {
+		--mq-gap: 0.5rem;
+		--mq-pad: 0.7rem;
+	}
+
+	[data-maqueta][data-rejilla='2'] {
+		--mq-cols: 2;
+	}
+
+	.mq {
+		display: flex;
+		min-height: 24rem;
+		font-size: var(--text-xs);
+	}
+
+	.mq-rail {
+		display: flex;
+		flex: none;
+		flex-direction: column;
+		gap: var(--mq-gap);
+		width: 10rem;
+		padding: var(--mq-pad);
+		border-inline-end: 1px solid var(--color-line);
+		background: var(--color-panel);
+	}
+
+	.mq-cuerpo {
+		display: flex;
+		min-width: 0;
+		flex: 1;
+		flex-direction: column;
+	}
+
+	.mq-hero,
+	.mq-rejilla,
+	.mq-pie {
+		padding: var(--mq-pad);
+	}
+
+	.mq-hero {
+		display: flex;
+		flex-direction: column;
+		gap: var(--mq-gap);
+		border-block-end: 1px solid var(--color-line);
+		background: var(--color-panel);
+	}
+
+	.mq-rejilla {
+		display: grid;
+		flex: 1;
+		gap: var(--mq-gap);
+		grid-template-columns: repeat(var(--mq-cols), minmax(0, 1fr));
+		align-content: start;
+	}
+
+	.mq-pie {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		border-block-start: 1px solid var(--color-line);
+		background: var(--color-panel);
+	}
+
+	.mq-marca,
+	.mq-titulo {
+		font-family: var(--font-pixel);
+		color: var(--color-fg);
+	}
+
+	.mq-titulo {
+		font-size: var(--text-lg);
+	}
+
+	.mq-chip {
+		align-self: start;
+		margin-block-start: auto;
+		border: 1px solid var(--color-line);
+		padding: 0.15rem 0.4rem;
+		color: var(--color-accent);
+	}
+
+	/* Las líneas de texto que no hace falta leer: solo se ven. */
+	.mq-barra {
+		height: 0.4rem;
+		background: var(--color-line);
+	}
+
+	.mq-barra.corta {
+		width: 55%;
+	}
+
+	.mq-campo {
+		height: 3rem;
+		border: 1px solid var(--color-line);
+		background: var(--color-bg);
+	}
+
+	.mq-boton {
+		align-self: start;
+		padding: 0.3rem 0.9rem;
+		background: var(--color-accent);
+		color: var(--color-bg);
+	}
+
+	.mq-tarjeta {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		border: 1px solid var(--color-line);
+		padding: 0.6rem;
+		background: var(--color-panel);
+	}
+
+	.mq-cabeza {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		color: var(--color-fg);
+	}
+
+	/* El raíl se tumba y pasa a ser cabecera; el chip vuelve a su sitio. */
+	[data-maqueta][data-montaje='cabecera'] .mq {
+		flex-direction: column;
+	}
+
+	[data-maqueta][data-montaje='cabecera'] .mq-rail {
+		width: auto;
+		flex-direction: row;
+		align-items: center;
+		border-inline-end: 0;
+		border-block-end: 1px solid var(--color-line);
+	}
+
+	[data-maqueta][data-montaje='cabecera'] .mq-rail .mq-barra {
+		width: 4rem;
+		flex: none;
+	}
+
+	[data-maqueta][data-montaje='cabecera'] .mq-chip {
+		margin-block-start: 0;
+		margin-inline-start: auto;
+	}
+
+	/* Sin raíl: una columna centrada y estrecha, como una lectura. */
+	[data-maqueta][data-montaje='foco'] .mq-rail {
+		display: none;
+	}
+
+	[data-maqueta][data-montaje='foco'] .mq-hero,
+	[data-maqueta][data-montaje='foco'] .mq-rejilla,
+	[data-maqueta][data-montaje='foco'] .mq-pie {
+		margin-inline: auto;
+		width: 100%;
+		max-width: 30rem;
+		background: transparent;
+	}
+
+	[data-maqueta][data-montaje='foco'] .mq-hero {
+		align-items: center;
+		text-align: center;
+	}
+
+	[data-maqueta][data-montaje='foco'] .mq-boton,
+	[data-maqueta][data-montaje='foco'] .mq-campo {
+		align-self: stretch;
+	}
+
+	[data-maqueta][data-montaje='foco'] .mq-boton {
+		text-align: center;
+	}
+
+	[data-diseno-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-diseno-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-diseno-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-diseno-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import { DEFAULT_DESIGN, type DesignChoice, ideaFor, layoutOf } from '../lib/design';
+
+	const maqueta = document.querySelector<HTMLElement>('[data-maqueta]');
+	const nota = document.querySelector<HTMLElement>('[data-montaje-nota]');
+	const salida = document.querySelector<HTMLElement>('[data-diseno-idea]');
+
+	let choice: DesignChoice = { ...DEFAULT_DESIGN };
+
+	function marcar(selector: string, clave: string, valor: string) {
+		document.querySelectorAll<HTMLButtonElement>(selector).forEach((button) => {
+			button.setAttribute('aria-pressed', String((button.dataset[clave] ?? '') === valor));
+		});
+	}
+
+	function render() {
+		if (maqueta) {
+			maqueta.dataset.montaje = choice.layout;
+			maqueta.dataset.rejilla = String(choice.columns);
+			maqueta.dataset.densidad = choice.density;
+		}
+
+		marcar('[data-montaje-set]', 'montajeSet', choice.layout);
+		marcar('[data-rejilla-set]', 'rejillaSet', String(choice.columns));
+		marcar('[data-densidad-set]', 'densidadSet', choice.density);
+
+		if (nota) nota.textContent = layoutOf(choice.layout).note;
+		if (salida) salida.textContent = ideaFor(choice);
+	}
+
+	function cambiar(patch: Partial<DesignChoice>) {
+		choice = { ...choice, ...patch };
+		render();
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-montaje-set]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ layout: button.dataset.montajeSet ?? '' }));
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-rejilla-set]').forEach((button) => {
+		button.addEventListener('click', () => {
+			// Sin número no hay rejilla: se queda la de siempre.
+			cambiar({ columns: Number(button.dataset.rejillaSet) || DEFAULT_DESIGN.columns });
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-densidad-set]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ density: button.dataset.densidadSet ?? '' }));
+	});
+
+	/*
+	 * Los valores de los colores son los que hay puestos ahora mismo en el <html>:
+	 * si alguien cambia el tema o toca Config, aquí se ve el suyo, no el del repo.
+	 */
+	function pintarTokens() {
+		const styles = getComputedStyle(document.documentElement);
+		document.querySelectorAll<HTMLElement>('[data-token]').forEach((campo) => {
+			campo.textContent = styles.getPropertyValue(campo.dataset.token ?? '').trim();
+		});
+	}
+
+	document.addEventListener('tuweb:tema', pintarTokens);
+
+	const boton = document.querySelector<HTMLButtonElement>('[data-diseno-copia]');
+	const etiqueta = boton?.querySelector('[data-diseno-copia-texto]');
+	let reloj: number | undefined;
+
+	async function copiar(texto: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const campo = document.createElement('textarea');
+				campo.value = texto;
+				campo.readOnly = true;
+				campo.style.position = 'fixed';
+				campo.style.opacity = '0';
+				document.body.append(campo);
+				campo.select();
+				const hecho = document.execCommand('copy');
+				campo.remove();
+				return hecho;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	boton?.addEventListener('click', async () => {
+		const hecho = await copiar(ideaFor(choice));
+
+		boton.dataset.state = hecho ? 'done' : 'error';
+		if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			boton.removeAttribute('data-state');
+			if (etiqueta) etiqueta.textContent = 'Copiar como idea';
+		}, 2000);
+	});
+
+	render();
+	pintarTokens();
+</script>

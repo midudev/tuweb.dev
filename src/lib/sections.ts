@@ -27,6 +27,14 @@ export const SECTIONS: Section[] = [
 			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, colores, tramas SVG, tema y config. Cada pestaña tiene su propio enlace para compartirla.',
 	},
 	{
+		href: '/diseno',
+		title: 'Diseño',
+		icon: 'palette',
+		card: 'Cómo está hecha esta web: colores, tipos, piezas y la portada en maqueta.',
+		intro:
+			'El diseño de esta web, recreado pieza a pieza: los siete colores y los dos tipos que salen de global.css, y los trozos con los que está montada. Arriba, la portada en maqueta: cámbiale el montaje, las columnas y el espaciado para ver cómo quedaría. La maqueta no toca nada; cuando des con algo mejor, cópialo como idea y proponlo.',
+	},
+	{
 		href: '/minijuego',
 		title: 'Minijuego',
 		icon: 'device-gamepad-2',
