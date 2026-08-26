@@ -23,6 +23,10 @@ importers:
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
+    devDependencies:
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.12
 
 packages:
 
@@ -3158,7 +3162,6 @@ snapshots:
       esbuild: 0.28.2
     optionalDependencies:
       fsevents: 2.3.3
-    optional: true
 
   ufo@1.6.4: {}
 

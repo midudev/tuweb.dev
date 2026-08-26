@@ -16,7 +16,8 @@
 		"release": "node --env-file=.env scripts/release.mjs",
 		"rollback": "node --env-file=.env scripts/rollback.mjs",
 		"iterate": "node --env-file=.env scripts/iterate.mjs",
-		"ideas:clear": "node --env-file=.env scripts/clear-ideas.mjs"
+		"ideas:clear": "node --env-file=.env scripts/clear-ideas.mjs",
+		"test": "tsx --test tests/*.test.mjs"
 	},
 	"dependencies": {
 		"@astrojs/node": "11.1.2",
@@ -24,5 +25,8 @@
 		"@tailwindcss/vite": "4.3.3",
 		"astro": "7.2.2",
 		"tailwindcss": "4.3.3"
+	},
+	"devDependencies": {
+		"tsx": "^4.19.0"
 	}
 }
