@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>tuweb.dev · Cómo funciona, paso a paso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Tokens: skin de marca tuweb.dev ─────────────────────────── */
+    :root {
+      --color-paper:       #0a0a0a;
+      --color-paper-2:     #111111;
+      --color-ink:         #ececec;
+      --color-muted:       #8a8a8a;
+      --color-soft:        #6e6e6e;
+      --color-rule:        rgba(236,236,236,0.12);
+      --color-accent:      #00c2ff;
+      --color-accent-tint: rgba(0,194,255,0.12);
+      --font-sans:   'Geist', system-ui, sans-serif;
+      --font-serif:  'Instrument Serif', 'Times New Roman', serif;
+      --font-mono:   'Geist Mono', ui-monospace, Menlo, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      min-height: 100vh;
+      padding: 3rem 2rem;
+      color: var(--color-ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    /* ── Cabecera ─────────────────────────────────────────────────── */
+    .header { margin-bottom: 2.5rem; }
+
+    .header-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      font-family: var(--font-mono);
+      font-size: clamp(1.5rem, 2.4vw + 1rem, 2.125rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 0.75rem;
+    }
+
+    .subtitle {
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--color-muted);
+      max-width: 56ch;
+    }
+    .subtitle strong { color: var(--color-ink); font-weight: 500; }
+
+    .hint {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-soft);
+      margin-top: 1.25rem;
+    }
+
+    /* ── Contenedor del diagrama ──────────────────────────────────── */
+    .diagram-container {
+      background: transparent;
+      border: none;
+      padding: 0;
+      overflow-x: auto;
+    }
+
+    svg { width: 100%; min-width: 900px; display: block; }
+
+    /* ── Carriles: hover ilumina uno y atenúa el resto ────────────── */
+    /* Sin hover en ninguno, todos van al 100%: la regla que atenúa
+       solo entra cuando el puntero está dentro del grupo de carriles. */
+    .lane { transition: opacity 0.18s ease; }
+    .lanes:hover .lane { opacity: 0.24; }
+    .lanes .lane:hover { opacity: 1; }
+    /* Rect invisible que da al carril entero un área que reciba el puntero. */
+    .lane-hit { fill: transparent; pointer-events: all; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lane { transition: none; }
+    }
+    @media (hover: none) {
+      .lanes:hover .lane { opacity: 1; }
+    }
+
+    /* ── Tarjetas ─────────────────────────────────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr 0.9fr;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 860px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--color-paper-2);
+      border-radius: 6px;
+      border: 1px solid var(--color-rule);
+      padding: 1.25rem;
+    }
+
+    .card-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--color-soft);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.875rem;
+      padding-bottom: 0.875rem;
+      border-bottom: 1px solid rgba(236,236,236,0.08);
+    }
+
+    .card-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .card-dot.accent  { background: var(--color-accent); }
+    .card-dot.rust    { background: #d97a78; }
+    .card-dot.slate   { background: #82a0c0; }
+
+    .card h3 {
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-ink);
+      letter-spacing: -0.005em;
+    }
+
+    .card ul {
+      list-style: none;
+      color: var(--color-muted);
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
+
+    .card li {
+      margin-bottom: 0.35rem;
+      padding-left: 0.875rem;
+      position: relative;
+    }
+
+    .card li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: rgba(236,236,236,0.25);
+      font-size: 0.75rem;
+    }
+
+    .card code {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-ink);
+    }
+
+    /* ── Pie ──────────────────────────────────────────────────────── */
+    .footer {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(236,236,236,0.10);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      color: var(--color-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .footer a { color: var(--color-muted); text-decoration: none; }
+    .footer a:hover { color: var(--color-accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Cabecera -->
+    <div class="header">
+      <p class="header-eyebrow">tuweb.dev · el proceso</p>
+      <h1>Una web que la construye quien la visita</h1>
+      <p class="subtitle">Cada 30 minutos se cierra la votación, gana la idea más repetida y una IA la implementa, la verifica y la despliega. <strong>Al repositorio solo entra código que arrancó y respondió.</strong></p>
+      <p class="hint">Pasa el ratón por un carril para aislarlo</p>
+    </div>
+
+    <!-- Diagrama -->
+    <div class="diagram-container">
+      <svg viewBox="0 0 1064 536" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tuweb-proceso-title tuweb-proceso-desc">
+        <title id="tuweb-proceso-title">Cómo funciona tuweb.dev, paso a paso</title>
+        <desc id="tuweb-proceso-desc">Proceso en ocho pasos y cinco actores: quien visita propone una idea, la moderación la filtra, la web la guarda durante una ventana de 30 minutos y agrupa las parecidas, Claude Code implementa la ganadora recibiéndola como dato, y el despliegue revisa el diff, compila y comprueba la web antes de hacer commit y push a main.</desc>
+
+        <defs>
+          <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+            <circle cx="11" cy="11" r="0.8" fill="rgba(236,236,236,0.10)"/>
+          </pattern>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#8a8a8a"/>
+          </marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#00c2ff"/>
+          </marker>
+          <marker id="arrow-sm" markerWidth="6" markerHeight="5" refX="5" refY="2.5" orient="auto">
+            <polygon points="0 0, 6 2.5, 0 5" fill="#8a8a8a"/>
+          </marker>
+        </defs>
+
+        <!-- ── Fondo ────────────────────────────────────────────── -->
+        <rect width="1064" height="536" fill="#0a0a0a"/>
+        <rect width="1064" height="536" fill="url(#dots)" opacity="0.55"/>
+
+        <!-- Bandas alternas -->
+        <rect x="140" y="36"  width="924" height="80" fill="rgba(236,236,236,0.025)"/>
+        <rect x="140" y="196" width="924" height="80" fill="rgba(236,236,236,0.025)"/>
+        <rect x="140" y="356" width="924" height="80" fill="rgba(236,236,236,0.025)"/>
+
+        <!-- Divisorias de carril -->
+        <line x1="0" y1="36"  x2="1064" y2="36"  stroke="rgba(236,236,236,0.12)" stroke-width="0.8"/>
+        <line x1="0" y1="116" x2="1064" y2="116" stroke="rgba(236,236,236,0.12)" stroke-width="0.8"/>
+        <line x1="0" y1="196" x2="1064" y2="196" stroke="rgba(236,236,236,0.12)" stroke-width="0.8"/>
+        <line x1="0" y1="276" x2="1064" y2="276" stroke="rgba(236,236,236,0.12)" stroke-width="0.8"/>
+        <line x1="0" y1="356" x2="1064" y2="356" stroke="rgba(236,236,236,0.12)" stroke-width="0.8"/>
+        <line x1="0" y1="436" x2="1064" y2="436" stroke="rgba(236,236,236,0.12)" stroke-width="0.8"/>
+        <line x1="140" y1="36" x2="140" y2="436" stroke="rgba(236,236,236,0.22)" stroke-width="1"/>
+
+        <!-- ── Cabecera de pasos ────────────────────────────────── -->
+        <rect x="190" y="8" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="198" y="19" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">1</text>
+        <text x="198" y="32" fill="#8a8a8a" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">PROPONER</text>
+
+        <rect x="302" y="8" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="310" y="19" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">2</text>
+        <text x="310" y="32" fill="#8a8a8a" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">FILTRAR</text>
+
+        <rect x="414" y="8" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="422" y="19" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">3</text>
+        <text x="422" y="32" fill="#8a8a8a" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">VENTANA</text>
+
+        <rect x="526" y="8" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="534" y="19" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">4</text>
+        <text x="534" y="32" fill="#8a8a8a" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">AGRUPAR</text>
+
+        <rect x="638" y="8" width="16" height="16" rx="8" fill="rgba(0,194,255,0.22)"/>
+        <text x="646" y="19" fill="#00c2ff" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">5</text>
+        <text x="646" y="32" fill="#00c2ff" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">ESCRIBE</text>
+
+        <rect x="750" y="8" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="758" y="19" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">6</text>
+        <text x="758" y="32" fill="#8a8a8a" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">REVISAR</text>
+
+        <rect x="862" y="8" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="870" y="19" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">7</text>
+        <text x="870" y="32" fill="#8a8a8a" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">DESPLIEGA</text>
+
+        <rect x="974" y="8" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="982" y="19" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">8</text>
+        <text x="982" y="32" fill="#8a8a8a" font-size="6" font-weight="500" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">PUBLICAR</text>
+
+        <!-- ── Carriles ─────────────────────────────────────────── -->
+        <!-- Cada carril lleva su etiqueta, sus nodos y las flechas que salen
+             de ellos. Dentro de cada grupo, las flechas van antes que las
+             cajas para que las líneas queden por detrás. -->
+        <g class="lanes">
+
+          <!-- Carril 1 · VISITANTE -->
+          <g class="lane">
+            <rect class="lane-hit" x="0" y="36" width="1064" height="80"/>
+            <text x="70" y="80" fill="#8a8a8a" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">VISITANTE</text>
+
+            <!-- 1 → 2 -->
+            <path d="M 248,76 H 302 Q 310,76 310,84 V 124" fill="none" stroke="#8a8a8a" stroke-width="1" marker-end="url(#arrow)"/>
+
+            <!-- 1 · Propones -->
+            <rect x="148" y="44" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="148" y="44" width="100" height="64" rx="6" fill="rgba(236,236,236,0.04)" stroke="rgba(236,236,236,0.20)" stroke-width="1"/>
+            <rect x="152" y="48" width="14" height="10" rx="2" fill="rgba(236,236,236,0.12)"/>
+            <text x="159" y="56" fill="#ececec" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">VIS</text>
+            <text x="198" y="70" fill="#ececec" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Propones</text>
+            <text x="198" y="84" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">entras con GitHub</text>
+            <text x="198" y="96" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">16–280 caracteres</text>
+            <rect x="228" y="98" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="236" y="104" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+          </g>
+
+          <!-- Carril 2 · MODERACIÓN -->
+          <g class="lane">
+            <rect class="lane-hit" x="0" y="116" width="1064" height="80"/>
+            <text x="70" y="160" fill="#d97a78" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">MODERACIÓN</text>
+
+            <!-- 2 → 3 -->
+            <path d="M 360,156 H 414 Q 422,156 422,164 V 204" fill="none" stroke="#8a8a8a" stroke-width="1" marker-end="url(#arrow)"/>
+
+            <!-- 2 · Se filtra -->
+            <rect x="260" y="124" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="260" y="124" width="100" height="64" rx="6" fill="rgba(217,122,120,0.10)" stroke="rgba(217,122,120,0.45)" stroke-width="1"/>
+            <rect x="264" y="128" width="14" height="10" rx="2" fill="rgba(217,122,120,0.22)"/>
+            <text x="271" y="136" fill="#d97a78" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">MOD</text>
+            <text x="310" y="150" fill="#d97a78" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Se filtra</text>
+            <text x="310" y="164" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">heurística + modelo</text>
+            <text x="310" y="176" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">spam · injection</text>
+            <rect x="264" y="178" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="272" y="184" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+            <rect x="340" y="178" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="348" y="184" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+          </g>
+
+          <!-- Carril 3 · LA WEB -->
+          <g class="lane">
+            <rect class="lane-hit" x="0" y="196" width="1064" height="80"/>
+            <text x="70" y="240" fill="#8a8a8a" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">LA WEB</text>
+
+            <!-- 3 → 4 (mismo carril) -->
+            <line x1="472" y1="236" x2="484" y2="236" stroke="#8a8a8a" stroke-width="1" marker-end="url(#arrow)"/>
+            <!-- 4 → 5 (entra en el foco) -->
+            <path d="M 584,236 H 638 Q 646,236 646,244 V 284" fill="none" stroke="#00c2ff" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+
+            <!-- 3 · Ventana -->
+            <rect x="372" y="204" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="372" y="204" width="100" height="64" rx="6" fill="rgba(236,236,236,0.04)" stroke="rgba(236,236,236,0.20)" stroke-width="1"/>
+            <rect x="376" y="208" width="14" height="10" rx="2" fill="rgba(236,236,236,0.12)"/>
+            <text x="383" y="216" fill="#ececec" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">WEB</text>
+            <text x="422" y="230" fill="#ececec" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Ventana</text>
+            <text x="422" y="244" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">30 minutos</text>
+            <text x="422" y="256" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">1 idea por persona</text>
+            <rect x="376" y="258" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="384" y="264" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+            <rect x="452" y="258" width="16" height="8" rx="2" fill="#9caf8f"/>
+            <text x="460" y="264" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">LS</text>
+
+            <!-- 4 · Se agrupa -->
+            <rect x="484" y="204" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="484" y="204" width="100" height="64" rx="6" fill="rgba(236,236,236,0.04)" stroke="rgba(236,236,236,0.20)" stroke-width="1"/>
+            <rect x="488" y="208" width="14" height="10" rx="2" fill="rgba(236,236,236,0.12)"/>
+            <text x="495" y="216" fill="#ececec" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">WEB</text>
+            <text x="534" y="230" fill="#ececec" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Se agrupa</text>
+            <text x="534" y="244" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">gana la más pedida</text>
+            <text x="534" y="256" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">queda en cycles</text>
+            <rect x="488" y="258" width="16" height="8" rx="2" fill="#9caf8f"/>
+            <text x="496" y="264" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">LS</text>
+            <rect x="564" y="258" width="16" height="8" rx="2" fill="#9caf8f"/>
+            <text x="572" y="264" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">LS</text>
+          </g>
+
+          <!-- Carril 4 · CLAUDE CODE -->
+          <g class="lane">
+            <rect class="lane-hit" x="0" y="276" width="1064" height="80"/>
+            <text x="70" y="320" fill="#8a8a8a" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">CLAUDE CODE</text>
+
+            <!-- 5 → 6 (sale del foco) -->
+            <path d="M 696,316 H 750 Q 758,316 758,324 V 364" fill="none" stroke="#00c2ff" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+
+            <!-- Apunte editorial -->
+            <path d="M 1000 88 Q 820 140 664 284" fill="none" stroke="rgba(0,194,255,0.50)" stroke-width="1" stroke-dasharray="4,3"/>
+            <circle cx="664" cy="284" r="2" fill="#00c2ff"/>
+            <text x="1036" y="76" fill="#00c2ff" font-size="14" font-style="italic" font-family="'Instrument Serif', serif" text-anchor="end">la idea llega vallada como dato, nunca como instrucción</text>
+
+            <!-- 5 · Claude Code (foco) -->
+            <rect x="596" y="284" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="596" y="284" width="100" height="64" rx="6" fill="rgba(0,194,255,0.12)" stroke="#00c2ff" stroke-width="1"/>
+            <rect x="600" y="288" width="14" height="10" rx="2" fill="rgba(0,194,255,0.22)"/>
+            <text x="607" y="296" fill="#00c2ff" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">IA</text>
+            <text x="646" y="310" fill="#ececec" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Claude Code</text>
+            <text x="646" y="324" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">escribe el código</text>
+            <text x="646" y="336" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">sin Bash ni Fetch</text>
+            <rect x="600" y="338" width="16" height="8" rx="2" fill="#9caf8f"/>
+            <text x="608" y="344" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">LS</text>
+            <rect x="676" y="338" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="684" y="344" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+          </g>
+
+          <!-- Carril 5 · DESPLIEGUE -->
+          <g class="lane">
+            <rect class="lane-hit" x="0" y="356" width="1064" height="80"/>
+            <text x="70" y="400" fill="#8a8a8a" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">DESPLIEGUE</text>
+
+            <!-- 6 → 7 -->
+            <line x1="808" y1="396" x2="820" y2="396" stroke="#8a8a8a" stroke-width="1" marker-end="url(#arrow)"/>
+            <!-- 7 → 8 -->
+            <line x1="920" y1="396" x2="932" y2="396" stroke="#8a8a8a" stroke-width="1" marker-end="url(#arrow)"/>
+
+            <!-- Apunte editorial -->
+            <path d="M 1000 172 Q 944 264 880 364" fill="none" stroke="rgba(236,236,236,0.35)" stroke-width="1" stroke-dasharray="4,3"/>
+            <circle cx="880" cy="364" r="2" fill="#ececec"/>
+            <text x="1036" y="160" fill="#ececec" font-size="14" font-style="italic" font-family="'Instrument Serif', serif" text-anchor="end">si no arranca o no responde, se deshace todo</text>
+
+            <!-- 6 · Revisa el diff -->
+            <rect x="708" y="364" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="708" y="364" width="100" height="64" rx="6" fill="rgba(217,122,120,0.10)" stroke="rgba(217,122,120,0.45)" stroke-width="1"/>
+            <rect x="712" y="368" width="14" height="10" rx="2" fill="rgba(217,122,120,0.22)"/>
+            <text x="719" y="376" fill="#d97a78" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">OPS</text>
+            <text x="758" y="390" fill="#d97a78" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Revisa el diff</text>
+            <text x="758" y="404" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">solo src/ y public/</text>
+            <text x="758" y="416" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">tope de líneas</text>
+            <rect x="712" y="418" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="720" y="424" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+            <rect x="788" y="418" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="796" y="424" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+
+            <!-- 7 · Despliega -->
+            <rect x="820" y="364" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="820" y="364" width="100" height="64" rx="6" fill="rgba(130,160,192,0.10)" stroke="rgba(130,160,192,0.45)" stroke-width="1"/>
+            <rect x="824" y="368" width="14" height="10" rx="2" fill="rgba(130,160,192,0.22)"/>
+            <text x="831" y="376" fill="#82a0c0" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">OPS</text>
+            <text x="870" y="390" fill="#82a0c0" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Despliega</text>
+            <text x="870" y="404" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">compila y comprueba</text>
+            <text x="870" y="416" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">pm2 · health</text>
+            <rect x="824" y="418" width="16" height="8" rx="2" fill="#b88670"/>
+            <text x="832" y="424" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+            <rect x="900" y="418" width="16" height="8" rx="2" fill="#8d8298"/>
+            <text x="908" y="424" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">WB</text>
+
+            <!-- 8 · Publica -->
+            <rect x="932" y="364" width="100" height="64" rx="6" fill="#0a0a0a"/>
+            <rect x="932" y="364" width="100" height="64" rx="6" fill="rgba(236,236,236,0.04)" stroke="rgba(236,236,236,0.20)" stroke-width="1"/>
+            <rect x="936" y="368" width="14" height="10" rx="2" fill="rgba(236,236,236,0.12)"/>
+            <text x="943" y="376" fill="#ececec" font-size="6" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">OPS</text>
+            <text x="982" y="390" fill="#ececec" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Publica</text>
+            <text x="982" y="404" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">commit del bot</text>
+            <text x="982" y="416" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace" text-anchor="middle">push a main</text>
+            <rect x="936" y="418" width="16" height="8" rx="2" fill="#8d8298"/>
+            <text x="944" y="424" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">WB</text>
+          </g>
+
+        </g>
+
+        <!-- ── Leyenda ──────────────────────────────────────────── -->
+        <text x="144" y="455" fill="#8a8a8a" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">PASOS</text>
+        <rect x="208" y="444" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="216" y="455" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">1</text>
+        <text x="230" y="456" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">PROPONER</text>
+        <rect x="312" y="444" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="320" y="455" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">2</text>
+        <text x="334" y="456" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">FILTRAR</text>
+        <rect x="416" y="444" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="424" y="455" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">3</text>
+        <text x="438" y="456" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">VENTANA</text>
+        <rect x="520" y="444" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="528" y="455" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">4</text>
+        <text x="542" y="456" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">AGRUPAR</text>
+        <rect x="624" y="444" width="16" height="16" rx="8" fill="rgba(0,194,255,0.22)"/>
+        <text x="632" y="455" fill="#00c2ff" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">5</text>
+        <text x="646" y="456" fill="#00c2ff" font-size="6.5" font-family="'Geist Mono', monospace">ESCRIBE</text>
+        <rect x="728" y="444" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="736" y="455" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">6</text>
+        <text x="750" y="456" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">REVISAR</text>
+        <rect x="832" y="444" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="840" y="455" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">7</text>
+        <text x="854" y="456" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">DESPLIEGA</text>
+        <rect x="936" y="444" width="16" height="16" rx="8" fill="rgba(236,236,236,0.12)"/>
+        <text x="944" y="455" fill="#ececec" font-size="8" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">8</text>
+        <text x="958" y="456" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">PUBLICAR</text>
+
+        <text x="144" y="477" fill="#8a8a8a" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">DATOS</text>
+        <rect x="208" y="471" width="16" height="8" rx="2" fill="#b88670"/>
+        <text x="216" y="477" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">FL</text>
+        <text x="230" y="477" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">la idea o el diff</text>
+        <rect x="312" y="471" width="16" height="8" rx="2" fill="#9caf8f"/>
+        <text x="320" y="477" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">LS</text>
+        <text x="334" y="477" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">lista de ideas</text>
+        <rect x="416" y="471" width="16" height="8" rx="2" fill="#8d8298"/>
+        <text x="424" y="477" fill="#0a0a0a" font-size="5" font-weight="700" font-family="'Geist Mono', monospace" text-anchor="middle">WB</text>
+        <text x="438" y="477" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">web publicada</text>
+        <text x="536" y="477" fill="#6e6e6e" font-size="6.5" font-family="'Geist Mono', monospace">chip izquierda = entra · chip derecha = sale</text>
+
+        <text x="144" y="498" fill="#8a8a8a" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CONTROL</text>
+        <rect x="208" y="490" width="10" height="10" rx="2" fill="rgba(217,122,120,0.22)" stroke="rgba(217,122,120,0.45)" stroke-width="0.8"/>
+        <text x="224" y="498" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">valla de seguridad</text>
+        <rect x="336" y="490" width="10" height="10" rx="2" fill="rgba(130,160,192,0.22)" stroke="rgba(130,160,192,0.45)" stroke-width="0.8"/>
+        <text x="352" y="498" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">verificación en producción</text>
+
+        <text x="144" y="519" fill="#8a8a8a" font-size="7" font-family="'Geist Mono', monospace" letter-spacing="0.14em">FLUJO</text>
+        <line x1="208" y1="516" x2="248" y2="516" stroke="#8a8a8a" stroke-width="1" marker-end="url(#arrow)"/>
+        <text x="260" y="519" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">traspaso entre pasos</text>
+        <line x1="408" y1="516" x2="448" y2="516" stroke="#00c2ff" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+        <text x="460" y="519" fill="#8a8a8a" font-size="6.5" font-family="'Geist Mono', monospace">entrada y salida de la IA</text>
+      </svg>
+    </div>
+
+    <!-- Tarjetas -->
+    <div class="cards">
+      <div class="card">
+        <p class="card-eyebrow">Pasos 1–4</p>
+        <div class="card-header">
+          <span class="card-dot rust"></span>
+          <h3>De la propuesta a la idea ganadora</h3>
+        </div>
+        <ul>
+          <li>Entras con GitHub y escribes qué quieres, entre 16 y 280 caracteres. Una idea por persona y ventana.</li>
+          <li>Una heurística local descarta lo obvio y un modelo da la segunda opinión: spam, cosas peligrosas, fuera de tema e intentos de colarse en el prompt.</li>
+          <li>Cada 30 minutos se cierra la ventana: las ideas se agrupan por parecido y gana el grupo con más votos.</li>
+          <li>Queda registrado en <code>cycles</code>, con lo descartado y por qué.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p class="card-eyebrow">Paso 5</p>
+        <div class="card-header">
+          <span class="card-dot accent"></span>
+          <h3>La IA lo implementa</h3>
+        </div>
+        <ul>
+          <li>Claude Code recibe la idea ganadora <strong>vallada como dato</strong>, nunca como instrucción.</li>
+          <li>Sin <code>Bash</code>, sin <code>WebFetch</code> y sin <code>WebSearch</code>.</li>
+          <li>Escribe el código de la idea y devuelve un diff, no un despliegue.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p class="card-eyebrow">Pasos 6–8</p>
+        <div class="card-header">
+          <span class="card-dot slate"></span>
+          <h3>Nada sube sin verificar</h3>
+        </div>
+        <ul>
+          <li>El diff solo puede tocar <code>src/</code> y <code>public/</code>, con tope de líneas y ninguna que toque secretos.</li>
+          <li>Compila, reinicia y comprueba que la web responde y trae su contenido.</li>
+          <li>Si falla, la IA tiene varios intentos; si tampoco, se deshace todo y no se sube nada.</li>
+          <li>Solo entonces: commit del bot y push a <code>main</code>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Pie -->
+    <div class="footer">
+      <span>tuweb.dev · proceso de una ventana</span>
+      <span>5 actores · 8 pasos · ciclo de 30 min</span>
+    </div>
+
+  </div>
+</body>
+</html>
