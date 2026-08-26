@@ -43,6 +43,14 @@ export const SECTIONS: Section[] = [
 			'Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para pausar. En el móvil, desliza sobre el tablero. Elige si las paredes matan y a qué ritmo va. Al perder puedes firmar la marca con tu nombre: cada combinación guarda su récord y su ranking en tu navegador.',
 	},
 	{
+		href: '/mascota',
+		title: 'Mascota',
+		icon: 'ghost',
+		card: 'Un bicho de píxeles que vive aquí y se despierta con las ideas.',
+		intro:
+			'La mascota de la casa. No la manda nadie: su ánimo sale de las ideas que hay en la ventana abierta y crece con las versiones publicadas. Ponle nombre y ponle piezas —antenas, alas, una bufanda— del tono que quieras. Lo que le pongas se queda en tu navegador: cópialo y proponlo para que lo lleve para todos.',
+	},
+	{
 		href: '/escaparate',
 		title: 'Escaparate',
 		icon: 'rocket',

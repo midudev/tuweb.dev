@@ -1,0 +1,454 @@
+---
+/**
+ * La mascota comunitaria. El bicho se pinta con los píxeles de src/lib/pet.ts:
+ * el cuerpo y la cara los decide la web —las ideas de la ventana abierta son su
+ * energía— y las piezas las pone quien pasa por aquí.
+ *
+ * Como el escaparate o el chat, esto no tiene servidor: las piezas se quedan en
+ * el navegador de quien las pone y desde ahí se copian para proponerlas.
+ */
+import { MOODS, NAME_MAX, PARTS, SIZE, TONES, energyOf, moodOf, paint } from '../lib/pet';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+	/** Ideas de la ventana abierta: lo que la mantiene despierta. */
+	ideas: number;
+	people: number;
+	cycles: number;
+	version: number;
+}
+
+const { ideas, people, cycles, version } = Astro.props;
+
+const mood = moodOf(ideas);
+const energy = energyOf(ideas);
+const pixels = paint([], mood);
+
+const FIELD = 'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-accent';
+
+// Los medidores: todo sale de lo que ya guarda la base, nada de inventos.
+const MEDIDAS = [
+	{ label: 'energía', value: `${ideas}`, hint: 'ideas en esta ventana', bar: energy },
+	{ label: 'nivel', value: `${version}`, hint: 'versiones publicadas', bar: Math.min(100, version * 5) },
+	{ label: 'manada', value: `${people}`, hint: 'personas que han propuesto', bar: Math.min(100, people * 4) },
+	{ label: 'edad', value: `${cycles}`, hint: 'ventanas vividas', bar: Math.min(100, cycles * 3) },
+];
+---
+
+<section id="mascota" class="flex flex-col gap-7" data-mood={mood}>
+	<!-- La columna del bicho va a medida fija: los píxeles son cuadrados vacíos y
+	     no saben decir cuánto ocupan. -->
+	<div class="grid gap-6 border border-line bg-panel p-5 sm:grid-cols-[16rem_1fr]">
+		<div class="flex flex-col items-center gap-4">
+			<div
+				data-pet
+				role="img"
+				aria-label={`La mascota de la web, ${mood}`}
+				class="grid aspect-square w-full max-w-64"
+				style={`grid-template-columns: repeat(${SIZE}, 1fr); grid-template-rows: repeat(${SIZE}, 1fr)`}
+			>
+				{pixels.map((color) => <span style={color ? `background:${color}` : undefined} />)}
+			</div>
+
+			<button type="button" data-mimo class={BOTON}>
+				<Icon name="hand-finger" class="size-4 shrink-0" />
+				Acariciar
+			</button>
+			<p data-mimos class="text-xs text-muted" aria-live="polite"></p>
+		</div>
+
+		<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-2">
+				<SectionLabel>ESTA ES</SectionLabel>
+				<label class="flex flex-col gap-2">
+					<span class="sr-only">Cómo la llamas</span>
+					<input
+						type="text"
+						data-name
+						maxlength={NAME_MAX}
+						autocomplete="off"
+						spellcheck="false"
+						placeholder="Ponle nombre"
+						class="w-full border border-line bg-bg px-3 py-2 font-pixel text-lg text-accent outline-none focus-visible:border-accent"
+					/>
+				</label>
+				<p class="text-sm text-muted">
+					<span class="text-fg">{MOODS[mood].label}</span> · {MOODS[mood].hint}
+				</p>
+			</div>
+
+			<div class="flex flex-col gap-2 text-sm">
+				{
+					MEDIDAS.map((medida) => (
+						<div class="flex flex-col gap-1 border-t border-line pt-2">
+							<p class="flex items-baseline justify-between gap-3">
+								<span class="text-muted">{medida.label}</span>
+								<span class="flex items-baseline gap-2">
+									<span class="text-xs text-muted">{medida.hint}</span>
+									<span class="font-pixel text-accent tabular-nums">{medida.value}</span>
+								</span>
+							</p>
+							<span class="flex h-1.5 w-full bg-line">
+								<span class="h-full bg-accent" style={`width: ${medida.bar}%`} />
+							</span>
+						</div>
+					))
+				}
+			</div>
+		</div>
+	</div>
+
+	<form data-form class="grid gap-4 border border-line bg-panel p-4 sm:grid-cols-2">
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Pieza</span>
+			<select data-field="part" class={FIELD}>
+				{PARTS.map((part) => <option value={part.key}>{part.label}</option>)}
+			</select>
+		</label>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Tono</span>
+			<select data-field="tone" class={FIELD}>
+				{TONES.map((tone) => <option value={tone.key}>{tone.label}</option>)}
+			</select>
+		</label>
+
+		<div class="flex items-center justify-between gap-4 sm:col-span-2">
+			<button type="submit" class={BOTON}>
+				<Icon name="plus" class="size-4 shrink-0" />
+				Ponérsela
+			</button>
+			<p data-error role="status" class="text-sm text-heart"></p>
+		</div>
+	</form>
+
+	<ul data-list class="grid gap-3 sm:grid-cols-2"></ul>
+
+	<template data-card>
+		<li class="flex items-center justify-between gap-3 border border-line bg-panel px-4 py-3">
+			<span class="flex min-w-0 items-center gap-3">
+				<span data-chip class="size-3 shrink-0 border border-line"></span>
+				<span data-label class="min-w-0 truncate text-sm"></span>
+			</span>
+			<button type="button" data-remove class={ENLACE}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Quitar
+			</button>
+		</li>
+	</template>
+
+	<div class="flex flex-wrap items-center justify-between gap-4">
+		<p data-count class="text-sm text-muted" aria-live="polite"></p>
+		<div class="flex flex-wrap items-center gap-5">
+			<button type="button" data-copy class={ENLACE}>
+				<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+				<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+				<span data-copy-label>Copiar la mascota</span>
+			</button>
+			<button type="button" data-clear class={ENLACE} hidden>
+				<Icon name="eraser" class="size-4 shrink-0" />
+				Quitarle todo
+			</button>
+		</div>
+	</div>
+
+	<p class="text-sm text-muted">
+		Lo que le pongas se queda en tu navegador. Para que la lleve puesta todo el mundo, copia la mascota y
+		proponla en la portada.
+	</p>
+</section>
+
+<style is:global>
+	/*
+	 * Va global porque las piezas de la lista las pinta el script y no llevan la
+	 * marca del componente; por eso todo cuelga de #mascota.
+	 */
+
+	/*
+	 * El bicho respira, y da un salto cuando se le acaricia. Los pasos que
+	 * faltan (el 0% y el 100%) los pone el navegador con la posición de reposo.
+	 */
+	#mascota [data-pet] {
+		animation: mascota-flota 3.4s ease-in-out infinite;
+	}
+
+	#mascota [data-pet][data-mimo='si'] {
+		animation: mascota-salto 0.45s ease-out;
+	}
+
+	@keyframes mascota-flota {
+		50% {
+			transform: translateY(-4px);
+		}
+	}
+
+	@keyframes mascota-salto {
+		40% {
+			transform: translateY(-14px);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		#mascota [data-pet],
+		#mascota [data-pet][data-mimo='si'] {
+			animation: none;
+		}
+	}
+
+	/* Dormida se apaga un poco: se le nota que no hay nadie proponiendo. */
+	#mascota[data-mood='dormida'] [data-pet] {
+		opacity: 0.75;
+	}
+
+	#mascota [data-copy] [data-icon='check'] {
+		display: none;
+	}
+	#mascota [data-copy][data-state='done'] {
+		color: var(--color-accent);
+	}
+	#mascota [data-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	#mascota [data-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	#mascota [data-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import {
+		type Adorno,
+		MAX_ADORNOS,
+		MOODS,
+		type MoodKey,
+		type Pet,
+		cleanName,
+		listAdornos,
+		paint,
+		petPitch,
+		readPet,
+		savePet,
+		toAdorno,
+		toneCss,
+	} from '../lib/pet';
+
+	const section = document.querySelector<HTMLElement>('#mascota');
+	const canvas = section?.querySelector<HTMLElement>('[data-pet]');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const list = section?.querySelector<HTMLElement>('[data-list]');
+	const template = section?.querySelector<HTMLTemplateElement>('[data-card]');
+	const nameInput = section?.querySelector<HTMLInputElement>('[data-name]');
+	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const countOut = section?.querySelector<HTMLElement>('[data-count]');
+	const mimosOut = section?.querySelector<HTMLElement>('[data-mimos]');
+	const mimoButton = section?.querySelector<HTMLButtonElement>('[data-mimo]');
+	const copyButton = section?.querySelector<HTMLButtonElement>('[data-copy]');
+	const copyLabel = section?.querySelector<HTMLElement>('[data-copy-label]');
+	const clearButton = section?.querySelector<HTMLButtonElement>('[data-clear]');
+
+	if (section && canvas && form && list && template && nameInput && countOut) {
+		const guardado = section.dataset.mood ?? '';
+		const mood: MoodKey = guardado in MOODS ? (guardado as MoodKey) : 'atenta';
+
+		// Los píxeles ya vienen puestos del servidor: aquí solo se les cambia el
+		// color, que es más barato que rehacer el lienzo en cada pintada.
+		const cells = [...canvas.children] as HTMLElement[];
+		const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const bus = 'BroadcastChannel' in window ? new BroadcastChannel('tuweb:mascota') : null;
+
+		let pet: Pet = readPet();
+		let blink = false;
+
+		function field(name: string) {
+			return form!.querySelector<HTMLSelectElement | HTMLInputElement>(`[data-field="${name}"]`);
+		}
+
+		function fail(message: string) {
+			if (errorOut) errorOut.textContent = message;
+		}
+
+		function pintar() {
+			const grid = paint(pet.adornos, mood, blink);
+			for (let i = 0; i < cells.length; i += 1) {
+				cells[i].style.background = grid[i] ?? '';
+			}
+
+			const piezas = listAdornos(pet.adornos);
+			const quien = `${pet.name}, ${MOODS[mood].label}`;
+			canvas!.setAttribute('aria-label', piezas ? `${quien}, con ${piezas}` : quien);
+		}
+
+		function fila(adorno: Adorno) {
+			const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+
+			node.querySelector<HTMLElement>('[data-chip]')!.style.background = toneCss(adorno.tone);
+			node.querySelector('[data-label]')!.textContent = listAdornos([adorno]);
+
+			node.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
+				commit({ ...pet, adornos: pet.adornos.filter((item) => item.id !== adorno.id) });
+			});
+
+			return node;
+		}
+
+		/** Las piezas ya puestas no se pueden repetir: se pintarían encima. */
+		function opciones() {
+			const puestas = new Set(pet.adornos.map((adorno) => adorno.part));
+			const select = field('part') as HTMLSelectElement | null;
+			if (!select) return;
+
+			let libre = '';
+			for (const option of select.options) {
+				option.disabled = puestas.has(option.value);
+				if (!option.disabled && !libre) libre = option.value;
+			}
+
+			// Si la que estaba elegida acaba de ponerse, salta a la primera libre.
+			if (select.selectedOptions[0]?.disabled) select.value = libre;
+		}
+
+		function render() {
+			pintar();
+			opciones();
+
+			list!.replaceChildren(...pet.adornos.map(fila));
+
+			const total = pet.adornos.length;
+			countOut!.textContent =
+				total === 0
+					? 'Va sin nada. Ponle algo, que para eso es de todos.'
+					: `${total} ${total === 1 ? 'pieza puesta' : 'piezas puestas'} en este navegador · quedan ${MAX_ADORNOS - total} huecos.`;
+			if (clearButton) clearButton.hidden = total === 0;
+			if (mimosOut) {
+				mimosOut.textContent = pet.mimos
+					? `${pet.mimos} ${pet.mimos === 1 ? 'caricia' : 'caricias'}`
+					: '';
+			}
+			// Mientras se escribe el nombre no se le toca el campo: se corrige al salir.
+			if (document.activeElement !== nameInput && nameInput!.value !== pet.name) {
+				nameInput!.value = pet.name;
+			}
+		}
+
+		function commit(next: Pet) {
+			pet = next;
+			savePet(pet);
+			// Las otras pestañas se enteran solas: por el bus si lo hay, y si no por
+			// el evento storage, que salta con el propio guardado.
+			bus?.postMessage('cambio');
+			render();
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			fail('');
+
+			if (pet.adornos.length >= MAX_ADORNOS) {
+				fail(`Ya lleva ${MAX_ADORNOS} piezas. Quítale alguna.`);
+				return;
+			}
+
+			const adorno = toAdorno({ part: field('part')?.value, tone: field('tone')?.value });
+
+			if (typeof adorno === 'string') {
+				fail(adorno);
+				return;
+			}
+
+			if (pet.adornos.some((item) => item.part === adorno.part)) {
+				fail('Esa pieza ya la lleva puesta.');
+				return;
+			}
+
+			commit({ ...pet, adornos: [...pet.adornos, adorno] });
+		});
+
+		nameInput.addEventListener('input', () => {
+			commit({ ...pet, name: cleanName(nameInput.value) });
+		});
+
+		// Al escribir no se corrige el campo en marcha; al salir, sí.
+		nameInput.addEventListener('blur', () => {
+			nameInput.value = pet.name;
+		});
+
+		mimoButton?.addEventListener('click', () => {
+			commit({ ...pet, mimos: Math.min(9999, pet.mimos + 1) });
+
+			canvas!.removeAttribute('data-mimo');
+			// Un reflow para que la animación vuelva a empezar aunque se pulse rápido.
+			void canvas!.offsetWidth;
+			canvas!.dataset.mimo = 'si';
+			window.setTimeout(() => canvas!.removeAttribute('data-mimo'), 450);
+		});
+
+		clearButton?.addEventListener('click', () => {
+			if (!pet.adornos.length) return;
+			commit({ ...pet, adornos: [] });
+		});
+
+		copyButton?.addEventListener('click', async () => {
+			const boton = copyButton!;
+			const texto = petPitch(pet);
+			let done = false;
+
+			try {
+				await navigator.clipboard.writeText(texto);
+				done = true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const helper = document.createElement('textarea');
+					helper.value = texto;
+					helper.readOnly = true;
+					helper.style.position = 'fixed';
+					helper.style.opacity = '0';
+					document.body.append(helper);
+					helper.select();
+					done = document.execCommand('copy');
+					helper.remove();
+				} catch {
+					done = false;
+				}
+			}
+
+			boton.dataset.state = done ? 'done' : 'error';
+			if (copyLabel) copyLabel.textContent = done ? 'Copiada' : 'No se pudo copiar';
+
+			window.setTimeout(() => {
+				boton.removeAttribute('data-state');
+				if (copyLabel) copyLabel.textContent = 'Copiar la mascota';
+			}, 2000);
+		});
+
+		function desdeFuera() {
+			pet = readPet();
+			render();
+		}
+
+		bus?.addEventListener('message', desdeFuera);
+		window.addEventListener('storage', (event) => {
+			if (event.key === null || event.key === 'tuweb:mascota') desdeFuera();
+		});
+
+		// El parpadeo. Dormida ya tiene los ojos cerrados, así que no parpadea.
+		if (!quieto && mood !== 'dormida') {
+			window.setInterval(() => {
+				blink = true;
+				pintar();
+				window.setTimeout(() => {
+					blink = false;
+					pintar();
+				}, 160);
+			}, 5200);
+		}
+
+		render();
+	}
+</script>

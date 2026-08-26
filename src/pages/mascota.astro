@@ -1,0 +1,12 @@
+---
+import Pet from '../components/Pet.astro';
+import Section from '../layouts/Section.astro';
+import { getDashboardData, getHomeData } from '../lib/db/queries';
+
+const { ideaCount, version } = getHomeData();
+const { people, cycles } = getDashboardData();
+---
+
+<Section href="/mascota">
+	<Pet ideas={ideaCount} people={people} cycles={cycles} version={version} />
+</Section>
