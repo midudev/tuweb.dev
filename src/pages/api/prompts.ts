@@ -1,6 +1,13 @@
 import type { APIRoute } from 'astro';
 import { getSessionUser } from '../../lib/auth';
-import { createPrompt, getMyPromptInWindow, MAX_EDITS, updatePrompt } from '../../lib/db/queries';
+import {
+	applyReview,
+	claimEdit,
+	createPrompt,
+	getMyPromptInWindow,
+	MAX_EDITS,
+	updatePrompt,
+} from '../../lib/db/queries';
 import { sameOrigin } from '../../lib/http';
 import { heuristicReview } from '../../lib/moderation';
 import { reviewWithLlm } from '../../lib/moderation-llm';
@@ -29,8 +36,8 @@ export const POST: APIRoute = async (context) => {
 	}
 
 	// Una idea por persona y ventana, aunque se puede cambiar unas cuantas
-	// veces. Se mira antes de gastar una llamada al modelo: es el freno de mano
-	// contra el spam.
+	// veces. Esta primera mirada solo sirve para cortar pronto y dar el error
+	// bueno; la que manda es la reserva de más abajo.
 	const mine = await getMyPromptInWindow(user.id);
 	if (mine && mine.edits >= MAX_EDITS) {
 		return context.redirect('/?error=cambios');
@@ -49,32 +56,49 @@ export const POST: APIRoute = async (context) => {
 	}
 
 	const heuristic = heuristicReview({ id: 0, body });
+	const provisional = { keep: heuristic.verdict === 'keep', reason: heuristic.reason };
+
+	// Aquí está el freno de mano. Entre mirar los cambios y esperar al modelo
+	// hay un await, y por ese hueco pasaban a la vez dos peticiones del mismo
+	// usuario: las dos veían edits por debajo del tope, las dos llamaban al
+	// modelo y las dos sumaban. Ahora el sitio se aparta antes con una sola
+	// escritura, y solo quien la gana sigue.
+	let id: number;
+	if (mine) {
+		if (!claimEdit(mine.id)) {
+			return context.redirect('/?error=cambios');
+		}
+		updatePrompt(mine.id, body, provisional);
+		id = mine.id;
+	} else {
+		try {
+			const created = createPrompt(user.id, body, provisional);
+			if (!created) return context.redirect('/?error=enviada');
+			id = created.id;
+		} catch (error) {
+			// El índice único corta el caso de dos envíos simultáneos del mismo
+			// usuario, que la comprobación de arriba no puede ver.
+			if (String(error).includes('UNIQUE')) {
+				return context.redirect('/?error=enviada');
+			}
+			throw error;
+		}
+	}
+
+	// Con la plaza ya apartada, cada petición válida gasta como mucho una
+	// llamada al modelo y nadie puede dispararlas en paralelo.
 	const llm = heuristic.verdict === 'keep' ? await reviewWithLlm(body) : null;
 	const review = llm?.verdict === 'discard' ? llm : heuristic;
-	const veredicto = {
-		keep: review.verdict === 'keep',
-		reason: review.reason,
-	};
 
-	try {
-		if (mine) {
-			updatePrompt(mine.id, body, veredicto);
-			return context.redirect(review.verdict === 'discard' ? '/?error=filtro' : '/?ok=cambio');
-		}
-
-		createPrompt(user.id, body, veredicto);
-	} catch (error) {
-		// El índice único corta el caso de dos envíos simultáneos del mismo
-		// usuario, que la comprobación de arriba no puede ver.
-		if (String(error).includes('UNIQUE')) {
-			return context.redirect('/?error=enviada');
-		}
-		throw error;
+	// La fila ya lleva el veredicto de la heurística; solo se reescribe si el
+	// modelo la tumba.
+	if (review !== heuristic) {
+		applyReview(id, { keep: false, reason: review.reason });
 	}
 
 	if (review.verdict === 'discard') {
 		return context.redirect('/?error=filtro');
 	}
 
-	return context.redirect('/?ok=prompt');
+	return context.redirect(mine ? '/?ok=cambio' : '/?ok=prompt');
 };

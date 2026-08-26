@@ -140,7 +140,7 @@ export function createPrompt(userId: number, body: string, verdict: { keep: bool
 	const status = verdict.keep ? 'pending' : 'discarded';
 	const discardReason = verdict.keep ? null : (verdict.reason ?? 'spam');
 
-	return get(
+	return get<{ id: number; body: string; status: string }>(
 		`INSERT INTO prompts (user_id, body, status, discard_reason, created_at)
 		 VALUES (?, ?, ?, ?, ?)
 		 RETURNING id, body, status`,
@@ -153,16 +153,50 @@ export function createPrompt(userId: number, body: string, verdict: { keep: bool
 }
 
 /**
+ * Aparta un cambio antes de gastarlo. El UPDATE lleva la condición dentro, así
+ * que contar y sumar pasan en la misma escritura: si el mismo usuario manda dos
+ * peticiones a la vez, solo una se lleva el hueco y la otra no encuentra fila.
+ *
+ * Devuelve null cuando ya no quedan cambios. Quien lo llama tiene que parar ahí,
+ * antes de pedirle nada al modelo.
+ */
+export function claimEdit(id: number) {
+	return get<{ id: number; edits: number }>(
+		`UPDATE prompts
+		 SET edits = edits + 1
+		 WHERE id = ? AND edits < ?
+		 RETURNING id, edits`,
+		id,
+		MAX_EDITS,
+	);
+}
+
+/**
  * Cambiar una idea que ya estaba enviada. Pasa el mismo filtro que la primera
  * vez, así que un cambio puede acabar descartado o rescatar una descartada.
+ *
+ * No toca edits: el cambio se aparta antes con claimEdit.
  */
 export function updatePrompt(id: number, body: string, verdict: { keep: boolean; reason?: string }) {
 	return get<MyPrompt>(
 		`UPDATE prompts
-		 SET body = ?, status = ?, discard_reason = ?, edits = edits + 1
+		 SET body = ?, status = ?, discard_reason = ?
 		 WHERE id = ?
 		 RETURNING id, body, status, discard_reason AS discardReason, edits`,
 		body,
+		verdict.keep ? 'pending' : 'discarded',
+		verdict.keep ? null : (verdict.reason ?? 'spam'),
+		id,
+	);
+}
+
+/** Guarda el veredicto final sobre una idea ya escrita, sin gastar un cambio. */
+export function applyReview(id: number, verdict: { keep: boolean; reason?: string }) {
+	return get<MyPrompt>(
+		`UPDATE prompts
+		 SET status = ?, discard_reason = ?
+		 WHERE id = ?
+		 RETURNING id, body, status, discard_reason AS discardReason, edits`,
 		verdict.keep ? 'pending' : 'discarded',
 		verdict.keep ? null : (verdict.reason ?? 'spam'),
 		id,
