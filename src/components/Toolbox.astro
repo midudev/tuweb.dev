@@ -1,4 +1,5 @@
 ---
+import Base64Tool from './Base64Tool.astro';
 import ColorTool from './ColorTool.astro';
 import ConfigTool from './ConfigTool.astro';
 import Icon from './Icon.astro';
@@ -12,6 +13,7 @@ const tools = [
 	{ id: 'json-yaml', label: 'JSON → YAML', icon: 'braces' },
 	{ id: 'cron', label: 'Cron en cristiano', icon: 'clock' },
 	{ id: 'regex', label: 'Probador de regex', icon: 'regex' },
+	{ id: 'base64', label: 'Base64', icon: 'binary' },
 	{ id: 'colores', label: 'Colores', icon: 'palette' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tema', label: 'Tema', icon: 'contrast' },
@@ -142,6 +144,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 		</label>
 		<p data-regex-output class="text-sm text-mark"></p>
 	</div>
+
+	<Base64Tool />
 
 	<ColorTool />
 

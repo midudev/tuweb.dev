@@ -1,0 +1,256 @@
+---
+/**
+ * Texto ↔ Base64, en los dos sentidos a la vez: lo que escribes a la izquierda
+ * sale codificado a la derecha, y lo que pegas a la derecha sale descodificado
+ * a la izquierda. Va todo por UTF-8, que es lo que rompe el btoa a pelo con las
+ * tildes. Se hace aquí, en el navegador: no se envía ni se guarda nada.
+ */
+import Icon from './Icon.astro';
+
+const CAMPOS = [
+	{ id: 'texto', label: 'Texto', hint: 'Escribe o pega texto normal' },
+	{ id: 'base64', label: 'Base64', hint: 'Pega Base64 para descodificarlo' },
+];
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<div
+	role="tabpanel"
+	id="base64"
+	aria-labelledby="tab-base64"
+	data-panel="base64"
+	hidden
+	class="flex flex-col gap-5"
+>
+	<div class="grid gap-4 md:grid-cols-2">
+		{
+			CAMPOS.map((campo) => (
+				<div class="flex flex-col gap-2">
+					<span class="flex items-center justify-between gap-3 text-sm text-muted">
+						<label for={`b64-${campo.id}`}>{campo.label}</label>
+						<span class="flex items-center gap-3">
+							<span data-b64-cuenta={campo.id} class="text-mark"></span>
+							<button type="button" data-b64-copia={campo.id} class="inline-flex items-center gap-2 text-accent hover:underline">
+								<span data-icon="copy" class="inline-flex">
+									<Icon name="copy" class="size-4 shrink-0" />
+								</span>
+								<span data-icon="check" class="inline-flex">
+									<Icon name="check" class="size-4 shrink-0" />
+								</span>
+								<span data-b64-copia-texto aria-live="polite">
+									Copiar
+								</span>
+							</button>
+						</span>
+					</span>
+					<textarea
+						id={`b64-${campo.id}`}
+						data-b64-campo={campo.id}
+						rows="9"
+						spellcheck="false"
+						autocomplete="off"
+						placeholder={campo.hint}
+						class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+						set:text={campo.id === 'texto' ? 'Hola, tuweb.dev' : ''}
+					></textarea>
+				</div>
+			))
+		}
+	</div>
+
+	<p data-b64-aviso class="text-sm text-heart empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-wrap items-center gap-3">
+		<label class="inline-flex items-center gap-2 text-sm text-muted">
+			<input type="checkbox" data-b64-url class="size-4 accent-accent" />
+			Alfabeto para URL (<code>-_</code>, sin relleno)
+		</label>
+		<button type="button" data-b64-subir class={BOTON}>
+			<Icon name="arrows-exchange" class="size-4 shrink-0" />
+			Pasar el Base64 al texto
+		</button>
+		<button type="button" data-b64-limpiar class={BOTON}>
+			<Icon name="eraser" class="size-4 shrink-0" />
+			Limpiar
+		</button>
+	</div>
+
+	<p class="text-sm text-muted">
+		Base64 no cifra: solo cambia la forma de los mismos bytes. Cualquiera lo deshace, así que no
+		escondas ahí nada que importe.
+	</p>
+</div>
+
+<style>
+	[data-b64-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-b64-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-b64-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-b64-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	const texto = document.querySelector<HTMLTextAreaElement>('[data-b64-campo="texto"]');
+	const base64 = document.querySelector<HTMLTextAreaElement>('[data-b64-campo="base64"]');
+	const aviso = document.querySelector<HTMLElement>('[data-b64-aviso]');
+	const paraUrl = document.querySelector<HTMLInputElement>('[data-b64-url]');
+
+	if (texto && base64) {
+		const encoder = new TextEncoder();
+		// fatal: si los bytes no son UTF-8 preferimos decirlo a pintar rombos.
+		const decoder = new TextDecoder('utf-8', { fatal: true });
+
+		function codificar(valor: string) {
+			const bytes = encoder.encode(valor);
+			// btoa habla de caracteres, no de bytes: se los damos de uno en uno. Por
+			// trozos, que un spread de medio megabyte revienta la pila.
+			let crudo = '';
+			for (let i = 0; i < bytes.length; i += 8192) {
+				crudo += String.fromCharCode(...bytes.subarray(i, i + 8192));
+			}
+			const salida = btoa(crudo);
+			if (!paraUrl?.checked) return salida;
+			return salida.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+		}
+
+		function descodificar(valor: string) {
+			// Los saltos de línea y los espacios de un pegado sobran, y el alfabeto
+			// de URL se admite siempre: cuesta lo mismo y evita un «no válido» tonto.
+			const limpio = valor.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+			if (!limpio) return '';
+
+			// El relleno se quita y se vuelve a poner: así entra igual lo que viene
+			// con «=» al final que lo que viene sin él, que es lo normal en URLs.
+			const cuerpo = limpio.replace(/=+$/, '');
+			if (!/^[A-Za-z0-9+\/]+$/.test(cuerpo)) {
+				throw new Error('Eso no es Base64: hay caracteres que no pertenecen al alfabeto.');
+			}
+
+			const sobra = cuerpo.length % 4;
+			if (sobra === 1) throw new Error('Eso no es Base64: le falta o le sobra algún carácter.');
+
+			const crudo = atob(cuerpo + '='.repeat(sobra ? 4 - sobra : 0));
+			const bytes = Uint8Array.from(crudo, (letra) => letra.charCodeAt(0));
+			try {
+				return decoder.decode(bytes);
+			} catch {
+				throw new Error('Es Base64 válido, pero lo que hay dentro no es texto UTF-8.');
+			}
+		}
+
+		function contar() {
+			const bytes = encoder.encode(texto.value).length;
+			const letras = base64.value.length;
+			const cuentaTexto = document.querySelector<HTMLElement>('[data-b64-cuenta="texto"]');
+			const cuentaBase = document.querySelector<HTMLElement>('[data-b64-cuenta="base64"]');
+			if (cuentaTexto) cuentaTexto.textContent = `${bytes} ${bytes === 1 ? 'byte' : 'bytes'}`;
+			if (cuentaBase) cuentaBase.textContent = `${letras} ${letras === 1 ? 'carácter' : 'caracteres'}`;
+		}
+
+		function avisar(mensaje: string) {
+			if (aviso) aviso.textContent = mensaje;
+		}
+
+		/** Del texto al Base64. Aquí nunca falla nada: todo texto se codifica. */
+		function alBase64() {
+			base64.value = texto.value ? codificar(texto.value) : '';
+			avisar('');
+			contar();
+		}
+
+		/** Del Base64 al texto. Si el pegado no cuadra, se avisa y no se toca nada. */
+		function alTexto() {
+			if (!base64.value.trim()) {
+				texto.value = '';
+				avisar('');
+				contar();
+				return;
+			}
+			try {
+				texto.value = descodificar(base64.value);
+				avisar('');
+			} catch (error) {
+				avisar((error as Error).message);
+			}
+			contar();
+		}
+
+		texto.addEventListener('input', alBase64);
+		base64.addEventListener('input', alTexto);
+		paraUrl?.addEventListener('change', alBase64);
+
+		// Para las cadenas codificadas dos veces: sube el resultado al lado del
+		// texto y vuelve a codificar, que es lo que uno acaba haciendo a mano.
+		document.querySelector<HTMLButtonElement>('[data-b64-subir]')?.addEventListener('click', () => {
+			texto.value = base64.value;
+			alBase64();
+			texto.focus();
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-b64-limpiar]')?.addEventListener('click', () => {
+			texto.value = '';
+			alBase64();
+			texto.focus();
+		});
+
+		const relojes = new Map<HTMLButtonElement, number>();
+
+		async function copiar(valor: string) {
+			try {
+				await navigator.clipboard.writeText(valor);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const campo = document.createElement('textarea');
+					campo.value = valor;
+					campo.readOnly = true;
+					campo.style.position = 'fixed';
+					campo.style.opacity = '0';
+					document.body.append(campo);
+					campo.select();
+					const hecho = document.execCommand('copy');
+					campo.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		document.querySelectorAll<HTMLButtonElement>('[data-b64-copia]').forEach((button) => {
+			const etiqueta = button.querySelector('[data-b64-copia-texto]');
+
+			button.addEventListener('click', async () => {
+				const campo = button.dataset.b64Copia === 'texto' ? texto : base64;
+				if (!campo.value) return;
+
+				const hecho = await copiar(campo.value);
+				button.dataset.state = hecho ? 'done' : 'error';
+				if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+				clearTimeout(relojes.get(button));
+				relojes.set(
+					button,
+					window.setTimeout(() => {
+						button.removeAttribute('data-state');
+						if (etiqueta) etiqueta.textContent = 'Copiar';
+					}, 2000),
+				);
+			});
+		});
+
+		// El ejemplo del markup se codifica ya en la primera vista: la pestaña
+		// entra con las dos columnas llenas y se ve de qué va sin tocar nada.
+		alBase64();
+	}
+</script>
