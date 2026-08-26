@@ -1,0 +1,138 @@
+---
+/**
+ * Los créditos, en dos partes: la gente por orden de llegada y, debajo, quién
+ * está detrás de cada versión. Todo sale hecho del servidor; aquí no hay nada
+ * que calcular en el navegador.
+ */
+import { dateLabel, getCreditsData, type CreditPerson } from '../lib/credits';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+	/** Quien mira, si ha entrado: su ficha se marca. */
+	userId?: number;
+}
+
+const data = getCreditsData(Astro.props.userId);
+
+/** Lo que ha aportado esa persona. Solo lo que tiene. */
+function detail(person: CreditPerson) {
+	const parts: string[] = [];
+	if (person.ideas > 0) parts.push(`${person.ideas} ${person.ideas === 1 ? 'idea' : 'ideas'}`);
+	if (person.wins > 0) parts.push(`${person.wins} ${person.wins === 1 ? 'ganada' : 'ganadas'}`);
+	if (person.pending > 0) parts.push(`${person.pending} en juego`);
+	if (person.discarded > 0) parts.push(`${person.discarded} descartadas`);
+	return parts.length > 0 ? parts.join(' · ') : 'acaba de llegar';
+}
+---
+
+<section class="flex flex-col gap-10">
+	{
+		data.people.length === 0 ? (
+			<p class="text-muted">Todavía no hay créditos. La primera idea abre la lista.</p>
+		) : (
+			<div class="flex flex-col gap-5">
+				<div class="flex flex-wrap items-baseline justify-between gap-4">
+					<SectionLabel forId="label-gente">QUIÉN HA APORTADO</SectionLabel>
+					<p class="text-sm text-muted">
+						{data.totals.people} {data.totals.people === 1 ? 'persona' : 'personas'} ·{' '}
+						{data.totals.ideas} ideas · {data.totals.versions}{' '}
+						{data.totals.versions === 1 ? 'versión' : 'versiones'}
+						{data.since && ` · desde el ${dateLabel(data.since)}`}
+					</p>
+				</div>
+
+				<ol class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-labelledby="label-gente">
+					{data.people.map((person) => (
+						<li
+							class:list={[
+								'flex flex-col gap-1.5 border bg-panel px-5 py-4',
+								person.me ? 'border-accent' : 'border-line',
+							]}
+						>
+							<span class="flex min-w-0 items-baseline gap-2.5">
+								<span class="font-pixel text-xs tabular-nums text-muted">{person.number}</span>
+								<span class="truncate">@{person.login}</span>
+								{person.me && <span class="font-pixel text-xs text-accent">TÚ</span>}
+							</span>
+
+							<span class="text-sm text-muted">{detail(person)}</span>
+
+							{person.shipped > 0 && (
+								<span class="inline-flex items-center gap-2 text-sm text-ok">
+									<Icon name="rocket" class="size-4 shrink-0" />
+									{person.shipped} {person.shipped === 1 ? 'versión suya' : 'versiones suyas'}
+								</span>
+							)}
+
+							<span class="mt-auto pt-1.5 text-xs text-muted">desde el {dateLabel(person.firstAt)}</span>
+						</li>
+					))}
+				</ol>
+
+				<p class="max-w-[62ch] text-sm text-muted">
+					Por orden de llegada y sin cortar por arriba: aquí entra todo el que ha escrito una idea,
+					ganase o no. Los puntos y los puestos están en el{' '}
+					<a href="/ranking" class="text-accent hover:underline">ranking</a>.
+				</p>
+			</div>
+		)
+	}
+
+	{
+		data.versions.length > 0 && (
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-wrap items-baseline justify-between gap-4">
+					<SectionLabel forId="label-versiones">QUIÉN FIRMA CADA VERSIÓN</SectionLabel>
+					<p class="text-sm text-muted">de la última a la primera</p>
+				</div>
+
+				<ol class="flex flex-col" aria-labelledby="label-versiones">
+					{data.versions.map((version) => (
+						<li class="flex flex-col gap-1.5 border-t border-line py-3.5 last:border-b sm:flex-row sm:items-baseline sm:gap-5">
+							<span class="w-14 shrink-0 font-pixel tabular-nums text-accent">v{version.version}</span>
+
+							<div class="flex min-w-0 grow flex-col gap-1 sm:max-w-[62ch]">
+								<p class="text-pretty">{version.title}</p>
+
+								{version.summary && version.summary !== version.title && (
+									<p class="text-sm text-pretty text-muted">{version.summary}</p>
+								)}
+
+								{version.people.length > 0 ? (
+									<p class="flex flex-wrap items-center gap-2 text-sm text-pretty">
+										<Icon name="users" class="size-4 shrink-0 text-accent" />
+										idea de {version.people.map((login) => `@${login}`).join(', ')}
+									</p>
+								) : (
+									<p class="text-sm text-muted">de antes de que se guardaran las ideas</p>
+								)}
+							</div>
+
+							{version.shippedAt && (
+								<span class="shrink-0 text-sm text-muted sm:ml-auto">
+									{dateLabel(version.shippedAt)}
+								</span>
+							)}
+						</li>
+					))}
+				</ol>
+
+				<p class="max-w-[62ch] text-sm text-muted">
+					Cuando varias personas piden lo mismo, la versión la firman todas.
+					{data.totals.orphans > 0 &&
+						' Las que no llevan a nadie apuntado vinieron con la web, cuando todavía no se podían proponer ideas.'}
+				</p>
+			</div>
+		)
+	}
+
+	<p class="flex flex-wrap items-center gap-2.5 border border-line bg-panel px-5 py-4 text-sm">
+		<Icon name="bulb" class="size-4 shrink-0 text-accent" />
+		<span class="text-muted">Para salir aquí solo hay que proponer algo:</span>
+		<a href="/" class="inline-flex items-center gap-2 text-accent hover:underline">
+			escribe tu idea
+			<Icon name="arrow-right" class="size-4 shrink-0" />
+		</a>
+	</p>
+</section>

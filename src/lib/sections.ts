@@ -90,6 +90,14 @@ export const SECTIONS: Section[] = [
 			'El ranking se hace solo con lo que ya hay guardado: cada idea que pasa el filtro suma, ganar la ventana suma más y acabar publicada suma todavía más. Debajo, las ideas que más gente repitió.',
 	},
 	{
+		href: '/creditos',
+		title: 'Créditos',
+		icon: 'users',
+		card: 'Toda la gente que ha aportado algo, y quién firma cada versión.',
+		intro:
+			'Esta web la escribe una IA, pero no decide nada: lo que se construye lo pide la gente. Aquí está toda, por orden de llegada y sin cortar por arriba, ganase su idea o no. Debajo, quién firma cada versión publicada.',
+	},
+	{
 		href: '/changelog',
 		title: 'Changelog',
 		icon: 'history',

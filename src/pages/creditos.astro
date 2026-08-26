@@ -1,0 +1,11 @@
+---
+import Credits from '../components/Credits.astro';
+import Section from '../layouts/Section.astro';
+import { getSessionUser } from '../lib/auth';
+
+const user = await getSessionUser(Astro);
+---
+
+<Section href="/creditos">
+	<Credits userId={user?.id} />
+</Section>
