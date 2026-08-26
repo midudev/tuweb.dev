@@ -17,11 +17,29 @@ export function getSiteUrl() {
 	return read('SITE_URL', 'http://localhost:4321').replace(/\/$/, '');
 }
 
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0']);
+
+/**
+ * El origen que se le enseña a GitHub como redirect_uri. Manda SITE_URL, porque
+ * el origen de la petición sale de la cabecera Host y esa la pone quien llama.
+ *
+ * Solo en local se usa el de la petición, y hace falta que LAS DOS cosas sean
+ * locales: si SITE_URL se queda sin poner en producción, el fallback es
+ * localhost y sin esta segunda condición cualquiera podría fijar el Host y
+ * llevarse el redirect_uri a su dominio.
+ */
 export function publicOrigin(requestUrl: URL) {
 	const site = getSiteUrl();
-	const isLocalSite = site.includes('localhost') || site.includes('127.0.0.1');
-	if (!isLocalSite) return site;
-	return requestUrl.origin;
+
+	let siteHost = '';
+	try {
+		siteHost = new URL(site).hostname;
+	} catch {
+		return site;
+	}
+
+	if (!LOCAL_HOSTS.has(siteHost)) return site;
+	return LOCAL_HOSTS.has(requestUrl.hostname) ? requestUrl.origin : site;
 }
 
 export function getGithubConfig(requestUrl?: URL) {

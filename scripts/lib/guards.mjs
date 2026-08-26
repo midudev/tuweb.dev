@@ -19,6 +19,10 @@ export const DENIED = [
 	// La base de datos y sus consultas: por ahí salen los usuarios.
 	'src/lib/db/',
 	'src/middleware.ts',
+	// El formulario que da de alta las ideas: es la boca del endpoint moderado y
+	// lo único de src/components que lee la configuración de GitHub. Reescribirlo
+	// desde una idea no aporta nada y sí puede aflojar lo de debajo.
+	'src/components/ProposeForm.astro',
 	// Ninguna ruta de API nueva. Una idea es interfaz; un endpoint es superficie
 	// de ataque que nadie ha revisado.
 	'src/pages/api/',
@@ -40,6 +44,34 @@ const DANGEROUS_PATTERNS = [
 	[/XMLHttpRequest/, 'XMLHttpRequest'],
 	[/from\s+['"]node:|require\s*\(\s*['"]node:/, 'módulos de Node'],
 	[/\bnew\s+Worker\s*\(|serviceWorker/, 'workers'],
+];
+
+/**
+ * Lo que una idea de interfaz no necesita NUNCA y sí sirve para sacar cosas de
+ * aquí. DENIED impide editar estos módulos, pero no impedía IMPORTARLOS: una
+ * página nueva en src/pages/ se renderiza en el servidor, así que podía pedirle
+ * la clave del modelo a lib/env, abrir la base de datos a pelo o firmar una
+ * sesión, y pasar todas las verjas de abajo sin escribir ni un process.env.
+ *
+ * Leer datos sigue permitido —de ahí salió el ranking—: lo que se corta es el
+ * acceso crudo, la escritura y todo lo que huela a credencial o identidad.
+ */
+const FORBIDDEN_CAPABILITIES = [
+	[
+		/(?:from|import)\s*\(?\s*['"][^'"]*\/(env|secrets|github-dev|moderation-llm)['"]/,
+		'importar un módulo de configuración o de secretos',
+	],
+	[
+		/\b(getLlmConfig|getCronSecret|getGithubConfig|getDatabaseUrl|matchesCronSecret|exchangeGithubCode|upsertGithubUser|createGithubAuthorizeUrl)\s*\(/,
+		'usar una función de secretos o de identidad',
+	],
+	[/\bgetDb\s*\(|new\s+DatabaseSync\s*\(/, 'abrir la base de datos a pelo'],
+	[/\bsession\s*\??\.\s*(set|regenerate|destroy)\s*\(/, 'tocar la sesión de quien navega'],
+	[
+		/\b(INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|DROP\s+(TABLE|INDEX)|ALTER\s+TABLE|CREATE\s+(TABLE|INDEX))\b/i,
+		'escribir SQL que modifica la base',
+	],
+	[/\bcookies\s*\.\s*(set|delete)\s*\(/, 'poner o borrar cookies'],
 ];
 
 const SECRET_PATTERNS = [
@@ -111,9 +143,9 @@ function addedLines(cwd) {
 /** Lo que el cambio trae y no debería: nombre en claro de lo que se ha visto. */
 export function dangerousCode(cwd) {
 	const added = addedLines(cwd);
-	return DANGEROUS_PATTERNS.filter(([pattern]) => added.some((line) => pattern.test(line))).map(
-		([, name]) => name,
-	);
+	return [...DANGEROUS_PATTERNS, ...FORBIDDEN_CAPABILITIES]
+		.filter(([pattern]) => added.some((line) => pattern.test(line)))
+		.map(([, name]) => name);
 }
 
 /**

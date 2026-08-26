@@ -6,7 +6,7 @@
  * vuelve al commit anterior y NO se sube nada: el repositorio solo guarda
  * versiones que arrancaron y respondieron.
  */
-import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import {
 	ALLOWED_PREFIXES,
@@ -158,6 +158,8 @@ const RULES = [
 	'- Escribe en español, en el tono corto del resto de la web.',
 	`- Cambio pequeño: menos de ${MAX_CHANGED_LINES} líneas en total.`,
 	'- No leas ni escribas variables de entorno (process.env, import.meta.env): el cambio no las necesita y se rechaza si aparecen.',
+	'- No importes src/lib/env.ts, secrets.ts, github-dev.ts ni moderation-llm.ts, ni llames a getLlmConfig, getCronSecret, getGithubConfig, getDatabaseUrl ni getDb: ahí están las claves y el acceso crudo a la base.',
+	'- Para leer datos usa las funciones que ya existen en src/lib/db/queries.ts. Nada de SQL que escriba (INSERT, UPDATE, DELETE, DROP, ALTER, CREATE), ni de tocar la sesión o las cookies.',
 	'- No hagas commit ni git de nada: de eso se encarga el script que te ha llamado.',
 ];
 
@@ -388,7 +390,7 @@ async function main() {
 	}
 
 	try {
-		execSync(`git pull --ff-only ${REMOTE} ${BRANCH}`, { stdio: 'inherit' });
+		execFileSync('git', ['pull', '--ff-only', REMOTE, BRANCH], { stdio: 'inherit' });
 	} catch {
 		log('No se pudo actualizar desde el remoto (¿historial divergido?). Reviso a mano.');
 		return;
@@ -473,7 +475,7 @@ async function main() {
 	}
 
 	// Solo llegamos aquí si la web está viva y respondiendo.
-	execSync('git add src public', { stdio: 'inherit' });
+	execFileSync('git', ['add', '--', 'src', 'public'], { stdio: 'inherit' });
 	execFileSync(
 		'git',
 		[
@@ -490,7 +492,7 @@ async function main() {
 	stampSha(commitSha);
 
 	try {
-		execSync(`git push ${REMOTE} ${BRANCH}`, { stdio: 'inherit' });
+		execFileSync('git', ['push', REMOTE, BRANCH], { stdio: 'inherit' });
 		log(`Subido ${commitSha.slice(0, 7)} a ${REMOTE}/${BRANCH}.`);
 	} catch (error) {
 		// La web funciona; solo se quedó sin subir. No se vuelve atrás por esto.
