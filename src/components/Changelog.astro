@@ -1,0 +1,221 @@
+---
+/**
+ * El historial de cambios, versión a versión y agrupado por mes. Todo viene
+ * hecho del servidor; en el navegador solo pasan dos cosas: el buscador, que
+ * esconde las que no encajan, y el resalte de la versión que trae la URL.
+ */
+import { dateLabel, dayLabel, gapLabel, getChangelog, paceLabel, relative } from '../lib/changelog';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+const data = getChangelog();
+const REPO = 'https://github.com/midudev/tuweb.dev';
+
+/** El resumen de arriba: cuántas van, desde cuándo y a qué ritmo salen. */
+const resumen = [
+	`${data.totals.versions} ${data.totals.versions === 1 ? 'versión' : 'versiones'}`,
+	data.totals.since && `desde el ${dayLabel(data.totals.since)}`,
+	data.totals.pace !== null && paceLabel(data.totals.pace),
+].filter(Boolean);
+---
+
+<section class="flex flex-col gap-8">
+	{
+		data.queued.length > 0 && (
+			<div class="flex flex-col gap-2 border border-line bg-panel px-6 py-5">
+				<SectionLabel>EN CONSTRUCCIÓN</SectionLabel>
+				{data.queued.map((feature) => (
+					<div class="flex flex-col gap-1">
+						<p class="text-pretty">{feature.title}</p>
+						{feature.summary !== feature.title && (
+							<p class="text-sm text-pretty text-muted">{feature.summary}</p>
+						)}
+					</div>
+				))}
+			</div>
+		)
+	}
+
+	{
+		data.entries.length === 0 ? (
+			<p class="text-muted">Todavía no se ha implementado ninguna idea.</p>
+		) : (
+			<>
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-wrap items-baseline justify-between gap-4">
+						<SectionLabel forId="label-cambios">TODO LO QUE HA CAMBIADO</SectionLabel>
+						<p class="text-sm text-muted">
+							{resumen.join(' · ')}
+							{data.totals.last && ` · la última ${relative(data.totals.last)}`}
+						</p>
+					</div>
+
+					<label class="flex flex-col gap-2">
+						<span class="text-sm text-muted">Buscar en el historial</span>
+						<input
+							type="search"
+							data-buscador
+							placeholder="mascota, base64, colores…"
+							spellcheck="false"
+							autocomplete="off"
+							class="w-full border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+						/>
+					</label>
+
+					<p data-cuenta hidden aria-live="polite" class="text-sm text-muted"></p>
+				</div>
+
+				<ol class="flex flex-col gap-8" aria-labelledby="label-cambios">
+					{data.months.map((month) => (
+						<li data-mes class="flex flex-col gap-3">
+							<h2 class="flex flex-wrap items-baseline gap-x-3 font-pixel text-xs tracking-wide text-muted">
+								{month.label}
+								<span data-mes-cuenta class="tabular-nums opacity-70">
+									{month.entries.length}
+								</span>
+							</h2>
+
+							<ul class="flex flex-col">
+								{month.entries.map((entry) => (
+									<li
+										id={`v${entry.version}`}
+										data-version
+										data-buscar-texto={entry.search}
+										class="flex scroll-mt-8 flex-col gap-2 border-t border-line py-6 last:border-b sm:flex-row sm:gap-8"
+									>
+										<a
+											href={`#v${entry.version}`}
+											title={`Enlace a la v${entry.version}`}
+											class="w-16 shrink-0 font-pixel text-lg tabular-nums text-accent hover:underline"
+										>
+											v{entry.version}
+										</a>
+
+										<div class="flex min-w-0 grow flex-col gap-1.5 sm:max-w-[68ch]">
+											<p class="text-lg text-pretty">{entry.title}</p>
+											{entry.summary && <p class="text-sm text-pretty text-muted">{entry.summary}</p>}
+
+											<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+												{entry.shippedAt && (
+													<>
+														<span>{dateLabel(entry.shippedAt)}</span>
+														<span>{relative(entry.shippedAt)}</span>
+													</>
+												)}
+												{entry.gapHours !== null && (
+													<span>{gapLabel(entry.gapHours, entry.version)}</span>
+												)}
+												{entry.commitSha && (
+													<a
+														href={`${REPO}/commit/${entry.commitSha}`}
+														class="inline-flex items-center gap-2 text-accent hover:underline"
+													>
+														<Icon name="git-commit" class="size-4 shrink-0" />
+														{entry.commitSha.slice(0, 7)}
+													</a>
+												)}
+											</div>
+										</div>
+									</li>
+								))}
+							</ul>
+						</li>
+					))}
+				</ol>
+
+				<p data-vacio hidden class="text-muted">Ninguna versión encaja con eso.</p>
+			</>
+		)
+	}
+
+	<p class="flex flex-wrap items-center gap-2.5 border border-line bg-panel px-5 py-4 text-sm">
+		<Icon name="timeline" class="size-4 shrink-0 text-accent" />
+		<span class="text-muted">Aquí están las versiones que quedaron en pie. Lo que pasó entre una y otra:</span>
+		<a href="/historial" class="inline-flex items-center gap-2 text-accent hover:underline">
+			el historial entero
+			<Icon name="arrow-right" class="size-4 shrink-0" />
+		</a>
+	</p>
+</section>
+
+<style>
+	/* La versión que trae la URL se marca, para no perderla al llegar de fuera. */
+	[data-version]:target {
+		outline: 1px solid var(--color-accent);
+		outline-offset: 6px;
+	}
+</style>
+
+<script>
+	/*
+	 * Buscar es esconder filas: el historial entero ya está pintado. Cuando un
+	 * mes se queda sin versiones visibles, se esconde también su título.
+	 */
+	const input = document.querySelector<HTMLInputElement>('[data-buscador]');
+	const months = document.querySelectorAll<HTMLElement>('[data-mes]');
+	const count = document.querySelector<HTMLElement>('[data-cuenta]');
+	const empty = document.querySelector<HTMLElement>('[data-vacio]');
+
+	/** La misma cuenta que hace el servidor: minúsculas y sin acentos. */
+	function normalize(text: string) {
+		return text
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/\p{Diacritic}/gu, '');
+	}
+
+	function apply(raw: string) {
+		const query = normalize(raw.trim());
+		let visible = 0;
+
+		months.forEach((month) => {
+			let shown = 0;
+
+			month.querySelectorAll<HTMLElement>('[data-version]').forEach((item) => {
+				const match = query === '' || (item.dataset.buscarTexto ?? '').includes(query);
+				item.hidden = !match;
+				if (match) shown += 1;
+			});
+
+			month.hidden = shown === 0;
+			const badge = month.querySelector<HTMLElement>('[data-mes-cuenta]');
+			if (badge) badge.textContent = String(shown);
+			visible += shown;
+		});
+
+		if (empty) empty.hidden = visible > 0 || query === '';
+		if (count) {
+			count.hidden = query === '';
+			count.textContent = `${visible} ${visible === 1 ? 'versión' : 'versiones'} con «${raw.trim()}»`;
+		}
+	}
+
+	function onInput() {
+		if (!input) return;
+		apply(input.value);
+	}
+
+	input?.addEventListener('input', onInput);
+
+	// Al llegar con un #v3 el navegador no siempre salta solo: la fila puede
+	// venir escondida de una búsqueda anterior que el navegador restaure.
+	function jump() {
+		const id = location.hash.slice(1);
+		if (!/^v\d+$/.test(id)) return;
+
+		const target = document.getElementById(id);
+		if (!target) return;
+
+		if (target.hidden && input) {
+			input.value = '';
+			apply('');
+		}
+		target.scrollIntoView({ block: 'start' });
+	}
+
+	window.addEventListener('hashchange', jump);
+
+	// El navegador puede devolver el buscador con lo de antes escrito.
+	if (input?.value) onInput();
+	else jump();
+</script>

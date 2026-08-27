@@ -101,8 +101,9 @@ export const SECTIONS: Section[] = [
 		href: '/changelog',
 		title: 'Changelog',
 		icon: 'history',
-		card: 'Cada versión de esta web, con la idea que la pidió.',
-		intro: 'Todo lo que se ha construido, ventana a ventana.',
+		card: 'El historial de cambios: cada versión, con la idea que la pidió.',
+		intro:
+			'El historial de cambios de esta web, mes a mes. Cada versión es una ventana de ideas que cerró y una IA implementó: aquí sale la idea, cuándo salió, cuánto tardó desde la anterior y el commit que la trajo. Busca por texto o enlaza una versión suelta.',
 	},
 	{
 		href: '/historial',
