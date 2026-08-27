@@ -1,0 +1,248 @@
+---
+/**
+ * El panel de tus ideas: qué pasó con cada una y por dónde va la de esta
+ * ventana. Todo sale hecho del servidor; aquí solo hay marcas y el reloj de la
+ * ventana, que es el mismo de la portada.
+ */
+import type { SessionUser } from '../lib/auth';
+import { dateLabel } from '../lib/credits';
+import { MAX_EDITS } from '../lib/db/queries';
+import { getJourneyData, outcomeLabel, STAGES, STEPS } from '../lib/journey';
+import type { SiteState } from '../lib/releases';
+import GitHubLogin from './GitHubLogin.astro';
+import Icon from './Icon.astro';
+import IdeaSteps from './IdeaSteps.astro';
+import SectionLabel from './SectionLabel.astro';
+import WindowClock from './WindowClock.astro';
+
+interface Props {
+	user: SessionUser | null;
+	endsAt: string;
+	state: SiteState;
+}
+
+const { user, endsAt, state } = Astro.props;
+const data = getJourneyData(user?.id);
+
+// Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
+const overdue = new Date(endsAt).getTime() <= Date.now();
+const working = state === 'building' || state === 'repairing';
+
+// Los cambios que le quedan a la idea de esta ventana. Al cerrarse vuelven a cero.
+const restantes = data.current ? Math.max(0, MAX_EDITS - data.current.edits) : 0;
+
+const totales = [
+	{ label: 'enviadas', value: data.totals.sent },
+	{ label: 'en juego', value: data.totals.open },
+	{ label: 'pasaron el filtro', value: data.totals.kept },
+	{ label: 'ganadas', value: data.totals.wins },
+	{ label: 'publicadas', value: data.totals.shipped },
+	{ label: 'descartadas', value: data.totals.discarded },
+];
+
+/** El color del desenlace. Cada estado tiene el suyo y no se mezclan. */
+const TONOS: Record<string, string> = {
+	open: 'text-accent',
+	discarded: 'text-mark',
+	lost: 'text-muted',
+	building: 'text-building',
+	shipped: 'text-ok',
+};
+---
+
+<section class="flex flex-col gap-10">
+	{
+		!user && (
+			<div class="flex flex-col gap-6">
+				<div class="flex flex-col gap-3 border border-line bg-panel px-6 py-5">
+					<p class="flex items-center gap-2.5 text-pretty">
+						<Icon name="route" class="size-4 shrink-0 text-accent" />
+						Aquí ves tus ideas: hay que entrar, que son tuyas.
+					</p>
+					<GitHubLogin label="Entrar con GitHub para ver las mías" />
+				</div>
+
+				<div class="flex flex-col gap-4">
+					<SectionLabel forId="label-pasos">LOS PASOS DE UNA IDEA</SectionLabel>
+
+					<ol class="flex flex-col" aria-labelledby="label-pasos">
+						{STEPS.map((step, index) => (
+							<li class="flex items-start gap-3 border-t border-line py-2.5 first:border-t-0 first:pt-0">
+								<span class="flex size-7 shrink-0 items-center justify-center border border-line text-muted">
+									<Icon name={step.icon} class="size-4 shrink-0" />
+								</span>
+								<span class="flex min-w-0 flex-col">
+									<span class="text-sm">
+										{index + 1}. {step.label}
+									</span>
+									<span class="text-xs text-pretty text-muted">{step.detail}</span>
+								</span>
+							</li>
+						))}
+					</ol>
+
+					<p class="max-w-[62ch] text-sm text-muted">
+						La mayoría se paran en el segundo paso o en el cuarto. No pasa nada: hay ventana nueva
+						<span data-window-open hidden={overdue}>
+							{' '}en <WindowClock endsAt={endsAt} />
+						</span>
+						<span data-window-closed hidden={!overdue}>
+							{' '}en cuanto la IA elija la ganadora de esta
+						</span>
+						.
+					</p>
+				</div>
+			</div>
+		)
+	}
+
+	{
+		user && (
+			<div class="flex flex-col gap-10">
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-wrap items-baseline justify-between gap-4">
+						<SectionLabel forId="label-resumen">TUS NÚMEROS</SectionLabel>
+						<p class="text-sm text-muted">@{user.login}</p>
+					</div>
+
+					<dl
+						class="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-6"
+						aria-labelledby="label-resumen"
+					>
+						{totales.map((total) => (
+							<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5 text-sm">
+								<dt class="text-muted">{total.label}</dt>
+								<dd class="font-pixel tabular-nums text-accent">{total.value}</dd>
+							</div>
+						))}
+					</dl>
+				</div>
+
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-wrap items-baseline justify-between gap-4">
+						<SectionLabel forId="label-ventana">ESTA VENTANA</SectionLabel>
+						<p class="text-sm text-muted">
+							<span data-window-open hidden={overdue}>
+								cierra en <WindowClock endsAt={endsAt} />
+							</span>
+							<span data-window-closed hidden={!overdue}>
+								{working ? 'la IA está implementando' : 'cerrada, la IA elige en breve'}
+							</span>
+						</p>
+					</div>
+
+					{data.current ? (
+						<div class="flex flex-col gap-5 border border-line bg-panel px-6 py-5">
+							<p class="max-w-[52ch] text-lg text-pretty">{data.current.body}</p>
+
+							<p class:list={['flex items-center gap-2.5 text-sm', TONOS[data.current.stage]]}>
+								<Icon name={STAGES[data.current.stage].icon} class="size-4 shrink-0" />
+								{outcomeLabel(data.current)}
+							</p>
+
+							<IdeaSteps idea={data.current} />
+
+							<p class="border-t border-line pt-4 text-sm text-muted">
+								{restantes > 0
+									? `Mientras la ventana siga abierta puedes cambiarla ${restantes} ${restantes === 1 ? 'vez' : 'veces'} más.`
+									: 'Ya has gastado los cambios de esta ventana.'}{' '}
+								{restantes > 0 && (
+									<a href="/#proponer" class="text-accent hover:underline">
+										Cambiar mi idea
+									</a>
+								)}
+							</p>
+						</div>
+					) : (
+						<p class="flex flex-wrap items-center gap-2.5 border border-line bg-panel px-6 py-5 text-sm">
+							<Icon name="bulb" class="size-4 shrink-0 text-accent" />
+							<span class="text-muted">Todavía no has mandado nada en esta ventana.</span>
+							<a href="/#proponer" class="inline-flex items-center gap-2 text-accent hover:underline">
+								Escribe tu idea
+								<Icon name="arrow-right" class="size-4 shrink-0" />
+							</a>
+						</p>
+					)}
+				</div>
+
+				{data.ideas.length > 0 && (
+					<div class="flex flex-col gap-4">
+						<div class="flex flex-wrap items-baseline justify-between gap-4">
+							<SectionLabel forId="label-ideas">TODAS LAS TUYAS</SectionLabel>
+							<p class="text-sm text-muted">de la última a la primera</p>
+						</div>
+
+						<ol class="flex flex-col" aria-labelledby="label-ideas">
+							{data.ideas.map((idea) => (
+								<li class="flex flex-col gap-2 border-t border-line py-4 last:border-b">
+									<div class="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
+										<p class="max-w-[62ch] grow text-pretty">{idea.body}</p>
+										<span class="shrink-0 text-sm text-muted">{dateLabel(idea.createdAt)}</span>
+									</div>
+
+									<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+										<span class="flex gap-1" aria-hidden="true">
+											{STEPS.map((step, index) => (
+												<span
+													title={step.label}
+													class:list={[
+														'h-1.5 w-7',
+														index < idea.reached ? 'bg-accent' : 'bg-line',
+													]}
+												/>
+											))}
+										</span>
+
+										<span class:list={['flex items-center gap-2 text-sm', TONOS[idea.stage]]}>
+											<Icon name={STAGES[idea.stage].icon} class="size-4 shrink-0" />
+											{outcomeLabel(idea)}
+										</span>
+
+										{idea.version !== null && (
+											<a
+												href={`/changelog#v${idea.version}`}
+												class="text-sm text-accent hover:underline"
+											>
+												ver la v{idea.version}
+											</a>
+										)}
+									</div>
+
+									{idea.clusterTitle && (
+										<p class="text-sm text-pretty text-muted">
+											Grupo: {idea.clusterTitle}
+											{idea.people > 1 && ` · ${idea.people} personas pidieron lo mismo`}
+											{idea.closedAt && ` · ventana cerrada el ${dateLabel(idea.closedAt)}`}
+										</p>
+									)}
+
+									{idea.windowWinner && (
+										<p class="text-sm text-pretty text-muted">
+											Aquella ventana la ganó: {idea.windowWinner}
+										</p>
+									)}
+
+									{idea.featureTitle && idea.featureTitle !== idea.clusterTitle && (
+										<p class="text-sm text-pretty text-muted">
+											Se construyó como: {idea.featureTitle}
+											{idea.shippedAt && ` · ${dateLabel(idea.shippedAt)}`}
+										</p>
+									)}
+								</li>
+							))}
+						</ol>
+					</div>
+				)}
+			</div>
+		)
+	}
+
+	<p class="flex flex-wrap items-center gap-x-2.5 gap-y-1 border border-line bg-panel px-5 py-4 text-sm">
+		<Icon name="trophy" class="size-4 shrink-0 text-accent" />
+		<span class="text-muted">Los puntos y los puestos están en el</span>
+		<a href="/ranking" class="text-accent hover:underline">ranking</a>
+		<span class="text-muted">, y las versiones publicadas, en el</span>
+		<a href="/changelog" class="text-accent hover:underline">changelog</a>
+		<span class="text-muted">.</span>
+	</p>
+</section>

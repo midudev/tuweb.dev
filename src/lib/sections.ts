@@ -82,6 +82,14 @@ export const SECTIONS: Section[] = [
 		intro: 'Todas las ideas de esta ventana.',
 	},
 	{
+		href: '/mi-idea',
+		title: 'Tu idea',
+		icon: 'route',
+		card: 'Por dónde va cada idea que has mandado: filtro, grupo, ventana y versión.',
+		intro:
+			'Tu panel: qué ha sido de cada idea que has mandado. Una idea se envía, la IA la repasa al cerrar la ventana, se junta con las que piden lo mismo, gana o no, y si gana acaba publicada en una versión. Aquí sale por dónde va la de esta ventana y dónde se paró cada una de las anteriores. Hay que entrar con GitHub: son tuyas.',
+	},
+	{
 		href: '/ranking',
 		title: 'Ranking',
 		icon: 'trophy',

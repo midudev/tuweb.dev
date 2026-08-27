@@ -1,0 +1,14 @@
+---
+import Journey from '../components/Journey.astro';
+import Section from '../layouts/Section.astro';
+import { getSessionUser } from '../lib/auth';
+import { getHomeData } from '../lib/db/queries';
+import { siteState } from '../lib/releases';
+
+const user = await getSessionUser(Astro);
+const data = await getHomeData(user?.id);
+---
+
+<Section href="/mi-idea">
+	<Journey user={user} endsAt={data.window.endsAt} state={siteState(data.lastRelease)} />
+</Section>

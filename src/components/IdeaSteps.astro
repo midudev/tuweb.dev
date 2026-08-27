@@ -1,0 +1,58 @@
+---
+/**
+ * La escalera de una idea: los cinco pasos, marcado hasta dónde llegó y, si se
+ * paró antes de tiempo, en cuál se quedó.
+ */
+import { STEPS, stopLabel, type IdeaJourney } from '../lib/journey';
+import Icon from './Icon.astro';
+
+interface Props {
+	idea: IdeaJourney;
+}
+
+const { idea } = Astro.props;
+
+// Descartada o sin ganar es que ahí se acabó: el paso siguiente ya no llegará.
+const stopped = idea.stage === 'discarded' || idea.stage === 'lost';
+const stop = stopLabel(idea);
+
+const rows = STEPS.map((step, index) => {
+	const number = index + 1;
+	const broken = stopped && number === idea.reached + 1;
+
+	return {
+		label: step.label,
+		icon: broken ? 'circle-x' : step.icon,
+		detail: broken && stop ? stop : step.detail,
+		done: number <= idea.reached,
+		broken,
+		here: number === idea.reached && !stopped,
+	};
+});
+---
+
+<ol class="flex flex-col">
+	{
+		rows.map((row) => (
+			<li class="flex items-start gap-3 border-t border-line py-2.5 first:border-t-0 first:pt-0">
+				<span
+					class:list={[
+						'flex size-7 shrink-0 items-center justify-center border',
+						row.done && 'border-accent text-accent',
+						row.broken && 'border-line text-mark',
+						!row.done && !row.broken && 'border-line text-muted',
+					]}
+				>
+					<Icon name={row.icon} class="size-4 shrink-0" />
+				</span>
+
+				<span class="flex min-w-0 grow flex-col">
+					<span class:list={['text-sm', !row.done && 'text-muted']}>{row.label}</span>
+					<span class="text-xs text-pretty text-muted">{row.detail}</span>
+				</span>
+
+				{row.here && <span class="shrink-0 font-pixel text-xs text-accent">AQUÍ</span>}
+			</li>
+		))
+	}
+</ol>
