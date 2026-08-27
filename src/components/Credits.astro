@@ -15,6 +15,15 @@ interface Props {
 
 const data = getCreditsData(Astro.props.userId);
 
+/**
+ * Aquí se entra con GitHub, así que el nombre es el de allí: cada uno lleva a
+ * su perfil. El login viene de GitHub y solo tiene letras, números y guiones,
+ * pero se escapa igual antes de meterlo en la dirección.
+ */
+function profile(login: string) {
+	return `https://github.com/${encodeURIComponent(login)}`;
+}
+
 /** Lo que ha aportado esa persona. Solo lo que tiene. */
 function detail(person: CreditPerson) {
 	const parts: string[] = [];
@@ -52,7 +61,14 @@ function detail(person: CreditPerson) {
 						>
 							<span class="flex min-w-0 items-baseline gap-2.5">
 								<span class="font-pixel text-xs tabular-nums text-muted">{person.number}</span>
-								<span class="truncate">@{person.login}</span>
+								<a
+									href={profile(person.login)}
+									title={`Ver el perfil de @${person.login} en GitHub`}
+									class="inline-flex min-w-0 items-baseline gap-2 hover:text-accent hover:underline"
+								>
+									<span class="truncate">@{person.login}</span>
+									<Icon name="brand-github" class="size-3.5 shrink-0 self-center text-muted" />
+								</a>
 								{person.me && <span class="font-pixel text-xs text-accent">TÚ</span>}
 							</span>
 
@@ -72,7 +88,7 @@ function detail(person: CreditPerson) {
 
 				<p class="max-w-[62ch] text-sm text-muted">
 					Por orden de llegada y sin cortar por arriba: aquí entra todo el que ha escrito una idea,
-					ganase o no. Los puntos y los puestos están en el{' '}
+					ganase o no. Cada nombre lleva a su perfil de GitHub. Los puntos y los puestos están en el{' '}
 					<a href="/ranking" class="text-accent hover:underline">ranking</a>.
 				</p>
 			</div>
@@ -100,9 +116,19 @@ function detail(person: CreditPerson) {
 								)}
 
 								{version.people.length > 0 ? (
-									<p class="flex flex-wrap items-center gap-2 text-sm text-pretty">
+									<p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-pretty">
 										<Icon name="users" class="size-4 shrink-0 text-accent" />
-										idea de {version.people.map((login) => `@${login}`).join(', ')}
+										idea de
+										{version.people.map((login, index) => (
+											<span class="whitespace-nowrap">
+												<a
+													href={profile(login)}
+													title={`Ver el perfil de @${login} en GitHub`}
+													class="hover:text-accent hover:underline"
+												>@{login}</a>
+												{index !== version.people.length - 1 && ','}
+											</span>
+										))}
 									</p>
 								) : (
 									<p class="text-sm text-muted">de antes de que se guardaran las ideas</p>
