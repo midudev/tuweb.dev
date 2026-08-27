@@ -22,9 +22,9 @@ export const SECTIONS: Section[] = [
 		href: '/herramientas',
 		title: 'Caja de herramientas',
 		icon: 'adjustments',
-		card: 'JSON a YAML, cron en cristiano, regex, Base64, colores, tramas, tema y config.',
+		card: 'JSON a YAML, cron en cristiano, regex, Base64, HTML a PHP, colores, tramas, tema y config.',
 		intro:
-			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, Base64 en los dos sentidos, colores, tramas SVG, tema y config. Cada pestaña tiene su propio enlace para compartirla.',
+			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, Base64 en los dos sentidos, HTML a PHP, colores, tramas SVG, tema y config. Cada pestaña tiene su propio enlace para compartirla.',
 	},
 	{
 		href: '/diseno',

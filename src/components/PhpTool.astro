@@ -1,0 +1,263 @@
+---
+/**
+ * De HTML a PHP. Pegas marcado —o traes el de la página que estés viendo— y
+ * sale un .php que devuelve ese mismo HTML, en los tres estilos de siempre.
+ * Se hace aquí, en el navegador: no se envía ni se guarda nada.
+ */
+import { EJEMPLO, MODOS } from '../lib/php';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+
+const OPCION = `${BOTON} aria-pressed:border-accent aria-pressed:text-accent`;
+---
+
+<div
+	role="tabpanel"
+	id="php"
+	aria-labelledby="tab-php"
+	data-panel="php"
+	hidden
+	class="flex flex-col gap-5"
+>
+	<div class="flex flex-col gap-3">
+		<h3 id="php-modo" class="text-sm text-muted">Cómo lo quieres</h3>
+		<div role="group" aria-labelledby="php-modo" class="flex flex-wrap gap-2">
+			{
+				MODOS.map((modo) => (
+					<button type="button" data-php-modo={modo.id} aria-pressed="false" class={OPCION}>
+						<Icon name={modo.icon} class="size-4 shrink-0" />
+						{modo.label}
+					</button>
+				))
+			}
+		</div>
+		<p data-php-nota class="text-sm text-muted" aria-live="polite"></p>
+	</div>
+
+	<div class="grid gap-4 md:grid-cols-2">
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center justify-between gap-3 text-sm text-muted">
+				<label for="php-html">HTML</label>
+				<span data-php-cuenta="html" class="text-mark"></span>
+			</span>
+			<textarea
+				id="php-html"
+				data-php-html
+				rows="14"
+				spellcheck="false"
+				autocomplete="off"
+				placeholder="Pega aquí el HTML"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+				set:text={EJEMPLO}
+			></textarea>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center justify-between gap-3 text-sm text-muted">
+				<label for="php-salida">PHP</label>
+				<span class="flex items-center gap-3">
+					<span data-php-cuenta="php" class="text-mark"></span>
+					<button
+						type="button"
+						data-php-copia
+						class="inline-flex items-center gap-2 text-accent hover:underline"
+					>
+						<span data-icon="copy" class="inline-flex">
+							<Icon name="copy" class="size-4 shrink-0" />
+						</span>
+						<span data-icon="check" class="inline-flex">
+							<Icon name="check" class="size-4 shrink-0" />
+						</span>
+						<span data-php-copia-texto aria-live="polite">Copiar</span>
+					</button>
+				</span>
+			</span>
+			<textarea
+				id="php-salida"
+				data-php-salida
+				rows="14"
+				readonly
+				spellcheck="false"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"
+			></textarea>
+		</div>
+	</div>
+
+	<p data-php-aviso class="text-sm text-building empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-wrap items-center gap-3">
+		<button type="button" data-php-pagina class={BOTON}>
+			<Icon name="arrow-down-to-arc" class="size-4 shrink-0" />
+			Traer el HTML de esta página
+		</button>
+		<button type="button" data-php-ejemplo class={BOTON}>
+			<Icon name="refresh" class="size-4 shrink-0" />
+			Volver al ejemplo
+		</button>
+		<button type="button" data-php-limpiar class={BOTON}>
+			<Icon name="eraser" class="size-4 shrink-0" />
+			Limpiar
+		</button>
+		<label class="inline-flex items-center gap-2 text-sm text-muted">
+			Fichero
+			<input
+				type="text"
+				data-php-fichero
+				value="index.php"
+				spellcheck="false"
+				autocomplete="off"
+				class="w-40 border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent"
+			/>
+		</label>
+		<button type="button" data-php-descarga class={BOTON}>
+			<Icon name="download" class="size-4 shrink-0" />
+			Descargar
+		</button>
+	</div>
+
+	<p class="text-sm text-muted">
+		Esta web seguirá siendo Astro: en PHP no habría ventana de ideas ni base de datos que se
+		publique sola. Lo que sí se puede es llevarte cualquier página de aquí en PHP, que es lo que
+		hace este panel.
+	</p>
+</div>
+
+<style>
+	[data-php-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-php-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-php-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-php-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import { EJEMPLO, MODOS, type Modo, medir, toPhp } from '../lib/php';
+
+	const html = document.querySelector<HTMLTextAreaElement>('[data-php-html]');
+	const salida = document.querySelector<HTMLTextAreaElement>('[data-php-salida]');
+	const nota = document.querySelector<HTMLElement>('[data-php-nota]');
+	const aviso = document.querySelector<HTMLElement>('[data-php-aviso]');
+	const fichero = document.querySelector<HTMLInputElement>('[data-php-fichero]');
+	const cuentaHtml = document.querySelector<HTMLElement>('[data-php-cuenta="html"]');
+	const cuentaPhp = document.querySelector<HTMLElement>('[data-php-cuenta="php"]');
+
+	if (html && salida) {
+		let modo: Modo = 'plantilla';
+
+		function render() {
+			const resultado = toPhp(html.value, modo);
+			salida.value = resultado.codigo;
+
+			if (aviso) aviso.textContent = resultado.aviso;
+			if (nota) nota.textContent = MODOS.find((item) => item.id === modo)?.nota ?? '';
+			if (cuentaHtml) cuentaHtml.textContent = medir(html.value);
+			if (cuentaPhp) cuentaPhp.textContent = medir(resultado.codigo);
+
+			document.querySelectorAll<HTMLButtonElement>('[data-php-modo]').forEach((button) => {
+				button.setAttribute('aria-pressed', String(button.dataset.phpModo === modo));
+			});
+		}
+
+		html.addEventListener('input', render);
+
+		document.querySelectorAll<HTMLButtonElement>('[data-php-modo]').forEach((button) => {
+			button.addEventListener('click', () => {
+				modo = (button.dataset.phpModo ?? 'plantilla') as Modo;
+				render();
+			});
+		});
+
+		// El HTML de esta misma página, ya pintado y con el doctype por delante:
+		// outerHTML se lo deja fuera. Es lo más parecido a «pásame el código
+		// fuente en PHP» que se puede hacer sin salir del navegador.
+		document.querySelector<HTMLButtonElement>('[data-php-pagina]')?.addEventListener('click', () => {
+			html.value = `<!doctype html>\n${document.documentElement.outerHTML}`;
+			render();
+			html.focus();
+			html.setSelectionRange(0, 0);
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-php-ejemplo]')?.addEventListener('click', () => {
+			html.value = EJEMPLO;
+			render();
+			html.focus();
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-php-limpiar]')?.addEventListener('click', () => {
+			html.value = '';
+			render();
+			html.focus();
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-php-descarga]')?.addEventListener('click', () => {
+			if (!salida.value) return;
+
+			// El nombre se saca del campo, pero sin rutas ni sorpresas: solo el
+			// último trozo, y con extensión .php aunque no la escriban.
+			const pedido = (fichero?.value ?? '').split(/[\\/]/).pop()?.trim() ?? '';
+			const limpio = pedido.replace(/[^\w.-]/g, '-').replace(/^\.+/, '');
+			const nombre = /\.php$/i.test(limpio) ? limpio : `${limpio || 'index'}.php`;
+
+			const url = URL.createObjectURL(new Blob([salida.value], { type: 'text/plain' }));
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = nombre;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		});
+
+		const copia = document.querySelector<HTMLButtonElement>('[data-php-copia]');
+		const etiqueta = copia?.querySelector('[data-php-copia-texto]');
+		let reloj: number | undefined;
+
+		async function copiar(texto: string) {
+			try {
+				await navigator.clipboard.writeText(texto);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const campo = document.createElement('textarea');
+					campo.value = texto;
+					campo.readOnly = true;
+					campo.style.position = 'fixed';
+					campo.style.opacity = '0';
+					document.body.append(campo);
+					campo.select();
+					const hecho = document.execCommand('copy');
+					campo.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		copia?.addEventListener('click', async () => {
+			if (!salida.value) return;
+
+			const hecho = await copiar(salida.value);
+			copia.dataset.state = hecho ? 'done' : 'error';
+			if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				copia.removeAttribute('data-state');
+				if (etiqueta) etiqueta.textContent = 'Copiar';
+			}, 2000);
+		});
+
+		// La pestaña entra con el ejemplo ya convertido: se ve de qué va sin tocar.
+		render();
+	}
+</script>

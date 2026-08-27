@@ -4,6 +4,7 @@ import ColorTool from './ColorTool.astro';
 import ConfigTool from './ConfigTool.astro';
 import Icon from './Icon.astro';
 import PatternTool from './PatternTool.astro';
+import PhpTool from './PhpTool.astro';
 import ThemeTool from './ThemeTool.astro';
 
 // El id de cada herramienta es también su sitio en la URL:
@@ -14,6 +15,7 @@ const tools = [
 	{ id: 'cron', label: 'Cron en cristiano', icon: 'clock' },
 	{ id: 'regex', label: 'Probador de regex', icon: 'regex' },
 	{ id: 'base64', label: 'Base64', icon: 'binary' },
+	{ id: 'php', label: 'HTML → PHP', icon: 'brand-php' },
 	{ id: 'colores', label: 'Colores', icon: 'palette' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tema', label: 'Tema', icon: 'contrast' },
@@ -146,6 +148,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	</div>
 
 	<Base64Tool />
+
+	<PhpTool />
 
 	<ColorTool />
 
