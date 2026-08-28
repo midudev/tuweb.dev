@@ -1,0 +1,494 @@
+---
+/**
+ * El santuario: un templo para devs con midudev de piedra en el centro.
+ *
+ * La estatua sale entera del servidor —es una rejilla de píxeles de
+ * src/lib/sanctuary.ts— y no se repinta: lo único que cambia con el rato es la
+ * luz de las velas. Como el escaparate o la mascota, esto no tiene servidor
+ * detrás: las ofrendas se quedan en el navegador de quien las deja y desde ahí
+ * se copian para proponerlas como idea.
+ */
+import { H, OFRENDAS, W, paintStatue } from '../lib/sanctuary';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+	/** Ideas de la ventana abierta. */
+	ideas: number;
+	version: number;
+	people: number;
+	cycles: number;
+}
+
+const { ideas, version, people, cycles } = Astro.props;
+
+const pixels = paintStatue();
+
+const FIELD = 'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-accent';
+
+// La inscripción de la peana: todo sale de lo que ya guarda la base.
+const PLACA = [
+	{ label: 'versiones', value: version },
+	{ label: 'devs', value: people },
+	{ label: 'ventanas', value: cycles },
+	{ label: 'ideas ahora', value: ideas },
+];
+
+const REGLAS = [
+	'Aquí no se pide, se propone.',
+	'La idea que gana la escribe una IA, pero la elige la gente.',
+	'Lo que dejes a los pies se queda en tu navegador.',
+];
+---
+
+<section id="santuario" class="flex flex-col gap-7">
+	<div data-templo style="--luz: 0" class="border border-line bg-panel px-4 pb-6">
+		<div data-fronton aria-hidden="true"></div>
+
+		<p class="pb-5 text-center font-pixel text-xs tracking-wide text-accent">SANTUARIO MIDUDEV</p>
+
+		<div class="grid grid-cols-[1.25rem_1fr_1.25rem] items-end gap-4 sm:grid-cols-[3rem_1fr_3rem] sm:gap-8">
+			<span data-columna aria-hidden="true"></span>
+
+			<div class="flex flex-col items-center gap-4">
+				<div data-halo class="flex w-full max-w-72 justify-center">
+					<div
+						data-estatua
+						role="img"
+						aria-label="Estatua de midudev tallada en piedra, con gafas y barba, sobre su peana"
+						class="grid w-full"
+						style={`aspect-ratio: ${W} / ${H}; grid-template-columns: repeat(${W}, 1fr); grid-template-rows: repeat(${H}, 1fr)`}
+					>
+						{pixels.map((color) => <span style={color ? `background:${color}` : undefined} />)}
+					</div>
+				</div>
+
+				<div class="flex items-center gap-3">
+					<span data-vela class="inline-flex text-accent" aria-hidden="true">
+						<Icon name="candle" class="size-5 shrink-0" />
+					</span>
+					<p class="font-pixel text-lg text-accent">MIDUDEV</p>
+					<span data-vela class="inline-flex text-accent" aria-hidden="true">
+						<Icon name="candle" class="size-5 shrink-0" />
+					</span>
+				</div>
+
+				<p class="flex flex-wrap justify-center gap-x-4 gap-y-1 text-center text-xs text-muted">
+					{
+						PLACA.map((dato) => (
+							<span class="flex items-baseline gap-1.5">
+								<span class="font-pixel text-fg tabular-nums">{dato.value}</span>
+								{dato.label}
+							</span>
+						))
+					}
+				</p>
+
+				<ul data-fila class="flex min-h-8 flex-wrap items-center justify-center gap-2"></ul>
+			</div>
+
+			<span data-columna aria-hidden="true"></span>
+		</div>
+	</div>
+
+	<form data-form class="grid gap-4 border border-line bg-panel p-4 sm:grid-cols-[1fr_auto_auto]">
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Ofrenda</span>
+			<select data-field="ofrenda" class={FIELD}>
+				{OFRENDAS.map((item) => <option value={item.key}>{item.label}</option>)}
+			</select>
+		</label>
+
+		<div class="flex items-end">
+			<button type="submit" class={BOTON}>
+				<Icon name="plus" class="size-4 shrink-0" />
+				Dejarla a sus pies
+			</button>
+		</div>
+
+		<div class="flex items-end">
+			<button type="button" data-encender class={BOTON}>
+				<Icon name="flame" class="size-4 shrink-0" />
+				Encender una vela
+			</button>
+		</div>
+
+		<p data-error role="status" class="text-sm text-heart sm:col-span-3"></p>
+	</form>
+
+	<div class="flex flex-col gap-3 border border-line bg-panel p-4">
+		<SectionLabel>PIDE CONSEJO</SectionLabel>
+		<p data-consejo aria-live="polite" class="min-h-12 font-pixel text-lg text-pretty">
+			La estatua calla. Pregúntale.
+		</p>
+		<div>
+			<button type="button" data-oraculo class={BOTON}>
+				<Icon name="sparkles" class="size-4 shrink-0" />
+				Que hable
+			</button>
+		</div>
+	</div>
+
+	<ul data-list class="grid gap-3 sm:grid-cols-2"></ul>
+
+	<template data-card>
+		<li class="flex items-center justify-between gap-3 border border-line bg-panel px-4 py-3">
+			<span class="flex min-w-0 items-center gap-3">
+				<span data-chip class="inline-flex shrink-0 text-accent"></span>
+				<span data-label class="min-w-0 truncate text-sm"></span>
+			</span>
+			<button type="button" data-remove class={ENLACE}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Retirar
+			</button>
+		</li>
+	</template>
+
+	<div class="flex flex-wrap items-center justify-between gap-4">
+		<p data-count class="text-sm text-muted" aria-live="polite"></p>
+		<div class="flex flex-wrap items-center gap-5">
+			<button type="button" data-copy class={ENLACE}>
+				<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+				<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+				<span data-copy-label>Copiar lo que has dejado</span>
+			</button>
+			<button type="button" data-clear class={ENLACE} hidden>
+				<Icon name="eraser" class="size-4 shrink-0" />
+				Recoger la peana
+			</button>
+		</div>
+	</div>
+
+	<ul class="flex flex-col gap-2 border-t border-line pt-4 text-sm text-muted">
+		{
+			REGLAS.map((regla) => (
+				<li class="flex items-start gap-3">
+					<Icon name="building-arch" class="mt-1 size-4 shrink-0 text-accent" />
+					{regla}
+				</li>
+			))
+		}
+	</ul>
+
+	<!-- Los iconos de las ofrendas, escondidos: el script copia el que toque en
+	     cada ficha, que un icono no se puede pedir desde el navegador. -->
+	<div data-iconos hidden>
+		{
+			OFRENDAS.map((item) => (
+				<span data-icono={item.key}>
+					<Icon name={item.icon} class="size-4 shrink-0" />
+				</span>
+			))
+		}
+	</div>
+</section>
+
+<style is:global>
+	/*
+	 * Va global porque las fichas y las ofrendas de la peana las pinta el script
+	 * y no llevan la marca del componente; por eso todo cuelga de #santuario.
+	 */
+
+	/* El frontón del templo: un triángulo del acento, sin una sola curva. */
+	#santuario [data-fronton] {
+		height: 3.5rem;
+		margin-inline: -1rem;
+		clip-path: polygon(50% 0, 100% 100%, 0 100%);
+		background: linear-gradient(
+			180deg,
+			color-mix(in oklab, var(--color-accent) 40%, transparent),
+			color-mix(in oklab, var(--color-accent) 10%, transparent)
+		);
+	}
+
+	/* Las columnas: piedra estriada a base de líneas verticales. */
+	#santuario [data-columna] {
+		height: clamp(10rem, 34vw, 22rem);
+		background:
+			repeating-linear-gradient(
+				90deg,
+				var(--color-line) 0 2px,
+				transparent 2px 7px
+			),
+			color-mix(in oklab, var(--color-muted) 14%, transparent);
+		border-block: 1px solid var(--color-line);
+	}
+
+	/*
+	 * La luz de las velas. Sube con cada vela encendida y no llega nunca a tapar
+	 * la estatua: es un halo detrás, no un foco.
+	 */
+	#santuario [data-halo] {
+		position: relative;
+		isolation: isolate;
+	}
+
+	#santuario [data-halo]::before {
+		content: '';
+		position: absolute;
+		inset: -12%;
+		z-index: -1;
+		background: radial-gradient(
+			closest-side,
+			color-mix(in oklab, var(--color-accent) 45%, transparent),
+			transparent 72%
+		);
+		opacity: calc(var(--luz, 0) / 160);
+	}
+
+	#santuario [data-vela] {
+		opacity: calc(0.25 + var(--luz, 0) / 140);
+	}
+
+	#santuario [data-estatua] {
+		animation: santuario-respira 6s ease-in-out infinite;
+	}
+
+	@keyframes santuario-respira {
+		50% {
+			transform: translateY(-3px);
+		}
+	}
+
+	#santuario [data-fila] li[data-nueva] {
+		animation: santuario-posa 0.4s ease-out;
+	}
+
+	@keyframes santuario-posa {
+		from {
+			transform: translateY(-10px);
+			opacity: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		#santuario [data-estatua],
+		#santuario [data-fila] li[data-nueva] {
+			animation: none;
+		}
+	}
+
+	#santuario [data-copy] [data-icon='check'] {
+		display: none;
+	}
+	#santuario [data-copy][data-state='done'] {
+		color: var(--color-accent);
+	}
+	#santuario [data-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	#santuario [data-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	#santuario [data-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import {
+		type Altar,
+		CONSEJOS,
+		MAX_OFRENDAS,
+		MAX_VELAS,
+		type Ofrenda,
+		altarPitch,
+		getOfrenda,
+		glowOf,
+		readAltar,
+		saveAltar,
+		toOfrenda,
+	} from '../lib/sanctuary';
+
+	const section = document.querySelector<HTMLElement>('#santuario');
+	const templo = section?.querySelector<HTMLElement>('[data-templo]');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const fila = section?.querySelector<HTMLElement>('[data-fila]');
+	const list = section?.querySelector<HTMLElement>('[data-list]');
+	const template = section?.querySelector<HTMLTemplateElement>('[data-card]');
+	const iconos = section?.querySelector<HTMLElement>('[data-iconos]');
+	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const countOut = section?.querySelector<HTMLElement>('[data-count]');
+	const consejoOut = section?.querySelector<HTMLElement>('[data-consejo]');
+	const oraculo = section?.querySelector<HTMLButtonElement>('[data-oraculo]');
+	const encender = section?.querySelector<HTMLButtonElement>('[data-encender]');
+	const copyButton = section?.querySelector<HTMLButtonElement>('[data-copy]');
+	const copyLabel = section?.querySelector<HTMLElement>('[data-copy-label]');
+	const clearButton = section?.querySelector<HTMLButtonElement>('[data-clear]');
+
+	if (section && templo && form && fila && list && template && iconos && countOut) {
+		const bus = 'BroadcastChannel' in window ? new BroadcastChannel('tuweb:santuario') : null;
+
+		let altar: Altar = readAltar();
+		// La última que se ha dejado, para que caiga sobre la peana y las demás no.
+		let recien = '';
+		let ultimo = -1;
+
+		function fail(message: string) {
+			if (errorOut) errorOut.textContent = message;
+		}
+
+		/** El icono de una ofrenda, sacado de los que ya vienen pintados. */
+		function icono(key: string) {
+			return iconos!.querySelector(`[data-icono="${CSS.escape(key)}"] svg`)?.cloneNode(true) ?? null;
+		}
+
+		function pie(ofrenda: Ofrenda) {
+			const node = document.createElement('li');
+			const svg = icono(ofrenda.key);
+
+			const label = getOfrenda(ofrenda.key)?.label ?? ofrenda.key;
+
+			node.className = 'inline-flex text-accent';
+			node.title = label;
+			// El icono va oculto para los lectores, así que el nombre lo lleva la fila.
+			node.setAttribute('aria-label', label);
+			if (svg) {
+				(svg as SVGElement).setAttribute('class', 'size-5');
+				node.append(svg);
+			}
+			if (ofrenda.id === recien) node.dataset.nueva = 'si';
+
+			return node;
+		}
+
+		function ficha(ofrenda: Ofrenda) {
+			const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+			const svg = icono(ofrenda.key);
+
+			if (svg) node.querySelector('[data-chip]')!.append(svg);
+			node.querySelector('[data-label]')!.textContent = getOfrenda(ofrenda.key)?.label ?? ofrenda.key;
+
+			node.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
+				commit({ ...altar, ofrendas: altar.ofrendas.filter((item) => item.id !== ofrenda.id) });
+			});
+
+			return node;
+		}
+
+		function render() {
+			fila!.replaceChildren(...altar.ofrendas.map(pie));
+			list!.replaceChildren(...altar.ofrendas.map(ficha));
+
+			templo!.style.setProperty('--luz', String(glowOf(altar.velas)));
+
+			const total = altar.ofrendas.length;
+			const libres = MAX_OFRENDAS - total;
+			const sitio =
+				libres === 0 ? 'no cabe más' : libres === 1 ? 'queda un hueco' : `quedan ${libres} huecos`;
+			const dejado =
+				total === 0
+					? 'La peana está vacía. Déjale algo, que para eso está.'
+					: `${total} ${total === 1 ? 'ofrenda' : 'ofrendas'} en este navegador · ${sitio}.`;
+			const velas = altar.velas
+				? ` ${altar.velas} ${altar.velas === 1 ? 'vela encendida' : 'velas encendidas'}.`
+				: '';
+
+			countOut!.textContent = `${dejado}${velas}`;
+			if (clearButton) clearButton.hidden = total === 0 && altar.velas === 0;
+
+			// La caída es de la que se acaba de dejar: la próxima pintada ya no cae.
+			recien = '';
+		}
+
+		function commit(next: Altar) {
+			altar = next;
+			saveAltar(altar);
+			// Las otras pestañas se enteran solas: por el bus si lo hay, y si no por
+			// el evento storage, que salta con el propio guardado.
+			bus?.postMessage('cambio');
+			render();
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			fail('');
+
+			if (altar.ofrendas.length >= MAX_OFRENDAS) {
+				fail(`En la peana ya caben ${MAX_OFRENDAS}. Retira alguna.`);
+				return;
+			}
+
+			const elegida = form!.querySelector<HTMLSelectElement>('[data-field="ofrenda"]')?.value;
+			const ofrenda = toOfrenda({ key: elegida });
+
+			if (typeof ofrenda === 'string') {
+				fail(ofrenda);
+				return;
+			}
+
+			recien = ofrenda.id;
+			commit({ ...altar, ofrendas: [...altar.ofrendas, ofrenda] });
+		});
+
+		encender?.addEventListener('click', () => {
+			if (altar.velas >= MAX_VELAS) return;
+			commit({ ...altar, velas: altar.velas + 1 });
+		});
+
+		oraculo?.addEventListener('click', () => {
+			if (!consejoOut) return;
+
+			// Nunca el mismo dos veces seguidas: si repite, se pasa al siguiente.
+			let corte = Math.floor(Math.random() * CONSEJOS.length);
+			if (corte === ultimo) corte = (corte + 1) % CONSEJOS.length;
+
+			ultimo = corte;
+			consejoOut.textContent = CONSEJOS[corte];
+		});
+
+		clearButton?.addEventListener('click', () => {
+			commit({ ofrendas: [], velas: 0 });
+		});
+
+		copyButton?.addEventListener('click', async () => {
+			const boton = copyButton!;
+			const texto = altarPitch(altar);
+			let done = false;
+
+			try {
+				await navigator.clipboard.writeText(texto);
+				done = true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const helper = document.createElement('textarea');
+					helper.value = texto;
+					helper.readOnly = true;
+					helper.style.position = 'fixed';
+					helper.style.opacity = '0';
+					document.body.append(helper);
+					helper.select();
+					done = document.execCommand('copy');
+					helper.remove();
+				} catch {
+					done = false;
+				}
+			}
+
+			boton.dataset.state = done ? 'done' : 'error';
+			if (copyLabel) copyLabel.textContent = done ? 'Copiado' : 'No se pudo copiar';
+
+			window.setTimeout(() => {
+				boton.removeAttribute('data-state');
+				if (copyLabel) copyLabel.textContent = 'Copiar lo que has dejado';
+			}, 2000);
+		});
+
+		function desdeFuera() {
+			altar = readAltar();
+			recien = '';
+			render();
+		}
+
+		bus?.addEventListener('message', desdeFuera);
+		window.addEventListener('storage', (event) => {
+			if (event.key === null || event.key === 'tuweb:santuario') desdeFuera();
+		});
+
+		render();
+	}
+</script>

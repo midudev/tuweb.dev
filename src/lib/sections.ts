@@ -59,6 +59,14 @@ export const SECTIONS: Section[] = [
 			'La mascota de la casa. No la manda nadie: su ánimo sale de las ideas que hay en la ventana abierta y crece con las versiones publicadas. Ponle nombre y ponle piezas —antenas, alas, una bufanda— del tono que quieras. Lo que le pongas se queda en tu navegador: cópialo y proponlo para que lo lleve para todos.',
 	},
 	{
+		href: '/santuario',
+		title: 'Santuario',
+		icon: 'building-monument',
+		card: 'Un templo para devs, con midudev de piedra en el centro.',
+		intro:
+			'Un templo para devs. En el centro, midudev tallado en píxeles sobre su peana, y en la inscripción lo que lleva esta web: versiones, gente y ventanas. Déjale una ofrenda a los pies, enciende una vela y pídele consejo. Lo que dejes se queda en tu navegador: cópialo y proponlo para que quede en la peana de todos.',
+	},
+	{
 		href: '/escaparate',
 		title: 'Escaparate',
 		icon: 'rocket',

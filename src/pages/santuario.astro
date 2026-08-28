@@ -1,0 +1,12 @@
+---
+import Sanctuary from '../components/Sanctuary.astro';
+import Section from '../layouts/Section.astro';
+import { getDashboardData, getHomeData } from '../lib/db/queries';
+
+const { ideaCount, version } = getHomeData();
+const { people, cycles } = getDashboardData();
+---
+
+<Section href="/santuario">
+	<Sanctuary ideas={ideaCount} version={version} people={people} cycles={cycles} />
+</Section>
