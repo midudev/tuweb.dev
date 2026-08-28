@@ -43,6 +43,14 @@ export const SECTIONS: Section[] = [
 			'Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para pausar. En el móvil, desliza sobre el tablero. Elige si las paredes matan y a qué ritmo va. Al perder puedes firmar la marca con tu nombre: cada combinación guarda su récord y su ranking en tu navegador.',
 	},
 	{
+		href: '/perritos',
+		title: 'Hot Dog midudev',
+		icon: 'sausage',
+		card: 'El puesto de perritos: salchichas a la parrilla y clientes con prisa.',
+		intro:
+			'midudev atiende un puesto de perritos y la cola no espera. Pon salchichas en la parrilla, cógelas cuando estén hechas —ni crudas ni quemadas—, ponles las salsas que piden y sirve antes de que se cansen. Tres fallos y cierra el puesto. Cada día que aguantas llega más gente y con más prisa. El récord se queda en tu navegador.',
+	},
+	{
 		href: '/mascota',
 		title: 'Mascota',
 		icon: 'ghost',

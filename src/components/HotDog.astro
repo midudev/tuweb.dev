@@ -1,0 +1,777 @@
+---
+/**
+ * «Hot Dog midudev»: el puesto de perritos de la casa. Salchichas a la parrilla,
+ * pan, tres salsas y una cola que no espera. Todo pasa en el navegador y nada
+ * sube al servidor: el récord vive en el localStorage de quien juega.
+ */
+import Icon from './Icon.astro';
+
+/** Huecos de la parrilla. */
+const HUECOS = 4;
+
+/** Milisegundos de cocción: antes está cruda, después se quema. */
+const HECHA = 2600;
+const QUEMADA = 6400;
+
+const SALSAS = [
+	{ id: 'ketchup', label: 'Kétchup', tecla: 'K' },
+	{ id: 'mostaza', label: 'Mostaza', tecla: 'M' },
+	{ id: 'cebolla', label: 'Cebolla', tecla: 'C' },
+];
+
+const MARCADOR = [
+	{ id: 'puntos', label: 'puntos', icon: 'coin' },
+	{ id: 'record', label: 'récord', icon: 'trophy' },
+	{ id: 'dia', label: 'día', icon: 'clock-hour-4' },
+	{ id: 'fallos', label: 'fallos', icon: 'alert-triangle' },
+];
+
+const FILA = 'flex items-baseline justify-between gap-3 border-t border-line pt-1.5';
+const TITULO = 'flex items-baseline gap-2 text-sm text-muted';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const BOTON_GRANDE =
+	'inline-flex items-center gap-2 border border-line px-4 py-3 text-sm text-muted hover:border-accent hover:text-accent';
+const HUECO =
+	'flex flex-col items-center gap-2 border border-line bg-panel px-2 py-4 text-muted hover:border-accent';
+const CLIENTE =
+	'flex w-full flex-col gap-2 border border-line bg-panel p-3 text-left hover:border-accent aria-pressed:border-accent';
+---
+
+<section id="perritos" class="flex flex-col gap-7">
+	<dl class="grid grid-cols-2 gap-x-7 gap-y-1.5 text-sm sm:grid-cols-4">
+		{
+			MARCADOR.map((dato) => (
+				<div class={FILA}>
+					<dt class="flex items-baseline gap-2 text-muted">
+						<Icon name={dato.icon} class="size-3.5 shrink-0 self-center" />
+						{dato.label}
+					</dt>
+					<dd data-dato={dato.id} class="font-pixel tabular-nums">
+						0
+					</dd>
+				</div>
+			))
+		}
+	</dl>
+
+	<div class="relative flex flex-col gap-7">
+		<div class="flex flex-col gap-3">
+			<h3 id="perritos-cola" class={TITULO}>
+				<Icon name="users-group" class="size-3.5 shrink-0 self-center" />
+				Cola
+			</h3>
+
+			<ul data-cola aria-labelledby="perritos-cola" class="grid gap-2 sm:grid-cols-3"></ul>
+
+			<template data-molde>
+				<li>
+					<button type="button" data-cliente aria-pressed="false" class={CLIENTE}>
+						<span class="flex items-center justify-between gap-3">
+							<span data-cara class="inline-flex"><Icon name="user" class="size-5 shrink-0" /></span>
+							<span data-pide class="flex items-center gap-1.5"></span>
+						</span>
+						<span class="block h-px w-full bg-line"><span data-paciencia class="block h-px" /></span>
+					</button>
+				</li>
+			</template>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 id="perritos-parrilla" class={TITULO}>
+				<Icon name="grill" class="size-3.5 shrink-0 self-center" />
+				Parrilla
+			</h3>
+
+			<div
+				data-parrilla
+				data-hecha={HECHA}
+				data-quemada={QUEMADA}
+				role="group"
+				aria-labelledby="perritos-parrilla"
+				class="grid grid-cols-4 gap-2"
+			>
+				{
+					Array.from({ length: HUECOS }, (_, i) => (
+						<button type="button" data-hueco={i} data-estado="vacio" class={HUECO}>
+							<span data-salchicha class="inline-flex">
+								<Icon name="sausage" class="size-6 shrink-0" />
+							</span>
+							<span data-hueco-txt class="text-xs">{i + 1}</span>
+							<span class="block h-px w-full bg-line">
+								<span data-cocido class="block h-px w-0 bg-muted" />
+							</span>
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 id="perritos-mostrador" class={TITULO}>
+				<Icon name="tools-kitchen-2" class="size-3.5 shrink-0 self-center" />
+				Mostrador
+			</h3>
+
+			<div
+				role="group"
+				aria-labelledby="perritos-mostrador"
+				class="flex flex-col gap-4 border border-line bg-panel p-4"
+			>
+				<p data-perrito data-lleno="false" class="flex items-center gap-3 text-sm">
+					<span data-pan class="inline-flex text-muted">
+						<Icon name="bread" class="size-6 shrink-0" />
+					</span>
+					<span data-perrito-txt class="text-muted">Pan solo. Coge una salchicha hecha.</span>
+					<span class="flex items-center gap-1.5">
+						{
+							SALSAS.map((salsa) => (
+								<span data-puesta={salsa.id} hidden class="inline-flex">
+									<Icon name="droplet" class="size-4 shrink-0" />
+								</span>
+							))
+						}
+					</span>
+				</p>
+
+				<div class="flex flex-wrap gap-2">
+					{
+						SALSAS.map((salsa) => (
+							<button type="button" data-salsa={salsa.id} class={BOTON}>
+								<span data-gota class="inline-flex">
+									<Icon name="droplet" class="size-4 shrink-0" />
+								</span>
+								{salsa.label}
+								<span class="text-xs text-muted">{salsa.tecla}</span>
+							</button>
+						))
+					}
+				</div>
+
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-servir class={BOTON_GRANDE}>
+						<Icon name="hand-click" class="size-4 shrink-0" />
+						Servir
+					</button>
+					<button type="button" data-tirar class={BOTON_GRANDE}>
+						<Icon name="trash" class="size-4 shrink-0" />
+						Tirar
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<div
+			data-overlay
+			class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg/90 px-6 text-center"
+		>
+			<p data-overlay-title class="font-pixel text-lg text-accent">Hot Dog midudev</p>
+			<p data-overlay-text class="max-w-[46ch] text-sm text-muted">
+				Abre el puesto: salchicha a la parrilla, pan, salsas y a servir.
+			</p>
+		</div>
+	</div>
+
+	<div class="flex flex-wrap gap-2">
+		<button type="button" data-jugar class={BOTON_GRANDE}>
+			<span data-icono="play" class="inline-flex"><Icon name="player-play" class="size-4" /></span>
+			<span data-icono="pause" hidden class="inline-flex">
+				<Icon name="player-pause" class="size-4" />
+			</span>
+			<span data-jugar-txt>Abrir el puesto</span>
+		</button>
+		<button type="button" data-reiniciar class={BOTON_GRANDE}>
+			<Icon name="refresh" class="size-4 shrink-0" />
+			Reiniciar
+		</button>
+	</div>
+
+	<p data-aviso role="status" aria-live="polite" class="text-sm text-muted">&nbsp;</p>
+
+	<p class="max-w-[62ch] text-sm text-muted">
+		Un toque pone la salchicha; cuando está hecha, otro la pasa al pan, y si se quema la tira. Con
+		el teclado <span class="font-pixel">1</span>–<span class="font-pixel">4</span> es la parrilla,
+		<span class="font-pixel">K M C</span> las salsas, <span class="font-pixel">← →</span> el cliente,
+		<span class="font-pixel">espacio</span> sirve y <span class="font-pixel">retroceso</span> tira el
+		perrito.
+	</p>
+</section>
+
+<style>
+	/* Cada salsa lleva su color a la gota del botón y a la marca del pan. El color
+	   va en el envoltorio y no en el icono: el <svg> lo pinta otro componente. */
+	[data-salsa='ketchup'] [data-gota],
+	[data-puesta='ketchup'] {
+		color: var(--color-heart);
+	}
+
+	[data-salsa='mostaza'] [data-gota],
+	[data-puesta='mostaza'] {
+		color: var(--color-building);
+	}
+
+	[data-salsa='cebolla'] [data-gota],
+	[data-puesta='cebolla'] {
+		color: var(--color-ok);
+	}
+
+	/* La salchicha canta su punto por color, no solo por la barra. */
+	[data-hueco][data-estado='vacio'] [data-salchicha] {
+		opacity: 0.3;
+	}
+
+	[data-hueco][data-estado='hecha'] {
+		border-color: var(--color-ok);
+		color: var(--color-ok);
+	}
+
+	[data-hueco][data-estado='hecha'] [data-cocido] {
+		background: var(--color-ok);
+	}
+
+	[data-hueco][data-estado='quemada'] {
+		border-color: var(--color-heart);
+		color: var(--color-heart);
+	}
+
+	[data-hueco][data-estado='quemada'] [data-cocido] {
+		background: var(--color-heart);
+	}
+
+	[data-perrito][data-lleno='true'] [data-pan] {
+		color: var(--color-accent);
+	}
+</style>
+
+<script>
+	const section = document.querySelector<HTMLElement>('#perritos');
+	const parrillaEl = section?.querySelector<HTMLElement>('[data-parrilla]');
+
+	if (section && parrillaEl) {
+		// Los tiempos de cocción los manda el markup: aquí no se adivinan.
+		const HECHA = Number(parrillaEl.dataset.hecha);
+		const QUEMADA = Number(parrillaEl.dataset.quemada);
+		const TICK = 100;
+		/** Clientes que caben en la cola, fallos que cierran el puesto y clientes por día. */
+		const COLA = 3;
+		const TOPE_FALLOS = 3;
+		const POR_DIA = 5;
+		const CLAVE_RECORD = 'tuweb:perritos:record';
+
+		type Salsa = 'ketchup' | 'mostaza' | 'cebolla';
+		type Estado = 'listo' | 'jugando' | 'pausa' | 'fin';
+		type Punto = 'vacio' | 'cruda' | 'hecha' | 'quemada';
+		type Hueco = { cocido: number } | null;
+		type Cliente = { id: number; pide: Salsa[]; espera: number; total: number };
+
+		const SALSAS: Salsa[] = ['ketchup', 'mostaza', 'cebolla'];
+		const NOMBRES: Record<Salsa, string> = {
+			ketchup: 'kétchup',
+			mostaza: 'mostaza',
+			cebolla: 'cebolla',
+		};
+		const ETIQUETAS: Record<Punto, string> = {
+			vacio: 'vacío',
+			cruda: 'cruda',
+			hecha: 'hecha',
+			quemada: 'quemada',
+		};
+		// Los colores del pedido van a mano: esas marcas las crea este script.
+		const COLORES: Record<Salsa, string> = {
+			ketchup: 'var(--color-heart)',
+			mostaza: 'var(--color-building)',
+			cebolla: 'var(--color-ok)',
+		};
+
+		const huecos = Array.from(parrillaEl.querySelectorAll<HTMLButtonElement>('[data-hueco]'));
+		const colaEl = section.querySelector<HTMLElement>('[data-cola]');
+		const molde = section.querySelector<HTMLTemplateElement>('[data-molde]');
+		const perritoEl = section.querySelector<HTMLElement>('[data-perrito]');
+		const perritoTxt = section.querySelector<HTMLElement>('[data-perrito-txt]');
+		const capa = section.querySelector<HTMLElement>('[data-overlay]');
+		const capaTitulo = section.querySelector<HTMLElement>('[data-overlay-title]');
+		const capaTexto = section.querySelector<HTMLElement>('[data-overlay-text]');
+		const botonJugar = section.querySelector<HTMLButtonElement>('[data-jugar]');
+		const jugarTxt = section.querySelector<HTMLElement>('[data-jugar-txt]');
+		const avisoEl = section.querySelector<HTMLElement>('[data-aviso]');
+
+		let estado: Estado = 'listo';
+		let parrilla: Hueco[] = huecos.map(() => null);
+		/** El perrito del mostrador: null si solo hay pan y, si no, sus salsas. */
+		let perrito: Salsa[] | null = null;
+		let clientes: Cliente[] = [];
+		let elegido = 0;
+		let puntos = 0;
+		let servidos = 0;
+		let fallos = 0;
+		let racha = 0;
+		let desdeUltimo = 0;
+		let siguienteId = 1;
+		let reloj = 0;
+		/** Los nodos de la cola, por cliente: así no se repinta entera cada décima. */
+		const nodos = new Map<number, HTMLElement>();
+
+		function leerRecord() {
+			try {
+				const guardado = Number(localStorage.getItem(CLAVE_RECORD));
+				return Number.isFinite(guardado) && guardado > 0 ? Math.floor(guardado) : 0;
+			} catch {
+				// Sin almacenamiento (modo privado): se juega igual, sin récord.
+				return 0;
+			}
+		}
+
+		let record = leerRecord();
+
+		/** Cada día llegan antes y esperan menos, pero nunca por debajo del suelo. */
+		function dia() {
+			return Math.floor(servidos / POR_DIA) + 1;
+		}
+
+		function cadaCuanto() {
+			return Math.max(2200, 5600 - (dia() - 1) * 400);
+		}
+
+		function paciencia() {
+			return Math.max(8000, 17000 - (dia() - 1) * 900);
+		}
+
+		function coccion(hueco: Hueco): Punto {
+			if (!hueco) return 'vacio';
+			if (hueco.cocido < HECHA) return 'cruda';
+			return hueco.cocido < QUEMADA ? 'hecha' : 'quemada';
+		}
+
+		/** La línea de avisos nunca queda vacía: si no, el hueco se cierra y salta. */
+		function decir(texto: string) {
+			if (avisoEl) avisoEl.textContent = texto || ' ';
+		}
+
+		/** Dos perritos son el mismo si llevan exactamente las mismas salsas. */
+		function mismas(a: Salsa[], b: Salsa[]) {
+			return SALSAS.every((salsa) => a.includes(salsa) === b.includes(salsa));
+		}
+
+		function enPalabras(pide: Salsa[]) {
+			return pide.length === 0 ? 'sin nada' : `con ${pide.map((s) => NOMBRES[s]).join(' y ')}`;
+		}
+
+		/** El pedido: siempre salchicha y, según el día, hasta dos salsas. */
+		function nuevoCliente() {
+			const cuantas = Math.floor(Math.random() * (dia() === 1 ? 2 : 3));
+			const sorteo = [...SALSAS].sort(() => Math.random() - 0.5).slice(0, cuantas);
+			const espera = paciencia();
+			// Las salsas van en el orden de siempre: el mismo pedido no puede parecer otro.
+			const pide = SALSAS.filter((salsa) => sorteo.includes(salsa));
+			clientes.push({ id: siguienteId++, pide, espera, total: espera });
+		}
+
+		/**
+		 * La cola se sincroniza en vez de repintarse: altas, bajas y el resto donde
+		 * estaba. El orden se mantiene solo, porque los nuevos entran por el final.
+		 */
+		function pintarCola() {
+			if (!colaEl || !molde) return;
+
+			for (const [id, nodo] of nodos) {
+				if (!clientes.some((cliente) => cliente.id === id)) {
+					nodo.remove();
+					nodos.delete(id);
+				}
+			}
+
+			clientes.forEach((cliente, i) => {
+				let nodo = nodos.get(cliente.id);
+
+				if (!nodo) {
+					const copia = molde.content.firstElementChild?.cloneNode(true);
+					if (!(copia instanceof HTMLElement)) return;
+					const boton = copia.querySelector<HTMLButtonElement>('[data-cliente]');
+					const pide = copia.querySelector<HTMLElement>('[data-pide]');
+					if (!boton || !pide) return;
+
+					boton.dataset.cliente = String(cliente.id);
+					boton.setAttribute('aria-label', `Cliente, perrito ${enPalabras(cliente.pide)}`);
+
+					const texto = document.createElement('span');
+					texto.className = 'text-xs text-muted';
+					texto.textContent = cliente.pide.length === 0 ? 'solo perrito' : 'perrito con';
+					pide.replaceChildren(
+						texto,
+						...cliente.pide.map((salsa) => {
+							const gota = document.createElement('span');
+							gota.className = 'inline-flex size-2.5 shrink-0';
+							gota.style.background = COLORES[salsa];
+							gota.title = NOMBRES[salsa];
+							return gota;
+						}),
+					);
+
+					nodos.set(cliente.id, copia);
+					colaEl.append(copia);
+					nodo = copia;
+				}
+
+				// Un solo color para la prisa: lo llevan la cara y la barra de paciencia.
+				const queda = Math.max(0, cliente.espera / cliente.total);
+				const prisa =
+					queda > 0.6
+						? 'var(--color-accent)'
+						: queda > 0.3
+							? 'var(--color-building)'
+							: 'var(--color-heart)';
+
+				nodo
+					.querySelector<HTMLButtonElement>('[data-cliente]')
+					?.setAttribute('aria-pressed', String(i === elegido));
+
+				const cara = nodo.querySelector<HTMLElement>('[data-cara]');
+				if (cara) cara.style.color = prisa;
+
+				const barra = nodo.querySelector<HTMLElement>('[data-paciencia]');
+				if (barra) {
+					barra.style.width = `${Math.round(queda * 100)}%`;
+					barra.style.background = prisa;
+				}
+			});
+		}
+
+		function pintarParrilla() {
+			huecos.forEach((boton, i) => {
+				const hueco = parrilla[i];
+				const punto = coccion(hueco);
+				boton.dataset.estado = punto;
+
+				const texto = boton.querySelector<HTMLElement>('[data-hueco-txt]');
+				if (texto) texto.textContent = punto === 'vacio' ? String(i + 1) : ETIQUETAS[punto];
+
+				const barra = boton.querySelector<HTMLElement>('[data-cocido]');
+				if (barra) barra.style.width = `${hueco ? Math.min(100, (hueco.cocido / QUEMADA) * 100) : 0}%`;
+
+				const que = punto === 'vacio' ? 'vacío' : `salchicha ${ETIQUETAS[punto]}`;
+				boton.setAttribute('aria-label', `Hueco ${i + 1}, ${que}`);
+			});
+		}
+
+		function pintarMostrador() {
+			if (perritoEl) perritoEl.dataset.lleno = String(perrito !== null);
+			if (perritoTxt) {
+				perritoTxt.textContent =
+					perrito === null ? 'Pan solo. Coge una salchicha hecha.' : `Perrito ${enPalabras(perrito)}`;
+				perritoTxt.classList.toggle('text-muted', perrito === null);
+			}
+			for (const salsa of SALSAS) {
+				const marca = section.querySelector<HTMLElement>(`[data-puesta='${salsa}']`);
+				if (marca) marca.hidden = perrito === null || !perrito.includes(salsa);
+			}
+		}
+
+		function pintarMarcador() {
+			const valores: Record<string, string> = {
+				puntos: String(puntos),
+				record: String(record),
+				dia: String(dia()),
+				fallos: `${fallos}/${TOPE_FALLOS}`,
+			};
+			for (const [id, valor] of Object.entries(valores)) {
+				const celda = section.querySelector<HTMLElement>(`[data-dato='${id}']`);
+				if (celda) celda.textContent = valor;
+			}
+		}
+
+		function pintarBoton() {
+			const etiquetas: Record<Estado, string> = {
+				listo: 'Abrir el puesto',
+				jugando: 'Pausa',
+				pausa: 'Seguir',
+				fin: 'Otra vez',
+			};
+			if (jugarTxt) jugarTxt.textContent = etiquetas[estado];
+			const play = section.querySelector<HTMLElement>('[data-icono="play"]');
+			const pause = section.querySelector<HTMLElement>('[data-icono="pause"]');
+			if (play) play.hidden = estado === 'jugando';
+			if (pause) pause.hidden = estado !== 'jugando';
+		}
+
+		function capaVisible(titulo: string | null, texto = '') {
+			if (!capa) return;
+			capa.style.display = titulo === null ? 'none' : '';
+			if (titulo === null) return;
+			if (capaTitulo) capaTitulo.textContent = titulo;
+			if (capaTexto) capaTexto.textContent = texto;
+		}
+
+		function pintar() {
+			pintarCola();
+			pintarParrilla();
+			pintarMostrador();
+			pintarMarcador();
+			pintarBoton();
+		}
+
+		function terminar(texto: string) {
+			clearInterval(reloj);
+			estado = 'fin';
+			if (puntos > record) {
+				record = puntos;
+				try {
+					localStorage.setItem(CLAVE_RECORD, String(record));
+				} catch {
+					// El récord es un lujo, no el juego.
+				}
+			}
+			capaVisible('Puesto cerrado', `${texto} ${puntos} puntos y día ${dia()}.`);
+			pintar();
+			decir(`Se acabó: ${puntos} puntos. Récord ${record}.`);
+		}
+
+		function fallar(texto: string) {
+			fallos += 1;
+			racha = 0;
+			if (fallos >= TOPE_FALLOS) terminar(texto);
+			else decir(`${texto} Fallo ${fallos} de ${TOPE_FALLOS}.`);
+		}
+
+		function tick() {
+			for (const hueco of parrilla) {
+				if (hueco) hueco.cocido += TICK;
+			}
+			for (const cliente of clientes) cliente.espera -= TICK;
+
+			const idos = clientes.filter((cliente) => cliente.espera <= 0).length;
+			clientes = clientes.filter((cliente) => cliente.espera > 0);
+			if (elegido >= clientes.length) elegido = Math.max(0, clientes.length - 1);
+
+			desdeUltimo += TICK;
+			if (clientes.length < COLA && desdeUltimo >= cadaCuanto()) {
+				nuevoCliente();
+				desdeUltimo = 0;
+			}
+
+			for (let n = 0; n < idos && estado === 'jugando'; n += 1) {
+				fallar('Se ha ido sin su perrito.');
+			}
+
+			if (estado === 'jugando') pintar();
+		}
+
+		function correr() {
+			clearInterval(reloj);
+			reloj = window.setInterval(tick, TICK);
+		}
+
+		function empezar() {
+			parrilla = huecos.map(() => null);
+			perrito = null;
+			clientes = [];
+			for (const nodo of nodos.values()) nodo.remove();
+			nodos.clear();
+			elegido = 0;
+			puntos = 0;
+			servidos = 0;
+			fallos = 0;
+			racha = 0;
+			desdeUltimo = 0;
+			estado = 'jugando';
+			nuevoCliente();
+			capaVisible(null);
+			pintar();
+			decir('Puesto abierto.');
+			correr();
+		}
+
+		function pausar() {
+			if (estado !== 'jugando') return;
+			clearInterval(reloj);
+			estado = 'pausa';
+			capaVisible('En pausa', 'Las salchichas también esperan.');
+			pintarBoton();
+		}
+
+		function alternar() {
+			if (estado === 'jugando') {
+				pausar();
+			} else if (estado === 'pausa') {
+				estado = 'jugando';
+				capaVisible(null);
+				pintarBoton();
+				correr();
+			} else {
+				empezar();
+			}
+		}
+
+		/* Un toque en la parrilla pone, coge o tira según el punto de la salchicha:
+		   la cruda no se puede coger y la quemada no se sirve. */
+		function tocarHueco(i: number) {
+			if (estado !== 'jugando') {
+				alternar();
+				return;
+			}
+
+			const punto = coccion(parrilla[i]);
+
+			if (punto === 'vacio') {
+				parrilla[i] = { cocido: 0 };
+				decir(`Salchicha al hueco ${i + 1}.`);
+			} else if (punto === 'cruda') {
+				decir('Aún está cruda.');
+			} else if (punto === 'quemada') {
+				parrilla[i] = null;
+				decir('Quemada, a la basura.');
+			} else if (perrito !== null) {
+				decir('El pan ya tiene salchicha. Sirve o tira ese perrito.');
+			} else {
+				parrilla[i] = null;
+				perrito = [];
+				decir('Salchicha al pan.');
+			}
+
+			pintar();
+		}
+
+		function echarSalsa(salsa: Salsa) {
+			if (estado !== 'jugando') return;
+			if (perrito === null) {
+				decir('Primero una salchicha.');
+				return;
+			}
+			if (perrito.includes(salsa)) {
+				decir(`Ya lleva ${NOMBRES[salsa]}.`);
+				return;
+			}
+			perrito = [...perrito, salsa];
+			decir(`Con ${NOMBRES[salsa]}.`);
+			pintar();
+		}
+
+		function tirar() {
+			if (estado !== 'jugando' || perrito === null) return;
+			perrito = null;
+			decir('Perrito a la basura.');
+			pintar();
+		}
+
+		/* Si el perrito es el que pedía, puntos —más cuanto antes se sirva y más
+		   larga sea la racha—. Si no, el cliente se va y cuenta como fallo. */
+		function servir() {
+			if (estado !== 'jugando') return;
+
+			const cliente = clientes[elegido];
+			if (!cliente) {
+				decir('No hay a quién servir.');
+				return;
+			}
+			if (perrito === null) {
+				decir('El pan está vacío.');
+				return;
+			}
+
+			const acierta = mismas(perrito, cliente.pide);
+			const queda = Math.max(0, cliente.espera / cliente.total);
+			clientes = clientes.filter((otro) => otro.id !== cliente.id);
+			perrito = null;
+			if (elegido >= clientes.length) elegido = Math.max(0, clientes.length - 1);
+
+			if (!acierta) {
+				fallar(`Pedía perrito ${enPalabras(cliente.pide)}.`);
+				if (estado === 'jugando') pintar();
+				return;
+			}
+
+			racha += 1;
+			servidos += 1;
+			const ganado = 10 + Math.round(10 * queda) + Math.min(racha, 5) * 2;
+			puntos += ganado;
+			decir(`Servido: ${ganado} puntos. Racha de ${racha}.`);
+			pintar();
+		}
+
+		function mover(paso: number) {
+			if (clientes.length === 0) return;
+			elegido = (elegido + paso + clientes.length) % clientes.length;
+			decir(`Cliente ${elegido + 1}: perrito ${enPalabras(clientes[elegido].pide)}.`);
+			pintarCola();
+		}
+
+		huecos.forEach((boton, i) => boton.addEventListener('click', () => tocarHueco(i)));
+
+		section.querySelectorAll<HTMLButtonElement>('[data-salsa]').forEach((boton) => {
+			boton.addEventListener('click', () => echarSalsa(boton.dataset.salsa as Salsa));
+		});
+
+		section.querySelector<HTMLButtonElement>('[data-servir]')?.addEventListener('click', servir);
+		section.querySelector<HTMLButtonElement>('[data-tirar]')?.addEventListener('click', tirar);
+		section.querySelector<HTMLButtonElement>('[data-reiniciar]')?.addEventListener('click', empezar);
+		botonJugar?.addEventListener('click', alternar);
+
+		colaEl?.addEventListener('click', (event) => {
+			const donde = event.target as HTMLElement | null;
+			const boton = donde?.closest<HTMLButtonElement>('[data-cliente]');
+			if (!boton) return;
+			const i = clientes.findIndex((cliente) => String(cliente.id) === boton.dataset.cliente);
+			if (i < 0) return;
+			elegido = i;
+			pintarCola();
+		});
+
+		/* El teclado solo manda si no se está escribiendo en otro sitio, y el espacio
+		   no se le quita a un botón con el foco: ahí ya lo pulsa el navegador. */
+		document.addEventListener('keydown', (event) => {
+			if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+			const donde = document.activeElement;
+			if (donde instanceof HTMLInputElement || donde instanceof HTMLTextAreaElement) return;
+
+			const tecla = event.key.toLowerCase();
+
+			if (tecla === ' ' || tecla === 'enter') {
+				if (donde instanceof HTMLButtonElement || donde instanceof HTMLAnchorElement) return;
+				event.preventDefault();
+				if (estado === 'jugando') servir();
+				else alternar();
+				return;
+			}
+
+			if (estado !== 'jugando') return;
+
+			const hueco = Number(tecla);
+			if (Number.isInteger(hueco) && hueco >= 1 && hueco <= huecos.length) {
+				event.preventDefault();
+				tocarHueco(hueco - 1);
+				return;
+			}
+
+			const salsas: Record<string, Salsa> = { k: 'ketchup', m: 'mostaza', c: 'cebolla' };
+			if (salsas[tecla]) {
+				event.preventDefault();
+				echarSalsa(salsas[tecla]);
+			} else if (tecla === 'arrowleft' || tecla === 'arrowright') {
+				event.preventDefault();
+				mover(tecla === 'arrowleft' ? -1 : 1);
+			} else if (tecla === 'backspace' || tecla === 'delete') {
+				event.preventDefault();
+				tirar();
+			}
+		});
+
+		// Con la pestaña de fondo, o con el puesto fuera de la pantalla, se pausa.
+		document.addEventListener('visibilitychange', () => {
+			if (document.hidden) pausar();
+		});
+
+		if ('IntersectionObserver' in window) {
+			new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						if (!entry.isIntersecting) pausar();
+					}
+				},
+				{ threshold: 0 },
+			).observe(section);
+		}
+
+		pintar();
+		decir('');
+	}
+</script>
