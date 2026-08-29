@@ -35,6 +35,14 @@ export const SECTIONS: Section[] = [
 			'Para probar una idea suelta sin abrir nada: escribe HTML, CSS y JavaScript en los tres editores y la vista previa se repinta según escribes. Los console.log y los errores salen en la consola de al lado. Se ejecuta en tu navegador, dentro de un marco aislado, y lo que escribes se queda ahí: no se envía nada.',
 	},
 	{
+		href: '/prompts',
+		title: 'Generador de prompts',
+		icon: 'prompt',
+		card: 'Dices lo que quieres en una línea y sale el prompt técnico entero.',
+		intro:
+			'Escribe la petición como te salga —«un login que aguante intentos repetidos»— y sale un prompt de verdad: rol, contexto, lo que se espera punto por punto, restricciones y formato de respuesta. Sirve para desarrollo, debugging, refactor, testing, SQL, APIs, arquitectura, DevOps y seguridad, con el lenguaje o el framework que uses. No hay ninguna IA detrás: la plantilla se arma en tu navegador y lo que escribes se queda ahí.',
+	},
+	{
 		href: '/diseno',
 		title: 'Diseño',
 		icon: 'palette',

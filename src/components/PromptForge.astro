@@ -1,0 +1,395 @@
+---
+/**
+ * El generador de prompts: dices lo que quieres en una línea y sale el encargo
+ * técnico entero, con rol, contexto, lo que se espera, restricciones y formato.
+ *
+ * Todo pasa en tu navegador: no hay modelo detrás ni se envía nada. La
+ * plantilla la pone src/lib/prompts.ts; aquí solo están los campos.
+ */
+import { EXTRAS, LEVELS, MAX_LENGTH, STACKS, TASKS } from '../lib/prompts';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+const CAMPO =
+	'w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent';
+
+/** Los dos campos sueltos: mismo molde, distinto sitio en el prompt. */
+const NOTAS = [
+	{
+		id: 'context',
+		label: 'Contexto, una cosa por línea',
+		hint: 'Monorepo con pnpm\nLa tabla ya tiene 40 millones de filas',
+	},
+	{
+		id: 'constraints',
+		label: 'Restricciones, una por línea',
+		hint: 'Node 20, nada más moderno\nSin tocar el esquema de la base',
+	},
+];
+---
+
+<section id="prompts" class="flex flex-col gap-6">
+	<div class="flex flex-col gap-2">
+		<span class="text-sm text-muted">Tarea</span>
+		<div class="flex flex-wrap gap-2" role="group" aria-label="Tipo de tarea">
+			{
+				TASKS.map((task, index) => (
+					<button
+						type="button"
+						data-pf-task={task.id}
+						aria-pressed={index === 0 ? 'true' : 'false'}
+						class={BOTON}
+					>
+						<Icon name={task.icon} class="size-4 shrink-0" />
+						{task.label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+					<label for="pf-peticion" class="inline-flex items-center gap-2">
+						<Icon name="prompt" class="size-4 shrink-0 text-accent" />
+						Qué quieres
+					</label>
+					<button type="button" data-pf-sample class="text-accent hover:underline">Ejemplo</button>
+				</span>
+				<textarea
+					id="pf-peticion"
+					data-pf-field="request"
+					rows="3"
+					spellcheck="false"
+					maxlength={MAX_LENGTH}
+					class={CAMPO}></textarea>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<label for="pf-stack" class="text-sm text-muted">
+					Lenguaje, framework o entorno <span class="text-muted/70">(opcional)</span>
+				</label>
+				<input
+					type="text"
+					id="pf-stack"
+					data-pf-field="stack"
+					spellcheck="false"
+					autocomplete="off"
+					maxlength={MAX_LENGTH}
+					placeholder="TypeScript, Astro, PostgreSQL…"
+					class="w-full border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+				/>
+				<div class="flex flex-wrap gap-2">
+					{
+						STACKS.map((stack) => (
+							<button
+								type="button"
+								data-pf-stack={stack}
+								class="border border-line px-3 py-1.5 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								{stack}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			{
+				NOTAS.map((nota) => (
+					<div class="flex flex-col gap-2">
+						<label for={`pf-${nota.id}`} class="text-sm text-muted">
+							{nota.label} <span class="text-muted/70">(opcional)</span>
+						</label>
+						<textarea
+							id={`pf-${nota.id}`}
+							data-pf-field={nota.id}
+							rows="3"
+							spellcheck="false"
+							maxlength={MAX_LENGTH}
+							placeholder={nota.hint}
+							class={CAMPO}
+						></textarea>
+					</div>
+				))
+			}
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Nivel de detalle</span>
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Nivel de detalle">
+					{
+						LEVELS.map((level) => (
+							<button
+								type="button"
+								data-pf-level={level.id}
+								aria-pressed={level.id === 'estandar' ? 'true' : 'false'}
+								class={BOTON}
+							>
+								{level.label}
+							</button>
+						))
+					}
+				</div>
+				<p data-pf-level-hint class="text-sm text-muted"></p>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Añadidos</span>
+				<div class="flex flex-wrap gap-x-5 gap-y-2">
+					{
+						EXTRAS.map((extra) => (
+							<label class="inline-flex items-center gap-2 text-sm text-muted">
+								<input type="checkbox" data-pf-extra={extra.id} class="size-4 accent-accent" />
+								{extra.label}
+							</label>
+						))
+					}
+				</div>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3 lg:sticky lg:top-6">
+			<div class="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+				<span class="inline-flex items-center gap-2">
+					<Icon name="terminal-2" class="size-4 shrink-0 text-accent" />
+					Tu prompt
+				</span>
+				<span data-pf-count class="text-mark"></span>
+			</div>
+
+			<textarea
+				data-pf-output
+				readonly
+				rows="20"
+				spellcheck="false"
+				aria-label="Prompt generado"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"
+			></textarea>
+
+			<div class="flex flex-wrap items-center gap-3">
+				<button type="button" data-pf-copy class={`${BOTON} border-accent text-accent`}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-pf-copy-label aria-live="polite">Copiar el prompt</span>
+				</button>
+				<button type="button" data-pf-clear class={BOTON}>
+					<Icon name="eraser" class="size-4 shrink-0" />
+					Empezar de cero
+				</button>
+			</div>
+
+			<p class="text-sm text-muted">
+				No hay ninguna IA detrás: el prompt se arma aquí, en tu navegador, y lo que escribes se
+				queda en él. Cópialo y pégalo donde lo vayas a usar.
+			</p>
+		</div>
+	</div>
+</section>
+
+<style>
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-pf-copy] [data-icon='check'] {
+		display: none;
+	}
+	[data-pf-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-pf-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-pf-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import {
+		DEFAULT_DRAFT,
+		LEVELS,
+		buildPrompt,
+		getTask,
+		readDraft,
+		saveDraft,
+		type Draft,
+		type ExtraId,
+		type LevelId,
+	} from '../lib/prompts';
+
+	const salida = document.querySelector<HTMLTextAreaElement>('[data-pf-output]');
+	const cuenta = document.querySelector<HTMLElement>('[data-pf-count]');
+	const ayudaNivel = document.querySelector<HTMLElement>('[data-pf-level-hint]');
+	const peticion = document.querySelector<HTMLTextAreaElement>('[data-pf-field="request"]');
+	const stack = document.querySelector<HTMLInputElement>('[data-pf-field="stack"]');
+
+	if (salida && peticion && stack) {
+		/** Lo justo para no rearmar el prompt en cada tecla. */
+		const ESPERA = 250;
+
+		const campos = new Map<keyof Draft, HTMLTextAreaElement | HTMLInputElement>();
+		document.querySelectorAll<HTMLTextAreaElement>('[data-pf-field]').forEach((campo) => {
+			campos.set(campo.dataset.pfField as keyof Draft, campo);
+		});
+
+		const botonesTarea = document.querySelectorAll<HTMLButtonElement>('[data-pf-task]');
+		const botonesNivel = document.querySelectorAll<HTMLButtonElement>('[data-pf-level]');
+		const casillas = document.querySelectorAll<HTMLInputElement>('[data-pf-extra]');
+
+		let borrador: Draft = { ...DEFAULT_DRAFT };
+
+		function texto(id: keyof Draft) {
+			return campos.get(id)?.value ?? '';
+		}
+
+		function leer(): Draft {
+			return {
+				task: borrador.task,
+				level: borrador.level,
+				request: texto('request'),
+				stack: texto('stack'),
+				context: texto('context'),
+				constraints: texto('constraints'),
+				extras: [...casillas]
+					.filter((casilla) => casilla.checked)
+					.map((casilla) => casilla.dataset.pfExtra as ExtraId),
+			};
+		}
+
+		function pintar() {
+			const prompt = buildPrompt(borrador);
+			salida.value = prompt;
+			salida.placeholder = 'Escribe arriba qué quieres y el prompt sale aquí.';
+
+			if (cuenta) {
+				const lineas = prompt ? prompt.split('\n').length : 0;
+				cuenta.textContent = prompt
+					? `${lineas} ${lineas === 1 ? 'línea' : 'líneas'} · ${prompt.length} caracteres`
+					: 'Sin nada todavía';
+			}
+		}
+
+		function marcar() {
+			botonesTarea.forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.pfTask === borrador.task));
+			});
+			botonesNivel.forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.pfLevel === borrador.level));
+			});
+			casillas.forEach((casilla) => {
+				casilla.checked = borrador.extras.includes(casilla.dataset.pfExtra as ExtraId);
+			});
+
+			const nivel = LEVELS.find((item) => item.id === borrador.level);
+			if (ayudaNivel) ayudaNivel.textContent = nivel?.hint ?? '';
+			peticion.placeholder = `Ej.: ${getTask(borrador.task).hint}`;
+		}
+
+		let reloj: number | undefined;
+
+		function actualizar(inmediato = false) {
+			borrador = leer();
+			pintar();
+			clearTimeout(reloj);
+			if (inmediato) {
+				saveDraft(borrador);
+				return;
+			}
+			reloj = window.setTimeout(() => saveDraft(borrador), ESPERA);
+		}
+
+		campos.forEach((campo) => campo.addEventListener('input', () => actualizar()));
+		casillas.forEach((casilla) => casilla.addEventListener('change', () => actualizar(true)));
+
+		// Tarea y nivel no son campos: se guardan aquí y repintan lo marcado.
+		function elegir(cambio: Partial<Draft>) {
+			borrador = { ...leer(), ...cambio };
+			marcar();
+			pintar();
+			saveDraft(borrador);
+		}
+
+		botonesTarea.forEach((boton) => {
+			const task = getTask(boton.dataset.pfTask ?? '').id;
+			boton.addEventListener('click', () => elegir({ task }));
+		});
+
+		botonesNivel.forEach((boton) => {
+			const level = (boton.dataset.pfLevel ?? 'estandar') as LevelId;
+			boton.addEventListener('click', () => elegir({ level }));
+		});
+
+		// Las etiquetas de stack se ponen y se quitan; lo escrito a mano se respeta.
+		document.querySelectorAll<HTMLButtonElement>('[data-pf-stack]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				const nombre = boton.dataset.pfStack ?? '';
+				const partes = stack.value
+					.split(',')
+					.map((parte) => parte.trim())
+					.filter(Boolean);
+				const fuera = partes.filter((parte) => parte.toLowerCase() !== nombre.toLowerCase());
+
+				stack.value = (fuera.length === partes.length ? [...partes, nombre] : fuera).join(', ');
+				actualizar(true);
+			});
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-pf-sample]')?.addEventListener('click', () => {
+			peticion.value = getTask(borrador.task).hint;
+			peticion.focus();
+			actualizar(true);
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-pf-clear]')?.addEventListener('click', () => {
+			campos.forEach((campo) => {
+				campo.value = '';
+			});
+			borrador = { ...DEFAULT_DRAFT };
+			marcar();
+			actualizar(true);
+		});
+
+		let relojCopia: number | undefined;
+		const copia = document.querySelector<HTMLButtonElement>('[data-pf-copy]');
+		const copiaLabel = copia?.querySelector('[data-pf-copy-label]');
+
+		async function copiar(texto: string) {
+			try {
+				await navigator.clipboard.writeText(texto);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el prompt sigue ahí para seleccionarlo.
+				return false;
+			}
+		}
+
+		copia?.addEventListener('click', async () => {
+			const hecho = salida.value ? await copiar(salida.value) : false;
+
+			copia.dataset.state = hecho ? 'done' : 'error';
+			if (copiaLabel) {
+				copiaLabel.textContent = hecho
+					? 'Copiado'
+					: salida.value
+						? 'No se pudo copiar'
+						: 'Todavía no hay prompt';
+			}
+
+			clearTimeout(relojCopia);
+			relojCopia = window.setTimeout(() => {
+				copia.removeAttribute('data-state');
+				if (copiaLabel) copiaLabel.textContent = 'Copiar el prompt';
+			}, 2000);
+		});
+
+		// Al entrar: lo de la última visita si lo hay.
+		const guardado = readDraft();
+		campos.forEach((campo, id) => {
+			const valor = guardado[id];
+			campo.value = typeof valor === 'string' ? valor : '';
+		});
+		borrador = guardado;
+		marcar();
+		pintar();
+	}
+</script>
