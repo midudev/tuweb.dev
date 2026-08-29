@@ -1,0 +1,722 @@
+---
+/**
+ * «Midudev Escape»: midudev se ha quedado dentro del build. Hay que recoger los
+ * commits sueltos, abrir la salida y llegar a ella sin que te pillen los bugs.
+ * Todo pasa en el navegador y nada sube al servidor: el récord vive en el
+ * localStorage de quien juega.
+ */
+import Icon from './Icon.astro';
+
+/** Impares los dos: el laberinto se cava sobre las casillas impares. */
+const COLS = 17;
+const ROWS = 13;
+
+const VIDAS = 3;
+
+const MARCADOR = [
+	{ id: 'puntos', label: 'puntos', icon: 'coin' },
+	{ id: 'record', label: 'récord', icon: 'trophy' },
+	{ id: 'nivel', label: 'planta', icon: 'stairs-up' },
+	{ id: 'vidas', label: 'vidas', icon: 'heart' },
+];
+
+const PAD = [
+	{ id: 'arriba', label: 'Arriba', icon: 'chevron-up', class: 'col-start-2' },
+	{ id: 'izquierda', label: 'Izquierda', icon: 'chevron-left', class: 'col-start-1 row-start-2' },
+	{ id: 'abajo', label: 'Abajo', icon: 'chevron-down', class: 'col-start-2 row-start-2' },
+	{ id: 'derecha', label: 'Derecha', icon: 'chevron-right', class: 'col-start-3 row-start-2' },
+];
+
+const FILA = 'flex items-baseline justify-between gap-3 border-t border-line pt-1.5';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-4 py-3 text-sm text-muted hover:border-accent hover:text-accent';
+const CASILLA = 'flex aspect-square items-center justify-center bg-panel';
+---
+
+<section id="escape" class="flex flex-col gap-7">
+	<div class="flex flex-col gap-6 md:flex-row md:items-start">
+		<div class="relative w-full max-w-lg shrink-0">
+			<div
+				data-tablero
+				data-cols={COLS}
+				data-rows={ROWS}
+				data-vidas={VIDAS}
+				tabindex="0"
+				role="application"
+				aria-label="Planta del build: midudev, los bugs y la salida"
+				class="grid touch-none gap-px border border-line bg-line select-none"
+				style={`grid-template-columns: repeat(${COLS}, minmax(0, 1fr))`}
+			>
+				{Array.from({ length: COLS * ROWS }, () => <span class={CASILLA} />)}
+			</div>
+
+			<div
+				data-overlay
+				class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg/90 px-6 text-center"
+			>
+				<p data-overlay-title class="font-pixel text-lg text-accent">Midudev Escape</p>
+				<p data-overlay-text class="max-w-[42ch] text-sm text-muted">
+					Recoge los commits, abre la salida y que no te pillen.
+				</p>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 grow flex-col gap-6">
+			<dl class="flex flex-col gap-1.5 text-sm">
+				{
+					MARCADOR.map((dato) => (
+						<div class={FILA}>
+							<dt class="flex items-baseline gap-2 text-muted">
+								<Icon name={dato.icon} class="size-3.5 shrink-0 self-center" />
+								{dato.label}
+							</dt>
+							<dd data-dato={dato.id} class="font-pixel tabular-nums">
+								0
+							</dd>
+						</div>
+					))
+				}
+				<div class={FILA}>
+					<dt class="flex items-baseline gap-2 text-muted">
+						<Icon name="git-commit" class="size-3.5 shrink-0 self-center" />
+						commits
+					</dt>
+					<dd data-dato="commits" class="font-pixel tabular-nums">0</dd>
+				</div>
+			</dl>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-jugar class={BOTON}>
+					<span data-icono="play" class="inline-flex"><Icon name="player-play" class="size-4" /></span>
+					<span data-icono="pause" hidden class="inline-flex">
+						<Icon name="player-pause" class="size-4" />
+					</span>
+					<span data-jugar-txt>Entrar al build</span>
+				</button>
+				<button type="button" data-reiniciar class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Reiniciar
+				</button>
+			</div>
+
+			<div class="grid w-44 grid-cols-3 gap-2" role="group" aria-label="Dirección">
+				{
+					PAD.map((tecla) => (
+						<button
+							type="button"
+							data-pad={tecla.id}
+							aria-label={tecla.label}
+							class:list={[
+								'flex items-center justify-center border border-line py-3 text-muted hover:border-accent hover:text-accent',
+								tecla.class,
+							]}
+						>
+							<Icon name={tecla.icon} class="size-4 shrink-0" />
+						</button>
+					))
+				}
+			</div>
+
+			<ul class="flex flex-col gap-1.5 text-sm text-muted">
+				<li class="flex items-center gap-2.5">
+					<span data-leyenda="yo" class="inline-flex size-4 shrink-0 items-center justify-center">
+						<Icon name="run" class="size-full" />
+					</span>
+					midudev, tú
+				</li>
+				<li class="flex items-center gap-2.5">
+					<span data-leyenda="bicho" class="inline-flex size-4 shrink-0 items-center justify-center">
+						<Icon name="bug" class="size-full" />
+					</span>
+					bugs: te siguen y quitan vida
+				</li>
+				<li class="flex items-center gap-2.5">
+					<span data-leyenda="commit" class="inline-flex size-4 shrink-0 items-center justify-center">
+						<Icon name="git-commit" class="size-full" />
+					</span>
+					commits: hay que llevárselos todos
+				</li>
+				<li class="flex items-center gap-2.5">
+					<span data-leyenda="salida" class="inline-flex size-4 shrink-0 items-center justify-center">
+						<Icon name="door-exit" class="size-full" />
+					</span>
+					la salida, que abre con el último commit
+				</li>
+			</ul>
+
+			<p data-aviso role="status" aria-live="polite" class="text-sm text-muted">&nbsp;</p>
+		</div>
+	</div>
+
+	<p class="max-w-[62ch] text-sm text-muted">
+		Con <span class="font-pixel">← ↑ → ↓</span> o <span class="font-pixel">WASD</span> te mueves una
+		casilla, y <span class="font-pixel">espacio</span> pausa. En el móvil, desliza sobre la planta o
+		usa la cruceta. Cada planta que sales llega con más bugs y más rápidos. Tres bugs encima y se
+		acabó.
+	</p>
+
+	<template data-molde="yo"><Icon name="run" class="size-full" /></template>
+	<template data-molde="bicho"><Icon name="bug" class="size-full" /></template>
+	<template data-molde="commit"><Icon name="git-commit" class="size-full" /></template>
+	<template data-molde="salida"><Icon name="door-exit" class="size-full" /></template>
+	<template data-molde="cerrada"><Icon name="door-exit" class="size-full" /></template>
+</section>
+
+<style>
+	/* El muro es la única casilla que se pinta entera; el resto van por icono. */
+	[data-tablero] span[data-k='muro'] {
+		background: color-mix(in oklab, var(--color-accent) 20%, var(--color-line));
+	}
+
+	[data-tablero] span[data-k='yo'],
+	[data-leyenda='yo'] {
+		color: var(--color-accent);
+	}
+
+	[data-tablero] span[data-k='bicho'],
+	[data-leyenda='bicho'] {
+		color: var(--color-heart);
+	}
+
+	[data-tablero] span[data-k='commit'],
+	[data-leyenda='commit'] {
+		color: var(--color-mark);
+	}
+
+	[data-tablero] span[data-k='salida'],
+	[data-leyenda='salida'] {
+		color: var(--color-ok);
+	}
+
+	/* La salida cerrada se ve, pero apagada: sabes dónde está desde el principio. */
+	[data-tablero] span[data-k='cerrada'] {
+		color: var(--color-muted);
+		opacity: 0.55;
+	}
+</style>
+
+<script>
+	const section = document.querySelector<HTMLElement>('#escape');
+	const tablero = section?.querySelector<HTMLElement>('[data-tablero]');
+
+	if (section && tablero) {
+		// La planta la manda el markup: aquí no se adivina su tamaño.
+		const COLS = Number(tablero.dataset.cols);
+		const ROWS = Number(tablero.dataset.rows);
+		const VIDAS = Number(tablero.dataset.vidas);
+		/** Muros que se tiran después de cavar: un laberinto perfecto es una ratonera. */
+		const ATAJOS = 12;
+		const CLAVE_RECORD = 'tuweb:escape:record';
+
+		type Estado = 'listo' | 'jugando' | 'pausa' | 'fin';
+		type Punto = { x: number; y: number };
+		type Bicho = { x: number; y: number; dx: number; dy: number; casa: Punto };
+		type Clave = 'muro' | 'suelo' | 'yo' | 'bicho' | 'commit' | 'salida' | 'cerrada';
+
+		const DIRS: Punto[] = [
+			{ x: 0, y: -1 },
+			{ x: 0, y: 1 },
+			{ x: -1, y: 0 },
+			{ x: 1, y: 0 },
+		];
+
+		const SALIDA: Punto = { x: COLS - 2, y: ROWS - 2 };
+		const CASA: Punto = { x: 1, y: 1 };
+
+		const casillas = Array.from(tablero.children) as HTMLElement[];
+		const capa = section.querySelector<HTMLElement>('[data-overlay]');
+		const capaTitulo = section.querySelector<HTMLElement>('[data-overlay-title]');
+		const capaTexto = section.querySelector<HTMLElement>('[data-overlay-text]');
+		const botonJugar = section.querySelector<HTMLButtonElement>('[data-jugar]');
+		const jugarTxt = section.querySelector<HTMLElement>('[data-jugar-txt]');
+		const avisoEl = section.querySelector<HTMLElement>('[data-aviso]');
+
+		const moldes = new Map<string, HTMLTemplateElement>();
+		for (const molde of section.querySelectorAll<HTMLTemplateElement>('[data-molde]')) {
+			moldes.set(molde.dataset.molde ?? '', molde);
+		}
+
+		let estado: Estado = 'listo';
+		let muros: boolean[] = new Array(COLS * ROWS).fill(true);
+		let jugador: Punto = { ...CASA };
+		let bichos: Bicho[] = [];
+		let commits = new Set<number>();
+		let nivel = 1;
+		let puntos = 0;
+		let vidas = VIDAS;
+		let reloj = 0;
+		/** Lo que hay pintado en cada casilla, para no repintar la planta entera. */
+		const pintado: (Clave | null)[] = casillas.map(() => null);
+
+		function leerRecord() {
+			try {
+				const guardado = Number(localStorage.getItem(CLAVE_RECORD));
+				return Number.isFinite(guardado) && guardado > 0 ? Math.floor(guardado) : 0;
+			} catch {
+				// Sin almacenamiento (modo privado): se juega igual, sin récord.
+				return 0;
+			}
+		}
+
+		let record = leerRecord();
+
+		const indice = (x: number, y: number) => y * COLS + x;
+		const dentro = (x: number, y: number) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+		const muro = (x: number, y: number) => !dentro(x, y) || muros[indice(x, y)];
+		const abierta = () => commits.size === 0;
+		/** «n 3 commits» o « 1 commit»: el aviso pone delante «falta» o «queda». */
+		const quedan = () => (commits.size === 1 ? ' 1 commit' : `n ${commits.size} commits`);
+		const azar = (tope: number) => Math.floor(Math.random() * tope);
+
+		/** La línea de avisos nunca queda vacía: si no, el hueco se cierra y salta. */
+		function decir(texto: string) {
+			if (avisoEl) avisoEl.textContent = texto || ' ';
+		}
+
+		/** Cada planta que subes, los bugs andan más ligeros y persiguen mejor. */
+		function ritmo() {
+			return Math.max(200, 520 - (nivel - 1) * 45);
+		}
+
+		function cuantosBichos() {
+			return Math.min(2 + Math.floor((nivel - 1) * 0.8), 6);
+		}
+
+		function cuantosCommits() {
+			return Math.min(3 + Math.floor(nivel / 2), 6);
+		}
+
+		function persecucion() {
+			return Math.min(0.85, 0.55 + (nivel - 1) * 0.05);
+		}
+
+		/**
+		 * El laberinto sale de un cavado clásico sobre las casillas impares, y luego
+		 * se le tiran unos muros sueltos para que haya vueltas por donde escapar.
+		 */
+		function cavar() {
+			muros = new Array(COLS * ROWS).fill(true);
+			const abrir = (x: number, y: number) => {
+				muros[indice(x, y)] = false;
+			};
+
+			abrir(CASA.x, CASA.y);
+			const pila: Punto[] = [{ ...CASA }];
+
+			while (pila.length) {
+				const actual = pila[pila.length - 1];
+				const vecinos = DIRS.map((dir) => ({
+					x: actual.x + dir.x * 2,
+					y: actual.y + dir.y * 2,
+					mx: actual.x + dir.x,
+					my: actual.y + dir.y,
+				})).filter(
+					(paso) =>
+						paso.x > 0 && paso.y > 0 && paso.x < COLS - 1 && paso.y < ROWS - 1 && muro(paso.x, paso.y),
+				);
+
+				if (!vecinos.length) {
+					pila.pop();
+					continue;
+				}
+
+				const paso = vecinos[azar(vecinos.length)];
+				abrir(paso.mx, paso.my);
+				abrir(paso.x, paso.y);
+				pila.push({ x: paso.x, y: paso.y });
+			}
+
+			for (let n = 0; n < ATAJOS; n += 1) {
+				const x = 1 + azar(COLS - 2);
+				const y = 1 + azar(ROWS - 2);
+				if (!muro(x, y)) continue;
+				// Solo se tira el muro que junta dos pasillos por un mismo eje.
+				const horizontal = !muro(x - 1, y) && !muro(x + 1, y);
+				const vertical = !muro(x, y - 1) && !muro(x, y + 1);
+				if (horizontal !== vertical) abrir(x, y);
+			}
+		}
+
+		function libres() {
+			const sitios: number[] = [];
+			for (let i = 0; i < muros.length; i += 1) {
+				if (!muros[i]) sitios.push(i);
+			}
+			return sitios;
+		}
+
+		const lejos = (i: number) =>
+			Math.abs((i % COLS) - CASA.x) + Math.abs(Math.floor(i / COLS) - CASA.y);
+
+		/** Planta nueva: se cava, se reparten commits y se sueltan los bugs lejos. */
+		function montarNivel() {
+			cavar();
+
+			const puerta = indice(SALIDA.x, SALIDA.y);
+			const sitios = libres().filter((i) => i !== indice(CASA.x, CASA.y) && i !== puerta);
+			const cogidos = new Set<number>();
+
+			const coger = (candidatos: number[]) => {
+				const sueltos = candidatos.filter((i) => !cogidos.has(i));
+				if (!sueltos.length) return null;
+				const elegido = sueltos[azar(sueltos.length)];
+				cogidos.add(elegido);
+				return elegido;
+			};
+
+			// Los bugs nunca empiezan encima: a menos de ocho pasos no se sueltan.
+			const cuna = sitios.filter((i) => lejos(i) >= 8);
+			bichos = [];
+			for (let n = 0; n < cuantosBichos(); n += 1) {
+				const sitio = coger(cuna.length ? cuna : sitios);
+				if (sitio === null) break;
+				const casa = { x: sitio % COLS, y: Math.floor(sitio / COLS) };
+				bichos.push({ ...casa, dx: 0, dy: 0, casa });
+			}
+
+			commits = new Set();
+			for (let n = 0; n < cuantosCommits(); n += 1) {
+				const sitio = coger(sitios);
+				if (sitio === null) break;
+				commits.add(sitio);
+			}
+
+			jugador = { ...CASA };
+			pintado.fill(null);
+		}
+
+		/** Tras un bug encima, todos vuelven a su sitio; los commits ya cogidos siguen. */
+		function volverAEmpezarPlanta() {
+			jugador = { ...CASA };
+			for (const bicho of bichos) {
+				bicho.x = bicho.casa.x;
+				bicho.y = bicho.casa.y;
+				bicho.dx = 0;
+				bicho.dy = 0;
+			}
+		}
+
+		function claveDe(i: number): Clave {
+			if (muros[i]) return 'muro';
+			const x = i % COLS;
+			const y = Math.floor(i / COLS);
+			if (jugador.x === x && jugador.y === y) return 'yo';
+			if (bichos.some((bicho) => bicho.x === x && bicho.y === y)) return 'bicho';
+			if (commits.has(i)) return 'commit';
+			if (SALIDA.x === x && SALIDA.y === y) return abierta() ? 'salida' : 'cerrada';
+			return 'suelo';
+		}
+
+		function pintarPlanta() {
+			casillas.forEach((casilla, i) => {
+				const clave = claveDe(i);
+				if (pintado[i] === clave) return;
+				pintado[i] = clave;
+				casilla.dataset.k = clave;
+
+				const molde = moldes.get(clave);
+				if (!molde) {
+					casilla.replaceChildren();
+					return;
+				}
+				const copia = molde.content.firstElementChild?.cloneNode(true);
+				casilla.replaceChildren(...(copia ? [copia] : []));
+			});
+		}
+
+		function pintarMarcador() {
+			const valores: Record<string, string> = {
+				puntos: String(puntos),
+				record: String(record),
+				nivel: String(nivel),
+				vidas: `${vidas}/${VIDAS}`,
+				commits: `${cuantosCommits() - commits.size}/${cuantosCommits()}`,
+			};
+			for (const [id, valor] of Object.entries(valores)) {
+				const celda = section.querySelector<HTMLElement>(`[data-dato='${id}']`);
+				if (celda) celda.textContent = valor;
+			}
+		}
+
+		function pintarBoton() {
+			const etiquetas: Record<Estado, string> = {
+				listo: 'Entrar al build',
+				jugando: 'Pausa',
+				pausa: 'Seguir',
+				fin: 'Otra vez',
+			};
+			if (jugarTxt) jugarTxt.textContent = etiquetas[estado];
+			const play = section.querySelector<HTMLElement>('[data-icono="play"]');
+			const pause = section.querySelector<HTMLElement>('[data-icono="pause"]');
+			if (play) play.hidden = estado === 'jugando';
+			if (pause) pause.hidden = estado !== 'jugando';
+		}
+
+		function capaVisible(titulo: string | null, texto = '') {
+			if (!capa) return;
+			capa.style.display = titulo === null ? 'none' : '';
+			if (titulo === null) return;
+			if (capaTitulo) capaTitulo.textContent = titulo;
+			if (capaTexto) capaTexto.textContent = texto;
+		}
+
+		function pintar() {
+			pintarPlanta();
+			pintarMarcador();
+			pintarBoton();
+		}
+
+		function terminar(texto: string) {
+			clearInterval(reloj);
+			estado = 'fin';
+			if (puntos > record) {
+				record = puntos;
+				try {
+					localStorage.setItem(CLAVE_RECORD, String(record));
+				} catch {
+					// El récord es un lujo, no el juego.
+				}
+			}
+			capaVisible('Te han pillado', `${texto} ${puntos} puntos y planta ${nivel}.`);
+			pintar();
+			decir(`Se acabó: ${puntos} puntos. Récord ${record}.`);
+		}
+
+		function pillado() {
+			vidas -= 1;
+			if (vidas <= 0) {
+				terminar('Los bugs ganaron esta.');
+				return;
+			}
+			volverAEmpezarPlanta();
+			decir(`Un bug encima. Te queda${vidas === 1 ? ' 1 vida' : `n ${vidas} vidas`}.`);
+			pintar();
+		}
+
+		function subirPlanta() {
+			puntos += 40 + vidas * 5;
+			nivel += 1;
+			montarNivel();
+			decir(`Fuera. Planta ${nivel}: más bugs y con más prisa.`);
+			pintar();
+			correr();
+		}
+
+		function tocaBicho() {
+			return bichos.some((bicho) => bicho.x === jugador.x && bicho.y === jugador.y);
+		}
+
+		function mover(dx: number, dy: number) {
+			if (estado !== 'jugando') return;
+
+			const x = jugador.x + dx;
+			const y = jugador.y + dy;
+			if (muro(x, y)) return;
+
+			jugador = { x, y };
+
+			const aqui = indice(x, y);
+			if (commits.has(aqui)) {
+				commits.delete(aqui);
+				puntos += 10;
+				decir(
+					abierta() ? 'Último commit. La salida está abierta.' : `Commit recogido. Queda${quedan()}.`,
+				);
+			}
+
+			if (tocaBicho()) {
+				pillado();
+				return;
+			}
+
+			if (x === SALIDA.x && y === SALIDA.y) {
+				if (abierta()) {
+					subirPlanta();
+					return;
+				}
+				decir(`La salida está cerrada: falta${quedan()}.`);
+			}
+
+			pintar();
+		}
+
+		const distancia = (x: number, y: number) => Math.abs(x - jugador.x) + Math.abs(y - jugador.y);
+
+		/**
+		 * Los bugs no son listos: casi siempre tiran por donde te acercan y, de vez
+		 * en cuando, por donde les da. Volver sobre sus pasos, solo si no hay otra.
+		 */
+		function moverBichos() {
+			for (const bicho of bichos) {
+				const salidas = DIRS.filter((dir) => !muro(bicho.x + dir.x, bicho.y + dir.y));
+				if (!salidas.length) continue;
+
+				const sinVolver = salidas.filter((dir) => !(dir.x === -bicho.dx && dir.y === -bicho.dy));
+				const candidatas = sinVolver.length ? sinVolver : salidas;
+
+				const dir =
+					Math.random() < persecucion()
+						? candidatas.reduce((mejor, otra) =>
+								distancia(bicho.x + otra.x, bicho.y + otra.y) <
+								distancia(bicho.x + mejor.x, bicho.y + mejor.y)
+									? otra
+									: mejor,
+							)
+						: candidatas[azar(candidatas.length)];
+
+				bicho.x += dir.x;
+				bicho.y += dir.y;
+				bicho.dx = dir.x;
+				bicho.dy = dir.y;
+			}
+		}
+
+		function tick() {
+			if (estado !== 'jugando') return;
+			moverBichos();
+			if (tocaBicho()) {
+				pillado();
+				return;
+			}
+			pintar();
+		}
+
+		function correr() {
+			clearInterval(reloj);
+			reloj = window.setInterval(tick, ritmo());
+		}
+
+		function empezar() {
+			nivel = 1;
+			puntos = 0;
+			vidas = VIDAS;
+			estado = 'jugando';
+			montarNivel();
+			capaVisible(null);
+			pintar();
+			decir('Dentro del build. Coge los commits.');
+			correr();
+		}
+
+		function pausar() {
+			if (estado !== 'jugando') return;
+			clearInterval(reloj);
+			estado = 'pausa';
+			capaVisible('En pausa', 'Los bugs también esperan.');
+			pintarBoton();
+		}
+
+		function alternar() {
+			if (estado === 'jugando') {
+				pausar();
+			} else if (estado === 'pausa') {
+				estado = 'jugando';
+				capaVisible(null);
+				pintarBoton();
+				correr();
+			} else {
+				empezar();
+			}
+		}
+
+		const PASOS: Record<string, Punto> = {
+			arrowup: { x: 0, y: -1 },
+			arrowdown: { x: 0, y: 1 },
+			arrowleft: { x: -1, y: 0 },
+			arrowright: { x: 1, y: 0 },
+			w: { x: 0, y: -1 },
+			s: { x: 0, y: 1 },
+			a: { x: -1, y: 0 },
+			d: { x: 1, y: 0 },
+		};
+
+		const PAD: Record<string, Punto> = {
+			arriba: { x: 0, y: -1 },
+			abajo: { x: 0, y: 1 },
+			izquierda: { x: -1, y: 0 },
+			derecha: { x: 1, y: 0 },
+		};
+
+		section.querySelectorAll<HTMLButtonElement>('[data-pad]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				const paso = PAD[boton.dataset.pad ?? ''];
+				if (paso) mover(paso.x, paso.y);
+			});
+		});
+
+		section.querySelector<HTMLButtonElement>('[data-reiniciar]')?.addEventListener('click', empezar);
+		botonJugar?.addEventListener('click', alternar);
+
+		/* El teclado solo manda si no se está escribiendo en otro sitio, y el espacio
+		   no se le quita a un botón con el foco: ahí ya lo pulsa el navegador. */
+		document.addEventListener('keydown', (event) => {
+			if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+			const donde = document.activeElement;
+			if (donde instanceof HTMLInputElement || donde instanceof HTMLTextAreaElement) return;
+
+			const tecla = event.key.toLowerCase();
+
+			if (tecla === ' ' || tecla === 'enter') {
+				if (donde instanceof HTMLButtonElement || donde instanceof HTMLAnchorElement) return;
+				event.preventDefault();
+				alternar();
+				return;
+			}
+
+			const paso = PASOS[tecla];
+			if (!paso || estado !== 'jugando') return;
+			event.preventDefault();
+			mover(paso.x, paso.y);
+		});
+
+		// En el móvil se juega deslizando sobre la planta, como en la serpiente.
+		let dedo: Punto | null = null;
+
+		tablero.addEventListener(
+			'touchstart',
+			(event) => {
+				const toque = event.changedTouches[0];
+				dedo = { x: toque.clientX, y: toque.clientY };
+			},
+			{ passive: true },
+		);
+
+		tablero.addEventListener('touchend', (event) => {
+			if (!dedo) return;
+			const toque = event.changedTouches[0];
+			const dx = toque.clientX - dedo.x;
+			const dy = toque.clientY - dedo.y;
+			dedo = null;
+
+			if (estado !== 'jugando') {
+				alternar();
+				return;
+			}
+			if (Math.abs(dx) < 16 && Math.abs(dy) < 16) return;
+			if (Math.abs(dx) > Math.abs(dy)) mover(Math.sign(dx), 0);
+			else mover(0, Math.sign(dy));
+		});
+
+		// Con la pestaña de fondo, o con la planta fuera de la pantalla, se pausa.
+		document.addEventListener('visibilitychange', () => {
+			if (document.hidden) pausar();
+		});
+
+		if ('IntersectionObserver' in window) {
+			new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						if (!entry.isIntersecting) pausar();
+					}
+				},
+				{ threshold: 0 },
+			).observe(section);
+		}
+
+		// De salida se enseña una planta cualquiera, con la salida ya en su sitio.
+		montarNivel();
+		pintar();
+		decir('');
+	}
+</script>
