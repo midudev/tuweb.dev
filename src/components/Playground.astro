@@ -1,0 +1,333 @@
+---
+/**
+ * Tres editores y una vista previa. Lo que se escribe en HTML, CSS y JS se
+ * junta en un documento y se pinta al lado según escribes; los console.log y
+ * los errores salen en la consola de abajo.
+ *
+ * La vista previa es un iframe en modo sandbox sin allow-same-origin: el código
+ * corre en un origen opaco, así que no ve esta página ni lo que hay guardado en
+ * ella. Nada se envía a ningún sitio: lo escrito se queda en tu navegador.
+ */
+import { DEFAULT_SOURCES, EDITORS, MAX_LENGTH, TEMPLATES } from '../lib/playground';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<section id="playground" class="flex flex-col gap-6">
+	<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+		<button type="button" data-pg-run class={`${BOTON} border-accent text-accent`}>
+			<Icon name="player-play" class="size-4 shrink-0" />
+			Ejecutar
+		</button>
+
+		<label class="inline-flex items-center gap-2 text-sm text-muted">
+			<input type="checkbox" data-pg-auto checked class="size-4 accent-accent" />
+			En vivo
+		</label>
+
+		<span class="text-sm text-muted">Plantillas:</span>
+		{
+			TEMPLATES.map((template) => (
+				<button type="button" data-pg-template={template.id} class={BOTON}>
+					<Icon name={template.icon} class="size-4 shrink-0" />
+					{template.label}
+				</button>
+			))
+		}
+
+		<button type="button" data-pg-copy class={BOTON}>
+			<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-pg-copy-label aria-live="polite">Copiar el HTML</span>
+		</button>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+		<div class="flex flex-col gap-4">
+			{
+				EDITORS.map((editor) => (
+					<div class="flex flex-col gap-2">
+						<span class="flex items-center justify-between gap-3 text-sm text-muted">
+							<label for={`pg-${editor.id}`} class="inline-flex items-center gap-2">
+								<Icon name={editor.icon} class="size-4 shrink-0 text-accent" />
+								{editor.label}
+							</label>
+							<span data-pg-count={editor.id} class="text-mark"></span>
+						</span>
+						<textarea
+							id={`pg-${editor.id}`}
+							data-pg-field={editor.id}
+							rows="10"
+							spellcheck="false"
+							autocomplete="off"
+							autocapitalize="off"
+							maxlength={MAX_LENGTH}
+							placeholder={editor.hint}
+							class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+							set:text={DEFAULT_SOURCES[editor.id]}
+						></textarea>
+					</div>
+				))
+			}
+		</div>
+
+		<div class="flex flex-col gap-4 lg:sticky lg:top-6">
+			<div class="flex flex-col gap-2">
+				<span class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="device-desktop" class="size-4 shrink-0 text-accent" />
+					Vista previa
+				</span>
+				<iframe
+					data-pg-preview
+					title="Vista previa del playground"
+					sandbox="allow-scripts allow-modals allow-forms"
+					class="h-[28rem] w-full border border-line bg-panel"></iframe>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="flex items-center justify-between gap-3 text-sm text-muted">
+					<span class="inline-flex items-center gap-2">
+						<Icon name="terminal-2" class="size-4 shrink-0 text-accent" />
+						Consola
+					</span>
+					<button type="button" data-pg-clear class="text-accent hover:underline">Limpiar</button>
+				</span>
+				<div class="h-40 overflow-auto border border-line bg-panel p-3">
+					<p data-pg-empty class="text-sm text-muted">Aquí salen tus console.log y los errores.</p>
+					<ul data-pg-console class="flex flex-col gap-1 text-sm"></ul>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<p class="text-sm text-muted">
+		Se ejecuta todo en tu navegador, dentro de un marco aislado que no ve esta página. Lo que
+		escribes se guarda solo aquí, en tu navegador, y no se envía a ningún sitio.
+		Con <code class="text-mark">Ctrl</code>+<code class="text-mark">Enter</code> se ejecuta sin
+		esperar.
+	</p>
+</section>
+
+<style is:global>
+	/*
+	 * Las líneas de la consola las pinta el script, así que no llevan la marca
+	 * del componente y estas reglas van globales, colgadas de #playground.
+	 */
+	#playground [data-pg-console] > li {
+		white-space: pre-wrap;
+		border-inline-start: 1px solid var(--color-line);
+		padding-inline-start: 0.5rem;
+	}
+	#playground [data-pg-console] > li[data-kind='error'] {
+		color: var(--color-heart);
+		border-color: var(--color-heart);
+	}
+	#playground [data-pg-console] > li[data-kind='warn'] {
+		color: var(--color-building);
+		border-color: var(--color-building);
+	}
+</style>
+
+<style>
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-pg-copy] [data-icon='check'] {
+		display: none;
+	}
+	[data-pg-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-pg-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-pg-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import {
+		BRIDGE,
+		EDITORS,
+		TEMPLATES,
+		buildDocument,
+		readSources,
+		saveSources,
+		type Sources,
+	} from '../lib/playground';
+
+	const preview = document.querySelector<HTMLIFrameElement>('[data-pg-preview]');
+	const consola = document.querySelector<HTMLUListElement>('[data-pg-console]');
+	const vacia = document.querySelector<HTMLElement>('[data-pg-empty]');
+	const auto = document.querySelector<HTMLInputElement>('[data-pg-auto]');
+
+	if (preview) {
+		const campos = new Map<keyof Sources, HTMLTextAreaElement>();
+		EDITORS.forEach((editor) => {
+			const campo = document.querySelector<HTMLTextAreaElement>(`[data-pg-field="${editor.id}"]`);
+			if (campo) campos.set(editor.id, campo);
+		});
+
+		/** Una línea de más en la consola tapa la de antes: se corta por arriba. */
+		const MAX_LINEAS = 60;
+		/** Lo justo para no repintar en cada tecla, sin que se note el retraso. */
+		const ESPERA = 500;
+
+		function fuentes(): Sources {
+			return {
+				html: campos.get('html')?.value ?? '',
+				css: campos.get('css')?.value ?? '',
+				js: campos.get('js')?.value ?? '',
+			};
+		}
+
+		function contar() {
+			campos.forEach((campo, id) => {
+				const marca = document.querySelector<HTMLElement>(`[data-pg-count="${id}"]`);
+				if (!marca) return;
+				const lineas = campo.value ? campo.value.split('\n').length : 0;
+				marca.textContent = `${lineas} ${lineas === 1 ? 'línea' : 'líneas'}`;
+			});
+		}
+
+		function limpiarConsola() {
+			consola?.replaceChildren();
+			if (vacia) vacia.hidden = false;
+		}
+
+		function apuntar(kind: string, texto: string) {
+			if (!consola) return;
+			if (vacia) vacia.hidden = true;
+
+			const linea = document.createElement('li');
+			linea.dataset.kind = kind;
+			linea.textContent = texto;
+			consola.append(linea);
+
+			while (consola.childElementCount > MAX_LINEAS) consola.firstElementChild?.remove();
+
+			// La consola sigue lo último, como cualquier consola. Quien tiene el
+			// scroll es la caja de fuera, que es la que lleva la altura.
+			const caja = consola.parentElement;
+			if (caja) caja.scrollTop = caja.scrollHeight;
+		}
+
+		function pintar() {
+			// Cada ejecución empieza con la consola en blanco: lo de la anterior ya no
+			// cuenta. Y srcdoc de nuevo recarga el documento entero, que es lo que
+			// hace que un setInterval de la vuelta pasada se pare.
+			limpiarConsola();
+			preview.srcdoc = buildDocument(fuentes(), BRIDGE);
+		}
+
+		let reloj: number | undefined;
+
+		function alEscribir() {
+			contar();
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				saveSources(fuentes());
+				if (auto?.checked) pintar();
+			}, ESPERA);
+		}
+
+		function ejecutar() {
+			clearTimeout(reloj);
+			saveSources(fuentes());
+			pintar();
+		}
+
+		campos.forEach((campo) => {
+			campo.addEventListener('input', alEscribir);
+			campo.addEventListener('keydown', (evento) => {
+				if (evento.key !== 'Enter' || !(evento.ctrlKey || evento.metaKey)) return;
+				evento.preventDefault();
+				ejecutar();
+			});
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-pg-run]')?.addEventListener('click', ejecutar);
+		document.querySelector<HTMLButtonElement>('[data-pg-clear]')?.addEventListener('click', () => {
+			limpiarConsola();
+		});
+		auto?.addEventListener('change', () => {
+			if (auto.checked) ejecutar();
+		});
+
+		document.querySelectorAll<HTMLButtonElement>('[data-pg-template]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				const template = TEMPLATES.find((item) => item.id === boton.dataset.pgTemplate);
+				if (!template) return;
+				campos.forEach((campo, id) => {
+					campo.value = template.sources[id];
+				});
+				ejecutar();
+			});
+		});
+
+		/*
+		 * Lo que cuenta la vista previa. El iframe no tiene origen propio, así que
+		 * el mensaje llega sin origen fiable: lo que se comprueba es que venga de
+		 * ese marco y no de otra pestaña o de otro script de la página.
+		 */
+		addEventListener('message', (evento) => {
+			if (evento.source !== preview.contentWindow) return;
+
+			const dato = evento.data as { tuweb?: string; tipo?: string; texto?: string } | null;
+			if (!dato || typeof dato !== 'object' || dato.tuweb !== 'playground') return;
+
+			const kind = dato.tipo === 'error' || dato.tipo === 'warn' ? dato.tipo : 'log';
+			apuntar(kind, String(dato.texto ?? ''));
+		});
+
+		let relojCopia: number | undefined;
+		const copia = document.querySelector<HTMLButtonElement>('[data-pg-copy]');
+		const copiaLabel = copia?.querySelector('[data-pg-copy-label]');
+
+		async function copiar(texto: string) {
+			try {
+				await navigator.clipboard.writeText(texto);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const campo = document.createElement('textarea');
+					campo.value = texto;
+					campo.readOnly = true;
+					campo.style.position = 'fixed';
+					campo.style.opacity = '0';
+					document.body.append(campo);
+					campo.select();
+					const hecho = document.execCommand('copy');
+					campo.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		copia?.addEventListener('click', async () => {
+			// Sin el puente: lo que se copia es el documento de quien lo escribe.
+			const hecho = await copiar(buildDocument(fuentes()));
+
+			copia.dataset.state = hecho ? 'done' : 'error';
+			if (copiaLabel) copiaLabel.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+			clearTimeout(relojCopia);
+			relojCopia = window.setTimeout(() => {
+				copia.removeAttribute('data-state');
+				if (copiaLabel) copiaLabel.textContent = 'Copiar el HTML';
+			}, 2000);
+		});
+
+		// Al entrar: lo de la última visita si lo hay, y la vista previa ya pintada.
+		const guardado = readSources();
+		campos.forEach((campo, id) => {
+			campo.value = guardado[id];
+		});
+		contar();
+		pintar();
+	}
+</script>

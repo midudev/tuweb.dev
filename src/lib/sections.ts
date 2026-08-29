@@ -27,6 +27,14 @@ export const SECTIONS: Section[] = [
 			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, Base64 en los dos sentidos, HTML a PHP, colores, tramas SVG, tema y config. Cada pestaña tiene su propio enlace para compartirla.',
 	},
 	{
+		href: '/playground',
+		title: 'Playground',
+		icon: 'code',
+		card: 'Tres editores —HTML, CSS y JS— y la vista previa al lado, en vivo.',
+		intro:
+			'Para probar una idea suelta sin abrir nada: escribe HTML, CSS y JavaScript en los tres editores y la vista previa se repinta según escribes. Los console.log y los errores salen en la consola de al lado. Se ejecuta en tu navegador, dentro de un marco aislado, y lo que escribes se queda ahí: no se envía nada.',
+	},
+	{
 		href: '/diseno',
 		title: 'Diseño',
 		icon: 'palette',
