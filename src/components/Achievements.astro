@@ -1,0 +1,270 @@
+---
+/**
+ * Los logros: los tuyos arriba, el muro debajo. Todo sale hecho del servidor,
+ * que aquí no hay nada que calcular: un logro es una cuenta sobre lo que ya
+ * está guardado y se desbloquea solo cuando la ventana cierra.
+ */
+import { getAchievementsData, GROUPS, MAX_BOARD, type AchievementState } from '../lib/achievements';
+import type { SessionUser } from '../lib/auth';
+import { dateLabel } from '../lib/credits';
+import GitHubLogin from './GitHubLogin.astro';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+	/** Quien mira, si ha entrado: sus logros y su fila del muro. */
+	user: SessionUser | null;
+}
+
+const { user } = Astro.props;
+const data = getAchievementsData(user ? { id: user.id, login: user.login } : undefined);
+
+// La barra de arriba: cuánto llevas del catálogo entero.
+const percent = Math.round((data.done / data.totals.catalogue) * 100);
+
+/** Lo que le falta a un logro, en una línea. */
+function falta(item: AchievementState) {
+	if (item.done) return 'conseguido';
+	if (item.goal === 1) return 'todavía no';
+	return `${item.progress} de ${item.goal}`;
+}
+
+/** Lo raro que es: cuánta gente lo tiene. */
+function rareza(item: AchievementState) {
+	if (item.people === 0) return 'no lo tiene nadie';
+	return `lo ${item.people === 1 ? 'tiene' : 'tienen'} ${item.people} de ${data.totals.people}`;
+}
+---
+
+<section class="flex flex-col gap-10">
+	{
+		user ? (
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-wrap items-baseline justify-between gap-4">
+					<SectionLabel forId="label-tuyos">TUS LOGROS</SectionLabel>
+					<p class="text-sm text-muted">@{user.login}</p>
+				</div>
+
+				<div class="flex flex-col gap-3 border border-line bg-panel px-6 py-5" aria-labelledby="label-tuyos">
+					<p class="flex items-baseline gap-3">
+						<span class="font-pixel text-3xl text-accent tabular-nums">{data.done}</span>
+						<span class="text-muted">de {data.totals.catalogue} logros</span>
+					</p>
+
+					<span class="flex h-1.5 w-full bg-line" aria-hidden="true">
+						<span class="h-full bg-accent" style={`width: ${percent}%`} />
+					</span>
+
+					<p class="text-sm text-pretty text-muted">
+						{data.stats && data.stats.sent > 0 ? (
+							<>
+								{data.stats.sent} {data.stats.sent === 1 ? 'idea mandada' : 'ideas mandadas'} ·{' '}
+								{data.stats.approved} {data.stats.approved === 1 ? 'aprobada' : 'aprobadas'} ·{' '}
+								{data.stats.wins} {data.stats.wins === 1 ? 'ganada' : 'ganadas'} ·{' '}
+								{data.stats.shipped} {data.stats.shipped === 1 ? 'versión' : 'versiones'}
+							</>
+						) : (
+							<>
+								Todavía no has mandado nada.{' '}
+								<a href="/#proponer" class="text-accent hover:underline">
+									Escribe tu idea
+								</a>{' '}
+								y el primero cae solo.
+							</>
+						)}
+					</p>
+				</div>
+			</div>
+		) : (
+			<div class="flex flex-col gap-3 border border-line bg-panel px-6 py-5">
+				<p class="flex items-center gap-2.5 text-pretty">
+					<Icon name="award" class="size-4 shrink-0 text-accent" />
+					Los logros se ganan con tus ideas: entra para ver los tuyos.
+				</p>
+				<GitHubLogin label="Entrar con GitHub para ver mis logros" />
+				<p class="text-sm text-pretty text-muted">
+					Abajo está el catálogo entero y lo raro que es cada uno.
+				</p>
+			</div>
+		)
+	}
+
+	{
+		GROUPS.map((group) => {
+			const items = data.list.filter((item) => item.group === group.key);
+			return (
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-wrap items-baseline justify-between gap-4">
+						<SectionLabel forId={`label-${group.key}`}>{group.label}</SectionLabel>
+						{user && (
+							<p class="text-sm text-muted">
+								{items.filter((item) => item.done).length} de {items.length}
+							</p>
+						)}
+					</div>
+
+					<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-labelledby={`label-${group.key}`}>
+						{items.map((item) => (
+							<li
+								class:list={[
+									'flex flex-col gap-2 border px-5 py-4',
+									item.done ? 'border-accent bg-panel' : 'border-line',
+								]}
+							>
+								<span class="flex items-center justify-between gap-3">
+									<span
+										class:list={[
+											'flex items-center gap-2.5 font-pixel',
+											item.done ? 'text-accent' : 'text-muted',
+										]}
+									>
+										<Icon name={item.icon} class="size-5 shrink-0" />
+										{item.title}
+									</span>
+
+									<Icon
+										name={item.done ? 'circle-check' : 'lock'}
+										class:list={['size-4 shrink-0', item.done ? 'text-ok' : 'text-muted']}
+									/>
+								</span>
+
+								<span class="text-sm text-pretty text-muted">{item.detail}</span>
+
+								{item.goal > 1 && user && !item.done && (
+									<span class="flex h-1 w-full bg-line" aria-hidden="true">
+										<span
+											class="h-full bg-accent"
+											style={`width: ${Math.round((item.progress / item.goal) * 100)}%`}
+										/>
+									</span>
+								)}
+
+								<span class="mt-auto flex flex-wrap items-baseline justify-between gap-x-4 pt-2 text-xs">
+									{user && (
+										<span class:list={[item.done ? 'text-ok' : 'text-muted']}>{falta(item)}</span>
+									)}
+									<span class="ml-auto text-muted">{rareza(item)}</span>
+								</span>
+							</li>
+						))}
+					</ul>
+				</div>
+			);
+		})
+	}
+
+	{
+		data.versions.length > 0 && (
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-wrap items-baseline justify-between gap-4">
+					<SectionLabel forId="label-versiones">LO TUYO QUE YA ESTÁ EN LA WEB</SectionLabel>
+					<p class="text-sm text-muted">
+						{data.versions.length}{' '}
+						{data.versions.length === 1 ? 'versión firmada' : 'versiones firmadas'}
+					</p>
+				</div>
+
+				<ol class="flex flex-col" aria-labelledby="label-versiones">
+					{data.versions.map((version) => (
+						<li class="flex flex-col gap-1 border-t border-line py-3.5 last:border-b sm:flex-row sm:items-baseline sm:gap-5">
+							<a
+								href={`/changelog#v${version.version}`}
+								class="w-16 shrink-0 font-pixel text-accent hover:underline"
+							>
+								v{version.version}
+							</a>
+
+							<div class="flex min-w-0 grow flex-col gap-1 sm:max-w-[62ch]">
+								<p class="text-pretty">{version.title}</p>
+								{version.people.length > 1 && (
+									<p class="text-sm text-muted">
+										firmada con {version.people.filter((login) => login !== data.stats?.login).join(', ')}
+									</p>
+								)}
+							</div>
+
+							{version.shippedAt && (
+								<span class="shrink-0 text-sm text-muted sm:ml-auto">
+									{dateLabel(version.shippedAt)}
+								</span>
+							)}
+						</li>
+					))}
+				</ol>
+			</div>
+		)
+	}
+
+	{
+		data.board.length > 0 && (
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-wrap items-baseline justify-between gap-4">
+					<SectionLabel forId="label-muro">QUIÉN LLEVA MÁS</SectionLabel>
+					<p class="text-sm text-muted">
+						{data.totals.withAny} {data.totals.withAny === 1 ? 'persona' : 'personas'} con algún logro ·{' '}
+						{data.totals.unlocked} desbloqueados
+					</p>
+				</div>
+
+				<ol class="flex flex-col" aria-labelledby="label-muro">
+					{data.board.map((row) => (
+						<li
+							class:list={[
+								'grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-4 gap-y-1.5 border-t border-line py-3.5 last:border-b',
+								row.me && 'bg-panel',
+							]}
+						>
+							<span
+								class:list={['font-pixel tabular-nums', row.position <= 3 ? 'text-accent' : 'text-muted']}
+							>
+								{row.position}
+							</span>
+
+							<span class="flex min-w-0 flex-wrap items-baseline gap-x-3">
+								<span class="truncate">@{row.login}</span>
+								{row.me && <span class="font-pixel text-xs text-accent">TÚ</span>}
+							</span>
+
+							<span class="font-pixel tabular-nums text-accent">
+								{row.done}
+								<span class="text-xs text-muted"> logros</span>
+							</span>
+
+							<span class="col-span-2 col-start-2 text-sm text-muted">
+								{row.approved} {row.approved === 1 ? 'aprobada' : 'aprobadas'} · {row.wins}{' '}
+								{row.wins === 1 ? 'ganada' : 'ganadas'} · {row.shipped}{' '}
+								{row.shipped === 1 ? 'versión' : 'versiones'}
+							</span>
+						</li>
+					))}
+				</ol>
+
+				{data.me && (
+					<p class="border border-line bg-panel px-4 py-3 text-sm">
+						<span class="font-pixel text-accent">{data.me.position}</span>
+						<span class="text-muted">
+							{' '}· tú, @{data.me.login} · {data.me.done}{' '}
+							{data.me.done === 1 ? 'logro' : 'logros'}
+						</span>
+					</p>
+				)}
+
+				{data.totals.withAny > MAX_BOARD && (
+					<p class="text-sm text-muted">
+						Se enseñan los {MAX_BOARD} primeros. Detrás hay {data.totals.withAny - MAX_BOARD}{' '}
+						{data.totals.withAny - MAX_BOARD === 1 ? 'persona más' : 'personas más'}.
+					</p>
+				)}
+			</div>
+		)
+	}
+
+	<p class="flex flex-wrap items-center gap-x-2.5 gap-y-1 border border-line bg-panel px-5 py-4 text-sm">
+		<Icon name="award" class="size-4 shrink-0 text-accent" />
+		<span class="text-muted">Nadie reparte esto a mano: sale de lo que ya hay guardado. Por dónde va cada idea tuya está en</span>
+		<a href="/mi-idea" class="text-accent hover:underline">tu idea</a>
+		<span class="text-muted">, y los puntos, en el</span>
+		<a href="/ranking" class="text-accent hover:underline">ranking</a>
+		<span class="text-muted">.</span>
+	</p>
+</section>

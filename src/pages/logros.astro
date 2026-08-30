@@ -1,0 +1,11 @@
+---
+import Achievements from '../components/Achievements.astro';
+import Section from '../layouts/Section.astro';
+import { getSessionUser } from '../lib/auth';
+
+const user = await getSessionUser(Astro);
+---
+
+<Section href="/logros">
+	<Achievements user={user} />
+</Section>

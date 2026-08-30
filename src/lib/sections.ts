@@ -146,6 +146,14 @@ export const SECTIONS: Section[] = [
 			'El ranking se hace solo con lo que ya hay guardado: cada idea que pasa el filtro suma, ganar la ventana suma más y acabar publicada suma todavía más. Debajo, las ideas que más gente repitió.',
 	},
 	{
+		href: '/logros',
+		title: 'Logros',
+		icon: 'award',
+		card: 'Lo que se gana con cada idea aprobada e implementada.',
+		intro:
+			'Los logros salen solos de lo que ya está guardado: uno por mandar la primera idea, otros por las que pasan el filtro, por ganar la ventana y por acabar implementadas en una versión. No hay nada que apuntar ni ningún botón que dar. Debajo, quién lleva más y lo raro que es cada uno.',
+	},
+	{
 		href: '/creditos',
 		title: 'Créditos',
 		icon: 'users',
