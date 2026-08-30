@@ -43,6 +43,14 @@ export const SECTIONS: Section[] = [
 			'Escribe la petición como te salga —«un login que aguante intentos repetidos»— y sale un prompt de verdad: rol, contexto, lo que se espera punto por punto, restricciones y formato de respuesta. Sirve para desarrollo, debugging, refactor, testing, SQL, APIs, arquitectura, DevOps y seguridad, con el lenguaje o el framework que uses. No hay ninguna IA detrás: la plantilla se arma en tu navegador y lo que escribes se queda ahí.',
 	},
 	{
+		href: '/tareas',
+		title: 'Tareas',
+		icon: 'checklist',
+		card: 'Lo que tienes que hacer, por nivel, y cuánto le falta a cada cosa.',
+		intro:
+			'Apunta lo que hay que hacer con su nivel —de leve a urgente— y la hora a la que toca. Cada tarea lleva su cuenta atrás: cuánto le falta, y cuánto lleva vencida si se te pasó. Filtra por estado o por nivel, y si quieres que el navegador avise al vencer, dale a los avisos. No hay servidor: la lista se queda en tu navegador.',
+	},
+	{
 		href: '/diseno',
 		title: 'Diseño',
 		icon: 'palette',

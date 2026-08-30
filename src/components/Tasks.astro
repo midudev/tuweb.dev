@@ -1,0 +1,544 @@
+---
+/**
+ * Las tareas: se apuntan con su nivel y su hora, y cada una dice cuánto le
+ * falta. Sin servidor, como el escaparate: todo se guarda en el navegador de
+ * quien escribe. El reloj corre cada segundo y repinta solo las cuentas atrás.
+ */
+import Icon from './Icon.astro';
+import { LEVELS, NOTE_MAX, TITLE_MAX } from '../lib/tasks';
+
+const FIELD =
+	'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-accent';
+---
+
+<section id="tareas" class="flex flex-col gap-7">
+	<form data-form class="grid gap-4 border border-line bg-panel p-4 md:grid-cols-2">
+		<label class="flex flex-col gap-2 md:col-span-2">
+			<span class="text-sm text-muted">Qué hay que hacer</span>
+			<input
+				type="text"
+				data-field="title"
+				maxlength={TITLE_MAX}
+				autocomplete="off"
+				placeholder="Repasar las ideas de la ventana"
+				class={FIELD}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-2 md:col-span-2">
+			<span class="text-sm text-muted">Detalle</span>
+			<input
+				type="text"
+				data-field="note"
+				maxlength={NOTE_MAX}
+				autocomplete="off"
+				placeholder="Opcional: lo que no cabe en el título"
+				class={FIELD}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Nivel</span>
+			<select data-field="level" class={FIELD}>
+				{
+					LEVELS.map((level) => (
+						<option value={level.id} selected={level.id === 'normal'}>
+							{level.label}
+						</option>
+					))
+				}
+			</select>
+		</label>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Para cuándo</span>
+			<input type="datetime-local" data-field="due" class={FIELD} />
+		</label>
+
+		<div class="flex flex-wrap items-end gap-4 md:col-span-2">
+			<button type="submit" class={BOTON}>
+				<Icon name="plus" class="size-4 shrink-0" />
+				Apuntar
+			</button>
+			<p data-error role="status" class="text-sm text-heart"></p>
+		</div>
+	</form>
+
+	<div class="flex flex-col gap-3">
+		<div data-filters role="group" aria-label="Filtrar tareas" class="flex flex-wrap gap-2 text-sm">
+		</div>
+		<div data-levels role="group" aria-label="Filtrar por nivel" class="flex flex-wrap gap-2 text-sm">
+		</div>
+	</div>
+
+	<ul data-list class="flex flex-col gap-4"></ul>
+
+	<p data-empty class="border border-line bg-panel p-4 text-sm text-muted" hidden></p>
+
+	<div class="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+		<p data-count class="text-sm text-muted" aria-live="polite"></p>
+
+		<div class="flex flex-wrap items-center gap-4">
+			<button type="button" data-alerts class={BOTON} aria-pressed="false">
+				<span data-icon="off" class="inline-flex items-center gap-2">
+					<Icon name="bell-off" class="size-4 shrink-0" />
+					Avisarme al vencer
+				</span>
+				<span data-icon="on" class="inline-flex items-center gap-2">
+					<Icon name="bell-ringing" class="size-4 shrink-0" />
+					Avisos puestos
+				</span>
+			</button>
+			<button type="button" data-clear-done class={BOTON} hidden>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Quitar las hechas
+			</button>
+		</div>
+	</div>
+
+	<template data-card>
+		<li data-item class="flex flex-col gap-3 border border-line border-l-2 bg-panel p-4">
+			<div class="flex items-start justify-between gap-3">
+				<label class="flex items-start gap-3">
+					<input type="checkbox" data-done class="mt-1 size-4 shrink-0 accent-accent" />
+					<span class="flex flex-col gap-1">
+						<span data-title class="text-sm"></span>
+						<span data-note class="text-xs text-muted"></span>
+					</span>
+				</label>
+				<span data-badge class="shrink-0 border px-2 py-1 text-xs"></span>
+			</div>
+
+			<p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+				<span data-icon="clock" class="inline-flex items-center gap-2 text-muted">
+					<Icon name="clock" class="size-4 shrink-0" />
+					<span data-when></span>
+				</span>
+				<span data-icon="alarm" class="inline-flex items-center gap-2 text-muted">
+					<Icon name="alert-triangle" class="size-4 shrink-0" />
+					<span data-when-late></span>
+				</span>
+				<span data-left></span>
+			</p>
+
+			<div class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
+				<button type="button" data-remove class={ENLACE}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Quitar
+				</button>
+			</div>
+		</li>
+	</template>
+
+	<p class="text-sm text-muted">
+		Esto solo está en tu navegador: no se envía nada y nadie más lo ve. Los avisos llegan mientras
+		tengas esta página abierta.
+	</p>
+</section>
+
+<style is:global>
+	/*
+	 * Va global porque las tarjetas y los chips los pinta el script y no llevan la
+	 * marca del componente; por eso todo cuelga de #tareas.
+	 */
+
+	#tareas [data-filtro][aria-pressed='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+
+	/* El nivel se ve en el canto de la tarjeta y en su etiqueta. */
+	#tareas [data-item] {
+		border-left-color: var(--nivel, var(--color-line));
+	}
+	#tareas [data-badge] {
+		color: var(--nivel, var(--color-muted));
+		border-color: var(--nivel, var(--color-line));
+	}
+
+	/* Sin detalle no se deja el hueco. */
+	#tareas [data-note]:empty {
+		display: none;
+	}
+
+	/* El reloj normal y el de vencida no salen a la vez, ni sin fecha ninguno. */
+	#tareas [data-item] [data-icon='alarm'],
+	#tareas [data-item][data-urgencia='vencida'] [data-icon='clock'] {
+		display: none;
+	}
+	#tareas [data-item][data-urgencia='vencida'] [data-icon='alarm'] {
+		display: inline-flex;
+		color: var(--color-heart);
+	}
+	#tareas [data-item][data-urgencia='sin-fecha'] [data-icon='clock'] {
+		display: none;
+	}
+
+	/* Cuánto falta, del color de las prisas que haya. */
+	#tareas [data-left] {
+		color: var(--color-muted);
+	}
+	#tareas [data-item][data-urgencia='vencida'] [data-left],
+	#tareas [data-item][data-urgencia='ahora'] [data-left] {
+		color: var(--color-heart);
+	}
+	#tareas [data-item][data-urgencia='pronto'] [data-left] {
+		color: var(--color-building);
+	}
+
+	/* Lo hecho se apaga y se tacha, y ya no mete prisa a nadie. */
+	#tareas [data-item][data-hecha='si'] {
+		border-left-color: var(--color-line);
+	}
+	#tareas [data-item][data-hecha='si'] [data-title] {
+		color: var(--color-muted);
+		text-decoration: line-through;
+	}
+	#tareas [data-item][data-hecha='si'] [data-left] {
+		color: var(--color-ok);
+	}
+
+	/* El botón de avisos enseña solo el estado en el que está. */
+	#tareas [data-alerts] > [data-icon='on'],
+	#tareas [data-alerts][aria-pressed='true'] > [data-icon='off'] {
+		display: none;
+	}
+	#tareas [data-alerts][aria-pressed='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	#tareas [data-alerts][aria-pressed='true'] > [data-icon='on'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	import {
+		LEVELS,
+		MAX_TASKS,
+		type Level,
+		type Task,
+		formatDue,
+		levelOf,
+		parseDue,
+		readAlerts,
+		readTasks,
+		reminderText,
+		saveAlerts,
+		saveTasks,
+		sortTasks,
+		toTask,
+		urgencyOf,
+	} from '../lib/tasks';
+
+	const section = document.querySelector<HTMLElement>('#tareas');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const list = section?.querySelector<HTMLElement>('[data-list]');
+	const template = section?.querySelector<HTMLTemplateElement>('[data-card]');
+	const filters = section?.querySelector<HTMLElement>('[data-filters]');
+	const levelFilters = section?.querySelector<HTMLElement>('[data-levels]');
+	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const countOut = section?.querySelector<HTMLElement>('[data-count]');
+	const emptyOut = section?.querySelector<HTMLElement>('[data-empty]');
+	const clearDone = section?.querySelector<HTMLButtonElement>('[data-clear-done]');
+	const alertsButton = section?.querySelector<HTMLButtonElement>('[data-alerts]');
+
+	if (section && form && list && template && filters && levelFilters && countOut && emptyOut) {
+		const CHIP = 'border border-line px-3 py-2 text-muted hover:border-accent hover:text-accent';
+
+		type State = 'todas' | 'pendientes' | 'vencidas' | 'hechas';
+
+		const STATES: { id: State; label: string }[] = [
+			{ id: 'todas', label: 'Todas' },
+			{ id: 'pendientes', label: 'Pendientes' },
+			{ id: 'vencidas', label: 'Vencidas' },
+			{ id: 'hechas', label: 'Hechas' },
+		];
+
+		let tasks = readTasks();
+		let state: State = 'todas';
+		let level: Level | '' = '';
+		let alerts = readAlerts();
+
+		/** Lo que se está pintando ahora, para que el reloj no repinte la lista entera. */
+		let shown: { task: Task; node: HTMLElement; left: HTMLElement }[] = [];
+
+		function field(name: string) {
+			return form!.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`);
+		}
+
+		function fail(message: string) {
+			if (errorOut) errorOut.textContent = message;
+		}
+
+		function isLate(task: Task, now: number) {
+			return !task.done && task.due !== null && task.due <= now;
+		}
+
+		/** El estado y el nivel van por parámetro: los chips cuentan con otros. */
+		function matches(task: Task, now: number, byState: State, byLevel: Level | '') {
+			if (byLevel && task.level !== byLevel) return false;
+			if (byState === 'pendientes') return !task.done;
+			if (byState === 'hechas') return task.done;
+			if (byState === 'vencidas') return isLate(task, now);
+			return true;
+		}
+
+		/** Un grupo de chips: el que está puesto se marca y los demás filtran. */
+		function chips(
+			host: HTMLElement,
+			options: { id: string; label: string }[],
+			current: string,
+			pick: (id: string) => void,
+		) {
+			host.replaceChildren(
+				...options.map((option) => {
+					const chip = document.createElement('button');
+					chip.type = 'button';
+					chip.dataset.filtro = option.id;
+					chip.className = CHIP;
+					chip.setAttribute('aria-pressed', String(option.id === current));
+					chip.textContent = option.label;
+					chip.addEventListener('click', () => {
+						pick(option.id);
+						render();
+					});
+					return chip;
+				}),
+			);
+		}
+
+		function renderFilters(now: number) {
+			// Cada chip cuenta lo que saldría si lo pulsaras, con el otro filtro puesto.
+			chips(
+				filters!,
+				STATES.map((item) => ({
+					id: item.id,
+					label: `${item.label} (${tasks.filter((task) => matches(task, now, item.id, level)).length})`,
+				})),
+				state,
+				(id) => {
+					state = id as State;
+				},
+			);
+
+			// Los niveles enseñan cuántas hay de cada uno dentro del estado elegido.
+			const enEstado = tasks.filter((task) => matches(task, now, state, ''));
+
+			chips(
+				levelFilters!,
+				[
+					{ id: '', label: `Todos los niveles (${enEstado.length})` },
+					...LEVELS.map((item) => ({
+						id: item.id,
+						label: `${item.label} (${enEstado.filter((task) => task.level === item.id).length})`,
+					})),
+				],
+				level,
+				(id) => {
+					level = id as Level | '';
+				},
+			);
+		}
+
+		/** La cuenta atrás de una tarjeta, que es lo único que cambia con el reloj. */
+		function tickCard(entry: { task: Task; node: HTMLElement; left: HTMLElement }, now: number) {
+			// Lo hecho ya no corre prisa, pero su fecha se sigue viendo.
+			entry.node.dataset.urgencia = entry.task.done
+				? entry.task.due === null
+					? 'sin-fecha'
+					: 'lejos'
+				: urgencyOf(entry.task, now);
+
+			const text = entry.task.done ? 'Hecha' : reminderText(entry.task, now);
+			if (entry.left.textContent !== text) entry.left.textContent = text;
+		}
+
+		function card(task: Task, now: number) {
+			const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+			const info = levelOf(task.level);
+
+			node.style.setProperty('--nivel', info.color);
+			node.dataset.hecha = task.done ? 'si' : 'no';
+
+			node.querySelector('[data-title]')!.textContent = task.title;
+			node.querySelector('[data-note]')!.textContent = task.note;
+
+			const badge = node.querySelector<HTMLElement>('[data-badge]')!;
+			badge.textContent = info.label;
+
+			const when = task.due === null ? '' : formatDue(task.due);
+			node.querySelector('[data-when]')!.textContent = when;
+			node.querySelector('[data-when-late]')!.textContent = when;
+
+			const done = node.querySelector<HTMLInputElement>('[data-done]')!;
+			done.checked = task.done;
+			done.setAttribute('aria-label', task.done ? 'Marcar como pendiente' : 'Marcar como hecha');
+			done.addEventListener('change', () => {
+				commit(
+					tasks.map((item) =>
+						// Al desmarcarla vuelve a poder avisar, que es una tarea viva otra vez.
+						item.id === task.id ? { ...item, done: done.checked, alerted: false } : item,
+					),
+				);
+			});
+
+			node.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
+				commit(tasks.filter((item) => item.id !== task.id));
+			});
+
+			const entry = { task, node, left: node.querySelector<HTMLElement>('[data-left]')! };
+			tickCard(entry, now);
+			return entry;
+		}
+
+		function render() {
+			const now = Date.now();
+			renderFilters(now);
+
+			shown = sortTasks(tasks)
+				.filter((task) => matches(task, now, state, level))
+				.map((task) => card(task, now));
+
+			list!.replaceChildren(...shown.map((entry) => entry.node));
+
+			const total = tasks.length;
+			const late = tasks.filter((task) => isLate(task, now)).length;
+			const pending = tasks.filter((task) => !task.done).length;
+
+			emptyOut!.hidden = shown.length > 0;
+			emptyOut!.textContent =
+				total === 0
+					? 'Todavía no has apuntado nada. Empieza por lo que más corra.'
+					: 'Ninguna tarea encaja con este filtro.';
+
+			countOut!.textContent =
+				total === 0
+					? `Caben ${MAX_TASKS} tareas en este navegador.`
+					: `${pending} ${pending === 1 ? 'pendiente' : 'pendientes'} de ${total} · ${
+							late === 0 ? 'ninguna vencida' : `${late} ${late === 1 ? 'vencida' : 'vencidas'}`
+						} · quedan ${MAX_TASKS - total} huecos.`;
+
+			if (clearDone) clearDone.hidden = !tasks.some((task) => task.done);
+		}
+
+		function commit(next: Task[]) {
+			tasks = next;
+			saveTasks(tasks);
+			render();
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			fail('');
+
+			if (tasks.length >= MAX_TASKS) {
+				fail(`La lista está llena: ${MAX_TASKS} tareas como mucho. Quita alguna.`);
+				return;
+			}
+
+			const task = toTask({
+				title: field('title')?.value,
+				note: field('note')?.value,
+				level: field('level')?.value,
+				due: parseDue(field('due')?.value ?? ''),
+			});
+
+			if (typeof task === 'string') {
+				fail(task);
+				return;
+			}
+
+			// Lo nuevo entra por delante; el orden de verdad lo pone sortTasks.
+			commit([task, ...tasks]);
+
+			form.reset();
+			field('title')?.focus();
+		});
+
+		clearDone?.addEventListener('click', () => {
+			const quedan = tasks.filter((task) => !task.done);
+			if (quedan.length !== tasks.length) commit(quedan);
+		});
+
+		/** El aviso del navegador, si hay permiso. Nunca sale de aquí. */
+		function notify(task: Task) {
+			if (!alerts || !('Notification' in window) || Notification.permission !== 'granted') return;
+
+			try {
+				new Notification('Tarea vencida', { body: `${task.title} · ${levelOf(task.level).label}` });
+			} catch {
+				// Algunos navegadores solo dejan avisar desde un service worker: se
+				// deja estar, que la tarjeta ya se pinta en rojo.
+			}
+		}
+
+		alertsButton?.addEventListener('click', async () => {
+			if (alerts) {
+				alerts = false;
+				saveAlerts(false);
+				alertsButton.setAttribute('aria-pressed', 'false');
+				return;
+			}
+
+			if (!('Notification' in window)) {
+				fail('Este navegador no sabe avisar. La cuenta atrás sigue funcionando igual.');
+				return;
+			}
+
+			const permiso =
+				Notification.permission === 'granted'
+					? 'granted'
+					: await Notification.requestPermission().catch(() => 'denied');
+
+			if (permiso !== 'granted') {
+				fail('No hay permiso para avisar. La cuenta atrás sigue funcionando igual.');
+				return;
+			}
+
+			alerts = true;
+			saveAlerts(true);
+			alertsButton.setAttribute('aria-pressed', 'true');
+			fail('');
+		});
+
+		if (alerts) {
+			// Puede haberse revocado el permiso desde la última visita.
+			const vivo = 'Notification' in window && Notification.permission === 'granted';
+			alerts = vivo;
+			if (!vivo) saveAlerts(false);
+			alertsButton?.setAttribute('aria-pressed', String(vivo));
+		}
+
+		/*
+		 * El reloj: cada segundo repinta las cuentas atrás de lo que está a la
+		 * vista, y solo rehace la lista entera cuando algo vence de verdad, que es
+		 * cuando cambian los contadores y puede cambiar el filtro.
+		 */
+		setInterval(() => {
+			const now = Date.now();
+			const vencidas = tasks.filter((task) => !task.done && !task.alerted && isLate(task, now));
+
+			if (vencidas.length > 0) {
+				// Al volver días después no se sueltan diez avisos de golpe: solo se
+				// avisa de lo que acaba de vencer, lo viejo se da por visto.
+				for (const task of vencidas) {
+					if (task.due !== null && now - task.due < 3_600_000) notify(task);
+				}
+				commit(
+					tasks.map((task) =>
+						vencidas.some((item) => item.id === task.id) ? { ...task, alerted: true } : task,
+					),
+				);
+				return;
+			}
+
+			for (const entry of shown) tickCard(entry, now);
+		}, 1000);
+
+		render();
+	}
+</script>
