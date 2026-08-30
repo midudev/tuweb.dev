@@ -75,6 +75,14 @@ export const SECTIONS: Section[] = [
 			'Una serpiente para hacer tiempo hasta la siguiente ventana. Flechas o WASD, espacio para pausar. En el móvil, desliza sobre el tablero. Elige si las paredes matan y a qué ritmo va. Al perder puedes firmar la marca con tu nombre: cada combinación guarda su récord y su ranking en tu navegador.',
 	},
 	{
+		href: '/arcade',
+		title: 'Mini Arcade',
+		icon: 'device-gamepad',
+		card: 'Cuatro máquinas en un salón: esquiva, memoria, trivia y reacción.',
+		intro:
+			'Un salón recreativo con cuatro máquinas. Esquiva lo que cae, destapa las ocho parejas, responde seis preguntas con el reloj corriendo o pulsa en cuanto se encienda el panel. Elige en el menú y vuelve cuando quieras: cada juego lleva su récord y se queda en tu navegador.',
+	},
+	{
 		href: '/perritos',
 		title: 'Hot Dog midudev',
 		icon: 'sausage',

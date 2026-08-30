@@ -1,0 +1,712 @@
+---
+/**
+ * El mini arcade: un menú de tarjetas y, dentro, cuatro juegos. Todo pasa en el
+ * navegador —no se manda nada a ningún sitio— y el récord de cada juego se
+ * queda en el localStorage de quien juega.
+ */
+import { JUEGOS, SIMBOLOS } from '../lib/arcade';
+import Icon from './Icon.astro';
+
+const COLS = 11;
+const ROWS = 15;
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-4 py-3 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<section id="arcade" class="flex flex-col gap-7">
+	<ul data-vista="menu" class="grid gap-4 sm:grid-cols-2">
+		{
+			JUEGOS.map((juego) => (
+				<li class="flex">
+					<button type="button" data-abrir={juego.id} class="group flex grow flex-col gap-2 border border-line bg-panel px-5 py-5 text-left hover:border-accent">
+						<span class="flex items-center gap-2.5 font-pixel text-lg">
+							<Icon name={juego.icon} class="size-5 shrink-0 text-accent" />
+							{juego.title}
+						</span>
+						<span class="text-sm text-pretty text-muted">{juego.card}</span>
+						<span class="mt-auto flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 pt-3 text-sm">
+							<span class="inline-flex items-center gap-2 text-accent group-hover:underline">
+								Jugar
+								<Icon name="arrow-right" class="size-4 shrink-0" />
+							</span>
+							<span class="inline-flex items-baseline gap-2 text-muted">
+								<Icon name="trophy" class="size-3.5 shrink-0 self-center" />
+								récord
+								<span data-record={juego.id} class="font-pixel text-fg tabular-nums">0</span>
+							</span>
+						</span>
+					</button>
+				</li>
+			))
+		}
+	</ul>
+
+	<div data-vista="juego" hidden class="flex flex-col gap-6">
+		<div class="flex flex-wrap items-center justify-between gap-4">
+			<button type="button" data-volver class={BOTON}>
+				<Icon name="arrow-back-up" class="size-4 shrink-0" />
+				Volver al menú
+			</button>
+			<dl class="flex items-baseline gap-6 text-sm">
+				<div class="flex items-baseline gap-2">
+					<dt class="text-muted">puntos</dt>
+					<dd data-puntos class="font-pixel text-accent tabular-nums">0</dd>
+				</div>
+				<div class="flex items-baseline gap-2">
+					<dt class="text-muted">récord</dt>
+					<dd data-mejor class="font-pixel tabular-nums">0</dd>
+				</div>
+			</dl>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<h2 data-titulo class="font-pixel text-xl leading-tight"></h2>
+			<p data-como class="max-w-[62ch] text-sm text-pretty text-muted"></p>
+		</div>
+
+		<div data-tablero="esquiva" hidden class="flex flex-col gap-4">
+			<div class="relative w-full max-w-sm">
+				<div data-esquiva-tablero tabindex="0" role="application" aria-label="Tablero de Esquiva" class="grid touch-none gap-px border border-line bg-line select-none" style={`grid-template-columns: repeat(${COLS}, minmax(0, 1fr))`}>
+					{Array.from({ length: COLS * ROWS }, () => <span class="aspect-square bg-panel" />)}
+				</div>
+				<div data-esquiva-capa class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg/85 px-6 text-center">
+					<p data-esquiva-titulo class="font-pixel text-lg text-accent">Esquiva</p>
+					<p data-esquiva-texto class="text-sm text-muted">Dale a jugar y no te dejes dar.</p>
+				</div>
+			</div>
+			<div class="flex w-full max-w-sm gap-2" role="group" aria-label="Dirección">
+				<button type="button" data-pad="-1" aria-label="Izquierda" class={`${BOTON} grow justify-center`}>
+					<Icon name="chevron-left" class="size-4 shrink-0" />
+				</button>
+				<button type="button" data-pad="1" aria-label="Derecha" class={`${BOTON} grow justify-center`}>
+					<Icon name="chevron-right" class="size-4 shrink-0" />
+				</button>
+			</div>
+		</div>
+
+		<div data-tablero="memoria" hidden class="flex flex-col gap-4">
+			<div class="grid w-full max-w-md grid-cols-4 gap-2">
+				{
+					Array.from({ length: SIMBOLOS.length * 2 }, (_, i) => (
+						<button type="button" data-carta={i} data-estado="tapada" aria-label="Carta tapada" class="flex aspect-square items-center justify-center border border-line bg-panel hover:border-accent" />
+					))
+				}
+			</div>
+			<p class="text-sm text-muted">
+				Movimientos <span data-memoria-movimientos class="font-pixel text-fg tabular-nums">0</span> ·
+				parejas <span data-memoria-parejas class="font-pixel text-fg tabular-nums">0</span> de {SIMBOLOS.length}
+			</p>
+			{
+				SIMBOLOS.map((simbolo) => (
+					<template data-simbolo={simbolo}>
+						<Icon name={simbolo} class="size-6 shrink-0 text-accent" />
+					</template>
+				))
+			}
+		</div>
+
+		<div data-tablero="trivia" hidden class="flex w-full max-w-2xl flex-col gap-4">
+			<div class="flex items-baseline justify-between gap-3 text-sm text-muted">
+				<span>Pregunta <span data-trivia-n class="font-pixel text-fg tabular-nums">1</span> de 6</span>
+				<span class="inline-flex items-baseline gap-2">
+					<Icon name="clock" class="size-3.5 shrink-0 self-center" />
+					<span data-trivia-tiempo class="font-pixel text-fg tabular-nums">12</span>s
+				</span>
+			</div>
+			<div class="h-1 w-full bg-line">
+				<div data-trivia-barra class="h-full bg-accent" style="width: 100%"></div>
+			</div>
+			<p data-trivia-pregunta class="text-lg text-pretty">Dale a jugar para empezar.</p>
+			<ul data-trivia-opciones class="flex flex-col gap-2"></ul>
+			<template data-trivia-molde>
+				<li>
+					<button type="button" data-opcion class="w-full border border-line bg-panel px-4 py-3 text-left text-sm hover:border-accent"></button>
+				</li>
+			</template>
+		</div>
+
+		<div data-tablero="reaccion" hidden class="flex w-full max-w-md flex-col gap-4">
+			<button type="button" data-reaccion data-fase="quieto" class="flex min-h-56 w-full flex-col items-center justify-center gap-2 border border-line bg-panel px-6 py-8 text-center">
+				<span data-reaccion-titulo class="font-pixel text-lg text-accent">Reacción</span>
+				<span data-reaccion-texto class="text-sm text-muted">Dale a jugar y espera al morado.</span>
+			</button>
+			<p class="text-sm text-muted">
+				Ronda <span data-reaccion-n class="font-pixel text-fg tabular-nums">0</span> de 5 · mejor tiempo
+				<span data-reaccion-ms class="font-pixel text-fg tabular-nums">—</span>
+			</p>
+		</div>
+
+		<button type="button" data-jugar class={`${BOTON} self-start`}>
+			<Icon name="player-play" class="size-4 shrink-0" />
+			<span data-jugar-label>Jugar</span>
+		</button>
+
+		<p data-aviso class="sr-only" role="status" aria-live="polite"></p>
+	</div>
+</section>
+
+<style>
+	/* En Esquiva quien juega es del acento y lo que cae, del color del texto. */
+	[data-esquiva-tablero] span[data-k='nave'] {
+		background: var(--color-accent);
+	}
+	[data-esquiva-tablero] span[data-k='roca'] {
+		background: var(--color-fg);
+	}
+
+	/* La pareja resuelta se queda marcada; la tapada no lleva nada dentro. */
+	[data-carta][data-estado='hecha'] {
+		border-color: var(--color-accent);
+	}
+
+	/* Contestada la pregunta: la buena se enciende y la fallada se tacha. */
+	[data-opcion][data-marca='buena'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-opcion][data-marca='mala'] {
+		color: var(--color-muted);
+		text-decoration: line-through;
+	}
+
+	/* El panel de Reacción se enciende entero cuando toca pulsar. */
+	[data-reaccion][data-fase='ya'] {
+		background: var(--color-accent);
+		border-color: var(--color-accent);
+	}
+	[data-reaccion][data-fase='ya'] [data-reaccion-titulo],
+	[data-reaccion][data-fase='ya'] [data-reaccion-texto] {
+		color: var(--color-bg);
+	}
+</style>
+
+<script>
+	import { JUEGOS, PREGUNTAS, SIMBOLOS } from '../lib/arcade';
+
+	const section = document.querySelector<HTMLElement>('#arcade');
+	const esquivaTablero = section?.querySelector<HTMLElement>('[data-esquiva-tablero]');
+
+	if (section && esquivaTablero) {
+		const CLAVE = 'tuweb:arcade:records';
+		const COLS = 11;
+		const ROWS = 15;
+		const TRIVIA_MS = 12000;
+		const TRIVIA_TOTAL = 6;
+		const REACCION_RONDAS = 5;
+
+		type Juego = { iniciar: () => void; parar: () => void };
+		const uno = (sel: string) => section.querySelector<HTMLElement>(sel);
+		const menu = uno('[data-vista="menu"]');
+		const vista = uno('[data-vista="juego"]');
+		const titulo = uno('[data-titulo]');
+		const como = uno('[data-como]');
+		const marcador = uno('[data-puntos]');
+		const marcadorMejor = uno('[data-mejor]');
+		const etiquetaJugar = uno('[data-jugar-label]');
+		const aviso = uno('[data-aviso]');
+		const botonJugar = section.querySelector<HTMLButtonElement>('[data-jugar]');
+
+		let records = leerRecords();
+		let abierto: string | null = null;
+		let puntos = 0;
+
+		/** Del almacén solo salen números; lo demás se tira sin ruido. */
+		function leerRecords(): Record<string, number> {
+			const limpio: Record<string, number> = {};
+			try {
+				const crudo = JSON.parse(localStorage.getItem(CLAVE) ?? '{}') ?? {};
+				for (const [clave, valor] of Object.entries(crudo)) {
+					if (typeof valor === 'number' && Number.isFinite(valor)) limpio[clave] = Math.max(0, Math.floor(valor));
+				}
+			} catch {
+				// Sin almacenamiento (modo privado) o con basura dentro: se empieza a cero.
+			}
+			return limpio;
+		}
+
+		function poner(el: HTMLElement | null, texto: string | number) {
+			if (el) el.textContent = String(texto);
+		}
+		const decir = (texto: string) => poner(aviso, texto);
+
+		function baraja<T>(lista: T[]) {
+			const copia = [...lista];
+			for (let i = copia.length - 1; i > 0; i -= 1) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[copia[i], copia[j]] = [copia[j], copia[i]];
+			}
+			return copia;
+		}
+
+		function pintarRecords() {
+			for (const juego of JUEGOS) poner(uno(`[data-record="${juego.id}"]`), records[juego.id] ?? 0);
+			poner(marcadorMejor, abierto ? (records[abierto] ?? 0) : 0);
+		}
+		function puntuar(valor: number) {
+			puntos = Math.max(0, Math.round(valor));
+			poner(marcador, puntos);
+		}
+
+		/** Fin de partida: se guarda el récord si toca y se cuenta lo que pasó. */
+		function acabar(texto: string) {
+			const mejora = abierto !== null && puntos > (records[abierto] ?? 0);
+			if (mejora && abierto) {
+				records = { ...records, [abierto]: puntos };
+				try {
+					localStorage.setItem(CLAVE, JSON.stringify(records));
+				} catch {
+					// El récord es un lujo, no el juego.
+				}
+			}
+			pintarRecords();
+			poner(etiquetaJugar, 'Otra vez');
+			decir(`${texto} ${puntos} puntos.${mejora ? ' Récord nuevo.' : ''}`);
+		}
+
+		/* ---- Esquiva: caen rocas y hay que quitarse de en medio ---- */
+
+		const esquiva: Juego = (() => {
+			const casillas = Array.from(esquivaTablero.children) as HTMLElement[];
+			const capa = uno('[data-esquiva-capa]');
+			let rocas: { x: number; y: number }[] = [];
+			let nave = Math.floor(COLS / 2);
+			let jugando = false;
+			let reloj = 0;
+			let ticks = 0;
+			let pintadas: number[] = [];
+
+			function pintar() {
+				for (const i of pintadas) casillas[i]?.removeAttribute('data-k');
+				pintadas = [];
+				if (!jugando) return;
+				for (const roca of rocas) marcar(roca.y * COLS + roca.x, 'roca');
+				marcar((ROWS - 1) * COLS + nave, 'nave');
+			}
+			function marcar(i: number, tipo: string) {
+				if (!casillas[i]) return;
+				casillas[i].dataset.k = tipo;
+				pintadas.push(i);
+			}
+			const chocado = () => rocas.some((roca) => roca.y === ROWS - 1 && roca.x === nave);
+
+			function capaVisible(titulo: string | null, texto = '') {
+				if (!capa) return;
+				capa.style.display = titulo === null ? 'none' : '';
+				if (titulo === null) return;
+				poner(uno('[data-esquiva-titulo]'), titulo);
+				poner(uno('[data-esquiva-texto]'), texto);
+			}
+
+			function perder() {
+				// El último fotograma se pinta antes de bajar la bandera: se ve el golpe.
+				pintar();
+				detener();
+				capaVisible('Te han dado.', `${puntos} puntos. Otra vez.`);
+				acabar('Te han dado.');
+			}
+
+			function paso() {
+				ticks += 1;
+				let esquivadas = 0;
+				rocas = rocas
+					.map((roca) => ({ x: roca.x, y: roca.y + 1 }))
+					.filter((roca) => {
+						if (roca.y < ROWS) return true;
+						esquivadas += 1;
+						return false;
+					});
+				if (esquivadas > 0) puntuar(puntos + esquivadas);
+				// Cada tanto cae otra, y con los puntos van cayendo más seguidas.
+				const cada = Math.max(2, 5 - Math.floor(puntos / 12));
+				if (ticks % cada === 0) rocas.push({ x: Math.floor(Math.random() * COLS), y: 0 });
+				if (chocado()) return perder();
+				pintar();
+				programar();
+			}
+
+			function programar() {
+				clearTimeout(reloj);
+				reloj = window.setTimeout(paso, Math.max(75, 190 - puntos * 3));
+			}
+			function mover(lado: number) {
+				if (!jugando) return;
+				nave = Math.min(COLS - 1, Math.max(0, nave + lado));
+				if (chocado()) return perder();
+				pintar();
+			}
+			function detener() {
+				clearTimeout(reloj);
+				reloj = 0;
+				jugando = false;
+			}
+
+			const TECLAS: Record<string, number> = { arrowleft: -1, a: -1, arrowright: 1, d: 1 };
+			esquivaTablero.addEventListener('keydown', (event) => {
+				const lado = TECLAS[event.key.toLowerCase()];
+				if (lado === undefined) return;
+				event.preventDefault();
+				mover(lado);
+			});
+
+			// Con el dedo se toca a un lado o al otro del tablero.
+			esquivaTablero.addEventListener('pointerdown', (event) => {
+				if (event.pointerType === 'mouse') return;
+				const caja = esquivaTablero.getBoundingClientRect();
+				mover(event.clientX - caja.left < caja.width / 2 ? -1 : 1);
+			});
+
+			section.querySelectorAll<HTMLButtonElement>('[data-pad]').forEach((boton) => {
+				boton.addEventListener('click', (event) => {
+					mover(Number(boton.dataset.pad));
+					// Tras el ratón o el dedo el foco vuelve al tablero; con el teclado no.
+					if (event.detail > 0) esquivaTablero.focus({ preventScroll: true });
+				});
+			});
+
+			return {
+				iniciar() {
+					detener();
+					rocas = [];
+					nave = Math.floor(COLS / 2);
+					ticks = 0;
+					jugando = true;
+					capaVisible(null);
+					pintar();
+					programar();
+					esquivaTablero.focus({ preventScroll: true });
+					decir('Empieza Esquiva.');
+				},
+				parar() {
+					detener();
+					pintar();
+					capaVisible('Esquiva', 'Dale a jugar y no te dejes dar.');
+				},
+			};
+		})();
+
+		/* ---- Memoria: ocho parejas tapadas ---- */
+
+		const memoria: Juego = (() => {
+			const cartas = Array.from(section.querySelectorAll<HTMLButtonElement>('[data-carta]'));
+			let reparto: string[] = [];
+			let abiertas: number[] = [];
+			let movimientos = 0;
+			let parejas = 0;
+			let inicio = 0;
+			let jugando = false;
+			let reloj = 0;
+
+			function cuentas() {
+				poner(uno('[data-memoria-movimientos]'), movimientos);
+				poner(uno('[data-memoria-parejas]'), parejas);
+			}
+			/** Tapar es quedarse sin dibujo; el hueco lo sujeta el cuadrado de la carta. */
+			function tapar(carta: HTMLButtonElement) {
+				carta.replaceChildren();
+				carta.dataset.estado = 'tapada';
+				carta.setAttribute('aria-label', 'Carta tapada');
+			}
+			function destapar(indice: number) {
+				const carta = cartas[indice];
+				const molde = section.querySelector<HTMLTemplateElement>(`[data-simbolo="${reparto[indice]}"]`);
+				const dibujo = molde?.content.firstElementChild;
+				if (!carta || !dibujo) return;
+				carta.replaceChildren(dibujo.cloneNode(true));
+				carta.dataset.estado = 'vista';
+				carta.setAttribute('aria-label', `Carta ${reparto[indice]}`);
+			}
+
+			function elegir(indice: number) {
+				const carta = cartas[indice];
+				if (!jugando || !carta || reloj > 0 || carta.dataset.estado !== 'tapada') return;
+				destapar(indice);
+				abiertas.push(indice);
+				if (abiertas.length < 2) return;
+
+				movimientos += 1;
+				const [a, b] = abiertas;
+				if (reparto[a] !== reparto[b]) {
+					cuentas();
+					// Un momento para verlas antes de que vuelvan a taparse.
+					reloj = window.setTimeout(() => {
+						reloj = 0;
+						for (const i of abiertas) tapar(cartas[i]);
+						abiertas = [];
+					}, 700);
+					return;
+				}
+
+				cartas[a].dataset.estado = 'hecha';
+				cartas[b].dataset.estado = 'hecha';
+				abiertas = [];
+				parejas += 1;
+				cuentas();
+				if (parejas < SIMBOLOS.length) return;
+
+				// Lo que queda al acabar: cada movimiento y cada segundo restan.
+				jugando = false;
+				const segundos = Math.round((Date.now() - inicio) / 1000);
+				puntuar(900 - movimientos * 25 - segundos * 4);
+				acabar('Todas las parejas.');
+			}
+
+			cartas.forEach((carta, indice) => carta.addEventListener('click', () => elegir(indice)));
+			function limpiar() {
+				clearTimeout(reloj);
+				reloj = 0;
+				jugando = false;
+				abiertas = [];
+				for (const carta of cartas) tapar(carta);
+			}
+
+			return {
+				iniciar() {
+					limpiar();
+					reparto = baraja([...SIMBOLOS, ...SIMBOLOS]);
+					movimientos = 0;
+					parejas = 0;
+					inicio = Date.now();
+					jugando = true;
+					cuentas();
+					decir('Empieza Memoria.');
+				},
+				parar: limpiar,
+			};
+		})();
+
+		/* ---- Trivia: seis preguntas con el reloj corriendo ---- */
+
+		const trivia: Juego = (() => {
+			const numero = uno('[data-trivia-n]');
+			const cuenta = uno('[data-trivia-tiempo]');
+			const barra = uno('[data-trivia-barra]');
+			const enunciado = uno('[data-trivia-pregunta]');
+			const lista = uno('[data-trivia-opciones]');
+			const molde = section.querySelector<HTMLTemplateElement>('[data-trivia-molde]');
+
+			type Ronda = { texto: string; opciones: string[]; buena: string };
+			let rondas: Ronda[] = [];
+			let indice = 0;
+			let fin = 0;
+			let tic = 0;
+			let salto = 0;
+
+			function relojes() {
+				clearInterval(tic);
+				clearTimeout(salto);
+				tic = 0;
+				salto = 0;
+			}
+			function pintarReloj(restante: number) {
+				poner(cuenta, Math.max(0, Math.ceil(restante / 1000)));
+				if (barra) barra.style.width = `${Math.max(0, (restante / TRIVIA_MS) * 100)}%`;
+			}
+
+			function responder(elegida: string | null) {
+				relojes();
+				const ronda = rondas[indice];
+				const restante = Math.max(0, fin - Date.now());
+				const acierto = elegida === ronda.buena;
+
+				lista?.querySelectorAll<HTMLButtonElement>('[data-opcion]').forEach((boton) => {
+					boton.disabled = true;
+					if (boton.textContent === ronda.buena) boton.dataset.marca = 'buena';
+					else if (boton.textContent === elegida) boton.dataset.marca = 'mala';
+				});
+
+				// El acierto vale cien puntos más lo que quedara en el reloj.
+				if (acierto) puntuar(puntos + 100 + Math.floor(restante / 1000) * 10);
+				decir(acierto ? 'Bien.' : `No. Era ${ronda.buena}.`);
+
+				indice += 1;
+				salto = window.setTimeout(() => {
+					salto = 0;
+					if (indice < rondas.length) return pregunta();
+					pintarReloj(0);
+					poner(enunciado, 'Se acabaron las preguntas.');
+					lista?.replaceChildren();
+					acabar('Trivia terminada.');
+				}, 1100);
+			}
+
+			function pregunta() {
+				const ronda = rondas[indice];
+				const dibujo = molde?.content.firstElementChild;
+				if (!ronda || !lista || !dibujo) return;
+				poner(numero, indice + 1);
+				poner(enunciado, ronda.texto);
+
+				lista.replaceChildren(
+					...ronda.opciones.map((opcion) => {
+						const fila = dibujo.cloneNode(true) as HTMLElement;
+						const boton = fila.querySelector<HTMLButtonElement>('[data-opcion]');
+						boton?.addEventListener('click', () => responder(opcion));
+						poner(boton, opcion);
+						return fila;
+					}),
+				);
+
+				fin = Date.now() + TRIVIA_MS;
+				pintarReloj(TRIVIA_MS);
+				tic = window.setInterval(() => {
+					const restante = fin - Date.now();
+					pintarReloj(restante);
+					if (restante <= 0) responder(null);
+				}, 100);
+			}
+
+			return {
+				iniciar() {
+					relojes();
+					// En el fichero la buena va siempre la primera, así que se barajan.
+					rondas = baraja(PREGUNTAS)
+						.slice(0, TRIVIA_TOTAL)
+						.map((item) => ({
+							texto: item.texto,
+							opciones: baraja(item.opciones),
+							buena: item.opciones[0],
+						}));
+					indice = 0;
+					pregunta();
+					decir('Empieza la trivia.');
+				},
+				parar() {
+					relojes();
+					lista?.replaceChildren();
+					poner(enunciado, 'Dale a jugar para empezar.');
+					poner(numero, 1);
+					pintarReloj(TRIVIA_MS);
+				},
+			};
+		})();
+
+		/* ---- Reacción: cinco rondas y el dedo listo ---- */
+
+		const reaccion: Juego = (() => {
+			const panel = section.querySelector<HTMLButtonElement>('[data-reaccion]');
+			const cuenta = uno('[data-reaccion-n]');
+			const mejorMs = uno('[data-reaccion-ms]');
+			let ronda = 0;
+			let mejor = 0;
+			let marca = 0;
+			let reloj = 0;
+
+			function pintar(fase: string, cabeza: string, pie: string) {
+				if (panel) panel.dataset.fase = fase;
+				poner(uno('[data-reaccion-titulo]'), cabeza);
+				poner(uno('[data-reaccion-texto]'), pie);
+			}
+			function esperar(ms: number, luego: () => void) {
+				clearTimeout(reloj);
+				reloj = window.setTimeout(() => {
+					reloj = 0;
+					luego();
+				}, ms);
+			}
+
+			function siguiente() {
+				poner(cuenta, ronda);
+				if (ronda >= REACCION_RONDAS) {
+					// Quien se adelantó las cinco veces no tiene ningún tiempo que enseñar.
+					pintar('quieto', 'Se acabó.', mejor > 0 ? `Mejor tiempo: ${mejor} ms.` : 'Siempre antes de tiempo.');
+					acabar('Cinco rondas.');
+					return;
+				}
+				pintar('espera', 'Quieto', 'Espera a que se encienda.');
+				esperar(900 + Math.floor(Math.random() * 2300), () => {
+					marca = Date.now();
+					pintar('ya', 'Ya', 'Pulsa.');
+				});
+			}
+
+			panel?.addEventListener('click', () => {
+				const fase = panel.dataset.fase;
+				if (fase !== 'espera' && fase !== 'ya') return;
+				ronda += 1;
+				if (fase === 'espera') {
+					pintar('quieto', 'Muy pronto.', 'Esa ronda se va a cero.');
+					decir('Te has adelantado.');
+				} else {
+					const ms = Date.now() - marca;
+					if (mejor === 0 || ms < mejor) mejor = ms;
+					poner(mejorMs, mejor);
+					puntuar(puntos + Math.max(0, 500 - ms));
+					pintar('quieto', `${ms} ms`, ronda >= REACCION_RONDAS ? 'Y se acabó.' : 'Va la siguiente.');
+					decir(`${ms} milisegundos.`);
+				}
+				esperar(900, siguiente);
+			});
+
+			return {
+				iniciar() {
+					clearTimeout(reloj);
+					ronda = 0;
+					mejor = 0;
+					poner(mejorMs, '—');
+					siguiente();
+					decir('Empieza Reacción.');
+				},
+				parar() {
+					clearTimeout(reloj);
+					reloj = 0;
+					ronda = 0;
+					poner(cuenta, 0);
+					pintar('quieto', 'Reacción', 'Dale a jugar y espera al morado.');
+				},
+			};
+		})();
+
+		/* ---- El salón: menú, juego abierto y vuelta ---- */
+
+		const JUEGO: Record<string, Juego> = { esquiva, memoria, trivia, reaccion };
+
+		function abrir(id: string) {
+			const juego = JUEGOS.find((item) => item.id === id);
+			if (!juego) return;
+			abierto = id;
+			puntuar(0);
+			pintarRecords();
+			poner(titulo, juego.title);
+			poner(como, juego.how);
+			poner(etiquetaJugar, 'Jugar');
+			section.querySelectorAll<HTMLElement>('[data-tablero]').forEach((tablero) => {
+				tablero.hidden = tablero.dataset.tablero !== id;
+			});
+			if (menu) menu.hidden = true;
+			if (vista) vista.hidden = false;
+			JUEGO[id]?.parar();
+			botonJugar?.focus({ preventScroll: true });
+			decir(`${juego.title}. ${juego.how}`);
+		}
+
+		function volver() {
+			if (abierto) JUEGO[abierto]?.parar();
+			abierto = null;
+			if (menu) menu.hidden = false;
+			if (vista) vista.hidden = true;
+			decir('Menú del arcade.');
+		}
+
+		section.querySelectorAll<HTMLButtonElement>('[data-abrir]').forEach((boton) => {
+			boton.addEventListener('click', () => abrir(boton.dataset.abrir ?? ''));
+		});
+		section.querySelector<HTMLButtonElement>('[data-volver]')?.addEventListener('click', volver);
+		botonJugar?.addEventListener('click', () => {
+			if (!abierto) return;
+			puntuar(0);
+			poner(etiquetaJugar, 'Reiniciar');
+			JUEGO[abierto]?.iniciar();
+		});
+
+		// Con la pestaña de fondo no se juega solo: se para y se empieza de nuevo.
+		document.addEventListener('visibilitychange', () => {
+			if (!document.hidden || !abierto) return;
+			JUEGO[abierto]?.parar();
+			poner(etiquetaJugar, 'Jugar');
+		});
+
+		pintarRecords();
+		for (const juego of JUEGOS) JUEGO[juego.id]?.parar();
+	}
+</script>
