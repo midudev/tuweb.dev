@@ -1,0 +1,496 @@
+---
+/**
+ * El generador de chistes. Le das a un botón, sale uno, y si quieres te lo
+ * cuenta en voz alta: primero el planteamiento, una pausa, y luego el remate.
+ *
+ * La voz la pone el propio navegador —la que ya tienes instalada—, así que no
+ * se envía nada a ninguna parte. Los chistes y los ajustes están en
+ * src/lib/chistes.ts; aquí solo están los mandos.
+ */
+import { ALL, CATEGORIES, PITCH, RATE, labelOf, pickJoke } from '../lib/chistes';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const FILTROS = [{ id: ALL, label: 'Todos', icon: 'dice' }, ...CATEGORIES];
+
+const MANDOS = [
+	{ id: 'rate', label: 'Velocidad', rango: RATE },
+	{ id: 'pitch', label: 'Tono', rango: PITCH },
+];
+
+// Uno al azar en cada visita: entras y ya hay chiste, sin dar a nada.
+const inicial = pickJoke(ALL, []);
+---
+
+<section id="chistes" class="flex flex-col gap-6">
+	<div class="flex flex-col gap-2">
+		<span class="text-sm text-muted">De qué</span>
+		<div class="flex flex-wrap gap-2" role="group" aria-label="Tipo de chiste">
+			{
+				FILTROS.map((filtro) => (
+					<button
+						type="button"
+						data-ch-cat={filtro.id}
+						aria-pressed={filtro.id === ALL ? 'true' : 'false'}
+						class={BOTON}
+					>
+						<Icon name={filtro.icon} class="size-4 shrink-0" />
+						{filtro.label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+		<div class="flex flex-col gap-5">
+			<div
+				data-ch-card
+				data-id={inicial.id}
+				class="flex min-h-56 flex-col gap-4 border border-line bg-panel p-6"
+			>
+				<span class="flex items-center gap-2 text-xs text-muted">
+					<Icon name="quote" class="size-4 shrink-0 text-accent" />
+					<span data-ch-label>{labelOf(inicial)}</span>
+				</span>
+
+				<p data-ch-setup class="font-pixel text-lg text-pretty">{inicial.setup}</p>
+
+				<p data-ch-punch hidden class="text-lg text-pretty text-mark">{inicial.punch}</p>
+
+				<button type="button" data-ch-reveal class="self-start text-sm text-accent hover:underline">
+					Ver el remate
+				</button>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-3">
+				<button type="button" data-ch-next class={`${BOTON} border-accent text-accent`}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Otro chiste
+				</button>
+
+				<button type="button" data-ch-speak class={BOTON}>
+					<span data-icon="play" class="inline-flex"><Icon name="volume" class="size-4 shrink-0" /></span>
+					<span data-icon="stop" class="inline-flex">
+						<Icon name="player-stop" class="size-4 shrink-0" />
+					</span>
+					<span data-ch-speak-label>Que me lo cuenten</span>
+				</button>
+
+				<button type="button" data-ch-save aria-pressed="false" class={BOTON}>
+					<Icon name="star" class="size-4 shrink-0" />
+					<span data-ch-save-label>Guardar</span>
+				</button>
+
+				<button type="button" data-ch-copy class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-ch-copy-label aria-live="polite">Copiar</span>
+				</button>
+			</div>
+
+			<p data-ch-note hidden class="text-sm text-muted"></p>
+		</div>
+
+		<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="microphone" class="size-4 shrink-0 text-accent" />
+				La voz
+			</span>
+
+			<div class="flex flex-col gap-2">
+				<label for="ch-voz" class="text-sm text-muted">Voz del navegador</label>
+				<select
+					id="ch-voz"
+					data-ch-voice
+					class="w-full border border-line bg-bg p-3 text-sm outline-none focus-visible:border-accent"
+				>
+					<option value="">La que haya</option>
+				</select>
+			</div>
+
+			{
+				MANDOS.map((mando) => (
+					<div class="flex flex-col gap-2">
+						<label
+							for={`ch-${mando.id}`}
+							class="flex items-center justify-between gap-3 text-sm text-muted"
+						>
+							{mando.label}
+							<span data-ch-value={mando.id} class="text-mark">
+								1.0
+							</span>
+						</label>
+						<input
+							type="range"
+							id={`ch-${mando.id}`}
+							data-ch-range={mando.id}
+							min={mando.rango.min}
+							max={mando.rango.max}
+							step={mando.rango.step}
+							value="1"
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+
+			<p class="text-sm text-muted">
+				Lee el navegador, con las voces que ya tienes instaladas. No se envía nada: ni el chiste,
+				ni la voz, ni lo que guardes.
+			</p>
+		</div>
+	</div>
+
+	<div data-ch-saved-box hidden class="flex flex-col gap-3">
+		<span class="flex items-center gap-2 text-sm text-muted">
+			<Icon name="star" class="size-4 shrink-0 text-accent" />
+			Guardados
+		</span>
+		<ul data-ch-saved class="flex flex-col gap-2"></ul>
+	</div>
+</section>
+
+<style>
+	/* El botón de la voz enseña play o stop, nunca los dos. */
+	[data-ch-speak] [data-icon='stop'],
+	[data-ch-speak][data-state='hablando'] [data-icon='play'] {
+		display: none;
+	}
+	[data-ch-speak][data-state='hablando'] [data-icon='stop'] {
+		display: inline-flex;
+	}
+
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-ch-copy] [data-icon='check'] {
+		display: none;
+	}
+	[data-ch-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-ch-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	import {
+		ALL,
+		DEFAULT_SETTINGS,
+		PITCH,
+		RATE,
+		fullText,
+		getJoke,
+		labelOf,
+		pickJoke,
+		pickVoice,
+		readSettings,
+		saveSettings,
+		sortVoices,
+		type Joke,
+		type Settings,
+	} from '../lib/chistes';
+
+	const tarjeta = document.querySelector<HTMLElement>('[data-ch-card]');
+	const planteamiento = document.querySelector<HTMLElement>('[data-ch-setup]');
+	const remate = document.querySelector<HTMLElement>('[data-ch-punch]');
+	const etiqueta = document.querySelector<HTMLElement>('[data-ch-label]');
+	const verRemate = document.querySelector<HTMLButtonElement>('[data-ch-reveal]');
+	const aviso = document.querySelector<HTMLElement>('[data-ch-note]');
+	const selectorVoz = document.querySelector<HTMLSelectElement>('[data-ch-voice]');
+	const cajon = document.querySelector<HTMLElement>('[data-ch-saved-box]');
+	const lista = document.querySelector<HTMLUListElement>('[data-ch-saved]');
+	const botonVoz = document.querySelector<HTMLButtonElement>('[data-ch-speak]');
+	const botonGuardar = document.querySelector<HTMLButtonElement>('[data-ch-save]');
+	const botonCopiar = document.querySelector<HTMLButtonElement>('[data-ch-copy]');
+
+	if (tarjeta && planteamiento && remate && verRemate) {
+		/** El silencio entre el planteamiento y el remate. Sin pausa no hay chiste. */
+		const PAUSA = 700;
+
+		const voz = 'speechSynthesis' in window ? window.speechSynthesis : null;
+
+		let ajustes: Settings = { ...DEFAULT_SETTINGS };
+		let actual: Joke = getJoke(tarjeta.dataset.id ?? '') ?? pickJoke(ALL, []);
+		/** Lo visto en esta visita, para no repetir hasta agotar la categoría. */
+		let vistos: string[] = [actual.id];
+		let voces: SpeechSynthesisVoice[] = [];
+		/** Cada lectura lleva su número: si empieza otra, la anterior se calla. */
+		let turno = 0;
+		let relojPausa: number | undefined;
+		let relojCopia: number | undefined;
+
+		function guardarAjustes() {
+			saveSettings(ajustes);
+		}
+
+		function pintarRemate(visible: boolean) {
+			remate.hidden = !visible;
+			verRemate.hidden = visible;
+		}
+
+		function pintarGuardar() {
+			const dentro = ajustes.saved.includes(actual.id);
+			botonGuardar?.setAttribute('aria-pressed', String(dentro));
+			const label = botonGuardar?.querySelector('[data-ch-save-label]');
+			if (label) label.textContent = dentro ? 'Guardado' : 'Guardar';
+		}
+
+		function pintarLista() {
+			if (!lista || !cajon) return;
+
+			lista.replaceChildren();
+			cajon.hidden = ajustes.saved.length === 0;
+
+			for (const id of ajustes.saved) {
+				const chiste = getJoke(id);
+				if (!chiste) continue;
+
+				const fila = document.createElement('li');
+				fila.className =
+					'flex flex-wrap items-center justify-between gap-3 border border-line bg-panel px-4 py-3';
+
+				const texto = document.createElement('span');
+				texto.className = 'text-sm text-muted';
+				texto.textContent = `${chiste.setup} ${chiste.punch}`;
+
+				const mandos = document.createElement('span');
+				mandos.className = 'flex shrink-0 items-center gap-4 text-sm';
+
+				const abrir = document.createElement('button');
+				abrir.type = 'button';
+				abrir.className = 'text-accent hover:underline';
+				abrir.textContent = 'Contar';
+				abrir.addEventListener('click', () => {
+					poner(chiste, true);
+					contar();
+				});
+
+				const quitar = document.createElement('button');
+				quitar.type = 'button';
+				quitar.className = 'text-muted hover:text-accent hover:underline';
+				quitar.textContent = 'Quitar';
+				quitar.addEventListener('click', () => {
+					ajustes.saved = ajustes.saved.filter((otro) => otro !== id);
+					guardarAjustes();
+					pintarGuardar();
+					pintarLista();
+				});
+
+				mandos.append(abrir, quitar);
+				fila.append(texto, mandos);
+				lista.append(fila);
+			}
+		}
+
+		/** Pone un chiste en la tarjeta. Con el remate tapado, salvo que se pida. */
+		function poner(chiste: Joke, revelado = false) {
+			callar();
+			actual = chiste;
+			tarjeta.dataset.id = chiste.id;
+			planteamiento.textContent = chiste.setup;
+			remate.textContent = chiste.punch;
+			if (etiqueta) etiqueta.textContent = labelOf(chiste);
+			pintarRemate(revelado);
+			pintarGuardar();
+
+			if (!vistos.includes(chiste.id)) vistos.push(chiste.id);
+			tarjeta.scrollIntoView({ block: 'nearest' });
+		}
+
+		function siguiente() {
+			const chiste = pickJoke(ajustes.category, vistos, actual.id);
+			// Categoría agotada: se vacía lo visto y vuelven a entrar todos.
+			if (vistos.includes(chiste.id)) vistos = [];
+			poner(chiste);
+		}
+
+		function pintarEstado(hablando: boolean) {
+			if (!botonVoz) return;
+			if (hablando) botonVoz.dataset.state = 'hablando';
+			else botonVoz.removeAttribute('data-state');
+
+			const label = botonVoz.querySelector('[data-ch-speak-label]');
+			if (label) label.textContent = hablando ? 'Parar' : 'Que me lo cuenten';
+		}
+
+		function callar() {
+			turno += 1;
+			clearTimeout(relojPausa);
+			voz?.cancel();
+			pintarEstado(false);
+		}
+
+		function frase(texto: string) {
+			const dicho = new SpeechSynthesisUtterance(texto);
+			const elegida = pickVoice(voces, ajustes.voice);
+			if (elegida) {
+				dicho.voice = elegida;
+				dicho.lang = elegida.lang;
+			} else {
+				dicho.lang = 'es-ES';
+			}
+			dicho.rate = ajustes.rate;
+			dicho.pitch = ajustes.pitch;
+			return dicho;
+		}
+
+		/** Primero el planteamiento; al acabar se destapa el remate y se lee. */
+		function contar() {
+			if (!voz) return;
+
+			callar();
+			const mio = turno;
+			pintarEstado(true);
+
+			const uno = frase(actual.setup);
+			const dos = frase(actual.punch);
+
+			uno.onend = () => {
+				if (mio !== turno) return;
+				relojPausa = window.setTimeout(() => {
+					if (mio !== turno) return;
+					pintarRemate(true);
+					voz.speak(dos);
+				}, PAUSA);
+			};
+
+			dos.onend = () => {
+				if (mio === turno) pintarEstado(false);
+			};
+
+			// Sin voz que hable —o con la lectura cortada— al menos se ve el remate.
+			uno.onerror = dos.onerror = () => {
+				if (mio !== turno) return;
+				pintarRemate(true);
+				pintarEstado(false);
+			};
+
+			voz.speak(uno);
+		}
+
+		function pintarVoces() {
+			if (!selectorVoz) return;
+
+			voces = sortVoices(voz?.getVoices() ?? []);
+			const elegida = pickVoice(voces, ajustes.voice);
+
+			selectorVoz.replaceChildren();
+			for (const opcion of voces) {
+				const item = document.createElement('option');
+				item.value = opcion.voiceURI;
+				item.textContent = `${opcion.name} (${opcion.lang})`;
+				selectorVoz.append(item);
+			}
+
+			if (voces.length === 0) {
+				const item = document.createElement('option');
+				item.value = '';
+				item.textContent = 'Sin voces instaladas';
+				selectorVoz.append(item);
+			}
+
+			selectorVoz.disabled = voces.length === 0;
+			selectorVoz.value = elegida?.voiceURI ?? '';
+		}
+
+		function pintarMandos() {
+			document.querySelectorAll<HTMLInputElement>('[data-ch-range]').forEach((mando) => {
+				const id = mando.dataset.chRange === 'pitch' ? 'pitch' : 'rate';
+				mando.value = String(ajustes[id]);
+				const salida = document.querySelector<HTMLElement>(`[data-ch-value="${id}"]`);
+				if (salida) salida.textContent = ajustes[id].toFixed(1);
+			});
+		}
+
+		verRemate.addEventListener('click', () => pintarRemate(true));
+		document.querySelector<HTMLButtonElement>('[data-ch-next]')?.addEventListener('click', siguiente);
+
+		botonVoz?.addEventListener('click', () => {
+			if (botonVoz.dataset.state === 'hablando') callar();
+			else contar();
+		});
+
+		botonGuardar?.addEventListener('click', () => {
+			ajustes.saved = ajustes.saved.includes(actual.id)
+				? ajustes.saved.filter((otro) => otro !== actual.id)
+				: [actual.id, ...ajustes.saved];
+			guardarAjustes();
+			pintarGuardar();
+			pintarLista();
+		});
+
+		document.querySelectorAll<HTMLButtonElement>('[data-ch-cat]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				ajustes.category = boton.dataset.chCat ?? ALL;
+				document.querySelectorAll<HTMLButtonElement>('[data-ch-cat]').forEach((otro) => {
+					otro.setAttribute('aria-pressed', String(otro.dataset.chCat === ajustes.category));
+				});
+				guardarAjustes();
+				siguiente();
+			});
+		});
+
+		document.querySelectorAll<HTMLInputElement>('[data-ch-range]').forEach((mando) => {
+			mando.addEventListener('input', () => {
+				const id = mando.dataset.chRange === 'pitch' ? 'pitch' : 'rate';
+				const rango = id === 'pitch' ? PITCH : RATE;
+				const valor = Math.min(rango.max, Math.max(rango.min, Number(mando.value) || 1));
+				ajustes[id] = valor;
+				pintarMandos();
+				guardarAjustes();
+			});
+		});
+
+		selectorVoz?.addEventListener('change', () => {
+			ajustes.voice = selectorVoz.value;
+			guardarAjustes();
+		});
+
+		botonCopiar?.addEventListener('click', async () => {
+			const label = botonCopiar.querySelector('[data-ch-copy-label]');
+			let hecho = false;
+			try {
+				await navigator.clipboard.writeText(fullText(actual));
+				hecho = true;
+			} catch {
+				// Sin portapapeles: el chiste sigue ahí para seleccionarlo a mano.
+			}
+
+			botonCopiar.dataset.state = hecho ? 'done' : 'error';
+			if (label) label.textContent = hecho ? 'Copiado' : 'No se pudo';
+
+			clearTimeout(relojCopia);
+			relojCopia = window.setTimeout(() => {
+				botonCopiar.removeAttribute('data-state');
+				if (label) label.textContent = 'Copiar';
+			}, 2000);
+		});
+
+		// Al salir de la página la voz se calla; si no, sigue hablando sola.
+		window.addEventListener('pagehide', () => callar());
+
+		if (!voz) {
+			botonVoz?.setAttribute('disabled', 'true');
+			if (selectorVoz) selectorVoz.disabled = true;
+			if (aviso) {
+				aviso.hidden = false;
+				aviso.textContent = 'Este navegador no sabe leer en voz alta, pero los chistes van igual.';
+			}
+		}
+
+		// Al entrar: los ajustes de la última visita y las voces del sistema.
+		ajustes = readSettings();
+		document.querySelectorAll<HTMLButtonElement>('[data-ch-cat]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.chCat === ajustes.category));
+		});
+		pintarMandos();
+		pintarGuardar();
+		pintarLista();
+		pintarVoces();
+		// Las voces tardan en llegar en algunos navegadores: se repinta cuando lleguen.
+		if (voz) voz.addEventListener('voiceschanged', pintarVoces);
+	}
+</script>

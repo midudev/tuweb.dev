@@ -51,6 +51,14 @@ export const SECTIONS: Section[] = [
 			'Apunta lo que hay que hacer con su nivel —de leve a urgente— y la hora a la que toca. Cada tarea lleva su cuenta atrás: cuánto le falta, y cuánto lleva vencida si se te pasó. Filtra por estado o por nivel, y si quieres que el navegador avise al vencer, dale a los avisos. No hay servidor: la lista se queda en tu navegador.',
 	},
 	{
+		href: '/chistes',
+		title: 'Chistes',
+		icon: 'mood-smile',
+		card: 'Un chiste, un botón y una voz que te lo cuenta con su pausa.',
+		intro:
+			'Le das al botón y sale un chiste: de programadores, malos, de animales, de oficina, de colegio o de bar. El remate viene tapado; lo destapas tú o deja que te lo cuenten. Si le das a la voz, el navegador lee el planteamiento, hace la pausa y remata. Elige voz, velocidad y tono, y guarda los que te hagan gracia. No hay servidor: lee tu navegador y lo que guardas se queda en él.',
+	},
+	{
 		href: '/diseno',
 		title: 'Diseño',
 		icon: 'palette',
