@@ -1,0 +1,48 @@
+---
+/**
+ * La fila de apartados, con cuántas secciones lleva cada uno. En la portada
+ * salta al bloque de la propia página; en el resto, lleva a la página del
+ * apartado. El apartado en el que se está no se enlaza a sí mismo.
+ */
+import type { GroupId } from '../lib/sections';
+import { GROUPS, groupHref, sectionsOf } from '../lib/sections';
+import Icon from './Icon.astro';
+
+interface Props {
+	/** En la portada los enlaces son saltos a los bloques que ya están debajo. */
+	anchors?: boolean;
+	/** El apartado actual, que sale apagado y sin enlace. */
+	current?: GroupId;
+}
+
+const { anchors = false, current } = Astro.props;
+---
+
+<ul class="flex flex-wrap gap-x-6 gap-y-3 text-sm">
+	{
+		GROUPS.map((group) => {
+			const count = sectionsOf(group.id).length;
+
+			return (
+				<li>
+					{group.id === current ? (
+						<span class="inline-flex items-center gap-2 text-muted" aria-current="true">
+							<Icon name={group.icon} class="size-4 shrink-0" />
+							{group.title}
+							<span class="tabular-nums">{count}</span>
+						</span>
+					) : (
+						<a
+							href={anchors ? `#grupo-${group.id}` : groupHref(group.id)}
+							class="inline-flex items-center gap-2 text-accent hover:underline"
+						>
+							<Icon name={group.icon} class="size-4 shrink-0" />
+							{group.title}
+							<span class="tabular-nums text-muted">{count}</span>
+						</a>
+					)}
+				</li>
+			);
+		})
+	}
+</ul>

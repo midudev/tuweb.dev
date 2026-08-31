@@ -1,0 +1,37 @@
+---
+/**
+ * La rejilla de tarjetas de sección. La usan el índice de la portada y la
+ * página de cada apartado, así que una tarjeta se ve igual en los dos sitios.
+ */
+import type { Section } from '../lib/sections';
+import Icon from './Icon.astro';
+
+interface Props {
+	sections: Section[];
+}
+
+const { sections } = Astro.props;
+---
+
+<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+	{
+		sections.map((section) => (
+			<li class="flex">
+				<a
+					href={section.href}
+					class="group flex grow flex-col gap-2 border border-line bg-panel px-5 py-5 hover:border-accent"
+				>
+					<span class="flex items-center gap-2.5 font-pixel text-lg">
+						<Icon name={section.icon} class="size-5 shrink-0 text-accent" />
+						{section.title}
+					</span>
+					<span class="text-sm text-pretty text-muted">{section.card}</span>
+					<span class="mt-auto inline-flex items-center gap-2 pt-3 text-sm text-accent group-hover:underline">
+						Abrir
+						<Icon name="arrow-right" class="size-4 shrink-0" />
+					</span>
+				</a>
+			</li>
+		))
+	}
+</ul>

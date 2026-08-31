@@ -1,0 +1,70 @@
+---
+/**
+ * La página de un apartado: solo sus secciones, sin nada más alrededor.
+ * /categoria/juegos es el salón entero; /categoria/herramientas, la mesa de
+ * trabajo. La lista sale de src/lib/sections.ts, así que un apartado nuevo se
+ * abre solo. Si la URL trae un apartado que no existe, la página responde 404 y
+ * enseña los que sí hay.
+ */
+import BackLink from '../../components/BackLink.astro';
+import Footer from '../../components/Footer.astro';
+import GroupNav from '../../components/GroupNav.astro';
+import Icon from '../../components/Icon.astro';
+import SectionCards from '../../components/SectionCards.astro';
+import SectionLabel from '../../components/SectionLabel.astro';
+import { findGroup, sectionsOf } from '../../lib/sections';
+import Layout from '../../layouts/Layout.astro';
+
+const group = findGroup(Astro.params.grupo);
+const sections = group ? sectionsOf(group.id) : [];
+
+if (!group) Astro.response.status = 404;
+---
+
+<Layout
+	title={group ? `${group.title} — tuweb.dev` : 'Ese apartado no existe — tuweb.dev'}
+	description={group?.intro}
+>
+	<div class="flex min-h-screen flex-col">
+		<div class="px-6 py-10">
+			<div class="mx-auto flex w-full max-w-5xl flex-col gap-8">
+				<BackLink />
+
+				{
+					group ? (
+						<>
+							<div class="flex flex-col gap-3">
+								<h1 class="flex items-center gap-3 font-pixel text-3xl leading-tight font-normal">
+									<Icon name={group.icon} class="size-6 shrink-0 text-accent" />
+									{group.title}
+									<span class="text-lg tabular-nums text-muted">{sections.length}</span>
+								</h1>
+								<p class="max-w-[62ch] text-sm text-pretty text-muted">{group.intro}</p>
+							</div>
+
+							<SectionCards sections={sections} />
+						</>
+					) : (
+						<div class="flex flex-col gap-3">
+							<h1 class="font-pixel text-3xl leading-tight font-normal">Ese apartado no existe</h1>
+							<p class="max-w-[62ch] text-sm text-pretty text-muted">
+								La web está repartida en estos, y debajo los tienes todos.
+							</p>
+						</div>
+					)
+				}
+			</div>
+		</div>
+
+		<div class="grow"></div>
+
+		<nav data-canvas class="border-t border-line bg-panel" aria-label="Otros apartados">
+			<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-8">
+				<SectionLabel>OTROS APARTADOS</SectionLabel>
+				<GroupNav current={group?.id} />
+			</div>
+		</nav>
+
+		<Footer />
+	</div>
+</Layout>

@@ -1,10 +1,12 @@
 ---
 /**
- * El pie de cada sección: desde aquí se salta a las demás sin pasar por la
- * portada. La lista sale de src/lib/sections.ts, menos la sección en la que se
- * está.
+ * El pie de cada sección. Antes soltaba las veintitantas secciones de golpe;
+ * ahora enseña primero las hermanas de su apartado —que es lo que se busca al
+ * salir de una— y debajo la fila de apartados para cambiar de sitio. Todo sale
+ * de src/lib/sections.ts.
  */
-import { SECTIONS } from '../lib/sections';
+import { getGroup, getSection, groupHref, sectionsOf } from '../lib/sections';
+import GroupNav from './GroupNav.astro';
 import Icon from './Icon.astro';
 import SectionLabel from './SectionLabel.astro';
 
@@ -14,24 +16,44 @@ interface Props {
 }
 
 const { href } = Astro.props;
-const others = SECTIONS.filter((section) => section.href !== href);
+const section = getSection(href);
+const group = getGroup(section.group);
+const siblings = sectionsOf(group.id).filter((item) => item.href !== href);
 ---
 
-<nav data-canvas class="border-t border-line bg-panel" aria-labelledby="label-otras">
-	<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-8">
-		<SectionLabel forId="label-otras">OTRAS SECCIONES</SectionLabel>
-
-		<ul class="flex flex-wrap gap-x-7 gap-y-3 text-sm">
-			{
-				others.map((section) => (
-					<li>
-						<a href={section.href} class="inline-flex items-center gap-2 text-accent hover:underline">
-							<Icon name={section.icon} class="size-4 shrink-0" />
-							{section.title}
+<nav data-canvas class="border-t border-line bg-panel" aria-label="Más secciones">
+	<div class="mx-auto flex w-full max-w-5xl flex-col gap-7 px-6 py-8">
+		{
+			siblings.length > 0 && (
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+						<SectionLabel>MÁS EN {group.title.toUpperCase()}</SectionLabel>
+						<a
+							href={groupHref(group.id)}
+							class="inline-flex items-center gap-2 text-sm text-accent hover:underline"
+						>
+							Ver el apartado
+							<Icon name="arrow-right" class="size-4 shrink-0" />
 						</a>
-					</li>
-				))
-			}
-		</ul>
+					</div>
+
+					<ul class="flex flex-wrap gap-x-7 gap-y-3 text-sm">
+						{siblings.map((item) => (
+							<li>
+								<a href={item.href} class="inline-flex items-center gap-2 text-accent hover:underline">
+									<Icon name={item.icon} class="size-4 shrink-0" />
+									{item.title}
+								</a>
+							</li>
+						))}
+					</ul>
+				</div>
+			)
+		}
+
+		<div class="flex flex-col gap-4 border-t border-line pt-6">
+			<SectionLabel>OTROS APARTADOS</SectionLabel>
+			<GroupNav current={group.id} />
+		</div>
 	</div>
 </nav>
