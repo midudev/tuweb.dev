@@ -1,0 +1,472 @@
+---
+/**
+ * «Aprende Python»: cuatro niveles de retos —adivina la salida, rellena el
+ * hueco, encuentra la línea que falla— con vidas, racha y récord. Aquí no se
+ * ejecuta Python: los retos y sus respuestas están escritos en src/lib/python.ts
+ * y todo se resuelve en el navegador. Lo que avanzas se queda en el tuyo.
+ */
+import { LEVELS, LIVES } from '../lib/python';
+import Icon from './Icon.astro';
+
+const MARCADOR = [
+	{ id: 'puntos', label: 'puntos', icon: 'coin' },
+	{ id: 'record', label: 'récord', icon: 'trophy' },
+	{ id: 'racha', label: 'racha', icon: 'flame' },
+	{ id: 'vidas', label: 'vidas', icon: 'heart' },
+];
+
+const FILA = 'flex items-baseline justify-between gap-3 border-t border-line pt-1.5';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+---
+
+<section id="python" class="flex flex-col gap-7">
+	<div class="flex flex-col gap-6 md:flex-row-reverse md:items-start">
+		<aside class="flex w-full shrink-0 flex-col gap-4 md:max-w-56">
+			<dl class="flex flex-col gap-1.5 text-sm">
+				{
+					MARCADOR.map((dato) => (
+						<div class={FILA}>
+							<dt class="flex items-baseline gap-2 text-muted">
+								<Icon name={dato.icon} class="size-3.5 shrink-0 self-center" />
+								{dato.label}
+							</dt>
+							<dd data-dato={dato.id} class="font-pixel tabular-nums">
+								0
+							</dd>
+						</div>
+					))
+				}
+			</dl>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Niveles</span>
+				{
+					LEVELS.map((level, i) => (
+						<button
+							type="button"
+							data-nivel={i}
+							data-estado="cerrado"
+							title={level.blurb}
+							class="flex items-center gap-3 border border-line px-3 py-2 text-left text-sm hover:border-accent disabled:opacity-40 disabled:hover:border-line"
+						>
+							<Icon name={level.icon} class="size-4 shrink-0 text-accent" />
+							<span class="grow font-pixel">{level.title}</span>
+							<span data-marca="lock" class="text-muted">
+								<Icon name="lock" class="size-4 shrink-0" />
+							</span>
+							<span data-marca="check" class="text-accent">
+								<Icon name="circle-check" class="size-4 shrink-0" />
+							</span>
+						</button>
+					))
+				}
+			</div>
+		</aside>
+
+		<div class="flex min-w-0 grow flex-col gap-4">
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+				<span class="inline-flex items-center gap-2 text-muted">
+					<Icon name="brand-python" class="size-4 shrink-0 text-accent" />
+					<span data-titulo>Elige un nivel para empezar</span>
+				</span>
+				<span data-progreso class="tabular-nums text-mark"></span>
+			</div>
+
+			<div class="h-px w-full bg-line">
+				<div data-barra class="h-px bg-accent" style="width: 0%"></div>
+			</div>
+
+			<!-- El panel: la entrada al principio y el final de cada nivel después. -->
+			<div data-zona="panel">
+				<div class="flex flex-col gap-3 border border-line bg-panel p-5">
+					<p data-panel-titulo class="font-pixel text-lg">Aprende Python jugando</p>
+					<p data-panel-texto class="max-w-[62ch] text-sm text-muted">
+						Cuatro niveles de retos: adivina qué imprime el código, rellena el hueco que falta o
+						señala la línea que revienta. Tienes {LIVES} vidas por nivel y cada acierto seguido vale
+						más. Pásalo entero para abrir el siguiente.
+					</p>
+					<div class="flex flex-wrap gap-2">
+						<button type="button" data-empezar class={`${BOTON} border-accent text-accent`}>
+							<Icon name="player-play" class="size-4 shrink-0" />
+							Empezar
+						</button>
+						<button type="button" data-repetir class={BOTON} hidden>
+							<Icon name="refresh" class="size-4 shrink-0" />
+							Repetir el nivel
+						</button>
+						<button type="button" data-seguir class={`${BOTON} border-accent text-accent`} hidden>
+							<Icon name="arrow-right" class="size-4 shrink-0" />
+							Siguiente nivel
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- El reto de turno: el código, la pregunta y las opciones. -->
+			<div data-zona="juego" hidden>
+				<div class="flex flex-col gap-4">
+					<ol data-codigo class="flex flex-col border border-line bg-panel p-4 text-sm"></ol>
+
+					<p data-pregunta class="text-sm"></p>
+
+					<div data-opciones class="grid gap-2 sm:grid-cols-2"></div>
+
+					<div data-resultado hidden>
+						<div class="flex flex-col gap-2 border border-line bg-panel p-4">
+							<p data-resultado-titulo class="text-sm"></p>
+							<p data-porque class="max-w-[62ch] text-sm text-muted"></p>
+						</div>
+					</div>
+
+					<div data-pista-texto hidden>
+						<p class="max-w-[62ch] border-l border-accent pl-3 text-sm text-mark"></p>
+					</div>
+
+					<div class="flex flex-wrap gap-2">
+						<button type="button" data-pista class={BOTON}>
+							<Icon name="bulb" class="size-4 shrink-0" />
+							Pista
+						</button>
+						<button type="button" data-siguiente class={`${BOTON} border-accent text-accent`} hidden>
+							<Icon name="arrow-right" class="size-4 shrink-0" />
+							<span data-siguiente-texto>Siguiente</span>
+						</button>
+						<button type="button" data-dejar class={BOTON}>
+							<Icon name="x" class="size-4 shrink-0" />
+							Dejarlo
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<p class="text-sm text-muted">
+				No se ejecuta ningún Python: las respuestas están escritas a mano y se comprueban en tu
+				navegador. La pista vale la mitad de puntos y lo que avanzas se guarda solo aquí.
+			</p>
+		</div>
+	</div>
+</section>
+
+<style is:global>
+	/*
+	 * Las líneas del código y las opciones las pinta el script, así que no llevan
+	 * la marca del componente: todo esto va global, colgado de #python.
+	 */
+	#python [data-nivel] [data-marca] {
+		display: none;
+	}
+	#python [data-nivel][data-estado='cerrado'] [data-marca='lock'],
+	#python [data-nivel][data-estado='hecho'] [data-marca='check'] {
+		display: inline-flex;
+	}
+	#python [data-nivel][aria-current='true'] {
+		border-color: var(--color-accent);
+	}
+	#python [data-codigo] > li {
+		display: flex;
+		gap: 0.75rem;
+		white-space: pre-wrap;
+	}
+	#python [data-codigo] .numero {
+		color: var(--color-muted);
+		user-select: none;
+		min-width: 1.5rem;
+		text-align: end;
+	}
+	#python [data-codigo] button {
+		width: 100%;
+		text-align: start;
+		border-inline-start: 1px solid transparent;
+		padding-inline-start: 0.5rem;
+		margin-inline-start: -0.5rem;
+	}
+	#python [data-opciones] > button {
+		border: 1px solid var(--color-line);
+		padding: 0.5rem 0.75rem;
+		text-align: start;
+		white-space: pre-wrap;
+	}
+	#python [data-codigo] button:hover:not(:disabled),
+	#python [data-opciones] > button:hover:not(:disabled) {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	#python [data-marcado='bien'] {
+		border-color: var(--color-ok);
+		color: var(--color-ok);
+	}
+	#python [data-marcado='mal'] {
+		border-color: var(--color-heart);
+		color: var(--color-heart);
+	}
+	/*
+	 * Las clases de Tailwind van en una capa y esto no, así que esta regla gana:
+	 * lo que lleva hidden se esconde aunque tenga una clase de display encima.
+	 */
+	#python [hidden] {
+		display: none;
+	}
+</style>
+
+<script>
+	import {
+		HINT_POINTS,
+		LEVELS,
+		LIVES,
+		POINTS,
+		STREAK_BONUS,
+		isOpen,
+		readProgress,
+		saveProgress,
+		type Challenge,
+		type Progress,
+	} from '../lib/python';
+
+	const raiz = document.querySelector<HTMLElement>('#python');
+
+	if (raiz) {
+		/** Todo lo que se busca está dentro de la sección y está en el HTML. */
+		function $(selector: string) {
+			return raiz!.querySelector(selector) as HTMLElement;
+		}
+
+		const codigo = $('[data-codigo]');
+		const opciones = $('[data-opciones]');
+		const zonas = { panel: $('[data-zona="panel"]'), juego: $('[data-zona="juego"]') };
+		const empezar = $('[data-empezar]');
+		const repetir = $('[data-repetir]');
+		const seguir = $('[data-seguir]');
+		const siguiente = $('[data-siguiente]');
+		const pista = $('[data-pista]') as HTMLButtonElement;
+		const resultado = $('[data-resultado]');
+		const pistaTexto = $('[data-pista-texto]');
+		const niveles = [...raiz.querySelectorAll<HTMLButtonElement>('[data-nivel]')];
+
+		/** Los textos de bienvenida, para poder volver a ellos al dejarlo. */
+		const INTRO = {
+			titulo: $('[data-panel-titulo]').textContent ?? '',
+			texto: $('[data-panel-texto]').textContent ?? '',
+		};
+
+		let progreso: Progress = readProgress();
+		let nivel = 0;
+		let reto = 0;
+		let puntos = 0;
+		let vidas = LIVES;
+		let racha = 0;
+		let conPista = false;
+		let respondido = false;
+		let jugando = false;
+
+		function retoActual(): Challenge {
+			return LEVELS[nivel].challenges[reto];
+		}
+
+		function dato(id: string, valor: string | number) {
+			$(`[data-dato="${id}"]`).textContent = String(valor);
+		}
+
+		function pintarNiveles() {
+			niveles.forEach((boton, i) => {
+				const abierto = isOpen(i, progreso);
+				boton.disabled = !abierto;
+				boton.dataset.estado = !abierto
+					? 'cerrado'
+					: progreso.done.includes(LEVELS[i].id)
+						? 'hecho'
+						: 'abierto';
+				boton.setAttribute('aria-current', jugando && i === nivel ? 'true' : 'false');
+			});
+
+			dato('puntos', puntos);
+			dato('record', progreso.best[LEVELS[nivel].id] ?? 0);
+			dato('racha', racha);
+			dato('vidas', `${Math.max(vidas, 0)}/${LIVES}`);
+		}
+
+		/** El panel de fuera del juego: la bienvenida o el final de un nivel. */
+		function panel(titulo: string, texto: string, botones: HTMLElement[]) {
+			$('[data-panel-titulo]').textContent = titulo;
+			$('[data-panel-texto]').textContent = texto;
+			[empezar, repetir, seguir].forEach((boton) => (boton.hidden = !botones.includes(boton)));
+
+			zonas.panel.hidden = false;
+			zonas.juego.hidden = true;
+		}
+
+		/** El código del reto. En los de «error» cada línea es un botón. */
+		function pintarCodigo(actual: Challenge) {
+			codigo.replaceChildren(
+				...actual.code.map((linea, i) => {
+					const numero = document.createElement('span');
+					numero.className = 'numero';
+					numero.textContent = String(i + 1);
+
+					const texto = document.createElement(actual.kind === 'error' ? 'button' : 'code');
+					texto.textContent = linea || ' ';
+					if (texto instanceof HTMLButtonElement) {
+						const boton = texto;
+						boton.type = 'button';
+						boton.addEventListener('click', () => responder(i, boton));
+					}
+
+					const fila = document.createElement('li');
+					fila.append(numero, texto);
+					return fila;
+				}),
+			);
+		}
+
+		function pintarReto() {
+			const actual = retoActual();
+			const total = LEVELS[nivel].challenges.length;
+			conPista = false;
+			respondido = false;
+
+			$('[data-titulo]').textContent = LEVELS[nivel].title;
+			$('[data-progreso]').textContent = `reto ${reto + 1} de ${total}`;
+			$('[data-barra]').style.width = `${(reto / total) * 100}%`;
+			$('[data-pregunta]').textContent = actual.ask;
+
+			pintarCodigo(actual);
+			opciones.replaceChildren(
+				...(actual.options ?? []).map((opcion, i) => {
+					const boton = document.createElement('button');
+					boton.type = 'button';
+					boton.textContent = `${i + 1}. ${opcion}`;
+					boton.addEventListener('click', () => responder(i, boton));
+					return boton;
+				}),
+			);
+
+			resultado.hidden = true;
+			pistaTexto.hidden = true;
+			siguiente.hidden = true;
+			pista.disabled = false;
+			pintarNiveles();
+		}
+
+		function responder(elegida: number, boton: HTMLButtonElement) {
+			if (respondido) return;
+			respondido = true;
+
+			const actual = retoActual();
+			const bien = elegida === actual.answer;
+			const botones = (actual.kind === 'error' ? codigo : opciones).querySelectorAll('button');
+			botones.forEach((otro) => (otro.disabled = true));
+			boton.dataset.marcado = bien ? 'bien' : 'mal';
+
+			// La racha de antes es la que paga: el acierto de ahora la sube después.
+			const sumados = (conPista ? HINT_POINTS : POINTS) + racha * STREAK_BONUS;
+
+			if (bien) {
+				puntos += sumados;
+				racha += 1;
+			} else {
+				racha = 0;
+				vidas -= 1;
+				// La buena se marca igual: se aprende viéndola.
+				const buena = botones[actual.answer];
+				if (buena) buena.dataset.marcado = 'bien';
+			}
+
+			const titulo = $('[data-resultado-titulo]');
+			titulo.textContent = bien
+				? `${conPista ? 'Bien, con pista' : 'Bien'}. +${sumados}`
+				: 'No era esa. Te queda una vida menos.';
+			titulo.style.color = bien ? 'var(--color-ok)' : 'var(--color-heart)';
+			$('[data-porque]').textContent = actual.why;
+			resultado.hidden = false;
+
+			pista.disabled = true;
+			pintarNiveles();
+
+			if (vidas <= 0) {
+				terminar(false);
+				return;
+			}
+
+			const ultimo = reto + 1 >= LEVELS[nivel].challenges.length;
+			$('[data-siguiente-texto]').textContent = ultimo ? 'Terminar el nivel' : 'Siguiente';
+			siguiente.hidden = false;
+			siguiente.focus();
+		}
+
+		function terminar(pasado: boolean) {
+			const level = LEVELS[nivel];
+			const hayMas = nivel + 1 < LEVELS.length;
+
+			if (pasado && !progreso.done.includes(level.id)) progreso.done.push(level.id);
+			if (puntos > (progreso.best[level.id] ?? 0)) progreso.best[level.id] = puntos;
+			saveProgress(progreso);
+
+			panel(
+				pasado ? 'Nivel superado' : 'Sin vidas',
+				pasado
+					? `${puntos} puntos en «${level.title}».${hayMas ? ' Ya tienes abierto el siguiente.' : ' No queda ninguno: te has pasado el juego.'}`
+					: `Te quedaste en el reto ${reto + 1} con ${puntos} puntos. Repítelo: ahora ya sabes por dónde iba.`,
+				pasado && hayMas ? [repetir, seguir] : [repetir],
+			);
+
+			$('[data-barra]').style.width = pasado ? '100%' : `${(reto / level.challenges.length) * 100}%`;
+			$('[data-progreso]').textContent = pasado ? 'nivel completo' : 'se acabó';
+			pintarNiveles();
+		}
+
+		function jugar(indice: number) {
+			if (!isOpen(indice, progreso)) return;
+
+			nivel = indice;
+			reto = 0;
+			puntos = 0;
+			vidas = LIVES;
+			racha = 0;
+			jugando = true;
+
+			zonas.panel.hidden = true;
+			zonas.juego.hidden = false;
+			pintarReto();
+		}
+
+		niveles.forEach((boton, i) => boton.addEventListener('click', () => jugar(i)));
+
+		empezar.addEventListener('click', () => {
+			// Se sigue por donde te quedaste: el primero que aún no has pasado.
+			const pendiente = LEVELS.findIndex(
+				(level, i) => isOpen(i, progreso) && !progreso.done.includes(level.id),
+			);
+			jugar(pendiente === -1 ? 0 : pendiente);
+		});
+
+		repetir.addEventListener('click', () => jugar(nivel));
+		seguir.addEventListener('click', () => jugar(nivel + 1));
+
+		siguiente.addEventListener('click', () => {
+			if (reto + 1 >= LEVELS[nivel].challenges.length) {
+				terminar(true);
+				return;
+			}
+			reto += 1;
+			pintarReto();
+		});
+
+		pista.addEventListener('click', () => {
+			conPista = true;
+			pista.disabled = true;
+			pistaTexto.hidden = false;
+			pistaTexto.querySelector('p')!.textContent = retoActual().hint;
+		});
+
+		$('[data-dejar]').addEventListener('click', () => {
+			jugando = false;
+			panel(INTRO.titulo, INTRO.texto, [empezar]);
+			$('[data-titulo]').textContent = 'Elige un nivel para empezar';
+			$('[data-progreso]').textContent = '';
+			$('[data-barra]').style.width = '0%';
+			pintarNiveles();
+		});
+
+		pintarNiveles();
+	}
+</script>

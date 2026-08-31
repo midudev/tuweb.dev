@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos y el laberinto del build. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build y los retos de Python. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',
@@ -158,6 +158,15 @@ export const SECTIONS: Section[] = [
 		card: 'midudev atrapado en el build: coge los commits y sal antes que los bugs.',
 		intro:
 			'midudev se ha quedado dentro del build y hay que sacarlo. Cada planta es un laberinto: recoge todos los commits sueltos, que son los que abren la salida, y llega a la puerta sin que te pillen los bugs, que van detrás de ti. Tres bugs encima y se acabó. Cada planta que sales llega con más bugs y con más prisa. El récord se queda en tu navegador.',
+	},
+	{
+		href: '/python',
+		title: 'Aprende Python',
+		icon: 'brand-python',
+		group: 'juegos',
+		card: 'Cuatro niveles de retos: qué imprime, qué falta y qué línea revienta.',
+		intro:
+			'Un juego para aprender Python sin instalar nada. Cuatro niveles —lo básico, listas y bucles, funciones, y diccionarios y clases— con retos de tres tipos: adivinar qué imprime el código, rellenar el hueco que falta o señalar la línea que revienta. Tres vidas por nivel, racha que multiplica y una pista si te atascas, que cuesta la mitad de los puntos. Aquí no se ejecuta Python: las respuestas están escritas a mano y se comprueban en tu navegador. Lo que avanzas se queda en él.',
 	},
 	{
 		href: '/chistes',
