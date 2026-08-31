@@ -1,0 +1,82 @@
+---
+/**
+ * Un prompt listo para llevárselo: el texto en su caja y el botón de copiar.
+ * Lo usa la guía de IA y SDD, que tiene una decena de estos.
+ */
+import Icon from './Icon.astro';
+
+interface Props {
+	text: string;
+	/** Lo que dice el botón cuando no ha pasado nada. */
+	label?: string;
+}
+
+const { text, label = 'Copiar el prompt' } = Astro.props;
+---
+
+<div data-sdd-block class="flex flex-col gap-2">
+	<pre
+		class="overflow-x-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark">{text}</pre>
+
+	<div>
+		<button
+			type="button"
+			data-sdd-copy
+			class="inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+		>
+			<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-sdd-copy-label aria-live="polite">{label}</span>
+		</button>
+	</div>
+</div>
+
+<style>
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-sdd-copy] [data-icon='check'] {
+		display: none;
+	}
+	[data-sdd-copy][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-sdd-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-sdd-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-sdd-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	// El script va una vez por página, no una por bloque: Astro lo junta solo.
+	document.querySelectorAll<HTMLButtonElement>('[data-sdd-copy]').forEach((boton) => {
+		const etiqueta = boton.querySelector<HTMLElement>('[data-sdd-copy-label]');
+		const original = etiqueta?.textContent ?? 'Copiar el prompt';
+		const texto = boton.closest('[data-sdd-block]')?.querySelector('pre')?.textContent ?? '';
+		let reloj: number | undefined;
+
+		boton.addEventListener('click', async () => {
+			let hecho = false;
+
+			try {
+				await navigator.clipboard.writeText(texto);
+				hecho = true;
+			} catch {
+				// Sin portapapeles o sin permiso: el texto sigue ahí para seleccionarlo.
+			}
+
+			boton.dataset.state = hecho ? 'done' : 'error';
+			if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				boton.removeAttribute('data-state');
+				if (etiqueta) etiqueta.textContent = original;
+			}, 2000);
+		});
+	});
+</script>

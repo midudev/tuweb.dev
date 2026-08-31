@@ -106,6 +106,15 @@ export const SECTIONS: Section[] = [
 			'Escribe la petición como te salga —«un login que aguante intentos repetidos»— y sale un prompt de verdad: rol, contexto, lo que se espera punto por punto, restricciones y formato de respuesta. Sirve para desarrollo, debugging, refactor, testing, SQL, APIs, arquitectura, DevOps y seguridad, con el lenguaje o el framework que uses. No hay ninguna IA detrás: la plantilla se arma en tu navegador y lo que escribes se queda ahí.',
 	},
 	{
+		href: '/guia-ia',
+		title: 'Guía de IA y SDD',
+		icon: 'robot',
+		group: 'herramientas',
+		card: 'Cómo trabajar con IA sin perder el foco: el ciclo, los prompts y lo que revisas tú.',
+		intro:
+			'Trabajar con IA sin que se te vaya de las manos. El ciclo de Spec Driven Development en cinco fases —especificar, planificar, trocear, implementar y revisar—, con el prompt de cada una listo para copiar, la plantilla de spec, unos cuantos prompts sueltos y la checklist de la revisión manual, que es la parte que no se delega. No hay ninguna IA detrás: se copia y se pega donde la uses, y lo que marcas se queda en tu navegador.',
+	},
+	{
 		href: '/tareas',
 		title: 'Tareas',
 		icon: 'checklist',

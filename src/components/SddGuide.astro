@@ -1,0 +1,246 @@
+---
+/**
+ * La guía de trabajar con IA y con Spec Driven Development: los principios, el
+ * ciclo con su prompt en cada fase, la plantilla de spec, unos cuantos prompts
+ * sueltos, la checklist de revisión manual y las señales de que se te está
+ * yendo el foco.
+ *
+ * El contenido está en src/lib/sdd.ts; aquí solo se pinta. No hay ninguna IA
+ * detrás: los prompts se copian y lo que marcas en la checklist se queda en tu
+ * navegador.
+ */
+import { CHECKS, EXTRAS, PHASES, PRINCIPLES, SMELLS, SPEC_TEMPLATE } from '../lib/sdd';
+import CopyBlock from './CopyBlock.astro';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+const TOTAL = CHECKS.reduce((suma, grupo) => suma + grupo.items.length, 0);
+---
+
+<section id="guia-ia" class="flex flex-col gap-12">
+	<div class="flex flex-col gap-4">
+		<SectionLabel forId="label-principios">LOS PRINCIPIOS</SectionLabel>
+
+		<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-labelledby="label-principios">
+			{
+				PRINCIPLES.map((item) => (
+					<li class="flex flex-col gap-2 border border-line px-5 py-4">
+						<span class="flex items-center gap-2.5 font-pixel text-accent">
+							<Icon name={item.icon} class="size-5 shrink-0" />
+							{item.title}
+						</span>
+						<p class="text-sm text-pretty text-muted">{item.body}</p>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-4">
+			<SectionLabel forId="label-ciclo">EL CICLO</SectionLabel>
+			<p class="text-sm text-muted">Cinco fases. De cada una se sale con algo escrito.</p>
+		</div>
+
+		<ol class="flex flex-col gap-4" aria-labelledby="label-ciclo">
+			{
+				PHASES.map((phase, index) => (
+					<li id={phase.id} class="flex scroll-mt-6 flex-col gap-4 border border-line bg-panel px-5 py-5">
+						<div class="flex flex-col gap-2">
+							<span class="flex flex-wrap items-center gap-3">
+								<span class="font-pixel text-sm text-muted">{String(index + 1).padStart(2, '0')}</span>
+								<span class="flex items-center gap-2.5 font-pixel text-lg text-accent">
+									<Icon name={phase.icon} class="size-5 shrink-0" />
+									{phase.title}
+								</span>
+							</span>
+							<p class="max-w-[70ch] text-sm text-pretty">{phase.goal}</p>
+						</div>
+
+						<div class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+							<div class="flex flex-col gap-2">
+								<span class="text-sm text-muted">Aquí se hace</span>
+								<ul class="flex flex-col gap-1.5 text-sm">
+									{phase.does.map((linea) => (
+										<li class="flex gap-2.5">
+											<Icon name="check" class="mt-1 size-4 shrink-0 text-accent" />
+											<span class="text-pretty">{linea}</span>
+										</li>
+									))}
+								</ul>
+							</div>
+
+							<div class="flex flex-col gap-2">
+								<span class="text-sm text-muted">Todavía no</span>
+								<ul class="flex flex-wrap gap-2">
+									{phase.avoid.map((linea) => (
+										<li class="border border-line px-3 py-1.5 text-xs text-muted">{linea}</li>
+									))}
+								</ul>
+							</div>
+						</div>
+
+						<CopyBlock text={phase.prompt} />
+
+						<p class="flex gap-2.5 text-sm text-pretty text-muted">
+							<Icon name="arrow-right" class="mt-1 size-4 shrink-0 text-accent" />
+							{phase.gate}
+						</p>
+					</li>
+				))
+			}
+		</ol>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-4">
+			<SectionLabel>LA PLANTILLA DE SPEC</SectionLabel>
+			<p class="text-sm text-muted">Para no empezar con el folio en blanco.</p>
+		</div>
+
+		<CopyBlock text={SPEC_TEMPLATE} label="Copiar la plantilla" />
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-4">
+			<SectionLabel forId="label-sueltos">PROMPTS SUELTOS</SectionLabel>
+			<p class="text-sm text-muted">Para los ratos que no son una fase.</p>
+		</div>
+
+		<ul class="flex flex-col gap-4" aria-labelledby="label-sueltos">
+			{
+				EXTRAS.map((extra) => (
+					<li id={extra.id} class="flex scroll-mt-6 flex-col gap-3 border border-line px-5 py-5">
+						<div class="flex flex-col gap-1">
+							<span class="font-pixel text-accent">{extra.title}</span>
+							<p class="text-sm text-pretty text-muted">{extra.when}</p>
+						</div>
+						<CopyBlock text={extra.prompt} />
+					</li>
+				))
+			}
+		</ul>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-4">
+			<SectionLabel forId="label-revision">LA REVISIÓN MANUAL</SectionLabel>
+			<p class="text-sm text-muted">
+				<span data-sdd-count class="text-mark">0 de {TOTAL}</span> · se queda en tu navegador
+			</p>
+		</div>
+
+		<div
+			role="group"
+			aria-labelledby="label-revision"
+			class="flex flex-col gap-5 border border-line bg-panel px-5 py-5"
+		>
+			<span class="block h-1 w-full bg-line" aria-hidden="true">
+				<span data-sdd-bar class="block h-full bg-accent" style="width: 0%"></span>
+			</span>
+
+			{
+				CHECKS.map((group) => (
+					<div class="flex flex-col gap-2.5">
+						<span class="font-pixel text-sm text-accent">{group.title}</span>
+						<ul class="flex flex-col gap-2">
+							{group.items.map((item) => (
+								<li>
+									<label class="flex cursor-pointer items-start gap-2.5 text-sm text-pretty">
+										<input
+											type="checkbox"
+											data-sdd-check={item.id}
+											class="mt-1 size-4 shrink-0 accent-accent"
+										/>
+										<span>{item.text}</span>
+									</label>
+								</li>
+							))}
+						</ul>
+					</div>
+				))
+			}
+
+			<div>
+				<button
+					type="button"
+					data-sdd-reset
+					class="inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+				>
+					<Icon name="eraser" class="size-4 shrink-0" />
+					Desmarcar todo
+				</button>
+			</div>
+		</div>
+
+		<p class="max-w-[70ch] text-sm text-pretty text-muted">
+			Esta parte no se delega. La IA escribe el cambio; quien responde de él eres tú.
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-4">
+			<SectionLabel forId="label-senales">CUANDO SE TE VA EL FOCO</SectionLabel>
+			<p class="text-sm text-muted">La señal, y qué hacer con ella.</p>
+		</div>
+
+		<ul class="grid gap-4 sm:grid-cols-2" aria-labelledby="label-senales">
+			{
+				SMELLS.map((smell) => (
+					<li class="flex flex-col gap-2 border border-line px-5 py-4">
+						<span class="flex gap-2.5 text-sm text-pretty">
+							<Icon name="alert-triangle" class="mt-1 size-4 shrink-0 text-accent" />
+							{smell.sign}
+						</span>
+						<p class="text-sm text-pretty text-muted">{smell.fix}</p>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</section>
+
+<script>
+	import { readChecked, saveChecked } from '../lib/sdd';
+
+	const seccion = document.querySelector<HTMLElement>('#guia-ia');
+	const casillas = [...(seccion?.querySelectorAll<HTMLInputElement>('[data-sdd-check]') ?? [])];
+
+	if (seccion && casillas.length > 0) {
+		const cuenta = seccion.querySelector<HTMLElement>('[data-sdd-count]');
+		const barra = seccion.querySelector<HTMLElement>('[data-sdd-bar]');
+		const total = casillas.length;
+
+		function marcadas() {
+			return casillas.filter((casilla) => casilla.checked).map((casilla) => casilla.dataset.sddCheck ?? '');
+		}
+
+		function pintar() {
+			const hechas = marcadas().length;
+			if (cuenta) cuenta.textContent = `${hechas} de ${total}`;
+			if (barra) barra.style.width = `${Math.round((hechas / total) * 100)}%`;
+		}
+
+		casillas.forEach((casilla) => {
+			casilla.addEventListener('change', () => {
+				saveChecked(marcadas());
+				pintar();
+			});
+		});
+
+		seccion.querySelector<HTMLButtonElement>('[data-sdd-reset]')?.addEventListener('click', () => {
+			casillas.forEach((casilla) => {
+				casilla.checked = false;
+			});
+			saveChecked([]);
+			pintar();
+		});
+
+		// Al entrar: lo que quedó marcado de la última visita.
+		const guardado = readChecked();
+		casillas.forEach((casilla) => {
+			casilla.checked = guardado.includes(casilla.dataset.sddCheck ?? '');
+		});
+		pintar();
+	}
+</script>
