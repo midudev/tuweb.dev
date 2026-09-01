@@ -62,20 +62,22 @@
 	--text-lg--line-height: 1.55;
 
 	/*
-	 * Morado y negro. El negro no es puro: lleva una gota de violeta para que el
-	 * acento no flote encima, y paneles y líneas suben por esa misma rampa. El
-	 * apagado pasa AA (6.8:1) y el acento también (7.6:1).
+	 * Catppuccin Mocha. El fondo es su base, los paneles y las líneas suben por
+	 * la rampa de superficies y el acento es el malva de la paleta. Nada de negro
+	 * puro ni de blanco puro: todo lleva la misma gota de azul violáceo. El
+	 * apagado pasa AA (7.3:1) y el acento también (8:1).
 	 */
-	--color-bg: #07060c;
-	--color-fg: #ecebf5;
-	--color-muted: #928aa8;
-	--color-line: #251d38;
-	--color-panel: #0f0c17;
-	--color-accent: #a78bfa;
-	--color-mark: #cbb6ff;
-	--color-heart: oklch(0.7 0.14 18);
-	--color-ok: oklch(0.72 0.15 150);
-	--color-building: oklch(0.8 0.14 85);
+	--color-bg: #1e1e2e;
+	--color-fg: #cdd6f4;
+	--color-muted: #a6adc8;
+	--color-line: #45475a;
+	--color-panel: #313244;
+	--color-accent: #cba6f7;
+	/* El malva empujado hacia el rosewater, que es lo que hace también el selector. */
+	--color-mark: color-mix(in oklab, #cba6f7 62%, #f5e0dc);
+	--color-heart: #f38ba8;
+	--color-ok: #a6e3a1;
+	--color-building: #fab387;
 }
 
 html {
@@ -88,27 +90,31 @@ html {
 }
 
 /*
- * El esquema claro. El oscuro es el de arriba y sigue siendo el de casa; este
- * repisa las mismas variables cuando el <html> lleva data-tema="claro", que es
- * lo que pone el selector de temas. Un selector con atributo gana a :root, así
- * que no hace falta tocar nada más: toda la web va detrás de estos siete
- * colores.
+ * El esquema claro: Latte, que es el Mocha de día de la misma paleta. El oscuro
+ * es el de arriba y sigue siendo el de casa; este repisa las mismas variables
+ * cuando el <html> lleva data-tema="claro", que es lo que pone el selector de
+ * temas. Un selector con atributo gana a :root, así que no hace falta tocar
+ * nada más: toda la web va detrás de estos siete colores.
  */
 html[data-tema='claro'] {
 	color-scheme: light;
 
-	--color-bg: #faf9fd;
-	--color-fg: #16141f;
-	/* 6.4:1 sobre el fondo claro; el apagado también tiene que leerse. */
-	--color-muted: #5e5872;
-	--color-line: #e0dbec;
-	--color-panel: #f2eff9;
-	/* El mismo morado, bajado de claridad hasta que se lee sobre blanco. */
-	--color-accent: oklch(0.54 0.152 296);
-	--color-mark: oklch(0.38 0.115 296);
-	--color-heart: oklch(0.55 0.17 18);
-	--color-ok: oklch(0.5 0.14 150);
-	--color-building: oklch(0.55 0.13 75);
+	--color-bg: #eff1f5;
+	--color-fg: #4c4f69;
+	/* 5.4:1 sobre el fondo claro; el apagado también tiene que leerse. */
+	--color-muted: #5c5f77;
+	--color-line: #ccd0da;
+	--color-panel: #e6e9ef;
+	/* El mismo malva, en su versión de día: 4.8:1 sobre el fondo claro. */
+	--color-accent: #8839ef;
+	--color-mark: color-mix(in oklab, #8839ef 70%, #11111b);
+	--color-heart: #d20f39;
+	/*
+	 * Estos dos son de Latte, pero tirados hacia el crust: tal cual salen de la
+	 * paleta se quedan cortos de contraste para pintar texto sobre el fondo.
+	 */
+	--color-ok: color-mix(in oklab, #40a02b 72%, #11111b);
+	--color-building: color-mix(in oklab, #fe640b 68%, #11111b);
 }
 
 /*

@@ -13,12 +13,12 @@ export interface Token {
 }
 
 export const TOKENS: readonly Token[] = [
-	{ name: '--color-bg', label: 'Fondo', note: 'El negro de casa, con una gota de violeta.' },
+	{ name: '--color-bg', label: 'Fondo', note: 'La base de Catppuccin Mocha, la paleta de casa.' },
 	{ name: '--color-fg', label: 'Texto', note: 'Lo que se lee. Nunca blanco puro.' },
 	{ name: '--color-muted', label: 'Apagado', note: 'Lo secundario. Pasa AA sobre el fondo.' },
 	{ name: '--color-line', label: 'Línea', note: 'Todos los bordes. Un píxel, sin curvas.' },
 	{ name: '--color-panel', label: 'Panel', note: 'Las cajas, medio paso por encima del fondo.' },
-	{ name: '--color-accent', label: 'Acento', note: 'Enlaces, iconos y botones. Lo elige cada uno.' },
+	{ name: '--color-accent', label: 'Acento', note: 'El malva de Mocha: enlaces, iconos y botones.' },
 	{ name: '--color-mark', label: 'Realce', note: 'El acento llevado al extremo del fondo.' },
 ];
 

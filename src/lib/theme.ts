@@ -24,22 +24,22 @@ export const MODES: readonly Mode[] = ['auto', 'claro', 'oscuro'];
 export const SURFACES: readonly Surface[] = ['aurora', 'plano', 'degradado', 'trama'];
 
 /*
- * Lo de fábrica: el morado, el negro y la aurora de src/styles/global.css.
+ * Lo de fábrica: el malva, el fondo Mocha y la aurora de src/styles/global.css.
  * Quien no toque nada ve la web tal cual se diseñó; el modo del sistema está
  * ahí, pero hay que pedirlo.
  */
-export const DEFAULT_THEME: Theme = { mode: 'oscuro', accent: '#a78bfa', surface: 'aurora' };
+export const DEFAULT_THEME: Theme = { mode: 'oscuro', accent: '#cba6f7', surface: 'aurora' };
 
-/** Los colores del selector rápido. El primero es el de la casa. */
+/** Los colores del selector rápido: los de Mocha. El primero es el de la casa. */
 export const PRESETS = [
-	{ label: 'Violeta', hex: '#a78bfa' },
-	{ label: 'Orquídea', hex: '#d18bfa' },
-	{ label: 'Índigo', hex: '#8a9dff' },
-	{ label: 'Azul', hex: '#00c2ff' },
-	{ label: 'Menta', hex: '#2fd3a5' },
-	{ label: 'Ámbar', hex: '#f5a524' },
-	{ label: 'Rosa', hex: '#ff7ac6' },
-	{ label: 'Grafito', hex: '#b6bcc4' },
+	{ label: 'Malva', hex: '#cba6f7' },
+	{ label: 'Lavanda', hex: '#b4befe' },
+	{ label: 'Azul', hex: '#89b4fa' },
+	{ label: 'Cielo', hex: '#89dceb' },
+	{ label: 'Turquesa', hex: '#94e2d5' },
+	{ label: 'Verde', hex: '#a6e3a1' },
+	{ label: 'Melocotón', hex: '#fab387' },
+	{ label: 'Rosa', hex: '#f5c2e7' },
 ] as const;
 
 const MODE_KEY = 'tuweb:modo';
@@ -60,17 +60,22 @@ const ACCENT_PATTERN = /^#[0-9a-f]{6}$/;
  */
 const LIMITS: Record<Scheme, { min: number; max: number }> = {
 	oscuro: { min: 0.62, max: 1 },
-	claro: { min: 0, max: 0.54 },
+	/* El tope lo marca el malva de Latte, que es el acento de casa en claro. */
+	claro: { min: 0, max: 0.57 },
 };
 
-/** El realce (mark) es el acento llevado al extremo contrario del fondo. */
+/*
+ * El realce (mark) es el acento llevado al extremo contrario del fondo. No a
+ * blanco ni a negro puros: a los dos extremos de la paleta, el rosewater de
+ * Mocha y el crust de Latte.
+ */
 const MARK: Record<Scheme, { amount: number; towards: string }> = {
-	oscuro: { amount: 62, towards: '#ffffff' },
-	claro: { amount: 70, towards: '#000000' },
+	oscuro: { amount: 62, towards: '#f5e0dc' },
+	claro: { amount: 70, towards: '#11111b' },
 };
 
 /** El fondo de cada esquema, el mismo que pinta global.css. */
-const PAGE_BG: Record<Scheme, string> = { oscuro: '#07060c', claro: '#faf9fd' };
+const PAGE_BG: Record<Scheme, string> = { oscuro: '#1e1e2e', claro: '#eff1f5' };
 
 /** El hex opaco y legible que le corresponde a un color en este esquema. */
 export function accentFor(color: Color, scheme: Scheme) {
