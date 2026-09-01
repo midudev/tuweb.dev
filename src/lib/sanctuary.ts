@@ -13,8 +13,8 @@ export const W = 20;
 export const H = 26;
 
 /*
- * La piedra, en tres tonos. Salen del texto y del fondo, así que la estatua se
- * lee igual en oscuro y en claro sin repetir la paleta a mano.
+ * La piedra, en tres tonos. Salen del texto y del fondo, así que la estatua va
+ * detrás del tema sin repetir la paleta a mano.
  */
 const INK: Record<string, string> = {
 	l: 'var(--color-fg)',

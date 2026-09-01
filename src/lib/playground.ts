@@ -38,29 +38,29 @@ const COUNTER: Sources = {
 	place-items: center;
 	min-height: 100vh;
 	margin: 0;
-	background: #1e1e2e;
-	color: #cdd6f4;
+	background: #fdf6ef;
+	color: #3b2d24;
 	font-family: ui-monospace, monospace;
 	text-align: center;
 }
 
 h1 {
-	color: #cba6f7;
+	color: #c2410c;
 	font-size: 1.5rem;
 }
 
 button {
 	padding: 0.75rem 1rem;
-	border: 1px solid #45475a;
-	background: #313244;
+	border: 1px solid #e8d9c8;
+	background: #f7ece1;
 	color: inherit;
 	font: inherit;
 	cursor: pointer;
 }
 
 button:hover {
-	border-color: #cba6f7;
-	color: #cba6f7;
+	border-color: #c2410c;
+	color: #c2410c;
 }`,
 	js: `const boton = document.querySelector('#boton');
 let clics = 0;
@@ -79,8 +79,8 @@ const CLOCK: Sources = {
 	place-items: center;
 	min-height: 100vh;
 	margin: 0;
-	background: #1e1e2e;
-	color: #cba6f7;
+	background: #fdf6ef;
+	color: #c2410c;
 	font-family: ui-monospace, monospace;
 }
 

@@ -126,9 +126,10 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 		translate: -50%;
 	}
 
-	/* Un velo flojo: la sección marcada tiene que seguir leyéndose por detrás. */
+	/* Un velo flojo: la sección marcada tiene que seguir leyéndose por detrás.
+	   Sobre papel el velo va del color del texto, que si no no oscurece nada. */
 	[data-tour]::backdrop {
-		background: color-mix(in oklab, var(--color-bg, #1e1e2e) 45%, transparent);
+		background: color-mix(in oklab, var(--color-fg, #3b2d24) 22%, transparent);
 	}
 </style>
 

@@ -13,13 +13,13 @@ const {
 ---
 
 <!doctype html>
-<html lang="es" class="dark">
+<html lang="es">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width" />
-		<!-- Oscuro primero: es el de casa. El claro lo pone el selector de temas. -->
-		<meta name="color-scheme" content="dark light" />
-		<meta name="theme-color" content="#1e1e2e" />
+		<!-- Un solo tema: el claro naranja. Aquí no hay modo oscuro que elegir. -->
+		<meta name="color-scheme" content="light" />
+		<meta name="theme-color" content="#fdf6ef" />
 		<link rel="icon" href="/favicon.ico" sizes="32x32" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
@@ -43,10 +43,10 @@ const {
 		<title>{title}</title>
 
 		<!--
-			El tema que se haya elegido en la caja de herramientas —modo, color y
-			fondo— se aplica en cuanto carga este script, junto con las variables
-			tocadas en el panel de Config. Va en la cabecera y no en línea porque la
-			CSP es script-src 'self': lo más pronto que puede correr es esto.
+			Lo que se haya afinado en la caja de herramientas —color y fondo— se aplica
+			en cuanto carga este script, junto con las variables tocadas en el panel de
+			Config. Va en la cabecera y no en línea porque la CSP es script-src 'self':
+			lo más pronto que puede correr es esto.
 		-->
 		<script>
 			import { applyConfig, readConfig } from '../lib/config';
@@ -54,12 +54,6 @@ const {
 
 			applyTheme(readTheme());
 			applyConfig(readConfig());
-
-			// Con el modo del sistema puesto, la web va detrás de lo que haga el sistema.
-			window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-				const theme = readTheme();
-				if (theme.mode === 'auto') applyTheme(theme);
-			});
 		</script>
 	</head>
 	<body data-canvas class="bg-bg font-mono text-fg antialiased">

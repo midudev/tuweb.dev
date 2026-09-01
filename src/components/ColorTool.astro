@@ -18,7 +18,7 @@ const SLIDERS = [
 	{ id: 'alpha', label: 'Alfa', min: 0, max: 1, step: 0.01 },
 ];
 
-const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 75%)', 'rgb(205 214 244 / 0.6)'];
+const SAMPLES = ['#c2410c', 'chocolate', 'oklch(55% 0.14 62)', 'hsl(23 92% 40%)', 'rgb(59 45 36 / 0.6)'];
 ---
 
 <div
@@ -36,7 +36,7 @@ const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 
 				<input
 					type="text"
 					data-color-input
-					value="#cba6f7"
+					value="#c2410c"
 					spellcheck="false"
 					autocomplete="off"
 					class="w-full border border-line bg-panel p-4 text-lg outline-none focus-visible:border-accent"
@@ -53,7 +53,7 @@ const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 
 					<input
 						type="color"
 						data-color-picker
-						value="#cba6f7"
+						value="#c2410c"
 						class="h-12 w-24 cursor-pointer border border-line bg-panel p-1"
 					/>
 				</label>
@@ -83,8 +83,8 @@ const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 
 			<div class="flex flex-col gap-3 border border-line bg-panel p-4">
 				<span class="text-sm text-muted">Color primario de la web</span>
 				<p class="text-sm">
-					Lo que elijas aquí repinta la web al momento y se guarda en este navegador. El modo y el
-					fondo están en la pestaña de Tema.
+					Lo que elijas aquí repinta la web al momento y se guarda en este navegador. El fondo
+					está en la pestaña de Tema.
 				</p>
 				<div class="flex flex-wrap items-center gap-3">
 					<button
@@ -143,7 +143,7 @@ const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 
 
 <style>
 	/* Tablero de ajedrez para que se vea la transparencia. Con los colores del
-	   tema, que en modo claro un tablero negro canta. */
+	   tema, que sobre papel claro un tablero negro canta. */
 	[data-color-checker] {
 		background-image: repeating-conic-gradient(
 			var(--color-line) 0% 25%,
@@ -176,7 +176,6 @@ const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 
 		applyTheme,
 		readTheme,
 		saveTheme,
-		schemeOf,
 	} from '../lib/theme';
 
 	const input = document.querySelector<HTMLInputElement>('[data-color-input]');
@@ -203,15 +202,14 @@ const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 
 	const SAVE_DELAY = 400;
 	let saveTimer = 0;
 
-	/** El acento no es el color a pelo: se ajusta al esquema que esté puesto. */
+	/** El acento no es el color a pelo: se oscurece si no se lee sobre el papel. */
 	function showTheme(next: Color) {
-		const scheme = schemeOf(theme.mode);
-		if (themeValue) themeValue.textContent = accentFor(next, scheme);
-		if (themeNote) themeNote.textContent = adjustNote(next, scheme);
+		if (themeValue) themeValue.textContent = accentFor(next);
+		if (themeNote) themeNote.textContent = adjustNote(next);
 	}
 
 	function paint(next: Color) {
-		// Se guarda el color tal cual se eligió: cada esquema lo ajusta a lo suyo.
+		// Se guarda el color tal cual se eligió; al pintarlo se ajusta al fondo.
 		theme = { ...theme, accent: toHex({ ...next, alpha: 1 }) };
 		applyTheme(theme);
 		showTheme(next);
@@ -320,7 +318,7 @@ const SAMPLES = ['#cba6f7', 'rebeccapurple', 'oklch(87% 0.06 155)', 'hsl(23 92% 
 	});
 
 	/*
-	 * El tema también se toca desde la cabecera y desde la pestaña de Tema. Aquí
+	 * El acento también se toca desde la pestaña de Tema y desde Config. Aquí
 	 * solo se refresca lo que se enseña: aplicar y guardar ya lo ha hecho quien
 	 * lo cambió, y volver a hacerlo sería dar vueltas.
 	 */

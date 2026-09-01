@@ -62,59 +62,32 @@
 	--text-lg--line-height: 1.55;
 
 	/*
-	 * Catppuccin Mocha. El fondo es su base, los paneles y las líneas suben por
-	 * la rampa de superficies y el acento es el malva de la paleta. Nada de negro
-	 * puro ni de blanco puro: todo lleva la misma gota de azul violáceo. El
-	 * apagado pasa AA (7.3:1) y el acento también (8:1).
+	 * Un solo tema: claro y naranja. El fondo es un papel cálido, los paneles y
+	 * las líneas suben por esa misma rampa y el acento es un naranja quemado.
+	 * Nada de blanco puro ni de negro puro: todo lleva la misma gota de tierra.
+	 * El apagado pasa AA (5.4:1) y el acento también (4.8:1).
 	 */
-	--color-bg: #1e1e2e;
-	--color-fg: #cdd6f4;
-	--color-muted: #a6adc8;
-	--color-line: #45475a;
-	--color-panel: #313244;
-	--color-accent: #cba6f7;
-	/* El malva empujado hacia el rosewater, que es lo que hace también el selector. */
-	--color-mark: color-mix(in oklab, #cba6f7 62%, #f5e0dc);
-	--color-heart: #f38ba8;
-	--color-ok: #a6e3a1;
-	--color-building: #fab387;
+	--color-bg: #fdf6ef;
+	--color-fg: #3b2d24;
+	--color-muted: #7a6152;
+	--color-line: #e8d9c8;
+	--color-panel: #f7ece1;
+	--color-accent: #c2410c;
+	/* El naranja empujado hacia el tostado oscuro, para lo que tiene que destacar. */
+	--color-mark: color-mix(in oklab, #c2410c 70%, #2b1b10);
+	--color-heart: #b91c3c;
+	--color-ok: #2f7a3b;
+	/* El ámbar de «construyendo»: naranja también, pero más apagado que el acento. */
+	--color-building: #8a5a00;
 }
 
 html {
-	color-scheme: dark;
+	color-scheme: light;
 	background: var(--color-bg);
 	color: var(--color-fg);
-	/* La barra de scroll también es de la casa: fina y morada. */
+	/* La barra de scroll también es de la casa: fina y naranja. */
 	scrollbar-width: thin;
 	scrollbar-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-line)) transparent;
-}
-
-/*
- * El esquema claro: Latte, que es el Mocha de día de la misma paleta. El oscuro
- * es el de arriba y sigue siendo el de casa; este repisa las mismas variables
- * cuando el <html> lleva data-tema="claro", que es lo que pone el selector de
- * temas. Un selector con atributo gana a :root, así que no hace falta tocar
- * nada más: toda la web va detrás de estos siete colores.
- */
-html[data-tema='claro'] {
-	color-scheme: light;
-
-	--color-bg: #eff1f5;
-	--color-fg: #4c4f69;
-	/* 5.4:1 sobre el fondo claro; el apagado también tiene que leerse. */
-	--color-muted: #5c5f77;
-	--color-line: #ccd0da;
-	--color-panel: #e6e9ef;
-	/* El mismo malva, en su versión de día: 4.8:1 sobre el fondo claro. */
-	--color-accent: #8839ef;
-	--color-mark: color-mix(in oklab, #8839ef 70%, #11111b);
-	--color-heart: #d20f39;
-	/*
-	 * Estos dos son de Latte, pero tirados hacia el crust: tal cual salen de la
-	 * paleta se quedan cortos de contraste para pintar texto sobre el fondo.
-	 */
-	--color-ok: color-mix(in oklab, #40a02b 72%, #11111b);
-	--color-building: color-mix(in oklab, #fe640b 68%, #11111b);
 }
 
 /*
@@ -123,22 +96,22 @@ html[data-tema='claro'] {
  * se lee peor. Todos van anclados a la pantalla para que las secciones
  * apiladas parezcan una sola pieza.
  *
- * La aurora es el de casa: dos halos morados, uno arriba a la izquierda y otro
- * abajo a la derecha, que hacen de horizonte detrás del contenido. El selector
- * de temas lo pone con data-fondo; el «:not» cubre el primer pintado, antes de
- * que corra el script de la cabecera.
+ * La aurora es el de casa: dos halos naranjas, uno arriba a la izquierda y otro
+ * abajo a la derecha, que hacen de horizonte detrás del contenido. El fondo se
+ * elige en la caja de herramientas con data-fondo; el «:not» cubre el primer
+ * pintado, antes de que corra el script de la cabecera.
  */
 html[data-fondo='aurora'] [data-canvas],
 html:not([data-fondo]) [data-canvas] {
 	background-image:
 		radial-gradient(
 			60rem 34rem at 10% -10%,
-			color-mix(in oklab, var(--color-accent) 14%, transparent),
+			color-mix(in oklab, var(--color-accent) 9%, transparent),
 			transparent 68%
 		),
 		radial-gradient(
 			46rem 30rem at 94% 108%,
-			color-mix(in oklab, var(--color-accent) 9%, transparent),
+			color-mix(in oklab, var(--color-accent) 6%, transparent),
 			transparent 70%
 		);
 	background-attachment: fixed;
@@ -147,7 +120,7 @@ html:not([data-fondo]) [data-canvas] {
 html[data-fondo='degradado'] [data-canvas] {
 	background-image: linear-gradient(
 		155deg,
-		color-mix(in oklab, var(--color-accent) 16%, transparent),
+		color-mix(in oklab, var(--color-accent) 10%, transparent),
 		transparent 62%
 	);
 	background-attachment: fixed;
@@ -158,22 +131,6 @@ html[data-fondo='trama'] [data-canvas] {
 		linear-gradient(var(--color-line) 1px, transparent 1px),
 		linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
 	background-size: 34px 34px;
-}
-
-/*
- * El botón del tema enseña solo el icono del modo que está puesto. Lo decide
- * el atributo del <html>, no un script: así sobrevive a los refrescos de
- * data-live, que reescriben la cabecera entera cada minuto.
- */
-[data-tema-toggle] > [data-modo] {
-	display: none;
-}
-
-html[data-modo='auto'] [data-tema-toggle] > [data-modo='auto'],
-html[data-modo='claro'] [data-tema-toggle] > [data-modo='claro'],
-html[data-modo='oscuro'] [data-tema-toggle] > [data-modo='oscuro'],
-html:not([data-modo]) [data-tema-toggle] > [data-modo='oscuro'] {
-	display: inline-flex;
 }
 
 /*
@@ -197,8 +154,8 @@ body {
 }
 
 /*
- * Una línea de luz cruzando lo alto de la página. Es un pelo de un píxel, va
- * fija y no se puede pulsar: solo remata la web por arriba.
+ * Un filo naranja cruzando lo alto de la página. Es un pelo de un píxel, va
+ * fijo y no se puede pulsar: solo remata la web por arriba.
  */
 body::before {
 	content: '';
@@ -208,21 +165,8 @@ body::before {
 	z-index: 60;
 	height: 1px;
 	background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
-	opacity: 0.6;
+	opacity: 0.8;
 	pointer-events: none;
-}
-
-/*
- * La pixel lleva un halo del color del acento. Solo en oscuro: sobre el fondo
- * claro un resplandor no aporta y ensucia las letras.
- */
-html:not([data-tema='claro']) .font-pixel {
-	text-shadow: 0 0 22px color-mix(in oklab, var(--color-accent) 32%, transparent);
-}
-
-/* Lo que va pintado del acento —botones, barras— reparte algo de esa luz. */
-html:not([data-tema='claro']) .bg-accent {
-	box-shadow: 0 0 26px -8px color-mix(in oklab, var(--color-accent) 65%, transparent);
 }
 
 /* Los subrayados no deben tocar las letras. */

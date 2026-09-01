@@ -5,8 +5,6 @@
  * probar un cambio antes de proponerlo, que aquí decide la gente.
  */
 
-import type { Scheme } from './theme';
-
 export type VarKind = 'color' | 'size';
 
 export interface ConfigVar {
@@ -15,20 +13,18 @@ export interface ConfigVar {
 	label: string;
 	kind: VarKind;
 	group: string;
-	/** Lo de fábrica en oscuro, que es el tema de casa. */
+	/** Lo de fábrica. La web tiene un solo tema, así que hay un solo valor. */
 	base: string;
-	/** Lo de fábrica en claro, cuando no es el mismo valor. */
-	light?: string;
 }
 
 export const GROUPS = ['Colores', 'Tipografía'] as const;
 
 export const CONFIG_VARS: readonly ConfigVar[] = [
-	{ name: '--color-bg', label: 'Fondo', kind: 'color', group: 'Colores', base: '#1e1e2e', light: '#eff1f5' },
-	{ name: '--color-fg', label: 'Texto', kind: 'color', group: 'Colores', base: '#cdd6f4', light: '#4c4f69' },
-	{ name: '--color-muted', label: 'Texto apagado', kind: 'color', group: 'Colores', base: '#a6adc8', light: '#5c5f77' },
-	{ name: '--color-line', label: 'Líneas', kind: 'color', group: 'Colores', base: '#45475a', light: '#ccd0da' },
-	{ name: '--color-panel', label: 'Paneles', kind: 'color', group: 'Colores', base: '#313244', light: '#e6e9ef' },
+	{ name: '--color-bg', label: 'Fondo', kind: 'color', group: 'Colores', base: '#fdf6ef' },
+	{ name: '--color-fg', label: 'Texto', kind: 'color', group: 'Colores', base: '#3b2d24' },
+	{ name: '--color-muted', label: 'Texto apagado', kind: 'color', group: 'Colores', base: '#7a6152' },
+	{ name: '--color-line', label: 'Líneas', kind: 'color', group: 'Colores', base: '#e8d9c8' },
+	{ name: '--color-panel', label: 'Paneles', kind: 'color', group: 'Colores', base: '#f7ece1' },
 	{ name: '--text-xs', label: 'Texto pequeño', kind: 'size', group: 'Tipografía', base: '13px' },
 	{ name: '--text-sm', label: 'Texto normal', kind: 'size', group: 'Tipografía', base: '15px' },
 	{ name: '--text-base', label: 'Texto de cuerpo', kind: 'size', group: 'Tipografía', base: '16px' },
@@ -39,7 +35,12 @@ export const CONFIG_VARS: readonly ConfigVar[] = [
 export const SIZE_MIN = 11;
 export const SIZE_MAX = 28;
 
-const KEY = 'tuweb:config';
+/*
+ * La clave lleva sufijo: lo guardado antes eran los colores del tema morado
+ * oscuro, y sobre el papel claro dejarían la web ilegible. Con el nombre nuevo,
+ * quien vuelve entra con el tema de casa.
+ */
+const KEY = 'tuweb:config2';
 
 const HEX = /^#[0-9a-f]{6}$/;
 const SIZE = /^(\d{1,3})px$/;
@@ -48,11 +49,6 @@ export type Config = Record<string, string>;
 
 export function varOf(name: string) {
 	return CONFIG_VARS.find((item) => item.name === name);
-}
-
-/** Lo de fábrica depende del esquema: el claro repisa la mitad de los colores. */
-export function defaultOf(item: ConfigVar, scheme: Scheme) {
-	return scheme === 'claro' && item.light ? item.light : item.base;
 }
 
 /**
@@ -118,20 +114,11 @@ export function applyConfig(config: Config) {
 }
 
 /** El mismo cambio, escrito para pegarlo en global.css y proponerlo. */
-export function configCss(entries: [string, string][], scheme: Scheme) {
+export function configCss(entries: [string, string][]) {
 	if (entries.length === 0) return '';
 
-	// Los colores del esquema claro no viven en @theme, sino en el bloque del
-	// esquema; los tamaños son los mismos en los dos y siempre van en @theme.
-	const scoped = scheme === 'claro' ? entries.filter(([name]) => name.startsWith('--color-')) : [];
-	const base = entries.filter((entry) => !scoped.includes(entry));
+	// Un solo tema, un solo bloque: todo vive en @theme.
+	const lines = entries.map(([name, value]) => `\t${name}: ${value};`).join('\n');
 
-	const block = (selector: string, list: [string, string][]) =>
-		list.length === 0
-			? ''
-			: `${selector} {\n${list.map(([name, value]) => `\t${name}: ${value};`).join('\n')}\n}`;
-
-	return ['/* src/styles/global.css */', block('@theme', base), block("html[data-tema='claro']", scoped)]
-		.filter(Boolean)
-		.join('\n');
+	return `/* src/styles/global.css */\n@theme {\n${lines}\n}`;
 }

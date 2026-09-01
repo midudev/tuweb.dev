@@ -1,17 +1,11 @@
 ---
 /**
- * El selector de temas: modo (claro, oscuro o el del sistema), color primario y
- * fondo. Todo se aplica al momento sobre la web entera y se guarda en este
- * navegador; no viaja a ningún sitio.
+ * El tema de la web es uno solo: el claro naranja. Aquí no se cambia de tema,
+ * se afina el que hay —color primario y fondo—. Se aplica al momento sobre la
+ * web entera y se guarda en este navegador; no viaja a ningún sitio.
  */
-import { MODES, PRESETS, SURFACES } from '../lib/theme';
+import { PRESETS, SURFACES } from '../lib/theme';
 import Icon from './Icon.astro';
-
-const MODOS: Record<string, { label: string; icon: string }> = {
-	auto: { label: 'El del sistema', icon: 'device-desktop' },
-	claro: { label: 'Claro', icon: 'sun' },
-	oscuro: { label: 'Oscuro', icon: 'moon' },
-};
 
 const FONDOS: Record<string, { label: string; icon: string }> = {
 	aurora: { label: 'Aurora', icon: 'sparkles' },
@@ -32,19 +26,10 @@ const OPCION =
 	hidden
 	class="flex flex-col gap-7"
 >
-	<div class="flex flex-col gap-3">
-		<h3 id="tema-modo" class="text-sm text-muted">Modo</h3>
-		<div role="group" aria-labelledby="tema-modo" class="flex flex-wrap gap-2">
-			{
-				MODES.map((modo) => (
-					<button type="button" data-modo-set={modo} aria-pressed="false" class={OPCION}>
-						<Icon name={MODOS[modo].icon} class="size-4 shrink-0" />
-						{MODOS[modo].label}
-					</button>
-				))
-			}
-		</div>
-	</div>
+	<p class="max-w-[62ch] text-sm text-muted">
+		La web tiene un solo tema: claro, sobre papel y con el naranja de casa. Aquí se afina, no se
+		cambia por otro.
+	</p>
 
 	<div class="flex flex-col gap-3">
 		<h3 id="tema-color" class="text-sm text-muted">Color primario</h3>
@@ -64,7 +49,7 @@ const OPCION =
 				<input
 					type="color"
 					data-tema-picker
-					value="#cba6f7"
+					value="#c2410c"
 					class="h-9 w-14 cursor-pointer border border-line bg-panel p-1"
 				/>
 			</label>
@@ -110,7 +95,6 @@ const OPCION =
 	import { parseColor, toHex } from '../lib/color';
 	import {
 		DEFAULT_THEME,
-		type Mode,
 		type Surface,
 		type Theme,
 		type ThemeEvent,
@@ -119,7 +103,6 @@ const OPCION =
 		applyTheme,
 		readTheme,
 		saveTheme,
-		schemeOf,
 	} from '../lib/theme';
 
 	const picker = document.querySelector<HTMLInputElement>('[data-tema-picker]');
@@ -143,16 +126,14 @@ const OPCION =
 	}
 
 	function render() {
-		marcar('[data-modo-set]', 'modoSet', theme.mode);
 		marcar('[data-fondo-set]', 'fondoSet', theme.surface);
 		marcar('[data-color-set]', 'colorSet', theme.accent);
 
 		const color = parseColor(theme.accent);
 		if (!color) return;
 
-		const scheme = schemeOf(theme.mode);
-		if (hexOut) hexOut.textContent = accentFor(color, scheme);
-		if (noteOut) noteOut.textContent = adjustNote(color, scheme);
+		if (hexOut) hexOut.textContent = accentFor(color);
+		if (noteOut) noteOut.textContent = adjustNote(color);
 		// El campo nativo solo entiende hex de seis dígitos, que es lo que guardamos.
 		if (picker) picker.value = toHex({ ...color, alpha: 1 });
 	}
@@ -166,10 +147,6 @@ const OPCION =
 		if (deferred) saveTimer = window.setTimeout(() => saveTheme(theme), SAVE_DELAY);
 		else saveTheme(theme);
 	}
-
-	document.querySelectorAll<HTMLButtonElement>('[data-modo-set]').forEach((button) => {
-		button.addEventListener('click', () => cambiar({ mode: button.dataset.modoSet as Mode }));
-	});
 
 	document.querySelectorAll<HTMLButtonElement>('[data-fondo-set]').forEach((button) => {
 		button.addEventListener('click', () => cambiar({ surface: button.dataset.fondoSet as Surface }));
@@ -185,7 +162,7 @@ const OPCION =
 		cambiar({ accent: DEFAULT_THEME.accent });
 	});
 
-	// El tema también se toca desde la cabecera y desde la pestaña de Colores.
+	// El acento también se toca desde la pestaña de Colores y desde Config.
 	document.addEventListener('tuweb:tema', (event) => {
 		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
 		render();

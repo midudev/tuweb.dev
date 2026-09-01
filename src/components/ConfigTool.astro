@@ -25,7 +25,7 @@ const BOTON =
 >
 	<p class="text-sm text-muted">
 		Las variables de <code class="text-mark">src/styles/global.css</code>, con un input cada una. Lo
-		que toques manda sobre el modo claro y el oscuro hasta que lo restablezcas.
+		que toques manda sobre el tema de casa hasta que lo restablezcas.
 	</p>
 
 	<div class="overflow-x-auto border border-line">
@@ -228,7 +228,6 @@ const BOTON =
 		SIZE_MIN,
 		applyConfig,
 		configCss,
-		defaultOf,
 		isValid,
 		readConfig,
 		saveConfig,
@@ -236,13 +235,11 @@ const BOTON =
 	} from '../lib/config';
 	import {
 		DEFAULT_THEME,
-		type Scheme,
 		type ThemeEvent,
 		accentFor,
 		applyTheme,
 		readTheme,
 		saveTheme,
-		schemeOf,
 	} from '../lib/theme';
 
 	/*
@@ -253,7 +250,6 @@ const BOTON =
 
 	let config = readConfig();
 	let theme = readTheme();
-	let scheme: Scheme = schemeOf(theme.mode);
 	let configTimer = 0;
 	let themeTimer = 0;
 
@@ -279,7 +275,7 @@ const BOTON =
 
 		if (theme.accent !== DEFAULT_THEME.accent) {
 			const color = parseColor(theme.accent);
-			if (color) entries.push(['--color-accent', accentFor(color, scheme)]);
+			if (color) entries.push(['--color-accent', accentFor(color)]);
 		}
 
 		return entries;
@@ -288,12 +284,9 @@ const BOTON =
 	function render() {
 		for (const item of CONFIG_VARS) {
 			const changed = Boolean(config[item.name]);
-			const value = config[item.name] ?? defaultOf(item, scheme);
+			const value = config[item.name] ?? item.base;
 
 			find<HTMLElement>('data-config-row', item.name)?.toggleAttribute('data-changed', changed);
-
-			const fallback = find<HTMLElement>('data-config-default', item.name);
-			if (fallback) fallback.textContent = defaultOf(item, scheme);
 
 			const reset = find<HTMLButtonElement>('data-config-reset', item.name);
 			if (reset) reset.disabled = !changed;
@@ -321,7 +314,7 @@ const BOTON =
 		}
 
 		const entries = changes();
-		const css = configCss(entries, scheme);
+		const css = configCss(entries);
 		if (cssBox) {
 			cssBox.textContent = css;
 			cssBox.hidden = !css;
@@ -360,7 +353,7 @@ const BOTON =
 
 		const next = { ...config };
 		// Lo que vuelve a ser lo de fábrica deja de estar cambiado.
-		if (value === defaultOf(item, scheme)) delete next[name];
+		if (value === item.base) delete next[name];
 		else next[name] = value;
 
 		commit(next, deferred);
@@ -470,15 +463,10 @@ const BOTON =
 		}, 2000);
 	});
 
-	/*
-	 * El tema se toca desde la cabecera y desde otras dos pestañas, y al cambiar
-	 * de esquema cambia lo que es «por defecto»: la tabla se repinta con lo que
-	 * venga en el aviso.
-	 */
+	// El acento también se toca desde otras dos pestañas: la tabla se repinta con
+	// lo que venga en el aviso.
 	document.addEventListener('tuweb:tema', (event) => {
-		const detail = (event as CustomEvent<ThemeEvent>).detail;
-		theme = detail.theme;
-		scheme = detail.scheme;
+		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
 		render();
 	});
 

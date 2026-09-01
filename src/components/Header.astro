@@ -88,49 +88,5 @@ const exactDate = deployedAt
 				<GitHubLogin />
 			)
 		}
-
-		<!--
-			Atajo para el modo: oscuro → auto → claro y vuelta a empezar. El resto
-			del tema (color y fondo) está en la caja de herramientas.
-		-->
-		<button type="button" data-tema-toggle class="flex text-muted hover:text-fg">
-			<span data-modo="oscuro" class="items-center">
-				<Icon name="moon" class="size-4 shrink-0" />
-				<span class="sr-only">Tema oscuro. Cambiar al del sistema.</span>
-			</span>
-			<span data-modo="auto" class="items-center">
-				<Icon name="device-desktop" class="size-4 shrink-0" />
-				<span class="sr-only">Tema del sistema. Cambiar a claro.</span>
-			</span>
-			<span data-modo="claro" class="items-center">
-				<Icon name="sun" class="size-4 shrink-0" />
-				<span class="sr-only">Tema claro. Cambiar a oscuro.</span>
-			</span>
-		</button>
 	</div>
 </header>
-
-<script>
-	import { type ThemeEvent, applyTheme, readTheme, saveTheme } from '../lib/theme';
-
-	const VUELTA = { oscuro: 'auto', auto: 'claro', claro: 'oscuro' } as const;
-
-	// El color se guarda con un respiro, así que el tema bueno es el que anuncia
-	// el último cambio y no lo que haya en el localStorage en este instante.
-	let theme = readTheme();
-
-	document.addEventListener('tuweb:tema', (event) => {
-		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
-	});
-
-	// La cabecera se repinta sola cada minuto (data-live), así que el clic se
-	// escucha en el documento y no en el botón, que para entonces ya es otro.
-	document.addEventListener('click', (event) => {
-		const target = event.target as Element | null;
-		if (!target?.closest('[data-tema-toggle]')) return;
-
-		const next = { ...theme, mode: VUELTA[theme.mode] };
-		applyTheme(next);
-		saveTheme(next);
-	});
-</script>
