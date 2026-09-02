@@ -1,0 +1,58 @@
+---
+/**
+ * El interruptor de la luz: claro u oscuro. Está en el pie, así que sale en
+ * todas las páginas. Lo elegido se guarda en este navegador y no viaja a
+ * ningún sitio; los demás siguen viendo el suyo.
+ */
+import Icon from './Icon.astro';
+---
+
+<button
+	type="button"
+	data-modo
+	class="inline-flex items-center gap-2 text-accent hover:underline"
+>
+	<span data-cuando="claro" class="inline-flex items-center gap-2">
+		<Icon name="moon" class="size-4 shrink-0" />
+		Modo oscuro
+	</span>
+	<span data-cuando="oscuro" class="inline-flex items-center gap-2">
+		<Icon name="sun" class="size-4 shrink-0" />
+		Modo claro
+	</span>
+</button>
+
+<style>
+	/*
+	 * El botón dice a dónde vas, no dónde estás. Se decide en CSS y no en JS para
+	 * que salga bien en el primer pintado: el <html> ya viene marcado.
+	 */
+	[data-cuando='oscuro'] {
+		display: none;
+	}
+
+	:global(html[data-tema='oscuro']) [data-cuando='oscuro'] {
+		display: inline-flex;
+	}
+
+	:global(html[data-tema='oscuro']) [data-cuando='claro'] {
+		display: none;
+	}
+</style>
+
+<script>
+	import { type ThemeEvent, applyTheme, readTheme, saveTheme } from '../lib/theme';
+
+	let theme = readTheme();
+
+	document.querySelector<HTMLButtonElement>('[data-modo]')?.addEventListener('click', () => {
+		theme = { ...theme, mode: theme.mode === 'oscuro' ? 'claro' : 'oscuro' };
+		applyTheme(theme);
+		saveTheme(theme);
+	});
+
+	// El modo también se cambia desde la pestaña de Tema de las herramientas.
+	document.addEventListener('tuweb:tema', (event) => {
+		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
+	});
+</script>

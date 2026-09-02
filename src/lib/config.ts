@@ -13,7 +13,7 @@ export interface ConfigVar {
 	label: string;
 	kind: VarKind;
 	group: string;
-	/** Lo de fábrica. La web tiene un solo tema, así que hay un solo valor. */
+	/** Lo de fábrica, que es lo escrito en @theme: los colores del modo claro. */
 	base: string;
 }
 
@@ -117,7 +117,7 @@ export function applyConfig(config: Config) {
 export function configCss(entries: [string, string][]) {
 	if (entries.length === 0) return '';
 
-	// Un solo tema, un solo bloque: todo vive en @theme.
+	// Un solo bloque: lo de fábrica vive en @theme, que es el modo claro.
 	const lines = entries.map(([name, value]) => `\t${name}: ${value};`).join('\n');
 
 	return `/* src/styles/global.css */\n@theme {\n${lines}\n}`;

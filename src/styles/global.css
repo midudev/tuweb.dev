@@ -62,8 +62,9 @@
 	--text-lg--line-height: 1.55;
 
 	/*
-	 * Un solo tema: claro y naranja. El fondo es un papel cálido, los paneles y
-	 * las líneas suben por esa misma rampa y el acento es un naranja quemado.
+	 * El tema de día, que es el de casa: claro y naranja. El fondo es un papel
+	 * cálido, los paneles y las líneas suben por esa misma rampa y el acento es
+	 * un naranja quemado.
 	 * Nada de blanco puro ni de negro puro: todo lleva la misma gota de tierra.
 	 * El apagado pasa AA (5.4:1) y el acento también (4.8:1).
 	 */
@@ -92,6 +93,36 @@
 	 * el texto del buscador baja un paso y llega a 5.09:1, que ya es AA.
 	 */
 	--color-search-fg: #2e2219;
+}
+
+/*
+ * El mismo tema de noche: el papel se vuelve tierra oscura y todo lo demás sube
+ * por esa rampa girada. No es un tema nuevo, es el de casa con la luz apagada.
+ * El modo lo pone el <html> con data-tema; sin nada puesto manda el claro.
+ * Sobre este fondo el apagado pasa AA (7:1) y el acento también (6.3:1).
+ */
+html[data-tema='oscuro'] {
+	--color-bg: #191410;
+	--color-fg: #f2e7dc;
+	--color-muted: #b39d8b;
+	--color-line: #3a2e26;
+	--color-panel: #221b16;
+	/* El mismo naranja de casa subido de claridad: es lo que hace src/lib/theme.ts. */
+	--color-accent: #f67145;
+	/* El realce, aquí, es el acento empujado hacia la luz: al revés que de día. */
+	--color-mark: color-mix(in oklab, #f67145 70%, #ffe6d3);
+	--color-heart: #f2718c;
+	--color-ok: #6fbf7f;
+	--color-building: #d9a441;
+	/*
+	 * El gris del buscador baja con el fondo, pero se queda en 3.16:1 contra él,
+	 * que es lo que pide el criterio no textual de la WCAG 2.1 (SC 1.4.11). La
+	 * tinta de encima llega a 5.04:1, o sea AA.
+	 */
+	--color-search: #666666;
+	--color-search-fg: #f7efe7;
+
+	color-scheme: dark;
 }
 
 html {

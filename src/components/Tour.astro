@@ -131,6 +131,11 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 	[data-tour]::backdrop {
 		background: color-mix(in oklab, var(--color-fg, #3b2d24) 22%, transparent);
 	}
+
+	/* De noche la tinta es clara, así que el velo se va al negro para oscurecer. */
+	:global(html[data-tema='oscuro']) [data-tour]::backdrop {
+		background: color-mix(in oklab, #140f0b 55%, transparent);
+	}
 </style>
 
 <script>

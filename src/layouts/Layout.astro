@@ -17,9 +17,15 @@ const {
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width" />
-		<!-- Un solo tema: el claro naranja. Aquí no hay modo oscuro que elegir. -->
-		<meta name="color-scheme" content="light" />
+		<!-- Dos modos del mismo tema naranja. El de casa, y el de partida, es el claro. -->
+		<meta name="color-scheme" content="light dark" />
 		<meta name="theme-color" content="#fdf6ef" />
+		<!--
+			Lo único que corre antes de pintar: marca el <html> si esta visita eligió el
+			modo oscuro, para que no se vea un fogonazo claro. Va suelto en /public
+			porque la CSP es script-src 'self' y aquí no caben scripts en línea.
+		-->
+		<script is:inline src="/tema.js"></script>
 		<link rel="icon" href="/favicon.ico" sizes="32x32" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
