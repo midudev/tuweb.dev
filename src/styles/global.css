@@ -79,6 +79,19 @@
 	--color-ok: #2f7a3b;
 	/* El ámbar de «construyendo»: naranja también, pero más apagado que el acento. */
 	--color-building: #8a5a00;
+
+	/*
+	 * El gris de las barras de búsqueda. Es el gris más claro que llega a 3:1
+	 * contra el blanco, que es lo que pide el criterio no textual de la WCAG 2.1
+	 * (SC 1.4.11): con #949494 la cuenta sale 3.03:1 y con #959595 ya se queda en
+	 * 2.99:1. Va igual en reposo, en hover y con el foco puesto.
+	 */
+	--color-search: #949494;
+	/*
+	 * La tinta de encima. La de casa se queda en 4.36:1 sobre ese gris, así que
+	 * el texto del buscador baja un paso y llega a 5.09:1, que ya es AA.
+	 */
+	--color-search-fg: #2e2219;
 }
 
 html {

@@ -49,8 +49,8 @@ function detail(row: RankRow) {
 					</p>
 				</div>
 
-				<label class="flex max-w-xs items-center gap-3 border border-line bg-panel px-4 py-2.5 focus-within:border-accent">
-					<Icon name="search" class="size-4 shrink-0 text-muted" />
+				<label class="flex max-w-xs items-center gap-3 border border-line bg-search px-4 py-2.5 hover:bg-search focus-within:border-accent focus-within:bg-search">
+					<Icon name="search" class="size-4 shrink-0 text-search-fg" />
 					<span class="sr-only">Buscar a alguien</span>
 					<input
 						type="text"
@@ -58,7 +58,7 @@ function detail(row: RankRow) {
 						autocomplete="off"
 						spellcheck="false"
 						placeholder="Buscar a alguien"
-						class="w-full border-0 bg-transparent p-0 text-sm outline-none placeholder:text-muted"
+						class="w-full border-0 bg-transparent p-0 text-sm text-search-fg outline-none placeholder:text-search-fg"
 					/>
 				</label>
 
