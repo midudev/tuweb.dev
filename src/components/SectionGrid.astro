@@ -1,24 +1,40 @@
 ---
 /**
- * El índice de la portada, por apartados: juegos por un lado, herramientas por
- * otro, y lo demás en su sitio. Arriba, la fila de apartados para saltar al que
- * interese; cada bloque enseña sus tarjetas y enlaza a su página, que es la
- * misma lista a solas. La portada solo enseña puertas: no carga el JS de nada.
+ * El índice entero de la web, ahora en su propia página: /todo. Antes esto iba
+ * en la portada y soltaba las veintitantas tarjetas de golpe; la portada ahora
+ * solo enseña el botón que trae aquí.
+ *
+ * Salen todos los apartados con sus tarjetas y, arriba, un buscador que filtra
+ * por nombre, por la línea de la tarjeta o por el apartado. Filtrar es esconder
+ * tarjetas que ya están puestas: no se carga el JS de ninguna sección.
  */
-import { GROUPS, groupHref, sectionsOf } from '../lib/sections';
+import { GROUPS, SECTIONS, groupHref, sectionsOf } from '../lib/sections';
 import GroupNav from './GroupNav.astro';
 import Icon from './Icon.astro';
 import SectionCards from './SectionCards.astro';
-import SectionLabel from './SectionLabel.astro';
 ---
 
-<section id="secciones" class="flex flex-col gap-10" aria-labelledby="label-app">
-	<div class="flex flex-col gap-3">
-		<SectionLabel forId="label-app">Y ESTO ES LO QUE YA FUNCIONA</SectionLabel>
-		<p class="max-w-[62ch] text-sm text-muted">
-			Repartido en {GROUPS.length} apartados. Cada sección tiene su página: entras en la que te interese
-			y no cargas el resto.
+<div class="flex flex-col gap-10">
+	<div class="flex flex-col gap-4">
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Buscar</span>
+			<span class="flex items-center gap-3 border border-line bg-panel px-4 focus-within:border-accent">
+				<Icon name="search" class="size-4 shrink-0 text-muted" />
+				<input
+					type="search"
+					data-buscador
+					placeholder="regex, chistes, ranking…"
+					autocomplete="off"
+					spellcheck="false"
+					class="w-full bg-transparent py-3 text-sm outline-none"
+				/>
+			</span>
+		</label>
+
+		<p data-cuenta aria-live="polite" class="text-sm text-muted">
+			Las {SECTIONS.length} secciones, repartidas en {GROUPS.length} apartados.
 		</p>
+
 		<GroupNav anchors />
 	</div>
 
@@ -26,6 +42,7 @@ import SectionLabel from './SectionLabel.astro';
 		GROUPS.map((group) => (
 			<section
 				id={`grupo-${group.id}`}
+				data-grupo
 				class="flex scroll-mt-6 flex-col gap-4"
 				aria-labelledby={`titulo-${group.id}`}
 			>
@@ -33,7 +50,9 @@ import SectionLabel from './SectionLabel.astro';
 					<h2 id={`titulo-${group.id}`} class="flex items-center gap-2.5 font-pixel text-lg font-normal">
 						<Icon name={group.icon} class="size-5 shrink-0 text-accent" />
 						{group.title}
-						<span class="text-sm tabular-nums text-muted">{sectionsOf(group.id).length}</span>
+						<span data-cuenta-grupo class="text-sm tabular-nums text-muted">
+							{sectionsOf(group.id).length}
+						</span>
 					</h2>
 					<a
 						href={groupHref(group.id)}
@@ -50,38 +69,64 @@ import SectionLabel from './SectionLabel.astro';
 			</section>
 		))
 	}
-</section>
+
+	<p data-vacio hidden class="text-sm text-mark">
+		Nada se llama así. Prueba con otra palabra o borra la búsqueda.
+	</p>
+</div>
 
 <script>
-	/*
-	 * Los enlaces de antes apuntaban todos a la portada: tuweb.dev/#regex,
-	 * tuweb.dev/#chat. Ahora cada sección tiene su página, así que esos hashes se
-	 * mandan a su sitio. Con replace, para no dejar la portada en el historial.
-	 */
-	const VIEJOS: Record<string, string> = {
-		herramientas: '/herramientas',
-		'json-yaml': '/herramientas#json-yaml',
-		cron: '/herramientas#cron',
-		regex: '/herramientas#regex',
-		colores: '/herramientas#colores',
-		patrones: '/herramientas#patrones',
-		tema: '/herramientas#tema',
-		config: '/herramientas#config',
-		minijuego: '/minijuego',
-		escaparate: '/escaparate',
-		chat: '/chat',
-		anonimo: '/anonimo',
-	};
+	const buscador = document.querySelector<HTMLInputElement>('[data-buscador]');
+	const tarjetas = document.querySelectorAll<HTMLElement>('[data-buscar]');
+	const grupos = document.querySelectorAll<HTMLElement>('[data-grupo]');
+	const cuenta = document.querySelector<HTMLElement>('[data-cuenta]');
+	const vacio = document.querySelector<HTMLElement>('[data-vacio]');
 
-	function hash() {
-		// Un hash mal escrito (%) revienta el decode: mejor el crudo que nada.
-		try {
-			return decodeURIComponent(location.hash.slice(1));
-		} catch {
-			return location.hash.slice(1);
+	// Se busca sin acentos y sin mayúsculas: «diseno» encuentra «Diseño».
+	function llano(texto: string) {
+		return texto
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/\p{Diacritic}/gu, '');
+	}
+
+	function filtrar() {
+		const busca = llano(buscador?.value.trim() ?? '');
+		let visibles = 0;
+
+		tarjetas.forEach((tarjeta) => {
+			const cabe = busca === '' || llano(tarjeta.dataset.buscar ?? '').includes(busca);
+			tarjeta.hidden = !cabe;
+			if (cabe) visibles += 1;
+		});
+
+		grupos.forEach((grupo) => {
+			const quedan = grupo.querySelectorAll('[data-buscar]:not([hidden])').length;
+			grupo.hidden = quedan === 0;
+			const marcador = grupo.querySelector('[data-cuenta-grupo]');
+			if (marcador) marcador.textContent = String(quedan);
+		});
+
+		if (vacio) vacio.hidden = visibles > 0;
+		if (cuenta) {
+			cuenta.textContent =
+				busca === ''
+					? `Las ${tarjetas.length} secciones, repartidas en ${grupos.length} apartados.`
+					: visibles === 1
+						? '1 sección con esa palabra.'
+						: `${visibles} secciones con esa palabra.`;
 		}
 	}
 
-	const destino = VIEJOS[hash()];
-	if (destino) location.replace(destino);
+	buscador?.addEventListener('input', filtrar);
+
+	// Escape limpia la búsqueda, como en cualquier campo de buscar.
+	buscador?.addEventListener('keydown', (event) => {
+		if (event.key !== 'Escape' || !buscador.value) return;
+		buscador.value = '';
+		filtrar();
+	});
+
+	// Al volver atrás el navegador restaura lo escrito, así que se filtra al entrar.
+	filtrar();
 </script>

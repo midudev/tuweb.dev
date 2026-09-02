@@ -6,7 +6,7 @@ import Header from '../components/Header.astro';
 import IdeasLink from '../components/IdeasLink.astro';
 import LiveState from '../components/LiveState.astro';
 import ProposeForm from '../components/ProposeForm.astro';
-import SectionGrid from '../components/SectionGrid.astro';
+import SectionsLink from '../components/SectionsLink.astro';
 import Tour from '../components/Tour.astro';
 import { getSessionUser } from '../lib/auth';
 import { getDashboardData, getHomeData } from '../lib/db/queries';
@@ -73,7 +73,7 @@ const deployedAt =
 
 				<div data-canvas class="grow bg-bg">
 					<div class="mx-auto w-full max-w-5xl px-6 py-10">
-						<SectionGrid />
+						<SectionsLink />
 					</div>
 				</div>
 

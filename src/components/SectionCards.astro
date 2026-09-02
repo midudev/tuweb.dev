@@ -1,9 +1,14 @@
 ---
 /**
- * La rejilla de tarjetas de sección. La usan el índice de la portada y la
- * página de cada apartado, así que una tarjeta se ve igual en los dos sitios.
+ * La rejilla de tarjetas de sección. La usan la página de todo y la página de
+ * cada apartado, así que una tarjeta se ve igual en los dos sitios.
+ *
+ * Cada tarjeta lleva en data-buscar lo que se puede escribir para encontrarla
+ * —su nombre, su línea y su apartado—; el buscador de /todo filtra por ahí y
+ * donde no hay buscador el atributo no molesta.
  */
 import type { Section } from '../lib/sections';
+import { getGroup } from '../lib/sections';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -16,7 +21,7 @@ const { sections } = Astro.props;
 <ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 	{
 		sections.map((section) => (
-			<li class="flex">
+			<li class="flex" data-buscar={`${section.title} ${section.card} ${getGroup(section.group).title}`}>
 				<a
 					href={section.href}
 					class="group flex grow flex-col gap-2 border border-line bg-panel px-5 py-5 hover:border-accent"

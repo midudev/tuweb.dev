@@ -1,0 +1,70 @@
+---
+/**
+ * La puerta a /todo desde la portada. Antes aquí caían las veintitantas
+ * tarjetas de golpe; ahora la portada dice cuántas hay, deja la fila de
+ * apartados por si vas a uno concreto y pone el botón que las abre todas
+ * juntas. Así la portada se queda en lo suyo: proponer la siguiente idea.
+ */
+import { GROUPS, SECTIONS } from '../lib/sections';
+import GroupNav from './GroupNav.astro';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+---
+
+<section id="secciones" class="flex scroll-mt-6 flex-col gap-5" aria-labelledby="label-app">
+	<SectionLabel forId="label-app">Y ESTO ES LO QUE YA FUNCIONA</SectionLabel>
+
+	<p class="max-w-[62ch] text-sm text-muted">
+		{SECTIONS.length} secciones repartidas en {GROUPS.length} apartados, todas salidas de una idea
+		ganadora. Están juntas en una sola página, con buscador.
+	</p>
+
+	<a
+		href="/todo"
+		class="inline-flex items-center gap-3 self-start border border-line bg-panel px-5 py-4 text-sm text-accent hover:border-accent"
+	>
+		<Icon name="layout-grid" class="size-5 shrink-0" />
+		<span class="font-pixel text-lg">Abrir todas las herramientas</span>
+		<span class="tabular-nums text-muted">{SECTIONS.length}</span>
+		<Icon name="arrow-right" class="size-4 shrink-0" />
+	</a>
+
+	<GroupNav />
+</section>
+
+<script>
+	/*
+	 * Los enlaces de antes apuntaban todos a la portada: tuweb.dev/#regex,
+	 * tuweb.dev/#chat. Cada sección tiene ya su página, así que esos hashes se
+	 * mandan a su sitio. Con replace, para no dejar la portada en el historial.
+	 */
+	const VIEJOS: Record<string, string> = {
+		herramientas: '/herramientas',
+		'json-yaml': '/herramientas#json-yaml',
+		cron: '/herramientas#cron',
+		regex: '/herramientas#regex',
+		colores: '/herramientas#colores',
+		patrones: '/herramientas#patrones',
+		tema: '/herramientas#tema',
+		config: '/herramientas#config',
+		minijuego: '/minijuego',
+		escaparate: '/escaparate',
+		chat: '/chat',
+		anonimo: '/anonimo',
+	};
+
+	function hash() {
+		// Un hash mal escrito (%) revienta el decode: mejor el crudo que nada.
+		try {
+			return decodeURIComponent(location.hash.slice(1));
+		} catch {
+			return location.hash.slice(1);
+		}
+	}
+
+	// Y los apartados ya no son bloques de la portada: cada uno tiene su página.
+	const actual = hash();
+	const grupo = actual.match(/^grupo-([a-z]+)$/);
+	const destino = VIEJOS[actual] ?? (grupo ? `/categoria/${grupo[1]}` : '');
+	if (destino) location.replace(destino);
+</script>

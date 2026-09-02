@@ -60,7 +60,13 @@ if (!group) Astro.response.status = 404;
 
 		<nav data-canvas class="border-t border-line bg-panel" aria-label="Otros apartados">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-8">
-				<SectionLabel>OTROS APARTADOS</SectionLabel>
+				<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+					<SectionLabel>OTROS APARTADOS</SectionLabel>
+					<a href="/todo" class="inline-flex items-center gap-2 text-sm text-accent hover:underline">
+						Todo en un sitio
+						<Icon name="arrow-right" class="size-4 shrink-0" />
+					</a>
+				</div>
 				<GroupNav current={group?.id} />
 			</div>
 		</nav>
