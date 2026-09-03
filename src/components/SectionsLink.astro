@@ -19,14 +19,16 @@ import SectionLabel from './SectionLabel.astro';
 		ganadora. Están juntas en una sola página, con buscador.
 	</p>
 
+	<!-- En el móvil ocupa el ancho entero y la flecha se va al final; desde sm
+	     vuelve a ser un botón que solo mide lo que dice. -->
 	<a
 		href="/todo"
-		class="inline-flex items-center gap-3 self-start border border-line bg-panel px-5 py-4 text-sm text-accent hover:border-accent"
+		class="flex items-center gap-3 border border-line bg-panel px-4 py-4 text-sm text-accent transition-colors hover:border-accent sm:inline-flex sm:self-start sm:px-5"
 	>
 		<Icon name="layout-grid" class="size-5 shrink-0" />
-		<span class="font-pixel text-lg">Abrir todas las herramientas</span>
+		<span class="font-pixel text-base sm:text-lg">Abrir todas las herramientas</span>
 		<span class="tabular-nums text-muted">{SECTIONS.length}</span>
-		<Icon name="arrow-right" class="size-4 shrink-0" />
+		<Icon name="arrow-right" class="ml-auto size-4 shrink-0 sm:ml-0" />
 	</a>
 
 	<GroupNav />

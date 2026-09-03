@@ -129,6 +129,13 @@ html {
 	color-scheme: light;
 	background: var(--color-bg);
 	color: var(--color-fg);
+	/*
+	 * Red de seguridad del responsive: por aquí pasan muchas manos y basta con
+	 * un rótulo largo o un panel absoluto para sacar una barra horizontal en el
+	 * móvil. Con clip se recorta lo que se sale sin crear un contenedor de
+	 * scroll, así que lo fijo y lo pegajoso siguen funcionando igual.
+	 */
+	overflow-x: clip;
 	/* La barra de scroll también es de la casa: fina y naranja. */
 	scrollbar-width: thin;
 	scrollbar-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-line)) transparent;
@@ -224,6 +231,26 @@ input,
 textarea {
 	line-height: inherit;
 	text-wrap: wrap;
+}
+
+/*
+ * En pantallas de dedo, los campos nunca bajan de 16px: por debajo de eso
+ * Safari en el iPhone hace zoom al enfocarlos y deja la página torcida, con
+ * media web fuera del encuadre. Los que ya piden más de 16px se quedan con lo
+ * suyo, que ahí el problema no existe.
+ */
+@media (pointer: coarse) {
+	input,
+	textarea,
+	select {
+		font-size: max(1rem, 1em);
+	}
+
+	input.text-lg,
+	textarea.text-lg,
+	select.text-lg {
+		font-size: var(--text-lg);
+	}
 }
 
 ::selection {

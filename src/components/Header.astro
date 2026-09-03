@@ -35,9 +35,9 @@ const exactDate = deployedAt
 	: null;
 ---
 
-<header class="flex items-center justify-between gap-8">
-	<a href="/" class="group/logo inline-flex items-start gap-1.5 no-underline">
-		<Tag class="font-pixel text-[26px] leading-none font-normal">esta web es tuya</Tag>
+<header class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+	<a href="/" class="group/logo inline-flex min-w-0 items-start gap-1.5 no-underline">
+		<Tag class="font-pixel text-[22px] leading-none font-normal sm:text-[26px]">esta web es tuya</Tag>
 		<span class="group/ver relative inline-flex items-start gap-1.5">
 			<span class="font-pixel text-xs leading-none text-accent">v{version}</span>
 			<span
@@ -52,7 +52,7 @@ const exactDate = deployedAt
 				(ago || state !== 'idle') && (
 					<span
 						role="tooltip"
-						class="pointer-events-none absolute top-full left-1/2 z-10 mt-2 -translate-x-1/2 border border-line bg-panel px-3 py-2 text-xs whitespace-nowrap text-muted opacity-0 transition-opacity group-hover/ver:opacity-100 group-focus-visible/logo:opacity-100"
+						class="pointer-events-none absolute top-full right-0 z-10 mt-2 max-w-[min(18rem,calc(100vw_-_2.5rem))] border border-line bg-panel px-3 py-2 text-xs text-pretty text-muted opacity-0 transition-opacity group-hover/ver:opacity-100 group-focus-visible/logo:opacity-100 sm:right-auto sm:left-1/2 sm:max-w-none sm:-translate-x-1/2 sm:whitespace-nowrap"
 					>
 						{state !== 'idle' && `${LABELS[state]}. `}
 						{ago && `Desplegada ${ago} · ${exactDate}`}

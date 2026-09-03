@@ -16,13 +16,13 @@ const intro = `Todo lo que ya funciona en esta web, junto: ${SECTIONS.length} se
 
 <Layout title="Todo en un sitio — tuweb.dev" description={intro}>
 	<div class="flex min-h-screen flex-col">
-		<div class="px-6 py-10">
+		<div class="px-5 py-10 sm:px-6 lg:px-8">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-8">
 				<BackLink />
 
 				<div class="flex flex-col gap-3">
-					<h1 class="flex items-center gap-3 font-pixel text-3xl leading-tight font-normal">
-						<Icon name="layout-grid" class="size-6 shrink-0 text-accent" />
+					<h1 class="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-pixel text-2xl leading-tight font-normal sm:gap-x-3 sm:text-3xl">
+						<Icon name="layout-grid" class="size-5 shrink-0 text-accent sm:size-6" />
 						Todo en un sitio
 						<span class="text-lg tabular-nums text-muted">{SECTIONS.length}</span>
 					</h1>

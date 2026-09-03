@@ -22,7 +22,7 @@ const siblings = sectionsOf(group.id).filter((item) => item.href !== href);
 ---
 
 <nav data-canvas class="border-t border-line bg-panel" aria-label="Más secciones">
-	<div class="mx-auto flex w-full max-w-5xl flex-col gap-7 px-6 py-8">
+	<div class="mx-auto flex w-full max-w-5xl flex-col gap-7 px-5 py-8 sm:px-6 lg:px-8">
 		{
 			siblings.length > 0 && (
 				<div class="flex flex-col gap-4">

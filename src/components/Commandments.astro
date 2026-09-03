@@ -29,7 +29,7 @@ const VUELTAS = [false, true];
 ---
 
 <section id="mandamientos" class="border-t border-line" aria-labelledby="mandamientos-titulo">
-	<div class="mx-auto flex max-w-5xl items-start gap-4 px-6 pt-8 pb-5">
+	<div class="mx-auto flex max-w-5xl items-start gap-4 px-5 pt-8 pb-5 sm:px-6 lg:px-8">
 		<!-- La tabla de piedra: las siete líneas se graban solas, una detrás de otra. -->
 		<svg
 			class="mt-0.5 h-11 w-10 shrink-0 text-accent"
@@ -69,7 +69,7 @@ const VUELTAS = [false, true];
 				VUELTAS.map((copia) =>
 					MANDAMIENTOS.map((m, i) => (
 						<li
-							class="flex w-72 shrink-0 items-start gap-3 border-r border-line px-5 py-4"
+							class="flex w-64 shrink-0 items-start gap-3 border-r border-line px-4 py-4 sm:w-72 sm:px-5"
 							aria-hidden={copia ? 'true' : undefined}
 						>
 							<span class="relative mt-0.5 grid size-9 shrink-0 place-items-center">
@@ -99,15 +99,32 @@ const VUELTAS = [false, true];
 </section>
 
 <style>
-	/* Los bordes se van difuminando: la cinta entra y sale, no aparece cortada. */
+	/*
+	 * Los bordes se van difuminando: la cinta entra y sale, no aparece cortada.
+	 * El difuminado se mide contra el ancho que hay: 5rem por lado en el móvil
+	 * se comían media tarjeta y no se leía ningún mandamiento entero.
+	 */
 	#mandamientos [data-desfile] {
+		--borde: 1.5rem;
 		mask-image: linear-gradient(
 			90deg,
 			transparent,
-			#000 5rem,
-			#000 calc(100% - 5rem),
+			#000 var(--borde),
+			#000 calc(100% - var(--borde)),
 			transparent
 		);
+	}
+
+	@media (width >= 40rem) {
+		#mandamientos [data-desfile] {
+			--borde: 3rem;
+		}
+	}
+
+	@media (width >= 64rem) {
+		#mandamientos [data-desfile] {
+			--borde: 5rem;
+		}
 	}
 
 	#mandamientos [data-cinta] {

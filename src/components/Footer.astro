@@ -4,13 +4,13 @@ import Icon from './Icon.astro';
 ---
 
 <footer data-canvas class="border-t border-line bg-panel">
-	<div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-7 text-sm text-muted">
+	<div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-4 px-5 py-7 text-sm text-muted sm:px-6 lg:px-8">
 		<p class="inline-flex items-center gap-1.5">
 			Desarrollado con
 			<Icon name="heart-filled" class="size-4 shrink-0 text-heart" />
 			con <a href="https://midu.dev" class="text-accent hover:underline">@midudev</a>
 		</p>
-		<div class="flex flex-wrap items-center gap-6">
+		<div class="flex flex-wrap items-center gap-x-6 gap-y-3">
 			<CopyLink />
 			<a href="/todo" class="text-accent hover:underline">Todo</a>
 			<a href="/creditos" class="text-accent hover:underline">Créditos</a>

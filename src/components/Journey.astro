@@ -54,7 +54,7 @@ const TONOS: Record<string, string> = {
 	{
 		!user && (
 			<div class="flex flex-col gap-6">
-				<div class="flex flex-col gap-3 border border-line bg-panel px-6 py-5">
+				<div class="flex flex-col gap-3 border border-line bg-panel px-4 py-5 sm:px-6">
 					<p class="flex items-center gap-2.5 text-pretty">
 						<Icon name="route" class="size-4 shrink-0 text-accent" />
 						Aquí ves tus ideas: hay que entrar, que son tuyas.
@@ -132,7 +132,7 @@ const TONOS: Record<string, string> = {
 					</div>
 
 					{data.current ? (
-						<div class="flex flex-col gap-5 border border-line bg-panel px-6 py-5">
+						<div class="flex flex-col gap-5 border border-line bg-panel px-4 py-5 sm:px-6">
 							<p class="max-w-[52ch] text-lg text-pretty">{data.current.body}</p>
 
 							<p class:list={['flex items-center gap-2.5 text-sm', TONOS[data.current.stage]]}>
@@ -154,7 +154,7 @@ const TONOS: Record<string, string> = {
 							</p>
 						</div>
 					) : (
-						<p class="flex flex-wrap items-center gap-2.5 border border-line bg-panel px-6 py-5 text-sm">
+						<p class="flex flex-wrap items-center gap-2.5 border border-line bg-panel px-4 py-5 sm:px-6 text-sm">
 							<Icon name="bulb" class="size-4 shrink-0 text-accent" />
 							<span class="text-muted">Todavía no has mandado nada en esta ventana.</span>
 							<a href="/#proponer" class="inline-flex items-center gap-2 text-accent hover:underline">

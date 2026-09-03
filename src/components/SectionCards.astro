@@ -18,13 +18,15 @@ interface Props {
 const { sections } = Astro.props;
 ---
 
-<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+<!-- Tres columnas ya desde lg: a partir de ahí sobra ancho y las tarjetas se
+     quedaban estiradas hasta xl. -->
+<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 	{
 		sections.map((section) => (
 			<li class="flex" data-buscar={`${section.title} ${section.card} ${getGroup(section.group).title}`}>
 				<a
 					href={section.href}
-					class="group flex grow flex-col gap-2 border border-line bg-panel px-5 py-5 hover:border-accent"
+					class="group flex grow flex-col gap-2 border border-line bg-panel px-4 py-5 transition-colors hover:border-accent sm:px-5"
 				>
 					<span class="flex items-center gap-2.5 font-pixel text-lg">
 						<Icon name={section.icon} class="size-5 shrink-0 text-accent" />
@@ -33,7 +35,10 @@ const { sections } = Astro.props;
 					<span class="text-sm text-pretty text-muted">{section.card}</span>
 					<span class="mt-auto inline-flex items-center gap-2 pt-3 text-sm text-accent group-hover:underline">
 						Abrir
-						<Icon name="arrow-right" class="size-4 shrink-0" />
+						<Icon
+							name="arrow-right"
+							class="size-4 shrink-0 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+						/>
 					</span>
 				</a>
 			</li>

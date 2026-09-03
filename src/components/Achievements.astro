@@ -45,7 +45,7 @@ function rareza(item: AchievementState) {
 					<p class="text-sm text-muted">@{user.login}</p>
 				</div>
 
-				<div class="flex flex-col gap-3 border border-line bg-panel px-6 py-5" aria-labelledby="label-tuyos">
+				<div class="flex flex-col gap-3 border border-line bg-panel px-4 py-5 sm:px-6" aria-labelledby="label-tuyos">
 					<p class="flex items-baseline gap-3">
 						<span class="font-pixel text-3xl text-accent tabular-nums">{data.done}</span>
 						<span class="text-muted">de {data.totals.catalogue} logros</span>
@@ -76,7 +76,7 @@ function rareza(item: AchievementState) {
 				</div>
 			</div>
 		) : (
-			<div class="flex flex-col gap-3 border border-line bg-panel px-6 py-5">
+			<div class="flex flex-col gap-3 border border-line bg-panel px-4 py-5 sm:px-6">
 				<p class="flex items-center gap-2.5 text-pretty">
 					<Icon name="award" class="size-4 shrink-0 text-accent" />
 					Los logros se ganan con tus ideas: entra para ver los tuyos.
@@ -103,7 +103,7 @@ function rareza(item: AchievementState) {
 						)}
 					</div>
 
-					<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-labelledby={`label-${group.key}`}>
+					<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-labelledby={`label-${group.key}`}>
 						{items.map((item) => (
 							<li
 								class:list={[

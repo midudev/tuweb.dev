@@ -21,12 +21,14 @@ const received = data.ideas.length + data.discarded.length;
 
 <Layout title="Ideas de esta ventana — tuweb.dev">
 	<div class="flex min-h-screen flex-col">
-		<section class="flex flex-col gap-8 px-6 py-10">
+		<section class="flex flex-col gap-8 px-5 py-10 sm:px-6 lg:px-8">
 			<div class="mx-auto flex w-full max-w-5xl flex-col gap-8">
 				<BackLink />
 
-				<div class="flex flex-wrap items-end justify-between gap-6">
-					<h1 class="font-pixel text-3xl leading-tight font-normal">Ideas de esta ventana</h1>
+				<div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+					<h1 class="font-pixel text-2xl leading-tight font-normal sm:text-3xl">
+						Ideas de esta ventana
+					</h1>
 					<p class="text-sm text-muted">
 						<span data-window-open hidden={overdue}>
 							se cierra en <WindowClock endsAt={data.window.endsAt} />
@@ -60,7 +62,7 @@ const received = data.ideas.length + data.discarded.length;
 
 		{
 			data.discarded.length > 0 && (
-				<section data-canvas class="grow border-t border-line bg-panel px-6 py-9" aria-labelledby="label-descartadas">
+				<section data-canvas class="grow border-t border-line bg-panel px-5 py-9 sm:px-6 lg:px-8" aria-labelledby="label-descartadas">
 					<div class="mx-auto flex w-full max-w-5xl flex-col gap-5">
 						<div class="flex flex-wrap items-baseline justify-between gap-4">
 							<SectionLabel forId="label-descartadas">DESCARTADAS POR LA IA</SectionLabel>

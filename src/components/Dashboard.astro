@@ -1,8 +1,9 @@
 ---
 /**
  * El panel de la izquierda: los números de la web de un vistazo. En pantallas
- * grandes es un raíl fijo que no se mueve al hacer scroll; en el móvil se
- * queda arriba, en dos columnas y sin el gráfico, para no tapar el formulario.
+ * grandes es un raíl fijo que no se mueve al hacer scroll; por debajo se queda
+ * arriba y sin el gráfico, en una, dos o tres columnas según lo que quepa, para
+ * no tapar el formulario.
  */
 import type { CyclePoint } from '../lib/db/queries';
 import type { Feature } from '../lib/db/schema';
@@ -55,7 +56,7 @@ function hhmm(iso: string) {
 	aria-label="Dashboard"
 	data-live="dashboard"
 	data-canvas
-	class="shrink-0 border-b border-line bg-panel px-6 py-7 lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:self-start lg:overflow-y-auto lg:border-r lg:border-b-0"
+	class="shrink-0 border-b border-line bg-panel px-5 py-7 sm:px-6 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:self-start lg:overflow-y-auto lg:border-r lg:border-b-0 xl:w-72"
 >
 	<div class="mx-auto flex w-full max-w-5xl flex-col gap-7 lg:max-w-none">
 		<p class="flex items-center gap-2 font-pixel text-xs tracking-wide text-accent">
@@ -63,7 +64,9 @@ function hhmm(iso: string) {
 			DASHBOARD
 		</p>
 
-		<div class="grid gap-7 sm:grid-cols-2 lg:grid-cols-1">
+		<!-- Una columna en el móvil, dos en tableta, las tres de golpe cuando ya
+		     caben, y de vuelta a una cuando el panel se convierte en raíl. -->
+		<div class="grid gap-7 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-1">
 			<section class="flex flex-col gap-3" aria-label="Esta ventana">
 				<h2 class="font-pixel text-xs tracking-wide text-muted">ESTA VENTANA</h2>
 
