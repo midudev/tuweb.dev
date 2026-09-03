@@ -8,6 +8,7 @@ import type { CyclePoint } from '../lib/db/queries';
 import type { Feature } from '../lib/db/schema';
 import type { SiteState } from '../lib/releases';
 import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
 import WindowClock from './WindowClock.astro';
 
 interface Props {
@@ -153,6 +154,12 @@ function hhmm(iso: string) {
 				)
 			}
 		</div>
+
+		<section class="flex flex-col gap-3 border-t border-line pt-4" aria-label="Tema">
+			<h2 class="font-pixel text-xs tracking-wide text-muted">TEMA</h2>
+			<ThemeToggle />
+			<p class="text-xs text-muted">Solo lo ves tú: se guarda en este navegador.</p>
+		</section>
 
 		<nav class="flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-4 text-sm" aria-label="Atajos">
 			<button type="button" data-tour-open class="text-accent hover:underline">Cómo funciona</button>
