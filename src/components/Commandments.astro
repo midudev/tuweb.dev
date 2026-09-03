@@ -1,0 +1,183 @@
+---
+/**
+ * Los siete mandamientos de la programación, en una cinta que desfila sola
+ * junto al último cambio y lo que está en construcción. Va despacio, se para
+ * si pasas por encima y, si el sistema pide menos movimiento, se queda quieta
+ * y se puede arrastrar a mano.
+ */
+import Icon from './Icon.astro';
+
+interface Mandamiento {
+	/** El número, en romano, como toca. */
+	num: string;
+	icon: string;
+	text: string;
+}
+
+const MANDAMIENTOS: Mandamiento[] = [
+	{ num: 'I', icon: 'tag', text: 'Nombrarás las cosas por lo que hacen.' },
+	{ num: 'II', icon: 'copy', text: 'No repetirás lo que ya está escrito.' },
+	{ num: 'III', icon: 'eraser', text: 'Borrarás el código que ya no usa nadie.' },
+	{ num: 'IV', icon: 'test-pipe', text: 'Probarás antes de publicar.' },
+	{ num: 'V', icon: 'book', text: 'Escribirás para quien lo lea dentro de un año.' },
+	{ num: 'VI', icon: 'gauge', text: 'No optimizarás lo que todavía no duele.' },
+	{ num: 'VII', icon: 'git-commit', text: 'Subirás cambios pequeños y seguidos.' },
+];
+
+/** La cinta lleva la lista dos veces: la segunda es la que tapa la costura. */
+const VUELTAS = [false, true];
+---
+
+<section id="mandamientos" class="border-t border-line" aria-labelledby="mandamientos-titulo">
+	<div class="mx-auto flex max-w-5xl items-start gap-4 px-6 pt-8 pb-5">
+		<!-- La tabla de piedra: las siete líneas se graban solas, una detrás de otra. -->
+		<svg
+			class="mt-0.5 h-11 w-10 shrink-0 text-accent"
+			viewBox="0 0 40 44"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.5"
+			aria-hidden="true"
+			data-tabla
+		>
+			<path d="M3 3h34v38H3z" stroke-width="1.5"></path>
+			{
+				[0, 1, 2, 3, 4, 5, 6].map((i) => (
+					<path
+						d={`M9 ${10 + i * 4}h22`}
+						stroke-linecap="round"
+						data-linea
+						style={`--i:${i}`}
+					/>
+				))
+			}
+		</svg>
+
+		<div class="flex flex-col gap-1">
+			<p id="mandamientos-titulo" class="font-pixel text-xs tracking-wide text-accent">
+				LOS 7 MANDAMIENTOS
+			</p>
+			<p class="text-sm text-muted">
+				Lo que todo programador debería seguir. Pasan solos; pon el cursor encima para pararlos.
+			</p>
+		</div>
+	</div>
+
+	<div class="overflow-hidden border-t border-line" data-desfile>
+		<ul class="flex w-max" data-cinta>
+			{
+				VUELTAS.map((copia) =>
+					MANDAMIENTOS.map((m, i) => (
+						<li
+							class="flex w-72 shrink-0 items-start gap-3 border-r border-line px-5 py-4"
+							aria-hidden={copia ? 'true' : undefined}
+						>
+							<span class="relative mt-0.5 grid size-9 shrink-0 place-items-center">
+								{/* El aro se dibuja solo alrededor del número. */}
+								<svg
+									class="absolute inset-0 size-9 text-accent"
+									viewBox="0 0 36 36"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.5"
+									aria-hidden="true"
+								>
+									<path d="M18 2a16 16 0 1 1 0 32a16 16 0 1 1 0-32" data-aro style={`--i:${i}`} />
+								</svg>
+								<span class="font-pixel text-xs text-accent">{m.num}</span>
+							</span>
+							<span class="flex flex-col gap-1.5">
+								<Icon name={m.icon} class="size-4 shrink-0 text-muted" />
+								<span class="text-sm text-pretty">{m.text}</span>
+							</span>
+						</li>
+					))
+				)
+			}
+		</ul>
+	</div>
+</section>
+
+<style>
+	/* Los bordes se van difuminando: la cinta entra y sale, no aparece cortada. */
+	#mandamientos [data-desfile] {
+		mask-image: linear-gradient(
+			90deg,
+			transparent,
+			#000 5rem,
+			#000 calc(100% - 5rem),
+			transparent
+		);
+	}
+
+	#mandamientos [data-cinta] {
+		animation: mandamientos-desfile 84s linear infinite;
+	}
+
+	/* Media vuelta es exactamente una copia de la lista: la costura no se ve. */
+	@keyframes mandamientos-desfile {
+		to {
+			transform: translateX(-50%);
+		}
+	}
+
+	#mandamientos [data-desfile]:hover [data-cinta],
+	#mandamientos [data-desfile]:focus-within [data-cinta] {
+		animation-play-state: paused;
+	}
+
+	#mandamientos [data-linea] {
+		stroke-dasharray: 22;
+		stroke-dashoffset: 22;
+		animation: mandamientos-graba 8s linear infinite;
+		animation-delay: calc(var(--i) * 0.35s);
+	}
+
+	@keyframes mandamientos-graba {
+		0% {
+			stroke-dashoffset: 22;
+		}
+		25%,
+		88% {
+			stroke-dashoffset: 0;
+		}
+		100% {
+			stroke-dashoffset: 22;
+		}
+	}
+
+	#mandamientos [data-aro] {
+		stroke-dasharray: 101;
+		stroke-dashoffset: 101;
+		animation: mandamientos-aro 1.4s ease-out forwards;
+		animation-delay: calc(var(--i) * 0.12s);
+	}
+
+	@keyframes mandamientos-aro {
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	/* Con menos movimiento no se mueve nada: la cinta se arrastra a mano. */
+	@media (prefers-reduced-motion: reduce) {
+		#mandamientos [data-desfile] {
+			overflow-x: auto;
+		}
+
+		#mandamientos [data-cinta],
+		#mandamientos [data-linea],
+		#mandamientos [data-aro] {
+			animation: none;
+		}
+
+		#mandamientos [data-linea],
+		#mandamientos [data-aro] {
+			stroke-dashoffset: 0;
+		}
+
+		#mandamientos [data-cinta] li[aria-hidden] {
+			display: none;
+		}
+	}
+</style>
