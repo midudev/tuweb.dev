@@ -19,9 +19,10 @@ const {
 		<!-- Con initial-scale=1 el móvil no entra ya con la página encogida, y sin
 		     maximum-scale para no quitarle el zoom a nadie. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<!-- Un solo tema: papel claro y naranja. Ni modo oscuro ni interruptor. -->
-		<meta name="color-scheme" content="light" />
-		<meta name="theme-color" content="#fdf6ef" />
+		<!-- Dos temas: papel claro y noche cálida. El interruptor está en el pie. -->
+		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" content="#fdf6ef" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#17110d" media="(prefers-color-scheme: dark)" />
 		<link rel="icon" href="/favicon.ico" sizes="32x32" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
@@ -45,18 +46,21 @@ const {
 		<title>{title}</title>
 
 		<!--
-			Lo que se haya afinado en la caja de herramientas —color y fondo— se aplica
-			en cuanto carga este script, junto con las variables tocadas en el panel de
-			Config. Va en la cabecera y no en línea porque la CSP es script-src 'self':
-			lo más pronto que puede correr es esto. El fondo de la web no depende de
-			esto: el papel claro ya lo pinta la hoja de estilos, así que no parpadea.
+			Lo que se haya afinado en la caja de herramientas —modo, color y fondo— se
+			aplica en cuanto carga este script, junto con las variables tocadas en el
+			panel de Config. Va en la cabecera y no en línea porque la CSP es
+			script-src 'self': lo más pronto que puede correr es esto. El modo no
+			parpadea: quien no ha elegido nada ya entra con el del sistema, que lo
+			pinta la hoja de estilos antes de que esto corra.
 		-->
 		<script>
 			import { applyConfig, readConfig } from '../lib/config';
-			import { applyTheme, readTheme } from '../lib/theme';
+			import { applyTheme, readTheme, watchSystemMode } from '../lib/theme';
 
 			applyTheme(readTheme());
 			applyConfig(readConfig());
+			// Con el modo en «sistema», la web sigue al sistema sin recargar.
+			watchSystemMode();
 		</script>
 	</head>
 	<body data-canvas class="bg-bg font-mono text-fg antialiased">

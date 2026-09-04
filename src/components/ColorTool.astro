@@ -202,7 +202,7 @@ const SAMPLES = ['#c2410c', 'chocolate', 'oklch(55% 0.14 62)', 'hsl(23 92% 40%)'
 	const SAVE_DELAY = 400;
 	let saveTimer = 0;
 
-	/** El acento no es el color a pelo: se oscurece si no se lee sobre el papel. */
+	/** El acento no es el color a pelo: se oscurece o se aclara hasta que se lee. */
 	function showTheme(next: Color) {
 		if (themeValue) themeValue.textContent = accentFor(next);
 		if (themeNote) themeNote.textContent = adjustNote(next);

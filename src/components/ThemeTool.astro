@@ -1,11 +1,12 @@
 ---
 /**
- * El tema de la web es uno: papel claro y naranja. Aquí se afina lo suyo
- * —color primario y fondo—, siempre sobre ese papel. Se aplica al momento
- * sobre la web entera y se guarda en este navegador; no viaja a ningún sitio.
+ * El tema de la web: el modo —claro, oscuro o el del sistema—, el color
+ * primario y el fondo. Se aplica al momento sobre la web entera y se guarda en
+ * este navegador; no viaja a ningún sitio.
  */
 import { PRESETS, SURFACES } from '../lib/theme';
 import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
 
 const FONDOS: Record<string, { label: string; icon: string }> = {
 	aurora: { label: 'Aurora', icon: 'sparkles' },
@@ -27,10 +28,19 @@ const OPCION =
 	class="flex flex-col gap-7"
 >
 	<p class="max-w-[62ch] text-sm text-muted">
-		La web tiene un tema y solo uno: papel claro con el naranja de casa. No hay modo oscuro que
-		encender. Lo que sí se afina aquí es el color primario y el fondo, y se queda en este
+		La web tiene dos temas: papel claro y noche cálida, los dos con el naranja de casa y la misma
+		monoespaciada. Aquí se elige el modo, el color primario y el fondo, y todo se queda en este
 		navegador.
 	</p>
+
+	<div class="flex flex-col gap-3">
+		<h3 class="text-sm text-muted">Modo</h3>
+		<ThemeToggle label="" />
+		<p class="text-sm text-muted">
+			Con «el del sistema» la web cambia sola cuando lo hace tu equipo. El acento se aclara u
+			oscurece según el fondo, para que siempre se lea.
+		</p>
+	</div>
 
 	<div class="flex flex-col gap-3">
 		<h3 id="tema-color" class="text-sm text-muted">Color primario</h3>
@@ -38,7 +48,11 @@ const OPCION =
 			{
 				PRESETS.map((preset) => (
 					<button type="button" data-color-set={preset.hex} aria-pressed="false" class={OPCION}>
-						<span class="size-3.5 shrink-0 border border-line" style={`background:${preset.hex}`} />
+						<span
+							data-color-muestra
+							class="size-3.5 shrink-0 border border-line"
+							style={`background:${preset.hex}`}
+						/>
 						{preset.label}
 					</button>
 				))
@@ -130,11 +144,19 @@ const OPCION =
 		marcar('[data-fondo-set]', 'fondoSet', theme.surface);
 		marcar('[data-color-set]', 'colorSet', theme.accent);
 
+		// Cada muestra enseña el color ya ajustado al fondo que hay puesto: de
+		// noche los ocho suben de claridad, que si no se pierden contra el marrón.
+		document.querySelectorAll<HTMLButtonElement>('[data-color-set]').forEach((button) => {
+			const muestra = button.querySelector<HTMLElement>('[data-color-muestra]');
+			const preset = parseColor(button.dataset.colorSet ?? '');
+			if (muestra && preset) muestra.style.background = accentFor(preset);
+		});
+
 		const color = parseColor(theme.accent);
 		if (!color) return;
 
-		// El acento que sale es el ya ajustado al papel: sobre un fondo claro no
-		// vale cualquier claridad.
+		// El acento que sale es el ya ajustado al fondo que toque: ni muy claro
+		// sobre el papel ni muy oscuro sobre la noche.
 		if (hexOut) hexOut.textContent = accentFor(color);
 		if (noteOut) noteOut.textContent = adjustNote(color);
 		// El campo nativo solo entiende hex de seis dígitos, que es lo que guardamos.

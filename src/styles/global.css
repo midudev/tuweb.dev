@@ -62,9 +62,8 @@
 	--text-lg--line-height: 1.55;
 
 	/*
-	 * El tema de la web, que es uno solo: claro y naranja. El fondo es un papel
-	 * cálido, los paneles y las líneas suben por esa misma rampa y el acento es
-	 * un naranja quemado.
+	 * El tema de día: claro y naranja. El fondo es un papel cálido, los paneles y
+	 * las líneas suben por esa misma rampa y el acento es un naranja quemado.
 	 * Nada de blanco puro ni de negro puro: todo lleva la misma gota de tierra.
 	 * El apagado pasa AA (5.4:1) y el acento también (4.8:1).
 	 */
@@ -96,12 +95,74 @@
 }
 
 /*
- * La web tiene un tema y solo uno: papel claro y naranja. Aquí no hay modo
- * oscuro ni interruptor que lo cambie; lo que se afina en la caja de
- * herramientas es el color primario y el fondo, siempre sobre este papel.
+ * El tema de noche: la misma web, con la rampa cálida del revés. Marrón muy
+ * oscuro en vez de papel, tinta clara encima y el naranja de casa aclarado para
+ * que se lea. Nada de gris azulado: de noche esto sigue siendo una terminal
+ * templada, no una pantalla fría.
+ *
+ * Las cuentas contra el fondo: el texto queda a 15.6:1, el apagado a 6.4:1 y el
+ * acento a 7.1:1. Las líneas son adorno, como en el tema claro.
+ */
+:root {
+	--oscuro-bg: #17110d;
+	--oscuro-fg: #f3e7db;
+	--oscuro-muted: #ad9483;
+	--oscuro-line: #382b21;
+	--oscuro-panel: #1f1813;
+	/* El naranja de casa subido de claridad: es lo mismo que calcula el script. */
+	--oscuro-accent: #fc784b;
+	--oscuro-mark: color-mix(in oklab, #fc784b 65%, #ffeadb);
+	--oscuro-heart: #f2758c;
+	--oscuro-ok: #6fbf7d;
+	--oscuro-building: #d9a441;
+}
+
+/*
+ * El modo se elige en el pie o en la caja de herramientas y lo escribe el
+ * script de la cabecera en el <html>.
+ */
+html[data-modo='oscuro'] {
+	color-scheme: dark;
+	--color-bg: var(--oscuro-bg);
+	--color-fg: var(--oscuro-fg);
+	--color-muted: var(--oscuro-muted);
+	--color-line: var(--oscuro-line);
+	--color-panel: var(--oscuro-panel);
+	--color-accent: var(--oscuro-accent);
+	--color-mark: var(--oscuro-mark);
+	--color-heart: var(--oscuro-heart);
+	--color-ok: var(--oscuro-ok);
+	--color-building: var(--oscuro-building);
+}
+
+/*
+ * Antes de que corra ese script no hay data-modo puesto. Quien tenga el sistema
+ * de noche —que es lo de fábrica— entra ya en oscuro y no se come el fogonazo
+ * blanco de medio segundo.
+ */
+@media (prefers-color-scheme: dark) {
+	html:not([data-modo]) {
+		color-scheme: dark;
+		--color-bg: var(--oscuro-bg);
+		--color-fg: var(--oscuro-fg);
+		--color-muted: var(--oscuro-muted);
+		--color-line: var(--oscuro-line);
+		--color-panel: var(--oscuro-panel);
+		--color-accent: var(--oscuro-accent);
+		--color-mark: var(--oscuro-mark);
+		--color-heart: var(--oscuro-heart);
+		--color-ok: var(--oscuro-ok);
+		--color-building: var(--oscuro-building);
+	}
+}
+
+/*
+ * La web se pinta con el tema que toque: el claro de casa, el oscuro si se pide
+ * o si lo pide el sistema. Lo que se afina en la caja de herramientas —color
+ * primario y fondo— vale para los dos.
  */
 html {
-	color-scheme: light only;
+	color-scheme: light;
 	background: var(--color-bg);
 	color: var(--color-fg);
 	/*

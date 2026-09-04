@@ -1,9 +1,80 @@
 ---
 /**
- * Aquí vivía el interruptor de claro/oscuro del Dashboard. La web tiene ahora
- * un solo tema —papel claro y naranja—, así que el interruptor sobra y este
- * componente ya no pinta nada ni lo usa nadie: queda hasta que se borre del
- * repo. Lo que sí se puede afinar —color primario y fondo— está en la pestaña
- * de Tema de /herramientas.
+ * El interruptor del tema: claro, oscuro o el que diga el sistema. Va en el pie
+ * —así está en todas las páginas—, en el Dashboard y en la pestaña de Tema de
+ * /herramientas. Se aplica al momento y se guarda en este navegador; los demás
+ * siguen viendo el suyo.
+ *
+ * Astro carga el script de este componente una sola vez por página aunque haya
+ * varios interruptores, y como se buscan por atributo quedan todos enganchados
+ * y en el mismo estado.
  */
+import { MODES, type Mode } from '../lib/theme';
+import Icon from './Icon.astro';
+
+interface Props {
+	/** El rótulo de al lado; se puede quitar donde no haga falta. */
+	label?: string;
+}
+
+const { label = 'Tema' } = Astro.props;
+
+const MODOS: Record<Mode, { label: string; icon: string }> = {
+	sistema: { label: 'El del sistema', icon: 'device-desktop' },
+	claro: { label: 'Claro', icon: 'sun' },
+	oscuro: { label: 'Oscuro', icon: 'moon' },
+};
 ---
+
+<div class="flex items-center gap-2.5 text-sm">
+	{label && <span class="text-muted">{label}</span>}
+	{/* El grupo lleva su rótulo encima y no un id compartido: en la portada hay
+	    dos interruptores en la misma página. */}
+	<div role="group" aria-label="Tema de la web" class="flex border border-line">
+		{
+			MODES.map((modo) => (
+				<button
+					type="button"
+					data-modo-set={modo}
+					aria-pressed="false"
+					title={MODOS[modo].label}
+					class="inline-flex items-center justify-center border-l border-line px-2.5 py-1.5 text-muted first:border-l-0 hover:text-accent aria-pressed:bg-panel aria-pressed:text-accent"
+				>
+					<Icon name={MODOS[modo].icon} class="size-4 shrink-0" />
+					<span class="sr-only">{MODOS[modo].label}</span>
+				</button>
+			))
+		}
+	</div>
+</div>
+
+<script>
+	import { type Mode, type ThemeEvent, applyTheme, readTheme, saveTheme } from '../lib/theme';
+
+	const botones = document.querySelectorAll<HTMLButtonElement>('[data-modo-set]');
+
+	let theme = readTheme();
+
+	function render() {
+		botones.forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.modoSet === theme.mode));
+		});
+	}
+
+	botones.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			theme = { ...theme, mode: (boton.dataset.modoSet ?? 'sistema') as Mode };
+			// applyTheme avisa por su cuenta, y de repintar los botones se encarga el aviso.
+			applyTheme(theme);
+			saveTheme(theme);
+		});
+	});
+
+	// El modo también se toca desde otro interruptor de la misma página.
+	document.addEventListener('tuweb:tema', (event) => {
+		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
+		render();
+	});
+
+	render();
+</script>

@@ -9,6 +9,7 @@ import type { CyclePoint } from '../lib/db/queries';
 import type { Feature } from '../lib/db/schema';
 import type { SiteState } from '../lib/releases';
 import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
 import WindowClock from './WindowClock.astro';
 
 interface Props {
@@ -169,5 +170,9 @@ function hhmm(iso: string) {
 			<a href="/changelog" class="text-accent hover:underline">Changelog</a>
 			<a href="/historial" class="text-accent hover:underline">Historial</a>
 		</nav>
+
+		<div class="border-t border-line pt-4">
+			<ThemeToggle />
+		</div>
 	</div>
 </aside>

@@ -13,8 +13,8 @@ export interface Token {
 }
 
 export const TOKENS: readonly Token[] = [
-	{ name: '--color-bg', label: 'Fondo', note: 'El papel cálido sobre el que va todo.' },
-	{ name: '--color-fg', label: 'Texto', note: 'Lo que se lee. Nunca negro puro.' },
+	{ name: '--color-bg', label: 'Fondo', note: 'Papel cálido de día, marrón muy oscuro de noche.' },
+	{ name: '--color-fg', label: 'Texto', note: 'Lo que se lee. Ni negro ni blanco puros.' },
 	{ name: '--color-muted', label: 'Apagado', note: 'Lo secundario. Pasa AA sobre el fondo.' },
 	{ name: '--color-line', label: 'Línea', note: 'Todos los bordes. Un píxel, sin curvas.' },
 	{ name: '--color-panel', label: 'Panel', note: 'Las cajas, medio paso por encima del fondo.' },
