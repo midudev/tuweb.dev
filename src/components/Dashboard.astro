@@ -1,9 +1,11 @@
 ---
 /**
- * El panel de la izquierda: los números de la web de un vistazo. En pantallas
- * grandes es un raíl fijo que no se mueve al hacer scroll; por debajo se queda
- * arriba y sin el gráfico, en una, dos o tres columnas según lo que quepa, para
- * no tapar el formulario.
+ * El panel con los números de la web. Antes era un raíl fijo a la izquierda en
+ * el escritorio y una parrilla encima del formulario en el móvil: dos maneras
+ * de enseñar lo mismo. Ahora hay una sola —un cajón que sale de la izquierda—
+ * y se abre desde el botón de la barra de arriba, igual en todas las pantallas.
+ *
+ * Va en un <dialog> modal, así que el foco y el Escape los lleva el navegador.
  */
 import type { CyclePoint } from '../lib/db/queries';
 import type { Feature } from '../lib/db/schema';
@@ -49,127 +51,226 @@ const totales = [
 const maxIdeas = Math.max(1, ...points.map((point) => point.ideas));
 ---
 
-<aside
-	aria-label="Dashboard"
-	data-live="dashboard"
-	data-canvas
-	class="shrink-0 border-b border-line bg-panel px-5 py-7 sm:px-6 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:self-start lg:overflow-y-auto lg:border-r lg:border-b-0 xl:w-72"
->
-	<div class="mx-auto flex w-full max-w-5xl flex-col gap-7 lg:max-w-none">
-		<p class="flex items-center gap-2 font-pixel text-xs tracking-wide text-accent">
-			<Icon name="layout-dashboard" class="size-3.5 shrink-0" />
-			DASHBOARD
-		</p>
-
-		<!-- Una columna en el móvil, dos en tableta, las tres de golpe cuando ya
-		     caben, y de vuelta a una cuando el panel se convierte en raíl. -->
-		<div class="grid gap-7 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-1">
-			<section class="flex flex-col gap-3" aria-label="Esta ventana">
-				<h2 class="font-pixel text-xs tracking-wide text-muted">ESTA VENTANA</h2>
-
-				<p class="flex items-baseline gap-2">
-					<span data-window-open hidden={overdue}>
-						<WindowClock endsAt={endsAt} />
-						<span class="text-sm text-muted"> para cerrar</span>
-					</span>
-					<span data-window-closed hidden={!overdue} class="text-sm text-muted">
-						{working ? 'la IA está implementando' : 'cerrada, la IA elige en breve'}
-					</span>
-				</p>
-
-				<dl class="flex flex-col gap-1.5 text-sm">
-					<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
-						<dt class="text-muted">ideas</dt>
-						<dd class="font-pixel text-accent tabular-nums">{ideaCount}</dd>
-					</div>
-					<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
-						<dt class="text-muted">descartadas</dt>
-						<dd class="tabular-nums">{discardedCount}</dd>
-					</div>
-				</dl>
-			</section>
-
-			<section class="flex flex-col gap-3" aria-label="Estado">
-				<h2 class="font-pixel text-xs tracking-wide text-muted">ESTADO</h2>
-
-				<p class="flex items-baseline gap-2 text-sm">
-					<span class="font-pixel text-accent">v{version}</span>
-					<span
-						class:list={[
-							'flex items-baseline gap-1.5',
-							working && 'text-building',
-							!working && (state === 'idle' ? 'text-muted' : 'text-mark'),
-						]}
-					>
-						<Icon name={ESTADOS[state].icon} class="size-3.5 shrink-0 self-center" />
-						{ESTADOS[state].text}
-					</span>
-				</p>
-
-				{
-					next && (
-						<div class="flex flex-col gap-1 border-t border-line pt-2 text-sm">
-							<p class="text-muted">en construcción</p>
-							<p class="text-pretty">{next.title}</p>
-						</div>
-					)
-				}
-			</section>
-
-			<section class="flex flex-col gap-3" aria-label="Totales">
-				<h2 class="font-pixel text-xs tracking-wide text-muted">DESDE EL PRINCIPIO</h2>
-
-				<dl class="flex flex-col gap-1.5 text-sm">
-					{
-						totales.map((total) => (
-							<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
-								<dt class="text-muted">{total.label}</dt>
-								<dd class="tabular-nums">{total.value}</dd>
-							</div>
-						))
-					}
-				</dl>
-			</section>
-
-			{
-				points.length > 0 && (
-					<section class="hidden flex-col gap-3 lg:flex" aria-label="Ideas por ventana">
-						<h2 class="font-pixel text-xs tracking-wide text-muted">IDEAS POR VENTANA</h2>
-
-						<ul class="flex flex-col gap-1.5">
-							{points.map((point) => (
-								<li class="flex items-center gap-2 text-xs">
-									<Hora iso={point.processedAt} class="w-10 shrink-0 tabular-nums text-muted" />
-									<span class="flex h-1.5 grow bg-line" title={point.title ?? 'ventana sin ideas'}>
-										<span
-											class="h-full bg-accent"
-											style={`width: ${Math.round((point.ideas / maxIdeas) * 100)}%`}
-										/>
-									</span>
-									<span class="w-5 shrink-0 text-right tabular-nums text-muted">{point.ideas}</span>
-								</li>
-							))}
-						</ul>
-					</section>
-				)
-			}
+<dialog id="panel" data-panel aria-label="Dashboard" class="text-fg">
+	<div data-canvas class="flex min-h-full flex-col bg-panel">
+		<div
+			class="sticky top-0 flex items-center justify-between gap-4 border-b border-line bg-panel px-5 py-3"
+		>
+			<p class="flex items-center gap-2 font-pixel text-xs tracking-wide text-accent">
+				<Icon name="layout-dashboard" class="size-3.5 shrink-0" />
+				DASHBOARD
+			</p>
+			<button
+				type="button"
+				data-panel-close
+				class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent"
+			>
+				<Icon name="x" class="size-4 shrink-0" />
+				Cerrar
+			</button>
 		</div>
 
-		<nav class="flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-4 text-sm" aria-label="Atajos">
-			<button type="button" data-tour-open class="text-accent hover:underline">Cómo funciona</button>
-			<a href="/ideas" class="text-accent hover:underline">Ideas</a>
-			<a href="/mi-idea" class="text-accent hover:underline">Tu idea</a>
-			<a href="/todo" class="text-accent hover:underline">Todo</a>
-			<a href="/categoria/herramientas" class="text-accent hover:underline">Herramientas</a>
-			<a href="/categoria/juegos" class="text-accent hover:underline">Juegos</a>
-			<a href="/ranking" class="text-accent hover:underline">Ranking</a>
-			<a href="/creditos" class="text-accent hover:underline">Créditos</a>
-			<a href="/changelog" class="text-accent hover:underline">Changelog</a>
-			<a href="/historial" class="text-accent hover:underline">Historial</a>
-		</nav>
+		<!-- Lo que se pone al día solo cada minuto. El interruptor del tema se
+		     queda fuera: sus botones se enganchan al cargar y un repintado los
+		     dejaría muertos. -->
+		<div data-live="dashboard" class="grow px-5 py-6">
+			<div class="flex flex-col gap-7">
+				<section class="flex flex-col gap-3" aria-label="Esta ventana">
+					<h2 class="font-pixel text-xs tracking-wide text-muted">ESTA VENTANA</h2>
 
-		<div class="border-t border-line pt-4">
+					<p class="flex items-baseline gap-2">
+						<span data-window-open hidden={overdue}>
+							<WindowClock endsAt={endsAt} />
+							<span class="text-sm text-muted"> para cerrar</span>
+						</span>
+						<span data-window-closed hidden={!overdue} class="text-sm text-muted">
+							{working ? 'la IA está implementando' : 'cerrada, la IA elige en breve'}
+						</span>
+					</p>
+
+					<dl class="flex flex-col gap-1.5 text-sm">
+						<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+							<dt class="text-muted">ideas</dt>
+							<dd class="font-pixel text-accent tabular-nums">{ideaCount}</dd>
+						</div>
+						<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+							<dt class="text-muted">descartadas</dt>
+							<dd class="tabular-nums">{discardedCount}</dd>
+						</div>
+					</dl>
+				</section>
+
+				<section class="flex flex-col gap-3" aria-label="Estado">
+					<h2 class="font-pixel text-xs tracking-wide text-muted">ESTADO</h2>
+
+					<p class="flex items-baseline gap-2 text-sm">
+						<span class="font-pixel text-accent">v{version}</span>
+						<span
+							class:list={[
+								'flex items-baseline gap-1.5',
+								working && 'text-building',
+								!working && (state === 'idle' ? 'text-muted' : 'text-mark'),
+							]}
+						>
+							<Icon name={ESTADOS[state].icon} class="size-3.5 shrink-0 self-center" />
+							{ESTADOS[state].text}
+						</span>
+					</p>
+
+					{
+						next && (
+							<div class="flex flex-col gap-1 border-t border-line pt-2 text-sm">
+								<p class="text-muted">en construcción</p>
+								<p class="text-pretty">{next.title}</p>
+							</div>
+						)
+					}
+				</section>
+
+				<section class="flex flex-col gap-3" aria-label="Totales">
+					<h2 class="font-pixel text-xs tracking-wide text-muted">DESDE EL PRINCIPIO</h2>
+
+					<dl class="flex flex-col gap-1.5 text-sm">
+						{
+							totales.map((total) => (
+								<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+									<dt class="text-muted">{total.label}</dt>
+									<dd class="tabular-nums">{total.value}</dd>
+								</div>
+							))
+						}
+					</dl>
+				</section>
+
+				{
+					points.length > 0 && (
+						<section class="flex flex-col gap-3" aria-label="Ideas por ventana">
+							<h2 class="font-pixel text-xs tracking-wide text-muted">IDEAS POR VENTANA</h2>
+
+							<ul class="flex flex-col gap-1.5">
+								{points.map((point) => (
+									<li class="flex items-center gap-2 text-xs">
+										<Hora iso={point.processedAt} class="w-10 shrink-0 tabular-nums text-muted" />
+										<span class="flex h-1.5 grow bg-line" title={point.title ?? 'ventana sin ideas'}>
+											<span
+												class="h-full bg-accent"
+												style={`width: ${Math.round((point.ideas / maxIdeas) * 100)}%`}
+											/>
+										</span>
+										<span class="w-5 shrink-0 text-right tabular-nums text-muted">{point.ideas}</span>
+									</li>
+								))}
+							</ul>
+						</section>
+					)
+				}
+
+				<nav
+					class="flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-4 text-sm"
+					aria-label="Atajos"
+				>
+					<button type="button" data-tour-open class="text-accent hover:underline">
+						Cómo funciona
+					</button>
+					<a href="/ideas" class="text-accent hover:underline">Ideas</a>
+					<a href="/mi-idea" class="text-accent hover:underline">Tu idea</a>
+					<a href="/todo" class="text-accent hover:underline">Todo</a>
+					<a href="/categoria/herramientas" class="text-accent hover:underline">Herramientas</a>
+					<a href="/categoria/juegos" class="text-accent hover:underline">Juegos</a>
+					<a href="/ranking" class="text-accent hover:underline">Ranking</a>
+					<a href="/creditos" class="text-accent hover:underline">Créditos</a>
+					<a href="/changelog" class="text-accent hover:underline">Changelog</a>
+					<a href="/historial" class="text-accent hover:underline">Historial</a>
+				</nav>
+			</div>
+		</div>
+
+		<div class="border-t border-line px-5 py-4">
 			<ThemeToggle />
 		</div>
 	</div>
-</aside>
+</dialog>
+
+<style>
+	/*
+	 * El cajón: pegado a la izquierda, de alto completo y con su propio scroll.
+	 * El <dialog> se coloca a mano porque de fábrica sale centrado y con caja.
+	 */
+	[data-panel] {
+		position: fixed;
+		inset: 0 auto 0 0;
+		width: min(20rem, calc(100vw - 3rem));
+		max-width: none;
+		height: 100dvh;
+		max-height: 100dvh;
+		margin: 0;
+		overflow-y: auto;
+		border: 0;
+		border-inline-end: 1px solid var(--color-line);
+		padding: 0;
+		background: var(--color-panel);
+	}
+
+	/* Entra deslizándose desde el borde. Al cerrar se va de golpe: el <dialog>
+	   se esconde en cuanto se cierra y no hay nada que animar. */
+	[data-panel][open] {
+		animation: cajon 180ms ease-out;
+	}
+
+	@keyframes cajon {
+		from {
+			translate: -100% 0;
+		}
+		to {
+			translate: 0 0;
+		}
+	}
+
+	/* Un velo flojo, como el del tour: la página se sigue leyendo por detrás.
+	   Sobre papel el velo va del color del texto, que si no no oscurece nada. */
+	[data-panel]::backdrop {
+		background: color-mix(in oklab, var(--color-fg, #3b2d24) 28%, transparent);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-panel][open] {
+			animation: none;
+		}
+	}
+</style>
+
+<script>
+	const panel = document.querySelector<HTMLDialogElement>('[data-panel]');
+
+	/** El botón de la barra cuenta si el cajón está abierto o cerrado. */
+	function marcar(abierto: boolean) {
+		for (const boton of document.querySelectorAll('[data-panel-open]')) {
+			boton.setAttribute('aria-expanded', String(abierto));
+		}
+	}
+
+	// Los clics se escuchan en el documento: la barra y el panel se repintan
+	// solos cada minuto y un botón guardado al cargar dejaría de responder.
+	document.addEventListener('click', (event) => {
+		const target = event.target as Element | null;
+		if (!target) return;
+
+		if (target.closest('[data-panel-open]')) {
+			if (panel && !panel.open) {
+				panel.showModal();
+				marcar(true);
+			}
+			return;
+		}
+
+		if (target.closest('[data-panel-close]')) panel?.close();
+	});
+
+	// Un clic fuera del cajón cae en el propio <dialog>: eso es el velo, y el
+	// velo cierra. El Escape ya lo lleva el navegador.
+	panel?.addEventListener('click', (event) => {
+		if (event.target === panel) panel.close();
+	});
+
+	panel?.addEventListener('close', () => marcar(false));
+</script>

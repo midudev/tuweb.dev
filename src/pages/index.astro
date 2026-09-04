@@ -8,6 +8,7 @@ import IdeasLink from '../components/IdeasLink.astro';
 import LiveState from '../components/LiveState.astro';
 import ProposeForm from '../components/ProposeForm.astro';
 import SectionsLink from '../components/SectionsLink.astro';
+import TopBar from '../components/TopBar.astro';
 import Tour from '../components/Tour.astro';
 import { getSessionUser } from '../lib/auth';
 import { getDashboardData, getHomeData } from '../lib/db/queries';
@@ -44,54 +45,55 @@ const deployedAt =
 ---
 
 <Layout>
-	<!-- El dashboard es un raíl a la izquierda; el pie cruza por debajo de las dos columnas. -->
+	<!-- Una sola columna: el dashboard ya no es un raíl, sale en un cajón desde
+	     el botón de la barra de arriba. -->
 	<div class="flex min-h-screen flex-col">
-		<div class="flex grow flex-col lg:flex-row">
-			<Dashboard
-				version={data.version}
-				state={state}
-				ideaCount={data.ideaCount}
-				discardedCount={data.discardedCount}
-				endsAt={data.window.endsAt}
-				next={data.next}
-				totals={dashboard}
-				points={dashboard.points}
-			/>
+		<TopBar endsAt={data.window.endsAt} ideaCount={data.ideaCount} />
 
-			<div class="flex min-w-0 grow flex-col">
-				<section data-canvas class="border-b border-line bg-panel" aria-label="Tu idea">
-					<div class="mx-auto flex max-w-5xl flex-col gap-8 px-5 py-10 sm:px-6 lg:px-8">
-						<div data-live="header">
-							<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
-						</div>
-						{flash && <p class="text-sm text-mark">{flash}</p>}
-						<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
-						<div data-live="ideas">
-							<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
-						</div>
+		<Dashboard
+			version={data.version}
+			state={state}
+			ideaCount={data.ideaCount}
+			discardedCount={data.discardedCount}
+			endsAt={data.window.endsAt}
+			next={data.next}
+			totals={dashboard}
+			points={dashboard.points}
+		/>
+
+		<div class="flex min-w-0 grow flex-col">
+			<section data-canvas class="border-b border-line bg-panel" aria-label="Tu idea">
+				<div class="mx-auto flex max-w-5xl flex-col gap-8 px-5 py-10 sm:px-6 lg:px-8">
+					<div data-live="header">
+						<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
 					</div>
-				</section>
-
-				<div data-canvas class="grow bg-bg">
-					<div class="mx-auto w-full max-w-5xl px-5 py-10 sm:px-6 lg:px-8">
-						<SectionsLink />
+					{flash && <p class="text-sm text-mark">{flash}</p>}
+					<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
+					<div data-live="ideas">
+						<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
 					</div>
 				</div>
+			</section>
 
-				<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
-				<div data-canvas class="border-t border-line bg-panel">
-					<div class="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 lg:px-8" data-live="featurelog">
-						<FeatureLog
-							version={data.version}
-							lastShipped={data.lastShipped}
-							next={data.next}
-							lastRelease={data.lastRelease}
-							state={state}
-						/>
-					</div>
-
-					<Commandments />
+			<div data-canvas class="grow bg-bg">
+				<div class="mx-auto w-full max-w-5xl px-5 py-10 sm:px-6 lg:px-8">
+					<SectionsLink />
 				</div>
+			</div>
+
+			<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
+			<div data-canvas class="border-t border-line bg-panel">
+				<div class="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 lg:px-8" data-live="featurelog">
+					<FeatureLog
+						version={data.version}
+						lastShipped={data.lastShipped}
+						next={data.next}
+						lastRelease={data.lastRelease}
+						state={state}
+					/>
+				</div>
+
+				<Commandments />
 			</div>
 		</div>
 

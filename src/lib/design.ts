@@ -31,20 +31,20 @@ export interface LayoutOption {
 	idea: string;
 }
 
-/** Los tres montajes de la portada. El primero es el que está puesto. */
+/** Los tres montajes de la portada. El de la cabecera es el que está puesto. */
 export const LAYOUTS: readonly LayoutOption[] = [
 	{
 		id: 'rail',
 		label: 'Raíl',
 		icon: 'layout-sidebar',
-		note: 'El de ahora: el estado a la izquierda y el contenido al lado.',
+		note: 'El de antes: el estado a la izquierda y el contenido al lado.',
 		idea: 'el raíl del estado a la izquierda',
 	},
 	{
 		id: 'cabecera',
 		label: 'Cabecera',
 		icon: 'layout-navbar',
-		note: 'El estado cruza arriba a lo ancho y el contenido gana sitio.',
+		note: 'El de ahora: una barra arriba y el panel se despliega desde ella.',
 		idea: 'el estado en una cabecera de lado a lado',
 	},
 	{
@@ -76,7 +76,7 @@ export interface DesignChoice {
 	density: string;
 }
 
-export const DEFAULT_DESIGN: DesignChoice = { layout: 'rail', columns: 3, density: 'comoda' };
+export const DEFAULT_DESIGN: DesignChoice = { layout: 'cabecera', columns: 3, density: 'comoda' };
 
 export function layoutOf(id: string) {
 	return LAYOUTS.find((item) => item.id === id) ?? LAYOUTS[0];

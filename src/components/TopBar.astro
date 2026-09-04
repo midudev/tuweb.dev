@@ -1,0 +1,63 @@
+---
+/**
+ * La barra de arriba de la portada. El panel ya no ocupa un raíl fijo a la
+ * izquierda en el escritorio: ahora se despliega desde el botón de aquí, en
+ * cualquier pantalla, y en la barra se queda lo justo para no perderlo de
+ * vista —lo que falta para cerrar y las ideas de esta ventana—.
+ */
+import Icon from './Icon.astro';
+import WindowClock from './WindowClock.astro';
+
+interface Props {
+	endsAt: string;
+	ideaCount: number;
+}
+
+const { endsAt, ideaCount } = Astro.props;
+
+// Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
+const overdue = new Date(endsAt).getTime() <= Date.now();
+---
+
+<div data-canvas class="sticky top-0 z-40 border-b border-line bg-panel">
+	<div
+		class="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-3 sm:px-6 lg:px-8"
+	>
+		<!-- El botón vive fuera de la zona que se repinta sola: así no se le borra
+		     el aria-expanded con el panel abierto. -->
+		<button
+			type="button"
+			data-panel-open
+			aria-controls="panel"
+			aria-expanded="false"
+			class="inline-flex shrink-0 items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+		>
+			<Icon name="menu-2" class="size-4 shrink-0" />
+			Panel
+		</button>
+
+		<p
+			data-live="topbar"
+			class="flex min-w-0 flex-wrap items-baseline justify-end gap-x-3 gap-y-1 text-sm text-muted"
+		>
+			<span data-window-open hidden={overdue} class="flex items-baseline gap-2">
+				<WindowClock endsAt={endsAt} />
+				<span class="hidden sm:inline">para cerrar</span>
+			</span>
+			<span data-window-closed hidden={!overdue}>ventana cerrada</span>
+			<span class="border-l border-line pl-3">
+				<span class="font-pixel tabular-nums text-accent">{ideaCount}</span> ideas
+			</span>
+		</p>
+	</div>
+</div>
+
+<style is:global>
+	/*
+	 * Con la barra pegada arriba, un salto a #proponer dejaba el título tapado.
+	 * Esto solo se carga en la portada, que es donde está la barra.
+	 */
+	html {
+		scroll-padding-top: 4.5rem;
+	}
+</style>
