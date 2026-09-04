@@ -12,6 +12,11 @@ import ThemeToggle from './ThemeToggle.astro';
 			con <a href="https://midu.dev" class="text-accent hover:underline">@midudev</a>
 		</p>
 		<div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+			<!-- La zona la pone el navegador: sin JavaScript esta línea no sale. -->
+			<p data-zona class="hidden items-center gap-2">
+				<Icon name="clock" class="size-4 shrink-0 text-accent" />
+				Horas en tu zona: <span data-zona-nombre class="text-fg"></span>
+			</p>
 			<CopyLink />
 			<a href="/todo" class="text-accent hover:underline">Todo</a>
 			<a href="/creditos" class="text-accent hover:underline">Créditos</a>
@@ -28,3 +33,17 @@ import ThemeToggle from './ThemeToggle.astro';
 		</div>
 	</div>
 </footer>
+
+<script>
+	import { zonaDelDispositivo } from '../lib/hora';
+
+	// Si el navegador no sabe decir la zona, la línea se queda escondida.
+	const zona = zonaDelDispositivo();
+	const aviso = document.querySelector<HTMLElement>('[data-zona]');
+	const nombre = aviso?.querySelector<HTMLElement>('[data-zona-nombre]');
+
+	if (zona && aviso && nombre) {
+		nombre.textContent = zona;
+		aviso.classList.replace('hidden', 'inline-flex');
+	}
+</script>

@@ -5,11 +5,11 @@
  * ventana, que es el mismo de la portada.
  */
 import type { SessionUser } from '../lib/auth';
-import { dateLabel } from '../lib/credits';
 import { MAX_EDITS } from '../lib/db/queries';
 import { getJourneyData, outcomeLabel, STAGES, STEPS } from '../lib/journey';
 import type { SiteState } from '../lib/releases';
 import GitHubLogin from './GitHubLogin.astro';
+import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 import IdeaSteps from './IdeaSteps.astro';
 import SectionLabel from './SectionLabel.astro';
@@ -177,7 +177,11 @@ const TONOS: Record<string, string> = {
 								<li class="flex flex-col gap-2 border-t border-line py-4 last:border-b">
 									<div class="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
 										<p class="max-w-[62ch] grow text-pretty">{idea.body}</p>
-										<span class="shrink-0 text-sm text-muted">{dateLabel(idea.createdAt)}</span>
+										<Hora
+											iso={idea.createdAt}
+											formato="dia-corto"
+											class="shrink-0 text-sm text-muted"
+										/>
 									</div>
 
 									<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -212,7 +216,12 @@ const TONOS: Record<string, string> = {
 										<p class="text-sm text-pretty text-muted">
 											Grupo: {idea.clusterTitle}
 											{idea.people > 1 && ` · ${idea.people} personas pidieron lo mismo`}
-											{idea.closedAt && ` · ventana cerrada el ${dateLabel(idea.closedAt)}`}
+											{idea.closedAt && (
+												<>
+													{' · ventana cerrada el '}
+													<Hora iso={idea.closedAt} formato="dia-corto" />
+												</>
+											)}
 										</p>
 									)}
 
@@ -225,7 +234,12 @@ const TONOS: Record<string, string> = {
 									{idea.featureTitle && idea.featureTitle !== idea.clusterTitle && (
 										<p class="text-sm text-pretty text-muted">
 											Se construyó como: {idea.featureTitle}
-											{idea.shippedAt && ` · ${dateLabel(idea.shippedAt)}`}
+											{idea.shippedAt && (
+												<>
+													{' · '}
+													<Hora iso={idea.shippedAt} formato="dia-corto" />
+												</>
+											)}
 										</p>
 									)}
 								</li>

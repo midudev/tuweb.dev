@@ -1,6 +1,7 @@
 ---
 import BackLink from '../components/BackLink.astro';
 import Footer from '../components/Footer.astro';
+import Hora from '../components/Hora.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import SectionNav from '../components/SectionNav.astro';
 import WindowClock from '../components/WindowClock.astro';
@@ -11,10 +12,6 @@ import { DISCARD_LABELS } from '../lib/window';
 const data = await getIdeasData();
 // Vencida es que ya tocaba cerrarla; abierta sigue hasta que pase el cron.
 const overdue = new Date(data.window.endsAt).getTime() <= Date.now();
-
-function hhmm(iso: string) {
-	return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-}
 
 const received = data.ideas.length + data.discarded.length;
 ---
@@ -49,7 +46,7 @@ const received = data.ideas.length + data.discarded.length;
 						<ul class="flex flex-col">
 							{data.ideas.map((idea) => (
 								<li class="flex flex-col gap-1.5 border-t border-line py-3.5 last:border-b sm:flex-row sm:items-baseline sm:gap-5">
-									<span class="w-14 shrink-0 text-sm tabular-nums text-muted">{hhmm(idea.createdAt)}</span>
+									<Hora iso={idea.createdAt} class="w-14 shrink-0 text-sm tabular-nums text-muted" />
 									<p class="grow max-w-[62ch] text-pretty">{idea.body}</p>
 									<span class="shrink-0 text-sm text-muted sm:ml-auto">@{idea.login}</span>
 								</li>

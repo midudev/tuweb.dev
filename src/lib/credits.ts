@@ -52,15 +52,6 @@ interface AuthorRow {
 	firstAt: string;
 }
 
-/** Una fecha corta, que aquí lo que importa es el día. */
-export function dateLabel(iso: string) {
-	return new Date(iso).toLocaleDateString('es-ES', {
-		day: 'numeric',
-		month: 'short',
-		year: 'numeric',
-	});
-}
-
 export function getCreditsData(userId?: number) {
 	// Entra quien haya propuesto algo, aunque la IA se lo tumbara: aportar es
 	// haber escrito, no haber acertado.

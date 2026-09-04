@@ -4,19 +4,13 @@
  * hecho del servidor; en el navegador solo pasan dos cosas: el buscador, que
  * esconde las que no encajan, y el resalte de la versión que trae la URL.
  */
-import { dateLabel, dayLabel, gapLabel, getChangelog, paceLabel, relative } from '../lib/changelog';
+import { gapLabel, getChangelog, paceLabel, relative } from '../lib/changelog';
+import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 import SectionLabel from './SectionLabel.astro';
 
 const data = getChangelog();
 const REPO = 'https://github.com/midudev/tuweb.dev';
-
-/** El resumen de arriba: cuántas van, desde cuándo y a qué ritmo salen. */
-const resumen = [
-	`${data.totals.versions} ${data.totals.versions === 1 ? 'versión' : 'versiones'}`,
-	data.totals.since && `desde el ${dayLabel(data.totals.since)}`,
-	data.totals.pace !== null && paceLabel(data.totals.pace),
-].filter(Boolean);
 ---
 
 <section class="flex flex-col gap-8">
@@ -45,7 +39,14 @@ const resumen = [
 					<div class="flex flex-wrap items-baseline justify-between gap-4">
 						<SectionLabel forId="label-cambios">TODO LO QUE HA CAMBIADO</SectionLabel>
 						<p class="text-sm text-muted">
-							{resumen.join(' · ')}
+							{data.totals.versions} {data.totals.versions === 1 ? 'versión' : 'versiones'}
+							{data.totals.since && (
+								<>
+									{' · desde el '}
+									<Hora iso={data.totals.since} formato="dia-corto" />
+								</>
+							)}
+							{data.totals.pace !== null && ` · ${paceLabel(data.totals.pace)}`}
 							{data.totals.last && ` · la última ${relative(data.totals.last)}`}
 						</p>
 					</div>
@@ -69,7 +70,7 @@ const resumen = [
 					{data.months.map((month) => (
 						<li data-mes class="flex flex-col gap-3">
 							<h2 class="flex flex-wrap items-baseline gap-x-3 font-pixel text-xs tracking-wide text-muted">
-								{month.label}
+								{month.at ? <Hora iso={month.at} formato="mes" /> : month.label}
 								<span data-mes-cuenta class="tabular-nums opacity-70">
 									{month.entries.length}
 								</span>
@@ -98,7 +99,7 @@ const resumen = [
 											<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
 												{entry.shippedAt && (
 													<>
-														<span>{dateLabel(entry.shippedAt)}</span>
+														<Hora iso={entry.shippedAt} formato="fecha-hora" />
 														<span>{relative(entry.shippedAt)}</span>
 													</>
 												)}

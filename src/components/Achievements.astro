@@ -6,8 +6,8 @@
  */
 import { getAchievementsData, GROUPS, MAX_BOARD, type AchievementState } from '../lib/achievements';
 import type { SessionUser } from '../lib/auth';
-import { dateLabel } from '../lib/credits';
 import GitHubLogin from './GitHubLogin.astro';
+import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 import SectionLabel from './SectionLabel.astro';
 
@@ -184,9 +184,11 @@ function rareza(item: AchievementState) {
 							</div>
 
 							{version.shippedAt && (
-								<span class="shrink-0 text-sm text-muted sm:ml-auto">
-									{dateLabel(version.shippedAt)}
-								</span>
+								<Hora
+									iso={version.shippedAt}
+									formato="dia-corto"
+									class="shrink-0 text-sm text-muted sm:ml-auto"
+								/>
 							)}
 						</li>
 					))}

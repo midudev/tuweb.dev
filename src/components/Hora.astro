@@ -1,0 +1,28 @@
+---
+/**
+ * Una fecha o una hora escrita en la zona horaria de quien mira. El servidor
+ * deja la suya para que no haya hueco mientras carga la página, y el navegador
+ * la cambia por la del dispositivo.
+ */
+import { formatearHora, type FormatoHora } from '../lib/hora';
+
+interface Props {
+	/** El momento en ISO, tal cual sale de la base. */
+	iso: string;
+	formato?: FormatoHora;
+	class?: string;
+}
+
+const { iso, formato = 'hhmm', class: clase } = Astro.props;
+---
+
+<time datetime={iso} data-hora={formato} class={clase}>{formatearHora(iso, formato)}</time>
+
+<script>
+	import { localizarHoras } from '../lib/hora';
+
+	localizarHoras();
+	// La portada cambia trozos enteros cada minuto y los que vuelven traen otra
+	// vez la hora del servidor.
+	document.addEventListener('window-clock-tick', () => localizarHoras());
+</script>

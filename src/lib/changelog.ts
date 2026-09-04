@@ -24,6 +24,9 @@ export interface ChangeEntry {
 
 export interface ChangeMonth {
 	key: string;
+	/** ISO de una de sus versiones: el título se escribe en hora local. */
+	at: string | null;
+	/** El nombre del cajón de las que no llevan fecha apuntada. */
 	label: string;
 	entries: ChangeEntry[];
 }
@@ -50,36 +53,11 @@ export function normalize(text: string) {
 		.replace(/\p{Diacritic}/gu, '');
 }
 
-/** El día y la hora en que salió, tal cual se enseñaba antes. */
-export function dateLabel(iso: string) {
-	return new Date(iso).toLocaleDateString('es-ES', {
-		day: 'numeric',
-		month: 'long',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-	});
-}
-
-/** Solo el día, para el resumen de arriba. */
-export function dayLabel(iso: string) {
-	return new Date(iso).toLocaleDateString('es-ES', {
-		day: 'numeric',
-		month: 'short',
-		year: 'numeric',
-	});
-}
-
-/** «Agosto de 2026», que es el título de cada grupo. */
-export function monthLabel(iso: string) {
-	const text = new Date(iso).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-	return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 /**
  * El cajón del mes. Sale del día de aquí, no del de Greenwich: las fechas se
- * guardan en UTC y el título se escribe en hora local, así que un cambio de mes
- * a medianoche partiría el grupo en dos con el mismo nombre.
+ * guardan en UTC, así que un cambio de mes a medianoche partiría el grupo en
+ * dos con el mismo nombre. Cada versión lleva su fecha entera al lado, que es
+ * la que se escribe en la zona de quien mira.
  */
 function monthKey(iso: string) {
 	const date = new Date(iso);
@@ -174,7 +152,8 @@ export function getChangelog() {
 		else {
 			months.push({
 				key,
-				label: entry.shippedAt ? monthLabel(entry.shippedAt) : 'Antes de que se apuntaran las fechas',
+				at: entry.shippedAt,
+				label: 'Antes de que se apuntaran las fechas',
 				entries: [entry],
 			});
 		}

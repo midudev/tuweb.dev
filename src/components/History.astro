@@ -5,7 +5,8 @@
  * de arriba filtran en el navegador; el orden y los datos vienen ya hechos del
  * servidor.
  */
-import { getHistoryData, hhmm, MAX_EVENTS, type HistoryKind } from '../lib/history';
+import { getHistoryData, MAX_EVENTS, type HistoryKind } from '../lib/history';
+import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 import SectionLabel from './SectionLabel.astro';
 
@@ -60,10 +61,12 @@ const FILTERS = [
 					</div>
 				</div>
 
-				<ol class="flex flex-col gap-8">
+				<ol data-dias class="flex flex-col gap-8">
 					{data.days.map((day) => (
 						<li data-dia class="flex flex-col gap-3">
-							<h2 class="font-pixel text-xs tracking-wide text-muted">{day.label}</h2>
+							<h2 class="font-pixel text-xs tracking-wide text-muted">
+								<Hora iso={day.at} formato="dia-largo" />
+							</h2>
 
 							<ul class="flex flex-col">
 								{day.events.map((event) => (
@@ -71,7 +74,7 @@ const FILTERS = [
 										data-grupo={event.group}
 										class="flex flex-col gap-2 border-t border-line py-4 last:border-b sm:flex-row sm:gap-5"
 									>
-										<span class="w-12 shrink-0 text-sm tabular-nums text-muted">{hhmm(event.at)}</span>
+										<Hora iso={event.at} class="w-12 shrink-0 text-sm tabular-nums text-muted" />
 
 										<div class="flex min-w-0 grow flex-col gap-1.5 sm:max-w-[66ch]">
 											<p class="flex flex-wrap items-center gap-x-3 text-sm">
@@ -119,6 +122,57 @@ const FILTERS = [
 </section>
 
 <script>
+	import { localizarHoras } from '../lib/hora';
+
+	/*
+	 * El servidor agrupa por su día, pero las horas se enseñan en la zona del
+	 * dispositivo: uno de madrugada puede caer en el día de al lado. Se rehacen
+	 * los cajones antes que nada, así los filtros trabajan sobre lo que queda.
+	 */
+	function reagruparPorDiaLocal() {
+		const lista = document.querySelector<HTMLElement>('[data-dias]');
+		const molde = lista?.querySelector<HTMLElement>('[data-dia]');
+		if (!lista || !molde || !molde.querySelector('ul')) return;
+
+		// Primero se mira todo: si una fecha no se entiende no se toca nada, que
+		// antes lo del servidor que un orden a medias.
+		const plan: { fila: HTMLElement; iso: string; dia: string }[] = [];
+
+		for (const fila of lista.querySelectorAll<HTMLElement>('[data-grupo]')) {
+			const iso = fila.querySelector('time[data-hora]')?.getAttribute('datetime') ?? '';
+			const fecha = new Date(iso);
+			if (Number.isNaN(fecha.getTime())) return;
+
+			plan.push({ fila, iso, dia: fecha.toDateString() });
+		}
+
+		// Y ya se mueve, que a partir de aquí no queda nada por comprobar.
+		const cajones: HTMLElement[] = [];
+		let clave = '';
+		let hueco: HTMLElement | null = null;
+
+		for (const { fila, iso, dia } of plan) {
+			if (!hueco || dia !== clave) {
+				const cajon = molde.cloneNode(true) as HTMLElement;
+				cajon.querySelector('h2 time')?.setAttribute('datetime', iso);
+
+				// La copia es del molde, que ya se comprobó que trae su lista.
+				hueco = cajon.querySelector('ul')!;
+				hueco.replaceChildren();
+
+				cajones.push(cajon);
+				clave = dia;
+			}
+
+			hueco.append(fila);
+		}
+
+		lista.replaceChildren(...cajones);
+		localizarHoras(lista);
+	}
+
+	reagruparPorDiaLocal();
+
 	/*
 	 * Filtrar es esconder filas: el historial entero ya está pintado. Cuando un
 	 * día se queda sin nada visible, se esconde también su fecha.

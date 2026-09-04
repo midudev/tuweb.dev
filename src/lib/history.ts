@@ -33,7 +33,8 @@ export interface HistoryEvent {
 
 export interface HistoryDay {
 	key: string;
-	label: string;
+	/** ISO de uno de sus movimientos: el título se escribe en hora local. */
+	at: string;
 	events: HistoryEvent[];
 }
 
@@ -86,20 +87,6 @@ interface ShippedRow {
 
 function plural(count: number, one: string, many: string) {
 	return `${count} ${count === 1 ? one : many}`;
-}
-
-function dayLabel(date: Date) {
-	const text = date.toLocaleDateString('es-ES', {
-		weekday: 'long',
-		day: 'numeric',
-		month: 'long',
-		year: 'numeric',
-	});
-	return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-export function hhmm(iso: string) {
-	return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
 export function getHistoryData() {
@@ -224,13 +211,14 @@ export function getHistoryData() {
 	const shown = events.slice(0, MAX_EVENTS);
 	const days: HistoryDay[] = [];
 
+	// Los cajones salen con el día del servidor; el navegador los rehace con el
+	// del dispositivo, que puede caer en otro por unas horas de diferencia.
 	for (const event of shown) {
-		const date = new Date(event.at);
-		const key = date.toDateString();
+		const key = new Date(event.at).toDateString();
 		const last = days.at(-1);
 
 		if (last?.key === key) last.events.push(event);
-		else days.push({ key, label: dayLabel(date), events: [event] });
+		else days.push({ key, at: event.at, events: [event] });
 	}
 
 	return { days, totals, version: shipped.length, truncated: events.length > shown.length };

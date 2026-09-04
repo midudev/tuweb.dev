@@ -4,7 +4,8 @@
  * está detrás de cada versión. Todo sale hecho del servidor; aquí no hay nada
  * que calcular en el navegador.
  */
-import { dateLabel, getCreditsData, type CreditPerson } from '../lib/credits';
+import { getCreditsData, type CreditPerson } from '../lib/credits';
+import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 import SectionLabel from './SectionLabel.astro';
 
@@ -47,7 +48,12 @@ function detail(person: CreditPerson) {
 						{data.totals.people} {data.totals.people === 1 ? 'persona' : 'personas'} ·{' '}
 						{data.totals.ideas} ideas · {data.totals.versions}{' '}
 						{data.totals.versions === 1 ? 'versión' : 'versiones'}
-						{data.since && ` · desde el ${dateLabel(data.since)}`}
+						{data.since && (
+							<>
+								{' · desde el '}
+								<Hora iso={data.since} formato="dia-corto" />
+							</>
+						)}
 					</p>
 				</div>
 
@@ -81,7 +87,9 @@ function detail(person: CreditPerson) {
 								</span>
 							)}
 
-							<span class="mt-auto pt-1.5 text-xs text-muted">desde el {dateLabel(person.firstAt)}</span>
+							<span class="mt-auto pt-1.5 text-xs text-muted">
+								desde el <Hora iso={person.firstAt} formato="dia-corto" />
+							</span>
 						</li>
 					))}
 				</ol>
@@ -136,9 +144,11 @@ function detail(person: CreditPerson) {
 							</div>
 
 							{version.shippedAt && (
-								<span class="shrink-0 text-sm text-muted sm:ml-auto">
-									{dateLabel(version.shippedAt)}
-								</span>
+								<Hora
+									iso={version.shippedAt}
+									formato="dia-corto"
+									class="shrink-0 text-sm text-muted sm:ml-auto"
+								/>
 							)}
 						</li>
 					))}

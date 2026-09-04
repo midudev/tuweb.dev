@@ -3,6 +3,7 @@ import type { SessionUser } from '../lib/auth';
 import type { SiteState } from '../lib/releases';
 import { agoLabel } from '../lib/window';
 import GitHubLogin from './GitHubLogin.astro';
+import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -25,14 +26,6 @@ const LABELS: Record<SiteState, string> = {
 const { user, version, deployedAt = null, state = 'idle', as: Tag = 'h1' } = Astro.props;
 const working = state === 'building' || state === 'repairing';
 const ago = deployedAt ? agoLabel(deployedAt) : null;
-const exactDate = deployedAt
-	? new Date(deployedAt).toLocaleDateString('es-ES', {
-			day: 'numeric',
-			month: 'long',
-			hour: '2-digit',
-			minute: '2-digit',
-		})
-	: null;
 ---
 
 <header class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
@@ -55,7 +48,12 @@ const exactDate = deployedAt
 						class="pointer-events-none absolute top-full right-0 z-10 mt-2 max-w-[min(18rem,calc(100vw_-_2.5rem))] border border-line bg-panel px-3 py-2 text-xs text-pretty text-muted opacity-0 transition-opacity group-hover/ver:opacity-100 group-focus-visible/logo:opacity-100 sm:right-auto sm:left-1/2 sm:max-w-none sm:-translate-x-1/2 sm:whitespace-nowrap"
 					>
 						{state !== 'idle' && `${LABELS[state]}. `}
-						{ago && `Desplegada ${ago} · ${exactDate}`}
+						{deployedAt && (
+							<>
+								{`Desplegada ${ago} · `}
+								<Hora iso={deployedAt} formato="dia-mes-hora" />
+							</>
+						)}
 					</span>
 				)
 			}

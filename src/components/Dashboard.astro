@@ -8,6 +8,7 @@
 import type { CyclePoint } from '../lib/db/queries';
 import type { Feature } from '../lib/db/schema';
 import type { SiteState } from '../lib/releases';
+import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 import ThemeToggle from './ThemeToggle.astro';
 import WindowClock from './WindowClock.astro';
@@ -46,10 +47,6 @@ const totales = [
 
 // La barra más larga es la ventana con más ideas; el resto va en proporción.
 const maxIdeas = Math.max(1, ...points.map((point) => point.ideas));
-
-function hhmm(iso: string) {
-	return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-}
 ---
 
 <aside
@@ -142,7 +139,7 @@ function hhmm(iso: string) {
 						<ul class="flex flex-col gap-1.5">
 							{points.map((point) => (
 								<li class="flex items-center gap-2 text-xs">
-									<span class="w-10 shrink-0 tabular-nums text-muted">{hhmm(point.processedAt)}</span>
+									<Hora iso={point.processedAt} class="w-10 shrink-0 tabular-nums text-muted" />
 									<span class="flex h-1.5 grow bg-line" title={point.title ?? 'ventana sin ideas'}>
 										<span
 											class="h-full bg-accent"

@@ -12,12 +12,18 @@
 	/**
 	 * Para comparar hay que quitar lo que cambia solo en el navegador: la cuenta
 	 * atrás va por su cuenta cada segundo y en la página recién pedida marca
-	 * otra cosa. Sin esto todo parecería distinto siempre.
+	 * otra cosa. Sin esto todo parecería distinto siempre. Las horas van igual:
+	 * lo que se ve está en la zona del dispositivo y lo que llega, en la del
+	 * servidor; lo que importa es el datetime, que sigue en el atributo.
 	 */
 	function firma(zona: HTMLElement) {
 		const copia = zona.cloneNode(true) as HTMLElement;
 
 		for (const clock of copia.querySelectorAll('[data-window-clock]')) clock.textContent = '';
+		for (const hora of copia.querySelectorAll('time[data-hora]')) {
+			hora.textContent = '';
+			hora.removeAttribute('title');
+		}
 		for (const span of copia.querySelectorAll('[data-window-open], [data-window-closed]')) {
 			span.removeAttribute('hidden');
 		}
