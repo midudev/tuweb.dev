@@ -13,7 +13,7 @@ export interface ConfigVar {
 	label: string;
 	kind: VarKind;
 	group: string;
-	/** Lo de fábrica, que es lo escrito en @theme: los colores del modo claro. */
+	/** Lo de fábrica, que es lo escrito en @theme: los colores del tema claro. */
 	base: string;
 }
 
@@ -117,7 +117,7 @@ export function applyConfig(config: Config) {
 export function configCss(entries: [string, string][]) {
 	if (entries.length === 0) return '';
 
-	// Un solo bloque: lo de fábrica vive en @theme, que es el modo claro.
+	// Un solo bloque: lo de fábrica vive en @theme, que es el tema claro.
 	const lines = entries.map(([name, value]) => `\t${name}: ${value};`).join('\n');
 
 	return `/* src/styles/global.css */\n@theme {\n${lines}\n}`;

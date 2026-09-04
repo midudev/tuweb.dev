@@ -19,15 +19,9 @@ const {
 		<!-- Con initial-scale=1 el móvil no entra ya con la página encogida, y sin
 		     maximum-scale para no quitarle el zoom a nadie. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<!-- Dos modos del mismo tema naranja. El de casa, y el de partida, es el claro. -->
-		<meta name="color-scheme" content="light dark" />
+		<!-- Un solo tema: papel claro y naranja. Ni modo oscuro ni interruptor. -->
+		<meta name="color-scheme" content="light" />
 		<meta name="theme-color" content="#fdf6ef" />
-		<!--
-			Lo único que corre antes de pintar: marca el <html> si esta visita eligió el
-			modo oscuro, para que no se vea un fogonazo claro. Va suelto en /public
-			porque la CSP es script-src 'self' y aquí no caben scripts en línea.
-		-->
-		<script is:inline src="/tema.js"></script>
 		<link rel="icon" href="/favicon.ico" sizes="32x32" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
@@ -54,7 +48,8 @@ const {
 			Lo que se haya afinado en la caja de herramientas —color y fondo— se aplica
 			en cuanto carga este script, junto con las variables tocadas en el panel de
 			Config. Va en la cabecera y no en línea porque la CSP es script-src 'self':
-			lo más pronto que puede correr es esto.
+			lo más pronto que puede correr es esto. El fondo de la web no depende de
+			esto: el papel claro ya lo pinta la hoja de estilos, así que no parpadea.
 		-->
 		<script>
 			import { applyConfig, readConfig } from '../lib/config';

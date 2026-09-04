@@ -1,17 +1,6 @@
 /*
- * Lo único que corre antes de pintar. Si esta visita eligió el modo oscuro, el
- * <html> ya sale marcado y la web no parpadea en claro un instante. Lo demás
- * —acento y fondo— lo pone src/lib/theme.ts en cuanto carga.
- *
- * Va en un fichero suelto y no en un script de la cabecera porque la CSP es
- * script-src 'self': nada en línea. La clave es la misma que usa theme.ts.
+ * Aquí ya no hay nada que hacer. Este fichero marcaba el <html> cuando alguien
+ * había elegido el modo oscuro, para que la web no parpadeara en claro. Ahora
+ * la web tiene un solo tema —papel claro y naranja—, así que nadie lo carga:
+ * queda como recuerdo hasta que se borre del repo.
  */
-(function () {
-	try {
-		if (localStorage.getItem('tuweb:modo') === 'oscuro') {
-			document.documentElement.dataset.tema = 'oscuro';
-		}
-	} catch (error) {
-		// Sin localStorage (modo privado o permisos): el claro de siempre.
-	}
-})();
