@@ -1,0 +1,253 @@
+---
+/**
+ * La votación de la ventana: las ideas que han pasado el filtro, cada una con
+ * su botón. Votas las que quieres que ganen —tres como mucho— y la lista se
+ * reordena para que tu apuesta quede arriba.
+ *
+ * No hay servidor detrás: el voto se queda en tu navegador, como el escaparate
+ * o las tareas. Quien decide sigue siendo la ventana, que gana lo que más se
+ * repite; esto es para leer las ideas con orden y tener clara la tuya.
+ *
+ * La lista viene pintada del servidor: sin JavaScript se lee igual, solo que
+ * sin los botones.
+ */
+import Icon from './Icon.astro';
+import Hora from './Hora.astro';
+import type { WindowIdea } from '../lib/db/queries';
+import { MAX_VOTES } from '../lib/votes';
+
+interface Props {
+	ideas: WindowIdea[];
+	/** La hora de apertura de la ventana: ata los votos a estas ideas y no a otras. */
+	windowStartedAt: string;
+}
+
+const { ideas, windowStartedAt } = Astro.props;
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const CHIP = 'border border-line px-3 py-2 text-muted hover:border-accent hover:text-accent';
+---
+
+<section id="votacion" data-sinjs data-ventana={windowStartedAt} class="flex flex-col gap-5">
+	<div
+		data-solo-js
+		class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border border-line bg-panel p-4"
+	>
+		<div class="flex flex-col gap-1">
+			<p data-count class="text-sm" aria-live="polite">
+				Tienes {MAX_VOTES} votos para esta ventana.
+			</p>
+			<p data-error role="status" class="text-sm text-heart"></p>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-2 text-sm">
+			<div role="group" aria-label="Ordenar las ideas" class="flex flex-wrap gap-2">
+				<button type="button" data-orden="votos" aria-pressed="true" class={CHIP}>
+					Mis votos arriba
+				</button>
+				<button type="button" data-orden="hora" aria-pressed="false" class={CHIP}>
+					Por hora
+				</button>
+			</div>
+
+			<button type="button" data-clear class={BOTON} hidden>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Quitar mis votos
+			</button>
+		</div>
+	</div>
+
+	<ul data-list class="flex flex-col">
+		{
+			ideas.map((idea) => (
+				<li
+					data-idea={idea.id}
+					class="flex flex-col gap-2 border-t border-line py-3.5 last:border-b sm:flex-row sm:items-baseline sm:gap-5"
+				>
+					<Hora iso={idea.createdAt} class="w-14 shrink-0 text-sm tabular-nums text-muted" />
+					<p class="grow max-w-[62ch] text-pretty">{idea.body}</p>
+					<span class="shrink-0 text-sm text-muted sm:ml-auto">@{idea.login}</span>
+					<button type="button" data-vote data-solo-js aria-pressed="false" class={BOTON}>
+						<span data-icon="off" class="inline-flex items-center gap-2">
+							<Icon name="arrow-big-up" class="size-4 shrink-0" />
+							Votar
+						</span>
+						<span data-icon="on" class="inline-flex items-center gap-2">
+							<Icon name="check" class="size-4 shrink-0" />
+							Votada
+						</span>
+					</button>
+				</li>
+			))
+		}
+	</ul>
+
+	<p data-solo-js class="text-sm text-muted">
+		Los votos son tuyos y se quedan en este navegador: no se envían ni los ve nadie. Cuando cierre
+		la ventana se borran solos, porque las ideas ya serán otras.
+	</p>
+</section>
+
+<style is:global>
+	/*
+	 * Va global porque el estado lo pone el script sobre nodos que no llevan la
+	 * marca del componente; por eso todo cuelga de #votacion.
+	 */
+
+	/* Sin JavaScript no hay votación: la lista se lee y ya está. */
+	#votacion[data-sinjs] [data-solo-js] {
+		display: none;
+	}
+
+	#votacion [data-orden][aria-pressed='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+
+	/* El botón enseña solo el estado en el que está. */
+	#votacion [data-vote] > [data-icon='on'],
+	#votacion [data-vote][aria-pressed='true'] > [data-icon='off'] {
+		display: none;
+	}
+	#votacion [data-vote][aria-pressed='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	#votacion [data-vote][aria-pressed='true'] > [data-icon='on'] {
+		display: inline-flex;
+	}
+
+	/* La idea votada lleva su canto naranja, para verla de un vistazo. */
+	#votacion [data-idea][data-votada='si'] {
+		border-inline-start: 2px solid var(--color-accent);
+		padding-inline-start: 0.75rem;
+	}
+</style>
+
+<script>
+	import {
+		type Order,
+		type Votes,
+		VOTES_KEY,
+		isOrder,
+		keepAlive,
+		readOrder,
+		readVotes,
+		saveOrder,
+		saveVotes,
+		toggleVote,
+		votesText,
+	} from '../lib/votes';
+
+	const section = document.querySelector<HTMLElement>('#votacion');
+	const list = section?.querySelector<HTMLElement>('[data-list]');
+	const countOut = section?.querySelector<HTMLElement>('[data-count]');
+	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const clearButton = section?.querySelector<HTMLButtonElement>('[data-clear]');
+
+	if (section && list && countOut) {
+		const ventana = section.dataset.ventana ?? '';
+
+		/** Las filas tal como llegaron del servidor: ese es el orden por hora. */
+		const rows = [...list.querySelectorAll<HTMLElement>('[data-idea]')].map((node) => ({
+			id: Number(node.dataset.idea),
+			node,
+			button: node.querySelector<HTMLButtonElement>('[data-vote]')!,
+		}));
+
+		// Una idea puede haberse ido de la ventana desde el último voto.
+		let votes: Votes = keepAlive(
+			readVotes(ventana),
+			rows.map((row) => row.id),
+		);
+		let order: Order = readOrder();
+
+		function fail(message: string) {
+			if (errorOut) errorOut.textContent = message;
+		}
+
+		function render() {
+			for (const row of rows) {
+				const voted = votes.ids.includes(row.id);
+				row.node.dataset.votada = voted ? 'si' : 'no';
+				row.button.setAttribute('aria-pressed', String(voted));
+			}
+
+			// Con los votos arriba manda el orden en que se votaron; debajo, la hora.
+			const shown =
+				order === 'hora'
+					? rows
+					: [...rows].sort((a, b) => {
+							const posA = votes.ids.indexOf(a.id);
+							const posB = votes.ids.indexOf(b.id);
+							if (posA === posB) return 0;
+							if (posA === -1) return 1;
+							if (posB === -1) return -1;
+							return posA - posB;
+						});
+
+			list!.append(...shown.map((row) => row.node));
+
+			for (const chip of section!.querySelectorAll<HTMLElement>('[data-orden]')) {
+				chip.setAttribute('aria-pressed', String(chip.dataset.orden === order));
+			}
+
+			countOut!.textContent = votesText(votes.ids.length);
+			if (clearButton) clearButton.hidden = votes.ids.length === 0;
+		}
+
+		function commit(next: Votes) {
+			votes = next;
+			saveVotes(votes);
+			render();
+		}
+
+		for (const row of rows) {
+			row.button.addEventListener('click', () => {
+				const next = toggleVote(votes, row.id);
+
+				if (typeof next === 'string') {
+					fail(next);
+					return;
+				}
+
+				fail('');
+				commit(next);
+			});
+		}
+
+		for (const chip of section.querySelectorAll<HTMLElement>('[data-orden]')) {
+			chip.addEventListener('click', () => {
+				const pedido = chip.dataset.orden;
+				if (!isOrder(pedido)) return;
+
+				order = pedido;
+				saveOrder(order);
+				render();
+			});
+		}
+
+		clearButton?.addEventListener('click', () => {
+			if (votes.ids.length === 0) return;
+
+			fail('');
+			commit({ ...votes, ids: [] });
+		});
+
+		// Si votas en otra pestaña, esta se entera y se pone al día.
+		window.addEventListener('storage', (event) => {
+			if (event.key !== null && event.key !== VOTES_KEY) return;
+
+			votes = keepAlive(
+				readVotes(ventana),
+				rows.map((row) => row.id),
+			);
+			fail('');
+			render();
+		});
+
+		delete section.dataset.sinjs;
+		render();
+	}
+</script>

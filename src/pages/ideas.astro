@@ -1,12 +1,13 @@
 ---
 import BackLink from '../components/BackLink.astro';
 import Footer from '../components/Footer.astro';
-import Hora from '../components/Hora.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import SectionNav from '../components/SectionNav.astro';
+import Votes from '../components/Votes.astro';
 import WindowClock from '../components/WindowClock.astro';
 import { getIdeasData } from '../lib/db/queries';
 import Layout from '../layouts/Layout.astro';
+import { MAX_VOTES } from '../lib/votes';
 import { DISCARD_LABELS } from '../lib/window';
 
 const data = await getIdeasData();
@@ -36,22 +37,14 @@ const received = data.ideas.length + data.discarded.length;
 
 				<p class="max-w-[62ch] text-sm text-muted">
 					{received} recibidas · {data.ideas.length} pasan el filtro de la IA. Cuando se cierre la
-					ventana, gana lo que más se repita.
+					ventana, gana lo que más se repita. Vota hasta {MAX_VOTES}: las votadas suben arriba.
 				</p>
 
 				{
 					data.ideas.length === 0 ? (
 						<p class="text-muted">Todavía no hay ninguna idea en esta ventana.</p>
 					) : (
-						<ul class="flex flex-col">
-							{data.ideas.map((idea) => (
-								<li class="flex flex-col gap-1.5 border-t border-line py-3.5 last:border-b sm:flex-row sm:items-baseline sm:gap-5">
-									<Hora iso={idea.createdAt} class="w-14 shrink-0 text-sm tabular-nums text-muted" />
-									<p class="grow max-w-[62ch] text-pretty">{idea.body}</p>
-									<span class="shrink-0 text-sm text-muted sm:ml-auto">@{idea.login}</span>
-								</li>
-							))}
-						</ul>
+						<Votes ideas={data.ideas} windowStartedAt={data.window.startedAt} />
 					)
 				}
 			</div>

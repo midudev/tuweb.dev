@@ -236,8 +236,9 @@ export const SECTIONS: Section[] = [
 		title: 'Ideas',
 		icon: 'bulb',
 		group: 'proceso',
-		card: 'Las ideas que han entrado en esta ventana y las que descartó la IA.',
-		intro: 'Todas las ideas de esta ventana.',
+		card: 'Las ideas de esta ventana, con votación, y las que descartó la IA.',
+		intro:
+			'Todas las ideas de esta ventana. Vota hasta tres: las votadas suben arriba para que veas tu apuesta de un vistazo. El voto se queda en tu navegador y se borra al cerrar la ventana; quien decide sigue siendo lo que más gente repite.',
 	},
 	{
 		href: '/mi-idea',
