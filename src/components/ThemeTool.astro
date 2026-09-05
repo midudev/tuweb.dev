@@ -1,9 +1,10 @@
 ---
 /**
- * El tema de la web: el modo —claro, oscuro o el del sistema—, el color
- * primario y el fondo. Se aplica al momento sobre la web entera y se guarda en
- * este navegador; no viaja a ningún sitio.
+ * El tema de la web: las plantillas de color, el modo —claro, oscuro o el del
+ * sistema—, el color primario y el fondo. Se aplica al momento sobre la web
+ * entera y se guarda en este navegador; no viaja a ningún sitio.
  */
+import { NAME_MAX, PALETTES, swatches } from '../lib/palettes';
 import { PRESETS, SURFACES } from '../lib/theme';
 import Icon from './Icon.astro';
 import ThemeToggle from './ThemeToggle.astro';
@@ -17,6 +18,13 @@ const FONDOS: Record<string, { label: string; icon: string }> = {
 
 const OPCION =
 	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+
+/* El botón de una plantilla es el de siempre, con su tira de muestras dentro. */
+const BORRAR =
+	'inline-flex items-center border border-l-0 border-line px-2 text-muted hover:border-accent hover:text-accent';
+/* Las cuatro muestras van pegadas dentro de un mismo recuadro, como una tira. */
+const TIRA = 'flex shrink-0 border border-line';
+const MUESTRA = 'size-3.5 shrink-0';
 ---
 
 <div
@@ -29,9 +37,88 @@ const OPCION =
 >
 	<p class="max-w-[62ch] text-sm text-muted">
 		La web tiene dos temas: papel claro y noche cálida, los dos con el naranja de casa y la misma
-		monoespaciada. Aquí se elige el modo, el color primario y el fondo, y todo se queda en este
-		navegador.
+		monoespaciada. Aquí se elige la plantilla de colores, el modo, el color primario y el fondo, y
+		todo se queda en este navegador.
 	</p>
+
+	<div class="flex flex-col gap-3">
+		<h3 id="tema-plantilla" class="text-sm text-muted">Plantillas</h3>
+		<div data-plantillas role="group" aria-labelledby="tema-plantilla" class="flex flex-wrap gap-2">
+			{
+				PALETTES.map((plantilla) => (
+					<div data-plantilla-item class="flex items-stretch">
+						<button
+							type="button"
+							data-plantilla-set={plantilla.id}
+							aria-pressed="false"
+							class={OPCION}
+						>
+							<span class={TIRA}>
+								{swatches(plantilla).map((muestra) => (
+									<span
+										data-muestra={muestra.name}
+										class={MUESTRA}
+										style={`background:${muestra.hex}`}
+									/>
+								))}
+							</span>
+							{plantilla.label}
+						</button>
+					</div>
+				))
+			}
+		</div>
+
+		<p class="max-w-[62ch] text-sm text-muted">
+			Una plantilla trae puesto todo: fondo, texto, líneas, paneles, acento y modo. «De casa» es la
+			web tal cual está en el repo.
+		</p>
+
+		<div class="flex flex-wrap items-center gap-3 text-sm">
+			<label class="inline-flex items-center gap-2 text-muted">
+				La mía
+				<input
+					type="text"
+					data-plantilla-nombre
+					maxlength={NAME_MAX}
+					placeholder="Nombre"
+					spellcheck="false"
+					autocomplete="off"
+					class="w-44 border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent"
+				/>
+			</label>
+			<button
+				type="button"
+				data-plantilla-guardar
+				class={`${OPCION} disabled:pointer-events-none disabled:opacity-40`}
+				disabled
+			>
+				<Icon name="device-floppy" class="size-4 shrink-0" />
+				Guardar lo puesto
+			</button>
+		</div>
+		<p data-plantilla-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+		<!-- El molde de las mías: el script lo clona y le pone nombre y colores. -->
+		<template data-plantilla-tpl>
+			<div data-plantilla-item class="flex items-stretch">
+				<button type="button" data-plantilla-set="" aria-pressed="false" class={OPCION}>
+					<span class={TIRA}>
+						{
+							swatches(PALETTES[0]).map((muestra) => (
+								<span data-muestra={muestra.name} class={MUESTRA} />
+							))
+						}
+					</span>
+					<span data-plantilla-label></span>
+				</button>
+				<button type="button" data-plantilla-del="" class={BORRAR}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					<span data-plantilla-borrar class="sr-only">Borrar la plantilla</span>
+				</button>
+			</div>
+		</template>
+	</div>
 
 	<div class="flex flex-col gap-3">
 		<h3 class="text-sm text-muted">Modo</h3>
@@ -109,7 +196,28 @@ const OPCION =
 <script>
 	import { parseColor, toHex } from '../lib/color';
 	import {
+		type Config,
+		type ConfigEvent,
+		announceConfig,
+		applyConfig,
+		readConfig,
+		saveConfig,
+	} from '../lib/config';
+	import {
+		OWN_MAX,
+		PALETTES,
+		type Palette,
+		isCurrent,
+		paletteFrom,
+		paletteState,
+		readOwn,
+		saveOwn,
+		schemeOf,
+		swatches,
+	} from '../lib/palettes';
+	import {
 		DEFAULT_THEME,
+		type Scheme,
 		type Surface,
 		type Theme,
 		type ThemeEvent,
@@ -124,6 +232,12 @@ const OPCION =
 	const hexOut = document.querySelector<HTMLElement>('[data-tema-hex]');
 	const noteOut = document.querySelector<HTMLElement>('[data-tema-nota]');
 
+	const lista = document.querySelector<HTMLElement>('[data-plantillas]');
+	const plantilla = document.querySelector<HTMLTemplateElement>('[data-plantilla-tpl]');
+	const nombre = document.querySelector<HTMLInputElement>('[data-plantilla-nombre]');
+	const guardar = document.querySelector<HTMLButtonElement>('[data-plantilla-guardar]');
+	const avisoOut = document.querySelector<HTMLElement>('[data-plantilla-nota]');
+
 	/*
 	 * Arrastrando el selector de color salen decenas de cambios por segundo: la
 	 * web se repinta en todos, pero al localStorage solo se escribe al parar.
@@ -132,6 +246,142 @@ const OPCION =
 	let saveTimer = 0;
 
 	let theme = readTheme();
+	let config: Config = readConfig();
+	let own = readOwn();
+	let nota = '';
+
+	/** Las de casa primero y las mías detrás, que es como salen en la lista. */
+	function todas() {
+		return [...PALETTES, ...own];
+	}
+
+	function porId(id: string) {
+		return todas().find((suya) => suya.id === id) ?? null;
+	}
+
+	function aviso(texto: string) {
+		nota = texto;
+		pintarNota();
+	}
+
+	function pintarNota() {
+		if (!avisoOut) return;
+		avisoOut.textContent =
+			own.length >= OWN_MAX ?
+				`Ya hay ${OWN_MAX} plantillas guardadas: borra alguna para meter otra.`
+			:	nota;
+	}
+
+	/** Los botones de las mías; los de casa ya vienen puestos del servidor. */
+	function pintarMias() {
+		if (!lista || !plantilla) return;
+
+		lista
+			.querySelectorAll('[data-plantilla-del]')
+			.forEach((button) => button.closest('[data-plantilla-item]')?.remove());
+
+		for (const mia of own) {
+			const item = plantilla.content.cloneNode(true) as DocumentFragment;
+			const boton = item.querySelector<HTMLButtonElement>('[data-plantilla-set]');
+			const etiqueta = item.querySelector<HTMLElement>('[data-plantilla-label]');
+			const borrar = item.querySelector<HTMLButtonElement>('[data-plantilla-del]');
+			const rotulo = item.querySelector<HTMLElement>('[data-plantilla-borrar]');
+			if (!boton || !etiqueta || !borrar) continue;
+
+			boton.dataset.plantillaSet = mia.id;
+			etiqueta.textContent = mia.label;
+			borrar.dataset.plantillaDel = mia.id;
+			if (rotulo) rotulo.textContent = `Borrar ${mia.label}`;
+
+			lista.append(item);
+		}
+	}
+
+	/**
+	 * «De casa» no lleva colores propios: son los del repo, y de noche son otros.
+	 * Los de noche están en el CSS como --oscuro-*, así que la muestra los saca
+	 * de ahí en vez de enseñar el papel claro con el modo oscuro puesto.
+	 */
+	function delRepo(name: string, scheme: Scheme) {
+		if (scheme !== 'oscuro') return '';
+		return getComputedStyle(document.documentElement)
+			.getPropertyValue(name.replace('--color-', '--oscuro-'))
+			.trim();
+	}
+
+	/** Cada muestra con su color; el acento, ajustado al modo de esa plantilla. */
+	function pintarMuestras() {
+		document.querySelectorAll<HTMLButtonElement>('[data-plantilla-set]').forEach((button) => {
+			const suya = porId(button.dataset.plantillaSet ?? '');
+			if (!suya) return;
+
+			const scheme = schemeOf(suya);
+			const puntos = button.querySelectorAll<HTMLElement>('[data-muestra]');
+
+			swatches(suya).forEach((muestra, index) => {
+				const punto = puntos[index];
+				if (!punto) return;
+
+				if (muestra.name === '--color-accent') {
+					const color = parseColor(muestra.hex);
+					punto.style.background = color ? accentFor(color, scheme) : muestra.hex;
+					return;
+				}
+
+				punto.style.background =
+					suya.vars[muestra.name] || delRepo(muestra.name, scheme) || muestra.hex;
+			});
+		});
+	}
+
+	/** Sin nombre no hay plantilla que guardar, y con doce ya está la lista llena. */
+	function estadoGuardar() {
+		if (!guardar) return;
+		const cabe = own.length < OWN_MAX;
+		guardar.disabled = !cabe || !paletteFrom(nombre?.value ?? '', theme, config, own);
+	}
+
+	function pintarPlantillas() {
+		document.querySelectorAll<HTMLButtonElement>('[data-plantilla-set]').forEach((button) => {
+			const suya = porId(button.dataset.plantillaSet ?? '');
+			const puesta = suya ? isCurrent(suya, theme, config) : false;
+			button.setAttribute('aria-pressed', String(puesta));
+		});
+
+		pintarMuestras();
+		estadoGuardar();
+		pintarNota();
+	}
+
+	/** Lo que hay puesto ahora, guardado con nombre para volver a ponerlo luego. */
+	function guardarActual() {
+		if (!nombre || own.length >= OWN_MAX) return;
+
+		const suya = paletteFrom(nombre.value, theme, config, own);
+		if (!suya) return;
+
+		own = [...own, suya];
+		saveOwn(own);
+		nombre.value = '';
+		pintarMias();
+		render();
+		aviso(`Guardada «${suya.label}».`);
+	}
+
+	/** Poner una plantilla: sus colores, su acento, su fondo y su modo. */
+	function poner(suya: Palette) {
+		const siguiente = paletteState(suya, config);
+
+		config = siguiente.config;
+		applyConfig(config);
+		saveConfig(config);
+		// La tabla de Config está enseñando estos mismos valores: que se entere.
+		announceConfig(config);
+
+		// El tema va después: la barra del navegador se pinta con el fondo ya puesto.
+		cambiar(siguiente.theme);
+		aviso(`Puesta «${suya.label}».`);
+	}
 
 	function marcar(selector: string, clave: string, valor: string) {
 		document.querySelectorAll<HTMLButtonElement>(selector).forEach((button) => {
@@ -141,6 +391,7 @@ const OPCION =
 	}
 
 	function render() {
+		pintarPlantillas();
 		marcar('[data-fondo-set]', 'fondoSet', theme.surface);
 		marcar('[data-color-set]', 'colorSet', theme.accent);
 
@@ -187,11 +438,55 @@ const OPCION =
 		cambiar({ accent: DEFAULT_THEME.accent });
 	});
 
+	// Un clic en la lista puede ser poner una plantilla o borrar una mía. Va por
+	// delegación porque las mías se pintan y se repintan desde aquí.
+	lista?.addEventListener('click', (event) => {
+		// El clic puede caer en el icono o en una muestra: se sube al botón.
+		const donde = event.target as Element;
+
+		const set = donde.closest<HTMLButtonElement>('[data-plantilla-set]');
+		if (set) {
+			const suya = porId(set.dataset.plantillaSet ?? '');
+			if (suya) poner(suya);
+			return;
+		}
+
+		const del = donde.closest<HTMLButtonElement>('[data-plantilla-del]');
+		if (!del) return;
+
+		const id = del.dataset.plantillaDel ?? '';
+		const suya = own.find((otra) => otra.id === id);
+		own = own.filter((otra) => otra.id !== id);
+		saveOwn(own);
+		pintarMias();
+		render();
+		if (suya) aviso(`Borrada «${suya.label}». Los colores se quedan puestos.`);
+	});
+
+	nombre?.addEventListener('input', estadoGuardar);
+	nombre?.addEventListener('keydown', (event) => {
+		if (event.key !== 'Enter') return;
+		event.preventDefault();
+		guardarActual();
+	});
+	guardar?.addEventListener('click', guardarActual);
+
 	// El acento también se toca desde la pestaña de Colores y desde Config.
 	document.addEventListener('tuweb:tema', (event) => {
 		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
 		render();
 	});
 
+	// Y los colores, desde la tabla de Config: la plantilla marcada cambia con
+	// ellos. Lo que sale de aquí ya está pintado, así que se lo salta.
+	document.addEventListener('tuweb:config', (event) => {
+		const next = (event as CustomEvent<ConfigEvent>).detail.config;
+		if (next === config) return;
+
+		config = next;
+		pintarPlantillas();
+	});
+
+	pintarMias();
 	render();
 </script>

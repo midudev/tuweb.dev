@@ -225,8 +225,10 @@ const BOTON =
 	import {
 		CONFIG_VARS,
 		type Config,
+		type ConfigEvent,
 		SIZE_MAX,
 		SIZE_MIN,
+		announceConfig,
 		applyConfig,
 		configCss,
 		isValid,
@@ -345,6 +347,8 @@ const BOTON =
 		if (deferred) configTimer = window.setTimeout(() => saveConfig(config), SAVE_DELAY);
 		else saveConfig(config);
 
+		// Las plantillas de Tema enseñan estos mismos colores: que se enteren.
+		announceConfig(config);
 		render();
 	}
 
@@ -468,6 +472,16 @@ const BOTON =
 	// lo que venga en el aviso.
 	document.addEventListener('tuweb:tema', (event) => {
 		theme = (event as CustomEvent<ThemeEvent>).detail.theme;
+		render();
+	});
+
+	// Y una plantilla de Tema cambia estas variables de golpe. El aviso lo lanza
+	// también esta tabla, así que lo suyo se lo salta: ya está pintado.
+	document.addEventListener('tuweb:config', (event) => {
+		const next = (event as CustomEvent<ConfigEvent>).detail.config;
+		if (next === config) return;
+
+		config = next;
 		render();
 	});
 

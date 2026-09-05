@@ -113,6 +113,21 @@ export function applyConfig(config: Config) {
 	}
 }
 
+/** Las variables puestas ahora mismo, para quien escuche los cambios. */
+export interface ConfigEvent {
+	config: Config;
+}
+
+/**
+ * Las variables se tocan desde dos sitios —la tabla de Config y las plantillas
+ * de Tema—, así que el que las cambia avisa y el otro se repinta. Va aparte de
+ * applyConfig: quien avisa es quien manda el cambio, no quien lo pinta.
+ */
+export function announceConfig(config: Config) {
+	const detail: ConfigEvent = { config };
+	document.dispatchEvent(new CustomEvent('tuweb:config', { detail }));
+}
+
 /** El mismo cambio, escrito para pegarlo en global.css y proponerlo. */
 export function configCss(entries: [string, string][]) {
 	if (entries.length === 0) return '';

@@ -85,7 +85,7 @@ export const SECTIONS: Section[] = [
 		group: 'herramientas',
 		card: 'JSON a YAML, cron en cristiano, regex, Base64, HTML a PHP, colores, tramas, tema y config.',
 		intro:
-			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, Base64 en los dos sentidos, HTML a PHP, colores, tramas SVG, tema —claro u oscuro— y config. Cada pestaña tiene su propio enlace para compartirla.',
+			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, Base64 en los dos sentidos, HTML a PHP, colores, tramas SVG, tema —claro u oscuro, con plantillas de color— y config. Cada pestaña tiene su propio enlace para compartirla.',
 	},
 	{
 		href: '/playground',
