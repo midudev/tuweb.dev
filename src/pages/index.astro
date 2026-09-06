@@ -9,6 +9,7 @@ import LiveState from '../components/LiveState.astro';
 import ProposeForm from '../components/ProposeForm.astro';
 import SectionsLink from '../components/SectionsLink.astro';
 import TopBar from '../components/TopBar.astro';
+import TopOne from '../components/TopOne.astro';
 import Tour from '../components/Tour.astro';
 import { getSessionUser } from '../lib/auth';
 import { getDashboardData, getHomeData } from '../lib/db/queries';
@@ -76,7 +77,8 @@ const deployedAt =
 			</section>
 
 			<div data-canvas class="grow bg-bg">
-				<div class="mx-auto w-full max-w-5xl px-5 py-10 sm:px-6 lg:px-8">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-10 px-5 py-10 sm:px-6 lg:px-8">
+					<TopOne userId={user?.id} />
 					<SectionsLink />
 				</div>
 			</div>

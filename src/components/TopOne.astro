@@ -1,0 +1,111 @@
+---
+/**
+ * El podio en la portada: solo el número uno de cada lista del ranking. Quién
+ * va primero empujando esta web y cuál es la idea que más gente pidió a la vez.
+ *
+ * No calcula nada aparte: sale de la misma función que pinta /ranking, así que
+ * los dos sitios cuentan lo mismo. El resto de la tabla se ve allí.
+ */
+import { getLeaderboardData, type RankRow } from '../lib/leaderboard';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+	/** Quien mira, si ha entrado: si va primero, se le marca. */
+	userId?: number;
+}
+
+const data = getLeaderboardData(Astro.props.userId);
+
+const persona = data.rows[0] ?? null;
+const idea = data.ideas[0] ?? null;
+
+// Con los mismos puntos se comparte puesto: si hay más de uno en el primero, se
+// dice, que si no parece que gana quien salió antes en la lista.
+const empatados = data.rows.filter((row) => row.position === 1).length;
+
+/** El resumen de quien va primero: solo lo que tiene. */
+function detalle(row: RankRow) {
+	const parts = [`${row.ideas} ${row.ideas === 1 ? 'idea' : 'ideas'}`];
+	if (row.wins > 0) parts.push(`${row.wins} ${row.wins === 1 ? 'ganada' : 'ganadas'}`);
+	if (row.shipped > 0) parts.push(`${row.shipped} ${row.shipped === 1 ? 'versión' : 'versiones'}`);
+	if (row.pending > 0) parts.push(`${row.pending} en juego`);
+	return parts.join(' · ');
+}
+
+const CAJA =
+	'flex flex-col gap-2 border border-line bg-panel px-5 py-4 transition-colors hover:border-accent';
+const ROTULO = 'flex items-center gap-2 font-pixel text-xs tracking-wide text-muted';
+---
+
+{
+	(persona || idea) && (
+		<section data-live="top1" class="flex flex-col gap-5" aria-labelledby="label-top1">
+			<div class="flex flex-wrap items-baseline justify-between gap-4">
+				<SectionLabel forId="label-top1">QUIÉN VA PRIMERO</SectionLabel>
+				<a href="/ranking" class="inline-flex items-center gap-2 text-sm text-accent hover:underline">
+					Ver el ranking entero
+					<Icon name="arrow-right" class="size-4 shrink-0 self-center" />
+				</a>
+			</div>
+
+			<div class="grid gap-3 sm:grid-cols-2">
+				{persona && (
+					<a href="/ranking" class={CAJA}>
+						<span class={ROTULO}>
+							<Icon name="trophy" class="size-3.5 shrink-0" />
+							TOP 1 · QUIÉN EMPUJA
+						</span>
+
+						<span class="flex flex-wrap items-baseline gap-x-3">
+							<span class="min-w-0 truncate text-lg">@{persona.login}</span>
+							{persona.me && <span class="font-pixel text-xs text-accent">TÚ</span>}
+							<span class="ml-auto font-pixel tabular-nums text-accent">
+								{persona.points}
+								<span class="text-xs text-muted"> pts</span>
+							</span>
+						</span>
+
+						<span class="text-sm text-muted">{detalle(persona)}</span>
+
+						{empatados > 1 && (
+							<span class="text-sm text-muted">
+								empatan {empatados} a puntos, manda quien llegó antes
+							</span>
+						)}
+					</a>
+				)}
+
+				{idea && (
+					<a href="/ranking" class={CAJA}>
+						<span class={ROTULO}>
+							<Icon name="bulb" class="size-3.5 shrink-0" />
+							TOP 1 · IDEA MÁS PEDIDA
+						</span>
+
+						<span class="text-pretty">{idea.title}</span>
+
+						<span class="mt-auto flex flex-wrap items-baseline gap-x-3 text-sm">
+							<span class="tabular-nums text-muted">
+								{idea.people} {idea.people === 1 ? 'persona' : 'personas'}
+							</span>
+							{idea.shipped ? (
+								<span class="inline-flex items-center gap-2 text-ok">
+									<Icon name="rocket" class="size-4 shrink-0 self-center" />
+									publicada
+								</span>
+							) : idea.won ? (
+								<span class="inline-flex items-center gap-2 text-accent">
+									<Icon name="trophy" class="size-4 shrink-0 self-center" />
+									ganó
+								</span>
+							) : (
+								<span class="text-muted">no ganó</span>
+							)}
+						</span>
+					</a>
+				)}
+			</div>
+		</section>
+	)
+}
