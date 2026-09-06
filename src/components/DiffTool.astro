@@ -1,0 +1,494 @@
+---
+/**
+ * El comparador de textos. Pegas dos versiones de lo mismo —un texto, un JSON,
+ * un correo— y sale en qué se diferencian: lo que se queda, lo que se quita y lo
+ * que se pone, enfrentado o seguido. La cuenta está en src/lib/diff.ts; aquí
+ * solo están los mandos y el pintado. Se compara en tu navegador: no se envía ni
+ * se guarda nada.
+ */
+import { OPCIONES, UNIDADES } from '../lib/diff';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+
+const OPCION = `${BOTON} aria-pressed:border-accent aria-pressed:text-accent`;
+
+const VISTAS = [
+	{ id: 'lado', label: 'Enfrentados', icon: 'columns-2' },
+	{ id: 'seguido', label: 'Seguidos', icon: 'list' },
+];
+
+const ACCIONES = [
+	{ id: 'cambiar', label: 'Intercambiar', icon: 'arrows-exchange' },
+	{ id: 'ejemplo', label: 'Poner el ejemplo', icon: 'file-text' },
+	{ id: 'limpiar', label: 'Limpiar', icon: 'eraser' },
+];
+
+const CAMPOS = [
+	{
+		id: 'a',
+		label: 'Antes',
+		texto: `tuweb.dev
+La web la cambia la gente.
+Cada ventana se abre y se cierra sola.
+Gana la idea que más se repite.
+Lo escribe una IA.`,
+	},
+	{
+		id: 'b',
+		label: 'Después',
+		texto: `tuweb.dev
+La web la cambia la gente que pasa por aquí.
+Cada ventana se abre y se cierra sola.
+Gana la idea que más gente repite.
+Lo escribe una IA y la revisa una persona.
+El historial no esconde nada.`,
+	},
+];
+---
+
+<section id="comparador" class="flex flex-col gap-7">
+	<div class="grid gap-4 md:grid-cols-2">
+		{
+			CAMPOS.map((campo) => (
+				<div class="flex flex-col gap-2">
+					<span class="flex items-center justify-between gap-3 text-sm text-muted">
+						<label for={`cmp-${campo.id}`}>{campo.label}</label>
+						<span data-cmp-cuenta={campo.id} class="text-mark" />
+					</span>
+					<textarea
+						id={`cmp-${campo.id}`}
+						data-cmp-campo={campo.id}
+						rows="10"
+						spellcheck="false"
+						autocomplete="off"
+						placeholder="Escribe o pega aquí el texto"
+						class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+						set:text={campo.texto}
+					></textarea>
+				</div>
+			))
+		}
+	</div>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<div class="flex flex-col gap-2">
+			<span id="cmp-unidad" class="text-sm text-muted">Qué se compara</span>
+			<div role="group" aria-labelledby="cmp-unidad" class="flex flex-wrap gap-2">
+				{
+					UNIDADES.map((unidad) => (
+						<button type="button" data-cmp-unidad={unidad.id} aria-pressed="false" class={OPCION}>
+							<Icon name={unidad.icon} class="size-4 shrink-0" />
+							{unidad.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div data-cmp-vistas class="flex flex-col gap-2">
+			<span id="cmp-vista" class="text-sm text-muted">Cómo se ve</span>
+			<div role="group" aria-labelledby="cmp-vista" class="flex flex-wrap gap-2">
+				{
+					VISTAS.map((vista) => (
+						<button type="button" data-cmp-vista={vista.id} aria-pressed="false" class={OPCION}>
+							<Icon name={vista.icon} class="size-4 shrink-0" />
+							{vista.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-wrap gap-x-5 gap-y-2">
+			{
+				OPCIONES.map((opcion) => (
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						<input type="checkbox" data-cmp-opcion={opcion.id} class="size-4 accent-accent" />
+						{opcion.label}
+					</label>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="flex flex-wrap items-center gap-3">
+		{
+			ACCIONES.map((accion) => (
+				<button type="button" data-cmp-accion={accion.id} class={BOTON}>
+					<Icon name={accion.icon} class="size-4 shrink-0" />
+					{accion.label}
+				</button>
+			))
+		}
+		<button type="button" data-cmp-copiar class={BOTON}>
+			<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-cmp-copiar-texto aria-live="polite">Copiar el resultado</span>
+		</button>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<p data-cmp-resumen class="text-sm text-mark empty:hidden" aria-live="polite"></p>
+
+		<p class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted">
+			<span class="inline-flex items-center gap-2">
+				<span data-cmp-muestra="quita" class="size-3 shrink-0 border border-line"></span>
+				Lo que se quita
+			</span>
+			<span class="inline-flex items-center gap-2">
+				<span data-cmp-muestra="pon" class="size-3 shrink-0 border border-line"></span>
+				Lo que se pone
+			</span>
+		</p>
+
+		<div data-cmp-salida class="overflow-x-auto border border-line bg-panel text-sm"></div>
+	</div>
+</section>
+
+<style is:global>
+	/*
+	 * Los colores del resultado. Van globales porque estas filas las pinta el
+	 * script y no llevan la marca de estilos de este componente.
+	 */
+	[data-cmp-salida] [data-tipo='quita'],
+	[data-cmp-muestra='quita'] {
+		background: color-mix(in oklab, var(--color-heart) 14%, transparent);
+	}
+
+	[data-cmp-salida] [data-tipo='pon'],
+	[data-cmp-muestra='pon'] {
+		background: color-mix(in oklab, var(--color-ok) 14%, transparent);
+	}
+
+	/* El hueco: el lado que no tiene nada enfrente. */
+	[data-cmp-salida] [data-tipo='hueco'] {
+		background: color-mix(in oklab, var(--color-line) 40%, transparent);
+	}
+
+	/* Una línea en blanco sigue siendo una línea: la fila no se aplasta. */
+	[data-cmp-salida] [data-tipo] {
+		min-height: calc(1.6em + 0.5rem);
+	}
+
+	/* Lo que cambió dentro de una línea, marcado más fuerte. */
+	[data-cmp-salida] mark[data-marca='quita'] {
+		background: color-mix(in oklab, var(--color-heart) 30%, transparent);
+		color: var(--color-fg);
+	}
+
+	[data-cmp-salida] mark[data-marca='pon'] {
+		background: color-mix(in oklab, var(--color-ok) 30%, transparent);
+		color: var(--color-fg);
+	}
+
+	[data-cmp-copiar] [data-icon='check'],
+	[data-cmp-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+
+	[data-cmp-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+
+	[data-cmp-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import {
+		comoTexto,
+		comparar,
+		contar,
+		dentro,
+		filas,
+		trocear,
+		type Opciones,
+		type Tipo,
+		type Trozo,
+		type Unidad,
+	} from '../lib/diff';
+
+	const campoA = document.querySelector<HTMLTextAreaElement>('[data-cmp-campo="a"]');
+	const campoB = document.querySelector<HTMLTextAreaElement>('[data-cmp-campo="b"]');
+	const salida = document.querySelector<HTMLElement>('[data-cmp-salida]');
+	const resumen = document.querySelector<HTMLElement>('[data-cmp-resumen]');
+	const vistas = document.querySelector<HTMLElement>('[data-cmp-vistas]');
+
+	if (campoA && campoB && salida && resumen) {
+		/** Carácter a carácter, un texto largo no compensa: se avisa y se para. */
+		const LIMITE = 20000;
+
+		const NOMBRES: Record<Unidad, { igual: string; quita: string; pon: string }> = {
+			lineas: { igual: 'líneas iguales', quita: 'quitadas', pon: 'nuevas' },
+			palabras: { igual: 'palabras iguales', quita: 'quitadas', pon: 'nuevas' },
+			caracteres: { igual: 'caracteres iguales', quita: 'quitados', pon: 'nuevos' },
+		};
+
+		const EJEMPLO = { a: campoA.value, b: campoB.value };
+
+		let unidad: Unidad = 'lineas';
+		let vista: 'lado' | 'seguido' = 'lado';
+		const opciones: Opciones = { mayusculas: false, espacios: false, vacias: false };
+		let ultimo: Trozo[] = [];
+
+		/** El texto de una fila: entero, o partido en marcas si algo cambió dentro. */
+		function celda(texto: string, marcas?: Node[]) {
+			const span = document.createElement('span');
+			span.className = 'min-w-0 grow whitespace-pre-wrap';
+			if (marcas) span.append(...marcas);
+			else span.textContent = texto;
+			return span;
+		}
+
+		function numero(valor: number) {
+			const span = document.createElement('span');
+			span.className = 'w-10 shrink-0 text-right text-muted select-none';
+			span.textContent = valor > 0 ? String(valor) : '';
+			return span;
+		}
+
+		/** Lo igual va tal cual y lo cambiado en un <mark>. Las caras: qué entra. */
+		function nodos(trozos: Trozo[], caras: Tipo[]) {
+			const piezas: Node[] = [];
+			for (const trozo of trozos) {
+				if (trozo.tipo === 'igual') {
+					piezas.push(document.createTextNode(trozo.texto));
+					continue;
+				}
+				if (!caras.includes(trozo.tipo)) continue;
+				const marca = document.createElement('mark');
+				marca.dataset.marca = trozo.tipo;
+				marca.textContent = trozo.texto;
+				piezas.push(marca);
+			}
+			return piezas;
+		}
+
+		/** Una de las dos columnas de una fila. Sin trozo, es un hueco. */
+		function columna(
+			trozo: Trozo | null,
+			tipo: 'quita' | 'pon',
+			marcas: Node[] | null,
+			borde: boolean,
+		) {
+			const div = document.createElement('div');
+			div.className = `flex min-w-0 gap-3 border-b border-line px-3 py-1${borde ? ' border-l' : ''}`;
+			if (!trozo) {
+				div.dataset.tipo = 'hueco';
+				return div;
+			}
+			div.dataset.tipo = trozo.tipo === 'igual' ? 'igual' : tipo;
+			div.append(
+				numero(tipo === 'quita' ? trozo.a : trozo.b),
+				celda(trozo.texto, marcas ?? undefined),
+			);
+			return div;
+		}
+
+		/** Enfrentados: lo de antes a la izquierda y lo de después a la derecha. */
+		function pintarLado(trozos: Trozo[]) {
+			const rejilla = document.createElement('div');
+			rejilla.className = 'grid grid-cols-2';
+
+			for (const fila of filas(trozos)) {
+				// Cuando una línea solo ha cambiado un poco se marca lo que cambió;
+				// si son dos líneas distintas, se pinta entera y se lee mejor.
+				const cambios = fila.pareja ? dentro(fila.izq!.texto, fila.der!.texto, opciones) : null;
+				rejilla.append(
+					columna(fila.izq, 'quita', cambios ? nodos(cambios, ['quita']) : null, false),
+					columna(fila.der, 'pon', cambios ? nodos(cambios, ['pon']) : null, true),
+				);
+			}
+
+			salida.replaceChildren(rejilla);
+		}
+
+		/** Seguidos: una línea detrás de otra, con su signo delante. */
+		function pintarSeguido(trozos: Trozo[]) {
+			const lista = document.createElement('div');
+			lista.className = 'flex flex-col';
+
+			for (const trozo of trozos) {
+				const fila = document.createElement('div');
+				fila.className = 'flex min-w-0 gap-3 px-3 py-1';
+				fila.dataset.tipo = trozo.tipo;
+
+				const signo = document.createElement('span');
+				signo.className = 'w-3 shrink-0 text-muted select-none';
+				signo.textContent = trozo.tipo === 'igual' ? '' : trozo.tipo === 'quita' ? '−' : '+';
+
+				fila.append(numero(trozo.a), numero(trozo.b), signo, celda(trozo.texto));
+				lista.append(fila);
+			}
+
+			salida.replaceChildren(lista);
+		}
+
+		/** Por palabras o por caracteres: un solo texto con lo cambiado marcado. */
+		function pintarCorrido(trozos: Trozo[]) {
+			const parrafo = document.createElement('p');
+			parrafo.className = 'min-w-0 p-4 whitespace-pre-wrap';
+			parrafo.append(...nodos(trozos, ['quita', 'pon']));
+			salida.replaceChildren(parrafo);
+		}
+
+		const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
+		/** Lo que lleva escrito cada campo, al lado de su rótulo. */
+		function contarCampo(campo: HTMLTextAreaElement, id: string) {
+			const hueco = document.querySelector<HTMLElement>(`[data-cmp-cuenta="${id}"]`);
+			if (!hueco) return;
+			const lineas = campo.value === '' ? 0 : campo.value.split(/\r\n|\r|\n/).length;
+			hueco.textContent = `${plural(lineas, 'línea', 'líneas')} · ${plural(campo.value.length, 'carácter', 'caracteres')}`;
+		}
+
+		function pintar() {
+			contarCampo(campoA, 'a');
+			contarCampo(campoB, 'b');
+			ultimo = [];
+
+			if (vistas) vistas.hidden = unidad !== 'lineas';
+
+			if (!campoA.value && !campoB.value) {
+				resumen.textContent = 'Pega algo en los dos lados y te digo en qué se diferencian.';
+				salida.replaceChildren();
+				return;
+			}
+
+			if (unidad === 'caracteres' && (campoA.value.length > LIMITE || campoB.value.length > LIMITE)) {
+				resumen.textContent =
+					'Demasiado texto para mirarlo carácter a carácter. Compáralo por palabras o por líneas.';
+				salida.replaceChildren();
+				return;
+			}
+
+			const trozos = comparar(
+				trocear(campoA.value, unidad, opciones),
+				trocear(campoB.value, unidad, opciones),
+			);
+			ultimo = trozos;
+
+			const cuenta = contar(trozos);
+			const nombres = NOMBRES[unidad];
+			resumen.textContent =
+				cuenta.quitadas === 0 && cuenta.puestas === 0
+					? 'Los dos textos son iguales.'
+					: `${cuenta.parecido}% de parecido · ${cuenta.iguales} ${nombres.igual}, ` +
+						`${cuenta.quitadas} ${nombres.quita} y ${cuenta.puestas} ${nombres.pon}.`;
+
+			if (unidad !== 'lineas') pintarCorrido(trozos);
+			else if (vista === 'lado') pintarLado(trozos);
+			else pintarSeguido(trozos);
+		}
+
+		// El teclado va más rápido que la cuenta: se espera a que pare de escribir.
+		let reloj: number | undefined;
+		function pedir() {
+			clearTimeout(reloj);
+			reloj = window.setTimeout(pintar, 120);
+		}
+
+		campoA.addEventListener('input', pedir);
+		campoB.addEventListener('input', pedir);
+
+		/** Cada grupo de botones deja marcado el suyo. */
+		function marcar() {
+			document.querySelectorAll<HTMLButtonElement>('[data-cmp-unidad]').forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.cmpUnidad === unidad));
+			});
+			document.querySelectorAll<HTMLButtonElement>('[data-cmp-vista]').forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.cmpVista === vista));
+			});
+		}
+
+		document
+			.querySelectorAll<HTMLButtonElement>('[data-cmp-unidad], [data-cmp-vista]')
+			.forEach((boton) => {
+				boton.addEventListener('click', () => {
+					if (boton.dataset.cmpUnidad) unidad = boton.dataset.cmpUnidad as Unidad;
+					else vista = boton.dataset.cmpVista === 'seguido' ? 'seguido' : 'lado';
+					marcar();
+					pintar();
+				});
+			});
+
+		document.querySelectorAll<HTMLInputElement>('[data-cmp-opcion]').forEach((casilla) => {
+			casilla.addEventListener('change', () => {
+				const id = casilla.dataset.cmpOpcion as keyof Opciones;
+				opciones[id] = casilla.checked;
+				pintar();
+			});
+		});
+
+		const ACCIONES: Record<string, () => void> = {
+			cambiar: () => {
+				const guardado = campoA.value;
+				campoA.value = campoB.value;
+				campoB.value = guardado;
+			},
+			ejemplo: () => {
+				campoA.value = EJEMPLO.a;
+				campoB.value = EJEMPLO.b;
+			},
+			limpiar: () => {
+				campoA.value = '';
+				campoB.value = '';
+				campoA.focus();
+			},
+		};
+
+		document.querySelectorAll<HTMLButtonElement>('[data-cmp-accion]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				ACCIONES[boton.dataset.cmpAccion ?? '']?.();
+				pintar();
+			});
+		});
+
+		const copiar = document.querySelector<HTMLButtonElement>('[data-cmp-copiar]');
+		const copiarTexto = copiar?.querySelector('[data-cmp-copiar-texto]');
+		let relojCopia: number | undefined;
+
+		async function alPortapapeles(texto: string) {
+			try {
+				await navigator.clipboard.writeText(texto);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const campo = document.createElement('textarea');
+					campo.value = texto;
+					campo.readOnly = true;
+					campo.style.position = 'fixed';
+					campo.style.opacity = '0';
+					document.body.append(campo);
+					campo.select();
+					const hecho = document.execCommand('copy');
+					campo.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		copiar?.addEventListener('click', async () => {
+			if (ultimo.length === 0) return;
+
+			const hecho = await alPortapapeles(comoTexto(ultimo, unidad));
+			copiar.dataset.state = hecho ? 'done' : 'error';
+			if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+			clearTimeout(relojCopia);
+			relojCopia = window.setTimeout(() => {
+				copiar.removeAttribute('data-state');
+				if (copiarTexto) copiarTexto.textContent = 'Copiar el resultado';
+			}, 2000);
+		});
+
+		marcar();
+		pintar();
+	}
+</script>
