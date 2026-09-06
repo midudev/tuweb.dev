@@ -1,0 +1,64 @@
+---
+/**
+ * El interruptor del NyanCat. Va en el pie, así que está en todas las páginas.
+ * Se aplica al momento y se guarda en este navegador: quien lo apague deja de
+ * verlo, el resto lo sigue teniendo.
+ */
+import Icon from './Icon.astro';
+
+interface Props {
+	/** El rótulo de al lado; se puede quitar donde no haga falta. */
+	label?: string;
+}
+
+const { label = 'NyanCat' } = Astro.props;
+---
+
+<div class="flex items-center gap-2.5 text-sm">
+	{label && <span class="text-muted">{label}</span>}
+	<button
+		type="button"
+		data-nyan-set
+		aria-pressed="false"
+		title="Encender el NyanCat"
+		class="inline-flex items-center justify-center border border-line px-2.5 py-1.5 text-muted hover:text-accent aria-pressed:bg-panel aria-pressed:text-accent"
+	>
+		<Icon name="cat" class="size-4 shrink-0" />
+		<!-- El nombre no cambia; lo que cambia es si está pulsado. -->
+		<span class="sr-only">El NyanCat</span>
+	</button>
+</div>
+
+<script>
+	import { applyNyan, readNyan, saveNyan } from '../lib/nyan';
+
+	const botones = document.querySelectorAll<HTMLButtonElement>('[data-nyan-set]');
+
+	let on = readNyan();
+
+	function render() {
+		const rotulo = on ? 'Apagar el NyanCat' : 'Encender el NyanCat';
+
+		botones.forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(on));
+			boton.title = rotulo;
+		});
+	}
+
+	botones.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			// Lo que toca se calcula antes: applyNyan avisa al momento y el aviso ya
+			// cambia «on» por su cuenta.
+			const quiero = !on;
+			applyNyan(quiero);
+			saveNyan(quiero);
+		});
+	});
+
+	document.addEventListener('tuweb:nyan', (event) => {
+		on = (event as CustomEvent<{ on: boolean }>).detail.on;
+		render();
+	});
+
+	render();
+</script>

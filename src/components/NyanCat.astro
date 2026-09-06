@@ -1,0 +1,190 @@
+---
+/**
+ * El NyanCat cruzando la web. Va en el molde de las páginas, así que aparece en
+ * todas: sale por la izquierda, atraviesa la pantalla dejando el arcoíris y
+ * vuelve a salir al rato.
+ *
+ * Es adorno y nada más: no se puede pulsar, no tapa nada y los lectores de
+ * pantalla ni lo ven. Quien no lo quiera, lo apaga en el pie.
+ */
+import { COLS, FRAMES, INK, ROWS, SEGMENTOS, runsOf, trailCss } from '../lib/nyan';
+
+const cuadros = FRAMES.map((frame) => runsOf(frame));
+const rastro = trailCss();
+
+// El gato va detrás del arcoíris: tantos píxeles como ocupan sus trozos.
+const gato = SEGMENTOS * 2;
+
+// Las medidas y las tintas, todas juntas arriba: los píxeles solo las nombran.
+const medidas = [
+	`--cols:${gato + COLS}`,
+	`--rows:${ROWS}`,
+	`--gato:${gato}`,
+	...Object.entries(INK).map(([key, color]) => `--tinta-${key}:${color}`),
+].join('; ');
+---
+
+<div data-nyan-vuelo aria-hidden="true">
+	<div data-nyan-cuerpo style={medidas}>
+		<!-- El degradado se escribe una vez y lo heredan los ocho trozos. -->
+		<div data-nyan-arcoiris style={`--rastro:${rastro}`}>
+			{Array.from({ length: SEGMENTOS }, (_, index) => <span style={`--x:${index * 2}`} />)}
+		</div>
+
+		<div data-nyan-gato>
+			{
+				cuadros.map((runs, cuadro) => (
+					<div data-nyan-sprite={cuadro}>
+						{runs.map((run) => (
+							<span style={`--x:${run.x};--y:${run.y};--w:${run.w};background:var(--tinta-${run.ink})`} />
+						))}
+					</div>
+				))
+			}
+		</div>
+	</div>
+</div>
+
+<style is:global>
+	/*
+	 * Va global porque el interruptor escribe en el <html> y los estilos de un
+	 * componente son suyos y de nadie más. Todo cuelga de [data-nyan-vuelo]; el
+	 * <html> lleva data-nyan, que es otro atributo y no lo pisa.
+	 */
+	[data-nyan-vuelo] {
+		/* El píxel gordo. En el móvil, más pequeño: por ahí estorba más. */
+		--px: 4px;
+		display: none;
+		position: fixed;
+		inset-block-end: 12vh;
+		inset-inline-start: 0;
+		z-index: 30;
+		pointer-events: none;
+		will-change: transform;
+		animation: nyan-vuelo 20s linear infinite;
+	}
+
+	/* El atributo lo pone el script al cargar: sin JavaScript no hay gato. */
+	html[data-nyan='si'] [data-nyan-vuelo] {
+		display: block;
+	}
+
+	@media (min-width: 40rem) {
+		[data-nyan-vuelo] {
+			--px: 6px;
+		}
+	}
+
+	[data-nyan-cuerpo] {
+		position: relative;
+		width: calc(var(--cols) * var(--px));
+		height: calc(var(--rows) * var(--px));
+	}
+
+	/* El arcoíris arranca a la altura de la galleta y mide seis franjas. */
+	[data-nyan-arcoiris] span {
+		position: absolute;
+		inset-block-start: calc(var(--px) * 3);
+		inset-inline-start: calc(var(--x) * var(--px));
+		width: calc(var(--px) * 2);
+		height: calc(var(--px) * 6);
+		background-image: var(--rastro);
+		animation: nyan-escalon 0.36s infinite;
+	}
+
+	/* Un trozo sí y otro no, medio paso más abajo: la escalera de siempre. */
+	[data-nyan-arcoiris] span:nth-child(even) {
+		animation-delay: -0.18s;
+	}
+
+	[data-nyan-gato] {
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline-start: calc(var(--gato) * var(--px));
+		width: calc((var(--cols) - var(--gato)) * var(--px));
+		height: calc(var(--rows) * var(--px));
+		animation: nyan-escalon 0.36s infinite;
+	}
+
+	/* Los dos cuadros van uno encima del otro y se turnan. */
+	[data-nyan-sprite] {
+		position: absolute;
+		inset: 0;
+		animation: nyan-cuadro 0.36s infinite;
+	}
+
+	[data-nyan-sprite='1'] {
+		animation-delay: -0.18s;
+	}
+
+	[data-nyan-sprite] span {
+		position: absolute;
+		inset-block-start: calc(var(--y) * var(--px));
+		inset-inline-start: calc(var(--x) * var(--px));
+		width: calc(var(--w) * var(--px));
+		height: var(--px);
+	}
+
+	/*
+	 * El vuelo: entra por la izquierda, sale por la derecha y espera fuera de la
+	 * pantalla hasta la vuelta siguiente. El salto del final no se ve porque
+	 * ocurre con el gato ya fuera.
+	 */
+	@keyframes nyan-vuelo {
+		0% {
+			transform: translate3d(calc(var(--px) * -40), 0, 0);
+		}
+		45%,
+		100% {
+			transform: translate3d(calc(100vw + var(--px) * 8), 0, 0);
+		}
+	}
+
+	@keyframes nyan-escalon {
+		0%,
+		49.9% {
+			transform: translateY(0);
+		}
+		50%,
+		100% {
+			transform: translateY(var(--px));
+		}
+	}
+
+	@keyframes nyan-cuadro {
+		0%,
+		49.9% {
+			opacity: 1;
+		}
+		50%,
+		100% {
+			opacity: 0;
+		}
+	}
+
+	/* A quien no quiere movimiento le deja el gato quieto en una esquina. */
+	@media (prefers-reduced-motion: reduce) {
+		[data-nyan-vuelo] {
+			animation: none;
+			transform: translate3d(1.5rem, 0, 0);
+		}
+
+		[data-nyan-arcoiris] span,
+		[data-nyan-gato],
+		[data-nyan-sprite] {
+			animation: none;
+		}
+
+		[data-nyan-sprite='1'] {
+			display: none;
+		}
+	}
+</style>
+
+<script>
+	import { applyNyan, readNyan } from '../lib/nyan';
+
+	// Lo primero que se sabe del gato es si lo quieren: así no asoma para
+	// esconderse medio segundo después.
+	applyNyan(readNyan());
+</script>

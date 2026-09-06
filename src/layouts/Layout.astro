@@ -1,4 +1,5 @@
 ---
+import NyanCat from '../components/NyanCat.astro';
 import '../styles/global.css';
 
 interface Props {
@@ -65,5 +66,7 @@ const {
 	</head>
 	<body data-canvas class="bg-bg font-mono text-fg antialiased">
 		<slot />
+		<!-- La mascota de la casa: cruza por encima de todo sin tocar nada. -->
+		<NyanCat />
 	</body>
 </html>
