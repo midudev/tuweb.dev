@@ -1,0 +1,418 @@
+---
+/**
+ * El generador de memes. Pones tu imagen —de tu disco, arrastrada o pegada—,
+ * escribes arriba y abajo, y te lo llevas en PNG.
+ *
+ * Todo pasa en tu navegador: la imagen se pinta en un <canvas> y de ahí sale la
+ * descarga. No se sube a ningún sitio ni se guarda nada. El dibujo está en
+ * src/lib/meme.ts; aquí solo están los mandos.
+ */
+import { DEFAULT_MEME, FONTS, SIZE, STROKE, STYLES } from '../lib/meme';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const TEXTOS = [
+	{ id: 'arriba', label: 'Arriba', valor: DEFAULT_MEME.arriba },
+	{ id: 'abajo', label: 'Abajo', valor: DEFAULT_MEME.abajo },
+];
+
+const RANGOS = [
+	{ id: 'tamano', label: 'Cuerpo', ...SIZE },
+	{ id: 'grosor', label: 'Contorno', ...STROKE },
+];
+
+const COLORES = [
+	{ id: 'color', label: 'Texto' },
+	{ id: 'contorno', label: 'Contorno' },
+	{ id: 'fondo', label: 'Fondo' },
+];
+---
+
+<section id="memes" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex flex-col gap-4">
+		<div data-meme-zona class="flex flex-col items-center gap-3 border border-line bg-panel p-4">
+			<canvas
+				data-meme-lienzo
+				role="img"
+				aria-label="Vista previa del meme"
+				class="block h-auto max-h-[70vh] w-auto max-w-full border border-line"></canvas>
+			<p data-meme-pista class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="drag-drop" class="size-4 shrink-0 text-accent" />
+				Arrastra una imagen aquí, pégala con Ctrl+V o súbela.
+			</p>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<label
+				class={`${BOTON} cursor-pointer focus-within:border-accent focus-within:text-accent`}
+			>
+				<Icon name="photo-plus" class="size-4 shrink-0" />
+				Subir imagen
+				<input type="file" accept="image/*" data-meme-archivo class="sr-only" />
+			</label>
+
+			<button type="button" data-meme-quitar disabled class={BOTON}>
+				<Icon name="photo-off" class="size-4 shrink-0" />
+				Quitar
+			</button>
+
+			<button type="button" data-meme-descarga class={`${BOTON} border-accent text-accent`}>
+				<Icon name="download" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+
+			<button type="button" data-meme-copia class={BOTON}>
+				<Icon name="clipboard" class="size-4 shrink-0" />
+				Copiar imagen
+			</button>
+		</div>
+
+		<p data-meme-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		{
+			TEXTOS.map((texto) => (
+				<div class="flex flex-col gap-2">
+					<label for={`meme-${texto.id}`} class="text-sm text-muted">
+						{texto.label}
+					</label>
+					<textarea
+						id={`meme-${texto.id}`}
+						data-meme-texto={texto.id}
+						rows="2"
+						maxlength="160"
+						spellcheck="false"
+						autocomplete="off"
+						class="w-full resize-y border border-line bg-bg p-3 text-sm outline-none focus-visible:border-accent"
+						set:text={texto.valor}
+					></textarea>
+				</div>
+			))
+		}
+
+		<div class="flex flex-col gap-2">
+			<span id="meme-fuente" class="text-sm text-muted">Fuente</span>
+			<div role="group" aria-labelledby="meme-fuente" class="flex flex-wrap gap-2">
+				{
+					FONTS.map((font) => (
+						<button type="button" data-meme-fuente={font.id} aria-pressed="false" class={BOTON}>
+							<Icon name="typography" class="size-4 shrink-0" />
+							{font.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			{
+				RANGOS.map((rango) => (
+					<label class="flex flex-col gap-1">
+						<span class="flex justify-between text-sm text-muted">
+							<span>{rango.label}</span>
+							<span data-meme-valor={rango.id} class="text-mark" />
+						</span>
+						<input
+							type="range"
+							data-meme-rango={rango.id}
+							min={rango.min}
+							max={rango.max}
+							step={rango.step}
+							class="w-full accent-accent"
+						/>
+					</label>
+				))
+			}
+		</div>
+
+		<div class="flex flex-wrap items-center gap-4">
+			{
+				COLORES.map((color) => (
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						{color.label}
+						<input
+							type="color"
+							data-meme-color={color.id}
+							class="h-9 w-14 cursor-pointer border border-line bg-bg p-1 disabled:opacity-40"
+						/>
+					</label>
+				))
+			}
+			<label class="inline-flex items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-meme-mayusculas class="size-4 accent-accent" />
+				Mayúsculas
+			</label>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span id="meme-estilos" class="text-sm text-muted">Estilos</span>
+			<div role="group" aria-labelledby="meme-estilos" class="flex flex-wrap gap-2">
+				{
+					STYLES.map((estilo) => (
+						<button type="button" data-meme-estilo={estilo.label} class={BOTON}>
+							<Icon name={estilo.icon} class="size-4 shrink-0" />
+							{estilo.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	/* Mientras arrastras encima, la zona se enciende. */
+	[data-meme-zona][data-drag] {
+		outline: 1px solid var(--color-accent);
+		outline-offset: 4px;
+	}
+
+	/* Con imagen puesta ya no hace falta explicar cómo se pone. */
+	[data-meme-zona][data-lista] [data-meme-pista] {
+		display: none;
+	}
+</style>
+
+<script>
+	import {
+		DEFAULT_MEME,
+		FONTS,
+		type Meme,
+		STYLES,
+		canvasSize,
+		drawMeme,
+		fontSpec,
+	} from '../lib/meme';
+
+	const lienzo = document.querySelector<HTMLCanvasElement>('[data-meme-lienzo]');
+	const ctx = lienzo?.getContext('2d') ?? null;
+	const zona = document.querySelector<HTMLElement>('[data-meme-zona]');
+	const nota = document.querySelector<HTMLElement>('[data-meme-nota]');
+	const archivo = document.querySelector<HTMLInputElement>('[data-meme-archivo]');
+	const quitar = document.querySelector<HTMLButtonElement>('[data-meme-quitar]');
+	const mayusculas = document.querySelector<HTMLInputElement>('[data-meme-mayusculas]');
+	const rangos = document.querySelectorAll<HTMLInputElement>('[data-meme-rango]');
+	const colores = document.querySelectorAll<HTMLInputElement>('[data-meme-color]');
+
+	/** Los ajustes que van por deslizador y los que van por selector de color. */
+	type Numerico = 'tamano' | 'grosor';
+	type Tinta = 'color' | 'contorno' | 'fondo';
+
+	/** Una imagen de móvil cabe de sobra; más que esto es cargar el navegador. */
+	const MAX_BYTES = 12 * 1024 * 1024;
+
+	let meme: Meme = { ...DEFAULT_MEME };
+	let imagen: HTMLImageElement | null = null;
+	/** La URL del objeto que está puesta, para soltarla al cambiar de imagen. */
+	let url = '';
+	let nombre = 'meme';
+
+	function avisar(texto: string) {
+		if (nota) nota.textContent = texto;
+	}
+
+	function render() {
+		if (!lienzo || !ctx) return;
+
+		const { width, height } = canvasSize(
+			imagen && { width: imagen.naturalWidth, height: imagen.naturalHeight },
+		);
+		lienzo.width = width;
+		lienzo.height = height;
+		drawMeme(ctx, imagen, meme, width, height);
+
+		document.querySelectorAll<HTMLButtonElement>('[data-meme-fuente]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.memeFuente === meme.fuente));
+		});
+
+		rangos.forEach((rango) => {
+			const clave = rango.dataset.memeRango as Numerico;
+			rango.value = String(meme[clave]);
+			const salida = document.querySelector<HTMLElement>(`[data-meme-valor="${clave}"]`);
+			if (salida) salida.textContent = `${meme[clave]}%`;
+		});
+
+		colores.forEach((color) => {
+			const clave = color.dataset.memeColor as Tinta;
+			color.value = meme[clave];
+			// El fondo solo se ve mientras no hay imagen encima.
+			color.disabled = clave === 'fondo' && Boolean(imagen);
+		});
+
+		if (mayusculas) mayusculas.checked = meme.mayusculas;
+		if (quitar) quitar.disabled = !imagen;
+		if (zona) zona.toggleAttribute('data-lista', Boolean(imagen));
+	}
+
+	function cambiar(patch: Partial<Meme>) {
+		meme = { ...meme, ...patch };
+		render();
+	}
+
+	function cargar(file: File | null | undefined) {
+		if (!file) return;
+		if (!file.type.startsWith('image/')) {
+			avisar('Eso no es una imagen.');
+			return;
+		}
+		if (file.size > MAX_BYTES) {
+			avisar('La imagen pesa demasiado: 12 MB como mucho.');
+			return;
+		}
+
+		const siguiente = URL.createObjectURL(file);
+		const img = new Image();
+
+		img.addEventListener('load', () => {
+			if (url) URL.revokeObjectURL(url);
+			url = siguiente;
+			imagen = img;
+			nombre = file.name.replace(/\.[^.]+$/, '').replace(/[^\p{L}\d-]+/gu, '-') || 'meme';
+			avisar('');
+			render();
+		});
+
+		img.addEventListener('error', () => {
+			URL.revokeObjectURL(siguiente);
+			avisar('No se pudo abrir esa imagen.');
+		});
+
+		img.src = siguiente;
+	}
+
+	document.querySelectorAll<HTMLTextAreaElement>('[data-meme-texto]').forEach((campo) => {
+		const clave = campo.dataset.memeTexto === 'abajo' ? 'abajo' : 'arriba';
+		// El navegador puede devolver lo que había escrito al volver atrás.
+		meme[clave] = campo.value;
+		campo.addEventListener('input', () => {
+			const patch: Partial<Meme> = {};
+			patch[clave] = campo.value;
+			cambiar(patch);
+		});
+	});
+
+	rangos.forEach((rango) => {
+		rango.addEventListener('input', () => {
+			const patch: Partial<Meme> = {};
+			patch[rango.dataset.memeRango as Numerico] = Number(rango.value);
+			cambiar(patch);
+		});
+	});
+
+	colores.forEach((color) => {
+		color.addEventListener('input', () => {
+			const patch: Partial<Meme> = {};
+			patch[color.dataset.memeColor as Tinta] = color.value;
+			cambiar(patch);
+		});
+	});
+
+	mayusculas?.addEventListener('change', () => cambiar({ mayusculas: mayusculas.checked }));
+
+	document.querySelectorAll<HTMLButtonElement>('[data-meme-fuente]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ fuente: button.dataset.memeFuente ?? '' }));
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-meme-estilo]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const estilo = STYLES.find((item) => item.label === button.dataset.memeEstilo);
+			if (estilo) cambiar(estilo.meme);
+		});
+	});
+
+	archivo?.addEventListener('change', () => {
+		cargar(archivo.files?.[0]);
+		// Se vacía para poder volver a elegir el mismo fichero.
+		archivo.value = '';
+	});
+
+	quitar?.addEventListener('click', () => {
+		if (url) URL.revokeObjectURL(url);
+		url = '';
+		imagen = null;
+		nombre = 'meme';
+		avisar('');
+		render();
+	});
+
+	// Arrastrar y soltar sobre el lienzo.
+	if (zona) {
+		['dragenter', 'dragover'].forEach((tipo) => {
+			zona.addEventListener(tipo, (event) => {
+				event.preventDefault();
+				zona.dataset.drag = 'si';
+			});
+		});
+
+		['dragleave', 'dragend'].forEach((tipo) => {
+			zona.addEventListener(tipo, () => {
+				delete zona.dataset.drag;
+			});
+		});
+
+		zona.addEventListener('drop', (event) => {
+			event.preventDefault();
+			delete zona.dataset.drag;
+			cargar(event.dataTransfer?.files?.[0]);
+		});
+	}
+
+	// Pegar una captura con Ctrl+V, que es como suele llegar la imagen.
+	document.addEventListener('paste', (event) => {
+		const file = event.clipboardData?.files?.[0];
+		if (!file?.type.startsWith('image/')) return;
+		event.preventDefault();
+		cargar(file);
+	});
+
+	/** El PNG se arma en el momento desde el lienzo; no pasa por ningún sitio. */
+	function conPng(hacer: (blob: Blob) => void) {
+		if (!lienzo) return;
+		lienzo.toBlob((blob) => {
+			if (!blob) {
+				avisar('No se pudo generar el PNG.');
+				return;
+			}
+			hacer(blob);
+		}, 'image/png');
+	}
+
+	document.querySelector<HTMLButtonElement>('[data-meme-descarga]')?.addEventListener('click', () => {
+		conPng((blob) => {
+			const salida = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = salida;
+			enlace.download = `${nombre}-meme.png`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(salida), 1000);
+		});
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-meme-copia]')?.addEventListener('click', () => {
+		if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+			avisar('Tu navegador no copia imágenes: descárgalo y listo.');
+			return;
+		}
+
+		conPng(async (blob) => {
+			try {
+				await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+				avisar('Copiado al portapapeles.');
+			} catch {
+				avisar('No se pudo copiar. Descárgalo y listo.');
+			}
+		});
+	});
+
+	render();
+
+	// Las dos fuentes son nuestras y el canvas no las espera solo: si se pinta
+	// antes de que estén, el texto sale con la monoespaciada del sistema.
+	Promise.all(FONTS.map((font) => document.fonts.load(fontSpec(font, 64))))
+		.catch(() => undefined)
+		.then(() => render());
+</script>

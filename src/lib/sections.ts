@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto o apuntar lo que toca hoy. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme o apuntar lo que toca hoy. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -104,6 +104,15 @@ export const SECTIONS: Section[] = [
 		card: 'Dices lo que quieres en una línea y sale el prompt técnico entero.',
 		intro:
 			'Escribe la petición como te salga —«un login que aguante intentos repetidos»— y sale un prompt de verdad: rol, contexto, lo que se espera punto por punto, restricciones y formato de respuesta. Sirve para desarrollo, debugging, refactor, testing, SQL, APIs, arquitectura, DevOps y seguridad, con el lenguaje o el framework que uses. No hay ninguna IA detrás: la plantilla se arma en tu navegador y lo que escribes se queda ahí.',
+	},
+	{
+		href: '/memes',
+		title: 'Generador de memes',
+		icon: 'photo-edit',
+		group: 'herramientas',
+		card: 'Tu imagen, un texto arriba, otro abajo y el PNG descargado.',
+		intro:
+			'Pon tu imagen —súbela, arrástrala o pégala con Ctrl+V—, escribe el texto de arriba y el de abajo y ajusta la fuente, el cuerpo, los colores y el contorno. Cuando esté, te lo llevas en PNG o lo copias al portapapeles. Se pinta todo en tu navegador: la imagen no se sube a ninguna parte y no se guarda nada.',
 	},
 	{
 		href: '/guia-ia',
