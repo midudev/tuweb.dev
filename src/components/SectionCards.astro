@@ -18,9 +18,11 @@ interface Props {
 const { sections } = Astro.props;
 ---
 
-<!-- Tres columnas ya desde lg: a partir de ahí sobra ancho y las tarjetas se
-     quedaban estiradas hasta xl. -->
-<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+<!-- La rejilla ya no cuenta cortes de pantalla: cabe la tarjeta que quepa, con
+     18rem de ancho mínimo. Salen las mismas tres columnas de siempre en el
+     escritorio y dos en la tableta, pero también se reparte bien en los anchos
+     de en medio, donde antes quedaba media rejilla vacía. -->
+<ul class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
 	{
 		sections.map((section) => (
 			<li class="flex" data-buscar={`${section.title} ${section.card} ${getGroup(section.group).title}`}>

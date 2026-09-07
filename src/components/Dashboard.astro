@@ -207,7 +207,9 @@ const maxIdeas = Math.max(1, ...points.map((point) => point.ideas));
 		overflow-y: auto;
 		border: 0;
 		border-inline-end: 1px solid var(--color-line);
-		padding: 0;
+		/* Pegado al filo izquierdo: en un móvil con muesca, de lado, lo que se
+		   come el marco se aparta aquí para que no tape el contenido del cajón. */
+		padding: 0 0 0 env(safe-area-inset-left);
 		background: var(--color-panel);
 	}
 

@@ -18,8 +18,11 @@ const {
 	<head>
 		<meta charset="utf-8" />
 		<!-- Con initial-scale=1 el móvil no entra ya con la página encogida, y sin
-		     maximum-scale para no quitarle el zoom a nadie. -->
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		     maximum-scale para no quitarle el zoom a nadie. Con viewport-fit=cover
+		     la web ocupa la pantalla entera en los móviles con muesca —el fondo y
+		     los paneles llegan hasta el filo— y los márgenes de la hoja de estilos
+		     apartan el texto de lo que se come el marco. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<!-- Dos temas: papel claro y noche cálida. El interruptor está en el pie. -->
 		<meta name="color-scheme" content="light dark" />
 		<meta name="theme-color" content="#fdf6ef" media="(prefers-color-scheme: light)" />

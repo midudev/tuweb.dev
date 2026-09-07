@@ -62,6 +62,17 @@
 	--text-lg--line-height: 1.55;
 
 	/*
+	 * Los dos tamaños grandes, los de Geist Pixel, no saltan en los cortes: van
+	 * con clamp y crecen con la pantalla. Empiezan donde estaban en el móvil
+	 * (24px el título de página, 22px la marca) y acaban donde estaban en el
+	 * escritorio (30px y 26px), pero por el camino no hay ningún escalón.
+	 */
+	--text-titulo: clamp(1.5rem, 1.33rem + 0.85vw, 1.875rem);
+	--text-titulo--line-height: 1.15;
+	--text-marca: clamp(1.375rem, 1.26rem + 0.57vw, 1.625rem);
+	--text-marca--line-height: 1;
+
+	/*
 	 * El tema de día: claro y naranja. El fondo es un papel cálido, los paneles y
 	 * las líneas suben por esa misma rampa y el acento es un naranja quemado.
 	 * Nada de blanco puro ni de negro puro: todo lleva la misma gota de tierra.
@@ -166,6 +177,21 @@ html {
 	background: var(--color-bg);
 	color: var(--color-fg);
 	/*
+	 * El margen lateral de toda la web. Antes daba tres saltos —20px, 24px y
+	 * 32px— y se notaba el brinco al girar el móvil o al arrastrar la ventana;
+	 * ahora es una sola medida que crece con el ancho y se queda en 32px.
+	 */
+	--hueco: clamp(1.25rem, 0.91rem + 1.7vw, 2rem);
+	/*
+	 * Y el aire de arriba y abajo de los bloques grandes, con la misma idea: en
+	 * el móvil se aprieta un poco, porque ahí lo que sobra es scroll, y en el
+	 * escritorio se abre hasta 56px, que es donde la página respira.
+	 */
+	--aire: clamp(2.25rem, 1.9rem + 1.7vw, 3.5rem);
+	/* Un salto a un ancla no se pega al filo de arriba ni se mete debajo de
+	   la barra pegajosa de la portada. */
+	scroll-padding-block-start: 1.5rem;
+	/*
 	 * Red de seguridad del responsive: por aquí pasan muchas manos y basta con
 	 * un rótulo largo o un panel absoluto para sacar una barra horizontal en el
 	 * móvil. Con clip se recorta lo que se sale sin crear un contenedor de
@@ -175,6 +201,36 @@ html {
 	/* La barra de scroll también es de la casa: fina y naranja. */
 	scrollbar-width: thin;
 	scrollbar-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-line)) transparent;
+}
+
+/*
+ * La columna en la que va todo: centrada, con el tope de siempre —64rem, lo
+ * que medía max-w-5xl— y el margen fluido de arriba. Antes cada bloque se
+ * escribía a mano con «mx-auto w-full max-w-5xl px-5 sm:px-6 lg:px-8», así que
+ * cambiar el ancho de la web era pasar por catorce sitios; ahora es esto.
+ *
+ * El margen suma además lo que se come el marco de la pantalla: en un móvil con
+ * muesca, puesto de lado, el texto ya no queda debajo del recorte.
+ */
+@utility zona {
+	width: 100%;
+	max-width: 64rem;
+	margin-inline: auto;
+	padding-inline: calc(var(--hueco) + env(safe-area-inset-left))
+		calc(var(--hueco) + env(safe-area-inset-right));
+}
+
+/* El aire de arriba y abajo de un bloque grande, en la misma medida fluida. */
+@utility aire {
+	padding-block: var(--aire);
+}
+
+/*
+ * Lo último de la página llega hasta abajo del todo, y en el móvil deja libre
+ * la franja de la barra de gestos para que no tape los enlaces del pie.
+ */
+@utility zona-pie {
+	padding-block-end: calc(1.75rem + env(safe-area-inset-bottom));
 }
 
 /*
@@ -232,12 +288,38 @@ html[data-fondo='trama'] [data-canvas] {
 }
 
 body {
-	min-height: 100vh;
+	/*
+	 * Alto de pantalla del de verdad: con 100vh el móvil cuenta la barra del
+	 * navegador como si no estuviera y deja un trozo de página por debajo del
+	 * borde. Con dvh la medida es la que se ve, y se ajusta al recoger la barra.
+	 */
+	min-height: 100dvh;
 	background: var(--color-bg);
 	line-height: 1.65;
 	/* Cortes de línea menos huérfanos y palabras largas que no se salen. */
 	text-wrap: pretty;
 	overflow-wrap: break-word;
+}
+
+/*
+ * Los titulares reparten sus líneas a partes iguales en vez de dejar una
+ * palabra sola abajo. Se nota sobre todo en el móvil, que es donde un título
+ * de tres palabras cae en dos líneas.
+ */
+h1,
+h2,
+h3 {
+	text-wrap: balance;
+}
+
+/*
+ * Los saltos a un ancla van deslizando, salvo para quien pide menos
+ * movimiento: ahí siguen siendo instantáneos.
+ */
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		scroll-behavior: smooth;
+	}
 }
 
 /*

@@ -48,7 +48,7 @@ const deployedAt =
 <Layout>
 	<!-- Una sola columna: el dashboard ya no es un raíl, sale en un cajón desde
 	     el botón de la barra de arriba. -->
-	<div class="flex min-h-screen flex-col">
+	<div class="flex min-h-dvh flex-col">
 		<TopBar endsAt={data.window.endsAt} ideaCount={data.ideaCount} />
 
 		<Dashboard
@@ -64,7 +64,7 @@ const deployedAt =
 
 		<div class="flex min-w-0 grow flex-col">
 			<section data-canvas class="border-b border-line bg-panel" aria-label="Tu idea">
-				<div class="mx-auto flex max-w-5xl flex-col gap-8 px-5 py-10 sm:px-6 lg:px-8">
+				<div class="zona aire flex flex-col gap-8">
 					<div data-live="header">
 						<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
 					</div>
@@ -77,7 +77,7 @@ const deployedAt =
 			</section>
 
 			<div data-canvas class="grow bg-bg">
-				<div class="mx-auto flex w-full max-w-5xl flex-col gap-10 px-5 py-10 sm:px-6 lg:px-8">
+				<div class="zona aire flex flex-col gap-10">
 					<TopOne userId={user?.id} />
 					<SectionsLink />
 				</div>
@@ -85,7 +85,7 @@ const deployedAt =
 
 			<!-- Prefooter: esto cuenta el proceso, no forma parte de lo construido. -->
 			<div data-canvas class="border-t border-line bg-panel">
-				<div class="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 lg:px-8" data-live="featurelog">
+				<div class="zona py-8" data-live="featurelog">
 					<FeatureLog
 						version={data.version}
 						lastShipped={data.lastShipped}

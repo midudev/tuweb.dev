@@ -195,9 +195,14 @@ const ESCALA = [
 		<div class="grid gap-4 md:grid-cols-2">
 			<div class="flex flex-col gap-3 border border-line bg-panel p-5">
 				<span class="text-xs text-muted">Geist Pixel</span>
-				<p class="font-pixel text-2xl leading-tight">Esta web es tuya</p>
+				<p class="font-pixel text-titulo">Esta web es tuya</p>
 				<p class="font-pixel text-xs tracking-wide text-accent">Y ESTO ES LO QUE YA FUNCIONA</p>
 				<p class="text-sm text-muted">Títulos, etiquetas y poco más. Sin adornos.</p>
+				<code class="text-xs text-mark">text-titulo · text-marca</code>
+				<p class="text-xs text-muted">
+					Los dos tamaños grandes van con clamp: crecen con la pantalla en vez de saltar en cada
+					corte. De 24px a 30px el título; de 22px a 26px la marca.
+				</p>
 			</div>
 
 			<div class="flex flex-col gap-3 border border-line bg-panel p-5">
@@ -261,6 +266,19 @@ const ESCALA = [
 				<span class="text-xs text-muted">
 					Los buscadores. El gris más claro que llega a 3:1 contra el blanco, igual en reposo, en
 					hover y con el foco.
+				</span>
+			</li>
+
+			<li class="flex flex-col gap-3 border border-line p-5">
+				<span class="flex flex-col gap-1 border border-line bg-panel p-3">
+					<span class="h-1.5 bg-accent"></span>
+					<span class="text-sm text-muted">La columna, con su margen</span>
+				</span>
+				<code class="text-xs text-mark">zona · aire</code>
+				<span class="text-xs text-muted">
+					Todo va en una columna de 64rem centrada. El margen de los lados y el aire de arriba y
+					abajo son una sola medida que crece con la pantalla, y suman lo que se come el marco en
+					los móviles con muesca.
 				</span>
 			</li>
 

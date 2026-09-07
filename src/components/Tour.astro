@@ -107,7 +107,12 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 		position: fixed;
 		inset: auto;
 		left: 50%;
-		width: min(36rem, calc(100vw - 2rem));
+		/* Nunca más ancho que lo que se ve de verdad: se descuenta lo que se come
+		   el marco de la pantalla, que si no en horizontal queda debajo. */
+		width: min(
+			36rem,
+			calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right))
+		);
 		max-height: calc(100dvh - 3rem);
 		margin: 0;
 		overflow-y: auto;
@@ -122,7 +127,7 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 	}
 
 	[data-tour][data-pos='abajo'] {
-		bottom: 1.5rem;
+		bottom: calc(1.5rem + env(safe-area-inset-bottom));
 		translate: -50%;
 	}
 

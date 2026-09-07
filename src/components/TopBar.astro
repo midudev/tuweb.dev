@@ -21,7 +21,7 @@ const overdue = new Date(endsAt).getTime() <= Date.now();
 
 <div data-canvas class="sticky top-0 z-40 border-b border-line bg-panel">
 	<div
-		class="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-3 sm:px-6 lg:px-8"
+		class="zona flex items-center justify-between gap-4 py-3"
 	>
 		<!-- El botón vive fuera de la zona que se repinta sola: así no se le borra
 		     el aria-expanded con el panel abierto. -->
@@ -55,9 +55,11 @@ const overdue = new Date(endsAt).getTime() <= Date.now();
 <style is:global>
 	/*
 	 * Con la barra pegada arriba, un salto a #proponer dejaba el título tapado.
-	 * Esto solo se carga en la portada, que es donde está la barra.
+	 * Esto solo se carga en la portada, que es donde está la barra. Va con
+	 * «html:root» para pisar seguro al margen de siempre de la hoja global,
+	 * que no sabe si esta barra está puesta.
 	 */
-	html {
-		scroll-padding-top: 4.5rem;
+	html:root {
+		scroll-padding-block-start: 4.5rem;
 	}
 </style>
