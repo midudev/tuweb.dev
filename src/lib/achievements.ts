@@ -7,17 +7,20 @@
  * cerrar la ventana y al salir la versión, sin que nadie toque un botón.
  *
  * Todo sale de los créditos, que ya juntan lo de cada persona: ideas enviadas,
- * las que pasaron el filtro, las que ganaron y las versiones que firma.
+ * las que pasaron el filtro, las que ganaron y las versiones que firma. Los
+ * puntos son los del ranking, con esas mismas cuentas: nada nuevo que guardar.
  */
 import { getCreditsData, type CreditVersion } from './credits';
+import { POINTS } from './leaderboard';
 
-export type AchievementGroup = 'ideas' | 'ventanas' | 'versiones' | 'casa';
+export type AchievementGroup = 'ideas' | 'ventanas' | 'versiones' | 'puntos' | 'casa';
 
 /** El título de cada cajón. El orden es el de esta lista. */
 export const GROUPS: { key: AchievementGroup; label: string }[] = [
 	{ key: 'ideas', label: 'IDEAS APROBADAS' },
 	{ key: 'ventanas', label: 'VENTANAS GANADAS' },
 	{ key: 'versiones', label: 'IDEAS IMPLEMENTADAS' },
+	{ key: 'puntos', label: 'PUNTOS DEL RANKING' },
 	{ key: 'casa', label: 'DE LA CASA' },
 ];
 
@@ -40,6 +43,8 @@ export interface PersonStats {
 	discarded: number;
 	/** De esas versiones, las que firma junto a más gente. */
 	shared: number;
+	/** Los mismos puntos del ranking, con las mismas cuentas. */
+	points: number;
 	me: boolean;
 }
 
@@ -158,6 +163,33 @@ export const ACHIEVEMENTS: Achievement[] = [
 		count: (stats) => stats.shared,
 	},
 	{
+		key: 'puntos-10',
+		title: 'Primeros 10 puntos',
+		detail: 'Juntas 10 puntos en el ranking.',
+		icon: 'coin',
+		group: 'puntos',
+		goal: 10,
+		count: (stats) => stats.points,
+	},
+	{
+		key: 'puntos-50',
+		title: 'Primeros 50 puntos',
+		detail: 'Juntas 50 puntos en el ranking.',
+		icon: 'coins',
+		group: 'puntos',
+		goal: 50,
+		count: (stats) => stats.points,
+	},
+	{
+		key: 'puntos-100',
+		title: 'Primeros 100 puntos',
+		detail: 'Juntas 100 puntos en el ranking.',
+		icon: 'chart-bar',
+		group: 'puntos',
+		goal: 100,
+		count: (stats) => stats.points,
+	},
+	{
 		key: 'fundador',
 		title: 'De los primeros',
 		detail: 'Estás entre las diez primeras personas que propusieron algo.',
@@ -173,6 +205,15 @@ export const ACHIEVEMENTS: Achievement[] = [
 		icon: 'refresh',
 		group: 'casa',
 		goal: 5,
+		count: (stats) => stats.sent,
+	},
+	{
+		key: 'ideas-10',
+		title: 'Primeras 10 ideas',
+		detail: 'Mandas diez ideas, salgan o no.',
+		icon: 'list-numbers',
+		group: 'casa',
+		goal: 10,
 		count: (stats) => stats.sent,
 	},
 	{
@@ -214,8 +255,14 @@ const EMPTY_STATS = (login: string): PersonStats => ({
 	shipped: 0,
 	discarded: 0,
 	shared: 0,
+	points: 0,
 	me: true,
 });
+
+/** Lo mismo que suma el ranking: aprobada 1, ganada 5 más, publicada 10 más. */
+function pointsOf(approved: number, wins: number, shipped: number) {
+	return approved * POINTS.idea + wins * POINTS.win + shipped * POINTS.shipped;
+}
 
 function isDone(achievement: Achievement, stats: PersonStats) {
 	return achievement.count(stats) >= achievement.goal;
@@ -247,6 +294,7 @@ export function getAchievementsData(user?: { id: number; login: string }) {
 		shipped: person.shipped,
 		discarded: person.discarded,
 		shared: sharedByLogin.get(person.login) ?? 0,
+		points: pointsOf(person.ideas, person.wins, person.shipped),
 		me: person.me,
 	}));
 
