@@ -1,0 +1,411 @@
+---
+/**
+ * Los retos semanales: un tablero que se renueva cada lunes. Tres los pone la
+ * casa, rotando el catálogo, y los demás los propone quien entra. Sin servidor,
+ * como el escaparate: lo que propones y lo que marcas se queda en tu navegador,
+ * y el lunes vuelve a estar todo por hacer y la cuenta empieza de cero.
+ */
+import Icon from './Icon.astro';
+import { DETAIL_MAX, NIVELES, TEMAS, TITLE_MAX } from '../lib/retos';
+
+const FIELD =
+	'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-accent';
+const DATO = 'inline-flex items-center gap-2';
+---
+
+<section id="retos" class="flex flex-col gap-7">
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+				<Icon name="calendar-week" class="size-5 shrink-0 text-accent" />
+				<span data-week>Esta semana</span>
+			</h2>
+			<p class="inline-flex items-center gap-2 text-sm text-muted">
+				<Icon name="clock" class="size-4 shrink-0" />
+				<span data-left aria-live="polite"></span>
+			</p>
+		</div>
+
+		<p class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted" aria-live="polite">
+			<span class={DATO}>
+				Hechos <span data-done-count class="tabular-nums text-fg"></span>
+			</span>
+			<span class={DATO}>
+				Puntos <span data-points class="tabular-nums text-accent"></span>
+			</span>
+			<span class={DATO}>
+				Racha <span data-streak class="tabular-nums text-fg"></span>
+			</span>
+		</p>
+	</div>
+
+	<form data-form class="grid gap-4 border border-line bg-panel p-4 md:grid-cols-2">
+		<label class="flex flex-col gap-2 md:col-span-2">
+			<span class="text-sm text-muted">Tu reto</span>
+			<input
+				type="text"
+				data-field="title"
+				maxlength={TITLE_MAX}
+				autocomplete="off"
+				placeholder="Escribir el test antes que el código"
+				class={FIELD}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-2 md:col-span-2">
+			<span class="text-sm text-muted">Qué cuenta como hecho</span>
+			<input
+				type="text"
+				data-field="detail"
+				maxlength={DETAIL_MAX}
+				autocomplete="off"
+				placeholder="En una línea: dónde está la raya"
+				class={FIELD}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Tema</span>
+			<select data-field="tema" class={FIELD}>
+				{TEMAS.map((tema) => <option value={tema.id}>{tema.label}</option>)}
+			</select>
+		</label>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Nivel</span>
+			<select data-field="nivel" class={FIELD}>
+				{
+					NIVELES.map((nivel) => (
+						<option value={nivel.id} selected={nivel.id === 'medio'}>
+							{nivel.label} · {nivel.points} {nivel.points === 1 ? 'punto' : 'puntos'}
+						</option>
+					))
+				}
+			</select>
+		</label>
+
+		<div class="flex flex-wrap items-end gap-4 md:col-span-2">
+			<button type="submit" class={BOTON}>
+				<Icon name="plus" class="size-4 shrink-0" />
+				Proponer el reto
+			</button>
+			<p data-error role="status" class="text-sm text-heart"></p>
+		</div>
+	</form>
+
+	<ul data-list class="grid gap-4 md:grid-cols-2"></ul>
+
+	<p data-count class="text-sm text-muted"></p>
+
+	<template data-card>
+		<li data-item class="flex flex-col gap-3 border border-line border-l-2 bg-panel p-4">
+			<div class="flex items-start justify-between gap-3">
+				<label class="flex items-start gap-3">
+					<input type="checkbox" data-done class="mt-1 size-4 shrink-0 accent-accent" />
+					<span class="flex flex-col gap-1">
+						<span data-title class="text-sm"></span>
+						<span data-detail class="text-xs text-muted"></span>
+					</span>
+				</label>
+				<span data-badge class="shrink-0 border px-2 py-1 text-xs"></span>
+			</div>
+
+			<p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+				<span data-nivel></span>
+				<span class="inline-flex items-center gap-2">
+					<Icon name="flag" class="size-4 shrink-0" />
+					<span data-origen></span>
+				</span>
+			</p>
+
+			<div data-tools class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
+				<button type="button" data-copy class={ENLACE}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-copy-label>Copiar como idea</span>
+				</button>
+				<button type="button" data-remove class={ENLACE}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Quitar
+				</button>
+			</div>
+		</li>
+	</template>
+
+	<p class="text-sm text-muted">
+		Los tres retos de la casa cambian cada lunes; los tuyos se quedan y vuelven a empezar. Todo esto
+		solo está en tu navegador: para que un reto sea el de todo el mundo, cópialo y proponlo en la
+		portada.
+	</p>
+</section>
+
+<style is:global>
+	/*
+	 * Va global porque las tarjetas las pinta el script y no llevan la marca del
+	 * componente; por eso todo cuelga de #retos.
+	 */
+
+	/* El tema se ve en el canto de la tarjeta y en su etiqueta. */
+	#retos [data-item] {
+		border-left-color: var(--tema, var(--color-line));
+	}
+	#retos [data-badge] {
+		color: var(--tema, var(--color-muted));
+		border-color: var(--tema, var(--color-line));
+	}
+
+	/* Un reto hecho se apaga y se tacha: ese ya está. */
+	#retos [data-item][data-hecho='si'] {
+		border-left-color: var(--color-ok);
+	}
+	#retos [data-item][data-hecho='si'] [data-title] {
+		color: var(--color-muted);
+		text-decoration: line-through;
+	}
+
+	/* Los de la casa no se quitan ni se copian: no son tuyos. */
+	#retos [data-item][data-casa='si'] [data-tools] {
+		display: none;
+	}
+
+	/* El check solo sale cuando la copia ha ido bien. */
+	#retos [data-copy] [data-icon='check'] {
+		display: none;
+	}
+	#retos [data-copy][data-state='done'] {
+		color: var(--color-accent);
+	}
+	#retos [data-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	#retos [data-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	#retos [data-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import {
+		MAX_RETOS,
+		type Done,
+		type Reto,
+		houseRetos,
+		ideaOf,
+		isDone,
+		nextWeekStart,
+		nivelOf,
+		pointsOf,
+		readDone,
+		readRetos,
+		saveDone,
+		saveRetos,
+		spanText,
+		streakOf,
+		temaOf,
+		toReto,
+		toggleDone,
+		weekIndex,
+		weekLabel,
+		weekStart,
+	} from '../lib/retos';
+
+	const section = document.querySelector<HTMLElement>('#retos');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const list = section?.querySelector<HTMLElement>('[data-list]');
+	const template = section?.querySelector<HTMLTemplateElement>('[data-card]');
+	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const weekOut = section?.querySelector<HTMLElement>('[data-week]');
+	const leftOut = section?.querySelector<HTMLElement>('[data-left]');
+	const doneOut = section?.querySelector<HTMLElement>('[data-done-count]');
+	const pointsOut = section?.querySelector<HTMLElement>('[data-points]');
+	const streakOut = section?.querySelector<HTMLElement>('[data-streak]');
+	const countOut = section?.querySelector<HTMLElement>('[data-count]');
+
+	if (section && form && list && template && countOut) {
+		let retos = readRetos();
+		let done: Done = readDone();
+		let start = weekStart(Date.now());
+		let week = weekIndex(start);
+
+		function field(name: string) {
+			return form!.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`);
+		}
+
+		function fail(message: string) {
+			if (errorOut) errorOut.textContent = message;
+		}
+
+		/** El tablero: los de la casa y los tuyos, con lo que falta por hacer arriba. */
+		function board() {
+			return [...houseRetos(week), ...retos].sort((a, b) => {
+				const hechoA = isDone(done, week, a.id);
+				const hechoB = isDone(done, week, b.id);
+				if (hechoA !== hechoB) return hechoA ? 1 : -1;
+				if (a.house !== b.house) return a.house ? -1 : 1;
+				return b.at - a.at;
+			});
+		}
+
+		async function copy(text: string) {
+			try {
+				await navigator.clipboard.writeText(text);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const helper = document.createElement('textarea');
+					helper.value = text;
+					helper.readOnly = true;
+					helper.style.position = 'fixed';
+					helper.style.opacity = '0';
+					document.body.append(helper);
+					helper.select();
+					const hecho = document.execCommand('copy');
+					helper.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		function card(reto: Reto) {
+			const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+			const tema = temaOf(reto.tema);
+			const nivel = nivelOf(reto.nivel);
+			const hecho = isDone(done, week, reto.id);
+
+			node.style.setProperty('--tema', tema.color);
+			node.dataset.hecho = hecho ? 'si' : 'no';
+			node.dataset.casa = reto.house ? 'si' : 'no';
+
+			node.querySelector('[data-title]')!.textContent = reto.title;
+			node.querySelector('[data-detail]')!.textContent = reto.detail;
+			node.querySelector('[data-badge]')!.textContent = tema.label;
+			node.querySelector('[data-nivel]')!.textContent =
+				`${nivel.label} · ${nivel.points} ${nivel.points === 1 ? 'punto' : 'puntos'}`;
+			node.querySelector('[data-origen]')!.textContent = reto.house ? 'De la casa' : 'Tuyo';
+
+			const check = node.querySelector<HTMLInputElement>('[data-done]')!;
+			check.checked = hecho;
+			check.setAttribute('aria-label', hecho ? 'Marcar como pendiente' : 'Marcar como hecho');
+			check.addEventListener('change', () => {
+				done = toggleDone(done, week, reto.id);
+				saveDone(done);
+				render();
+			});
+
+			if (reto.house) return node;
+
+			const copyButton = node.querySelector<HTMLButtonElement>('[data-copy]')!;
+			const copyLabel = node.querySelector<HTMLElement>('[data-copy-label]')!;
+			let timer = 0;
+
+			copyButton.addEventListener('click', async () => {
+				const hecha = await copy(ideaOf(reto));
+
+				copyButton.dataset.state = hecha ? 'done' : 'error';
+				copyLabel.textContent = hecha ? 'Copiado' : 'No se pudo copiar';
+
+				clearTimeout(timer);
+				timer = window.setTimeout(() => {
+					copyButton.removeAttribute('data-state');
+					copyLabel.textContent = 'Copiar como idea';
+				}, 2000);
+			});
+
+			node.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
+				commit(retos.filter((item) => item.id !== reto.id));
+			});
+
+			return node;
+		}
+
+		function render() {
+			const tablero = board();
+			list!.replaceChildren(...tablero.map(card));
+
+			const hechos = tablero.filter((reto) => isDone(done, week, reto.id)).length;
+			const racha = streakOf(done, week);
+
+			if (doneOut) doneOut.textContent = `${hechos} / ${tablero.length}`;
+			if (pointsOut) pointsOut.textContent = String(pointsOf(tablero, done, week));
+			if (streakOut) streakOut.textContent = racha === 1 ? '1 semana' : `${racha} semanas`;
+
+			countOut!.textContent =
+				retos.length === 0
+					? 'Los tres de arriba los pone la casa. Propón el tuyo y se queda en el tablero cada semana.'
+					: `${retos.length} ${retos.length === 1 ? 'reto tuyo' : 'retos tuyos'} · quedan ${MAX_RETOS - retos.length} huecos.`;
+
+			tick();
+		}
+
+		/** Lo único que corre solo: cuánto le queda a la semana. */
+		function tick() {
+			if (weekOut) weekOut.textContent = weekLabel(start);
+			if (leftOut) leftOut.textContent = `Quedan ${spanText(nextWeekStart(start) - Date.now())}`;
+		}
+
+		function commit(next: Reto[]) {
+			retos = next;
+			saveRetos(retos);
+			render();
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			fail('');
+
+			if (retos.length >= MAX_RETOS) {
+				fail(`El tablero está lleno: ${MAX_RETOS} retos tuyos como mucho. Quita alguno.`);
+				return;
+			}
+
+			const reto = toReto({
+				title: field('title')?.value,
+				detail: field('detail')?.value,
+				tema: field('tema')?.value,
+				nivel: field('nivel')?.value,
+			});
+
+			if (typeof reto === 'string') {
+				fail(reto);
+				return;
+			}
+
+			if (retos.some((item) => item.title === reto.title)) {
+				fail('Ese reto ya está en tu tablero.');
+				return;
+			}
+
+			commit([reto, ...retos]);
+
+			form.reset();
+			field('title')?.focus();
+		});
+
+		/*
+		 * Cada medio minuto se repinta la cuenta atrás, y si el lunes ha llegado
+		 * con la pestaña abierta, el tablero se rehace entero: retos nuevos de la
+		 * casa y todo por hacer otra vez.
+		 */
+		setInterval(() => {
+			const ahora = weekStart(Date.now());
+			if (ahora === start) {
+				tick();
+				return;
+			}
+
+			start = ahora;
+			week = weekIndex(start);
+			render();
+		}, 30_000);
+
+		render();
+	}
+</script>

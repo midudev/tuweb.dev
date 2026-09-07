@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, comparar dos textos, llevarte un consejo de oficio o apuntar lo que toca hoy. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -149,6 +149,15 @@ export const SECTIONS: Section[] = [
 		card: 'Lo que tienes que hacer, por nivel, y cuánto le falta a cada cosa.',
 		intro:
 			'Apunta lo que hay que hacer con su nivel —de leve a urgente— y la hora a la que toca. Cada tarea lleva su cuenta atrás: cuánto le falta, y cuánto lleva vencida si se te pasó. Filtra por estado o por nivel, y si quieres que el navegador avise al vencer, dale a los avisos. No hay servidor: la lista se queda en tu navegador.',
+	},
+	{
+		href: '/retos',
+		title: 'Retos semanales',
+		icon: 'target-arrow',
+		group: 'herramientas',
+		card: 'Tres retos de la casa cada lunes, más los que propongas tú.',
+		intro:
+			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propones tú: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas. Los tuyos se quedan de una semana para otra, pero el lunes vuelven a estar por hacer. No hay servidor: todo se queda en tu navegador, así que copia el reto y proponlo en la portada para que sea el de todo el mundo.',
 	},
 	{
 		href: '/minijuego',
