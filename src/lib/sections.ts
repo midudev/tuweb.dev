@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, comparar dos textos o apuntar lo que toca hoy. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, comparar dos textos, llevarte un consejo de oficio o apuntar lo que toca hoy. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -131,6 +131,15 @@ export const SECTIONS: Section[] = [
 		card: 'Cómo trabajar con IA sin perder el foco: el ciclo, los prompts y lo que revisas tú.',
 		intro:
 			'Trabajar con IA sin que se te vaya de las manos. El ciclo de Spec Driven Development en cinco fases —especificar, planificar, trocear, implementar y revisar—, con el prompt de cada una listo para copiar, la plantilla de spec, unos cuantos prompts sueltos y la checklist de la revisión manual, que es la parte que no se delega. No hay ninguna IA detrás: se copia y se pega donde la uses, y lo que marcas se queda en tu navegador.',
+	},
+	{
+		href: '/consejos',
+		title: 'Consejos de desarrollo',
+		icon: 'bulb',
+		group: 'herramientas',
+		card: 'Lo que se aprende a base de golpes: código, git, bugs, tests, rendimiento y equipo.',
+		intro:
+			'Consejos de oficio, de los que se aprenden a base de golpes: código, git, depuración, pruebas, rendimiento y equipo. Arriba sale uno al azar; debajo están todos, con buscador, filtro por tema y una estrella para quedarte con los que te sirvan. Y apunta el tuyo: se queda en tu navegador, así que cópialo y proponlo para que lo lea todo el mundo.',
 	},
 	{
 		href: '/tareas',

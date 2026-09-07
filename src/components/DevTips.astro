@@ -1,0 +1,507 @@
+---
+/**
+ * Los consejos de desarrollo: los de la casa, uno destacado arriba, y los que
+ * escribe quien pasa por aquí.
+ *
+ * Como el escaparate, no hay servidor detrás: lo que guardas y lo que escribes
+ * se queda en tu navegador, y desde ahí se copia para proponerlo como idea, que
+ * es la única forma de que entre en esta web. Los consejos y lo que se guarda
+ * están en src/lib/consejos.ts; aquí solo están los mandos.
+ */
+import Icon from './Icon.astro';
+import {
+	ALL,
+	CATEGORIES,
+	DETAIL_MAX,
+	SAVED,
+	TIPS,
+	TITLE_MAX,
+	labelOf,
+	pickTip,
+} from '../lib/consejos';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-accent';
+const FIELD =
+	'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const CHIP =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+
+const FILTROS = [
+	{ id: ALL, label: 'Todos', icon: 'stack' },
+	...CATEGORIES.map((categoria) => ({ id: categoria.id, label: categoria.label, icon: categoria.icon })),
+	{ id: SAVED, label: 'Guardados', icon: 'star' },
+];
+
+// Uno al azar en cada visita: entras y ya hay consejo, sin dar a nada.
+const inicial = pickTip(TIPS, []);
+---
+
+<section id="consejos" class="flex flex-col gap-7">
+	<article
+		data-destacado
+		data-id={inicial.id}
+		class="flex flex-col gap-4 border border-accent bg-panel p-5 sm:p-6"
+	>
+		<span class="flex items-center gap-2 text-xs text-muted">
+			<Icon name="bulb" class="size-4 shrink-0 text-accent" />
+			<span data-destacado-cat>{labelOf(inicial)}</span>
+		</span>
+
+		<p data-destacado-title class="font-pixel text-lg text-pretty">{inicial.title}</p>
+		<p data-destacado-detail class="max-w-[70ch] text-sm text-pretty text-muted">{inicial.detail}</p>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-otro class={`${BOTON} border-accent text-accent`}>
+				<Icon name="refresh" class="size-4 shrink-0" />
+				Otro consejo
+			</button>
+
+			<button type="button" data-destacado-save aria-pressed="false" class={BOTON}>
+				<Icon name="star" class="size-4 shrink-0" />
+				<span data-save-label>Guardar</span>
+			</button>
+
+			<button type="button" data-copy class={BOTON}>
+				<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+				<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+				<span data-copy-label aria-live="polite">Copiar</span>
+			</button>
+		</div>
+	</article>
+
+	<div class="grid gap-7 lg:grid-cols-[3fr_2fr] lg:items-start">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar los consejos">
+				{
+					FILTROS.map((filtro) => (
+						<button
+							type="button"
+							data-filtro={filtro.id}
+							aria-pressed={filtro.id === ALL ? 'true' : 'false'}
+							class={CHIP}
+						>
+							<Icon name={filtro.icon} class="size-4 shrink-0" />
+							{filtro.label}
+						</button>
+					))
+				}
+			</div>
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Buscar</span>
+				<input
+					type="search"
+					data-buscador
+					autocomplete="off"
+					placeholder="git, tests, caché…"
+					class={FIELD}
+				/>
+			</label>
+
+			<ul data-list class="flex flex-col gap-4">
+				{
+					TIPS.map((tip) => (
+						<li
+							data-tip
+							data-id={tip.id}
+							class="flex flex-col gap-2 border border-line bg-panel p-4"
+						>
+							<div class="flex items-start justify-between gap-3">
+								<p class="font-pixel text-sm text-pretty">{tip.title}</p>
+								<span class="shrink-0 border border-line px-2 py-1 text-xs text-muted">
+									{labelOf(tip)}
+								</span>
+							</div>
+							<p class="text-sm text-muted">{tip.detail}</p>
+							<div class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
+								<button type="button" data-save aria-pressed="false" class={ENLACE}>
+									<Icon name="star" class="size-4 shrink-0" />
+									<span data-save-label>Guardar</span>
+								</button>
+								<button type="button" data-copy class={ENLACE}>
+									<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4" /></span>
+									<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4" /></span>
+									<span data-copy-label>Copiar</span>
+								</button>
+							</div>
+						</li>
+					))
+				}
+			</ul>
+
+			<p data-count class="text-sm text-muted" aria-live="polite"></p>
+		</div>
+
+		<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="pencil" class="size-4 shrink-0 text-accent" />
+				El tuyo
+			</span>
+
+			<form data-form class="flex flex-col gap-4">
+				<label class="flex flex-col gap-2">
+					<span class="text-sm text-muted">El consejo, en una línea</span>
+					<input
+						type="text"
+						data-field="title"
+						maxlength={TITLE_MAX}
+						autocomplete="off"
+						placeholder="Mide antes de optimizar"
+						class={FIELD}
+					/>
+				</label>
+
+				<label class="flex flex-col gap-2">
+					<span class="text-sm text-muted">Y por qué</span>
+					<textarea
+						data-field="detail"
+						maxlength={DETAIL_MAX}
+						rows="3"
+						placeholder="Lo que te ha costado aprenderlo."
+						class={FIELD}></textarea>
+				</label>
+
+				<label class="flex flex-col gap-2">
+					<span class="text-sm text-muted">De qué va</span>
+					<select data-field="category" class={FIELD}>
+						{CATEGORIES.map((categoria) => <option value={categoria.id}>{categoria.label}</option>)}
+					</select>
+				</label>
+
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<button type="submit" class={BOTON}>
+						<Icon name="plus" class="size-4 shrink-0" />
+						Apuntarlo
+					</button>
+					<p data-error role="status" class="text-sm text-heart"></p>
+				</div>
+			</form>
+
+			<p class="text-sm text-muted">
+				Lo que apuntes se queda en este navegador y sale el primero de la lista. Para que lo lea
+				todo el mundo, cópialo como idea y proponlo en la portada.
+			</p>
+		</div>
+	</div>
+
+	<template data-mio>
+		<li data-tip data-mine class="flex flex-col gap-2 border border-line bg-panel p-4">
+			<div class="flex items-start justify-between gap-3">
+				<p data-title class="font-pixel text-sm text-pretty"></p>
+				<span data-cat class="shrink-0 border border-accent px-2 py-1 text-xs text-accent"></span>
+			</div>
+			<p data-detail class="text-sm text-muted"></p>
+			<div class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
+				<button type="button" data-save aria-pressed="false" class={ENLACE}>
+					<Icon name="star" class="size-4 shrink-0" />
+					<span data-save-label>Guardar</span>
+				</button>
+				<button type="button" data-copy class={ENLACE}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-copy-label>Copiar como idea</span>
+				</button>
+				<button type="button" data-remove class={ENLACE}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Quitar
+				</button>
+			</div>
+		</li>
+	</template>
+</section>
+
+<style is:global>
+	/* Global porque los consejos tuyos los pinta el script y no llevan la marca
+	   del componente; por eso todo cuelga de #consejos. */
+
+	/* El check solo sale cuando la copia ha ido bien. */
+	#consejos [data-copy] [data-icon='check'],
+	#consejos [data-copy][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	#consejos [data-copy][data-state='done'] {
+		color: var(--color-accent);
+	}
+	#consejos [data-copy][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	#consejos [data-copy][data-state='error'] {
+		color: var(--color-heart);
+	}
+
+	/* Lo elegido y lo guardado van en naranja, aquí arriba y en la lista. */
+	#consejos [data-filtro][aria-pressed='true'],
+	#consejos [data-save][aria-pressed='true'],
+	#consejos [data-destacado-save][aria-pressed='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+</style>
+
+<script>
+	import {
+		ALL,
+		MAX_MINE,
+		SAVED,
+		TIPS,
+		type Tip,
+		filterTips,
+		fullText,
+		labelOf,
+		pickTip,
+		pitchOf,
+		readStore,
+		saveStore,
+		toTip,
+		type Store,
+	} from '../lib/consejos';
+
+	const section = document.querySelector<HTMLElement>('#consejos');
+	const destacado = section?.querySelector<HTMLElement>('[data-destacado]');
+	const lista = section?.querySelector<HTMLUListElement>('[data-list]');
+	const plantilla = section?.querySelector<HTMLTemplateElement>('[data-mio]');
+	const form = section?.querySelector<HTMLFormElement>('[data-form]');
+	const buscador = section?.querySelector<HTMLInputElement>('[data-buscador]');
+	const contador = section?.querySelector<HTMLElement>('[data-count]');
+	const error = section?.querySelector<HTMLElement>('[data-error]');
+
+	if (section && destacado && lista && plantilla && form && buscador && contador) {
+		let store: Store = readStore();
+		/** Lo visto en esta visita, para no repetir hasta agotar la lista. */
+		let vistos: string[] = [destacado.dataset.id ?? ''];
+
+		/** Los tuyos delante y los de la casa detrás: siempre en ese orden. */
+		function todos(): Tip[] {
+			return [...store.mine, ...TIPS];
+		}
+
+		function buscar(id: string) {
+			return todos().find((tip) => tip.id === id);
+		}
+
+		async function copiar(text: string) {
+			try {
+				await navigator.clipboard.writeText(text);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const ayuda = document.createElement('textarea');
+					ayuda.value = text;
+					ayuda.readOnly = true;
+					ayuda.style.position = 'fixed';
+					ayuda.style.opacity = '0';
+					document.body.append(ayuda);
+					ayuda.select();
+					const hecho = document.execCommand('copy');
+					ayuda.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		/**
+		 * El aviso de la copia, que vuelve solo a su sitio a los dos segundos. La
+		 * etiqueta de antes se apunta en el propio botón: si le das dos veces
+		 * seguidas, la que vuelve sigue siendo la buena y no un «Copiado» pegado.
+		 */
+		function avisar(boton: HTMLElement, hecho: boolean) {
+			const etiqueta = boton.querySelector<HTMLElement>('[data-copy-label]');
+			if (etiqueta && !boton.dataset.state) boton.dataset.label = etiqueta.textContent ?? '';
+
+			boton.dataset.state = hecho ? 'done' : 'error';
+			if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+			window.setTimeout(() => {
+				boton.removeAttribute('data-state');
+				if (etiqueta) etiqueta.textContent = boton.dataset.label ?? '';
+			}, 2000);
+		}
+
+		function guardar(id: string) {
+			store.saved = store.saved.includes(id)
+				? store.saved.filter((otro) => otro !== id)
+				: [id, ...store.saved];
+			saveStore(store);
+			pintar();
+		}
+
+		/** Los tuyos se repintan enteros: son pocos y así no se descuadra el orden. */
+		function pintarMios() {
+			for (const viejo of lista!.querySelectorAll('[data-mine]')) viejo.remove();
+
+			for (const tip of [...store.mine].reverse()) {
+				const nodo = plantilla!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+				nodo.dataset.id = tip.id;
+				nodo.querySelector<HTMLElement>('[data-title]')!.textContent = tip.title;
+				nodo.querySelector<HTMLElement>('[data-detail]')!.textContent = tip.detail;
+				nodo.querySelector<HTMLElement>('[data-cat]')!.textContent = `${labelOf(tip)} · tuyo`;
+
+				nodo.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
+					store.mine = store.mine.filter((otro) => otro.id !== tip.id);
+					store.saved = store.saved.filter((otro) => otro !== tip.id);
+					saveStore(store);
+					pintarMios();
+					// Si el destacado era ese, entra otro en su lugar.
+					if (destacado!.dataset.id === tip.id) siguiente();
+					else pintar();
+				});
+
+				lista!.prepend(nodo);
+			}
+		}
+
+		function pintarDestacado(tip: Tip) {
+			destacado!.dataset.id = tip.id;
+			destacado!.querySelector<HTMLElement>('[data-destacado-cat]')!.textContent = labelOf(tip);
+			destacado!.querySelector<HTMLElement>('[data-destacado-title]')!.textContent = tip.title;
+			destacado!.querySelector<HTMLElement>('[data-destacado-detail]')!.textContent = tip.detail;
+			if (!vistos.includes(tip.id)) vistos.push(tip.id);
+		}
+
+		/** Lo que se ve: el filtro, el buscador y los guardados, todo a la vez. */
+		function pintar() {
+			const visibles = filterTips(todos(), store.category, buscador!.value, store.saved);
+			const ids = new Set(visibles.map((tip) => tip.id));
+
+			for (const fila of lista!.querySelectorAll<HTMLElement>('[data-tip]')) {
+				const id = fila.dataset.id ?? '';
+				fila.hidden = !ids.has(id);
+
+				const boton = fila.querySelector<HTMLButtonElement>('[data-save]');
+				const dentro = store.saved.includes(id);
+				boton?.setAttribute('aria-pressed', String(dentro));
+				const etiqueta = boton?.querySelector<HTMLElement>('[data-save-label]');
+				if (etiqueta) etiqueta.textContent = dentro ? 'Guardado' : 'Guardar';
+			}
+
+			for (const chip of section!.querySelectorAll<HTMLButtonElement>('[data-filtro]')) {
+				chip.setAttribute('aria-pressed', String(chip.dataset.filtro === store.category));
+			}
+
+			const actual = buscar(destacado!.dataset.id ?? '');
+			const marcado = Boolean(actual && store.saved.includes(actual.id));
+			const botonDestacado = destacado!.querySelector<HTMLButtonElement>('[data-destacado-save]');
+			botonDestacado?.setAttribute('aria-pressed', String(marcado));
+			const etiquetaDestacado = botonDestacado?.querySelector<HTMLElement>('[data-save-label]');
+			if (etiquetaDestacado) etiquetaDestacado.textContent = marcado ? 'Guardado' : 'Guardar';
+
+			const tuyos = store.mine.length;
+			contador!.textContent =
+				visibles.length === 0
+					? 'Aquí no hay nada con eso. Prueba con otra palabra o quita el filtro.'
+					: `${visibles.length} ${visibles.length === 1 ? 'consejo' : 'consejos'} a la vista · ` +
+						`${store.saved.length} guardados · ` +
+						(tuyos === 0
+							? 'ninguno tuyo todavía'
+							: `${tuyos} ${tuyos === 1 ? 'tuyo' : 'tuyos'}, quedan ${MAX_MINE - tuyos} huecos`);
+		}
+
+		/** Otro consejo arriba, de lo que se esté viendo y sin repetir el puesto. */
+		function siguiente() {
+			const visibles = filterTips(todos(), store.category, buscador!.value, store.saved);
+			const pool = visibles.length > 0 ? visibles : todos();
+			const tip = pickTip(pool, vistos, destacado!.dataset.id);
+			// Lista agotada: se vacía lo visto y vuelven a entrar todos.
+			if (vistos.includes(tip.id)) vistos = [];
+			pintarDestacado(tip);
+			pintar();
+		}
+
+		section.addEventListener('click', async (event) => {
+			const boton = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
+			if (!boton) return;
+
+			if (boton.dataset.filtro !== undefined) {
+				store.category = boton.dataset.filtro || ALL;
+				saveStore(store);
+				pintar();
+				return;
+			}
+
+			if (boton.hasAttribute('data-otro')) {
+				siguiente();
+				return;
+			}
+
+			if (boton.hasAttribute('data-destacado-save')) {
+				guardar(destacado.dataset.id ?? '');
+				return;
+			}
+
+			const fila = boton.closest<HTMLElement>('[data-tip]');
+			const tip = buscar(fila?.dataset.id ?? destacado.dataset.id ?? '');
+			if (!tip) return;
+
+			if (boton.hasAttribute('data-save')) {
+				guardar(tip.id);
+				return;
+			}
+
+			if (boton.hasAttribute('data-copy')) {
+				// En la ficha tuya se copia listo para proponerlo; en el resto, tal cual.
+				const idea = fila?.hasAttribute('data-mine') ?? false;
+				avisar(boton, await copiar(idea ? pitchOf(tip) : fullText(tip)));
+			}
+		});
+
+		buscador.addEventListener('input', () => {
+			// Buscar con el filtro de guardados puesto no tiene mucho sentido: se
+			// queda uno sin ver nada y sin saber por qué.
+			if (store.category === SAVED && buscador.value.trim()) store.category = ALL;
+			pintar();
+		});
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			if (error) error.textContent = '';
+
+			if (store.mine.length >= MAX_MINE) {
+				if (error) error.textContent = `Ya tienes ${MAX_MINE} apuntados. Quita alguno.`;
+				return;
+			}
+
+			function campo(name: string) {
+				return form!.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+					`[data-field="${name}"]`,
+				);
+			}
+
+			const tip = toTip({
+				title: campo('title')?.value,
+				detail: campo('detail')?.value,
+				category: campo('category')?.value,
+			});
+
+			if (typeof tip === 'string') {
+				if (error) error.textContent = tip;
+				return;
+			}
+
+			if (store.mine.some((otro) => otro.title.toLowerCase() === tip.title.toLowerCase())) {
+				if (error) error.textContent = 'Ese ya lo tienes apuntado.';
+				return;
+			}
+
+			store.mine = [tip, ...store.mine];
+			// Se enseña lo que acabas de escribir, aunque hubiera un filtro puesto.
+			store.category = ALL;
+			saveStore(store);
+
+			buscador.value = '';
+			pintarMios();
+			pintarDestacado(tip);
+			pintar();
+
+			form.reset();
+			campo('title')?.focus();
+		});
+
+		pintarMios();
+		pintar();
+	}
+</script>
