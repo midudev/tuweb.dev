@@ -1,0 +1,23 @@
+---
+import Highlights from '../components/Highlights.astro';
+import Section from '../layouts/Section.astro';
+import { getChangelogData } from '../lib/db/queries';
+
+const data = getChangelogData();
+
+// Las destacadas son las publicadas: cada versión salió de una idea que ganó su
+// ventana. Vienen de la más nueva a la más vieja, que es como se leen.
+const ideas = data.entries.map((entry) => ({
+	id: entry.id,
+	version: entry.version,
+	title: entry.title,
+	summary: entry.summary,
+	at: entry.shippedAt ?? entry.createdAt,
+}));
+
+const enObras = data.queued[0]?.title ?? null;
+---
+
+<Section href="/destacadas">
+	<Highlights ideas={ideas} enObras={enObras} />
+</Section>

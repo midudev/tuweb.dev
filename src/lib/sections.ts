@@ -277,6 +277,15 @@ export const SECTIONS: Section[] = [
 			'Todas las ideas de esta ventana. Vota hasta tres: las votadas suben arriba para que veas tu apuesta de un vistazo. El voto se queda en tu navegador y se borra al cerrar la ventana; quien decide sigue siendo lo que más gente repite.',
 	},
 	{
+		href: '/destacadas',
+		title: 'Ideas destacadas',
+		icon: 'star',
+		group: 'proceso',
+		card: 'Las ideas que ganaron y se construyeron: vótalas y coméntalas.',
+		intro:
+			'Las mejores ideas de la comunidad no las elige nadie: son las que ganaron su ventana y acabaron publicadas, una por versión. Aquí están todas, con buscador y tres órdenes. Vota las que te gusten y di lo que te parecen sin entrar y sin dar tu nombre: se te pone un alias y lo cambias cuando quieras. No hay servidor ni nada guardado: los votos y los comentarios se comparten con las pestañas que tengas abiertas y se van con la última.',
+	},
+	{
 		href: '/mi-idea',
 		title: 'Tu idea',
 		icon: 'route',
