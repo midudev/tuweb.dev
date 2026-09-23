@@ -1,0 +1,500 @@
+---
+/**
+ * El diseñador de logos y tarjetas de visita. Dos modos: el logo —icono,
+ * nombre, lema, colores y fuente— y la tarjeta, que lo lleva dentro con el
+ * nombre, el cargo y el contacto. Te lo llevas en SVG o en PNG.
+ *
+ * Todo pasa en tu navegador: el diseño se guarda en el localStorage y el dibujo
+ * es un SVG que se arma aquí mismo. El cálculo está en src/lib/logo.ts; aquí
+ * solo están los mandos.
+ */
+import { icons } from '@iconify-json/tabler';
+import {
+	CARD_LAYOUTS,
+	CONTACT,
+	FIELD_MAX,
+	FONTS,
+	FRAMES,
+	ICONS,
+	LOGO_LAYOUTS,
+	NAME_MAX,
+	TAGLINE_MAX,
+} from '../lib/logo';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const CAMPO = 'w-full border border-line bg-bg p-3 text-sm outline-none focus-visible:border-accent';
+
+const COLOR = 'h-[46px] w-full cursor-pointer border border-line bg-bg p-1';
+
+// Solo viajan al navegador los iconos que se usan, no el paquete entero.
+const cuerpos = Object.fromEntries(
+	[...ICONS, ...CONTACT.map((item) => item.icon)].map((name) => {
+		const icon = icons.icons[name];
+		if (!icon) throw new Error(`Icono de Tabler desconocido: ${name}`);
+		return [name, icon.body];
+	}),
+);
+const cuerposJson = JSON.stringify(cuerpos).replace(/</g, '\\u003c');
+
+const FUENTES = FONTS.map((f) => ({ id: f.id, label: f.label, icon: 'typography' }));
+
+const GRUPOS_LOGO = [
+	{ id: 'logo.font', label: 'Fuente', items: FUENTES },
+	{ id: 'logo.layout', label: 'Texto', items: LOGO_LAYOUTS },
+	{ id: 'logo.frame', label: 'Marco del icono', items: FRAMES },
+];
+
+const GRUPOS_TARJETA = [
+	{ id: 'card.layout', label: 'Diseño', items: CARD_LAYOUTS },
+	{ id: 'card.font', label: 'Fuente', items: FUENTES },
+];
+
+const COLORES = [
+	{ id: 'bg', label: 'Fondo' },
+	{ id: 'fg', label: 'Texto' },
+	{ id: 'accent', label: 'Acento' },
+];
+---
+
+<section id="logos" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<script type="application/json" data-logo-iconos set:html={cuerposJson}></script>
+
+	<div class="flex min-w-0 flex-col gap-4">
+		<div role="group" aria-label="Qué diseñas" class="flex flex-wrap gap-2">
+			<button type="button" data-logo-modo="logo" aria-pressed="true" class={BOTON}>
+				<Icon name="hexagon" class="size-4 shrink-0" />
+				Logo
+			</button>
+			<button type="button" data-logo-modo="tarjeta" aria-pressed="false" class={BOTON}>
+				<Icon name="id" class="size-4 shrink-0" />
+				Tarjeta de visita
+			</button>
+		</div>
+
+		<div
+			data-logo-vista
+			role="img"
+			aria-label="Vista previa del diseño"
+			class="logo-vista border border-line p-4 [&>svg]:mx-auto [&>svg]:block [&>svg]:h-auto [&>svg]:max-w-full"
+		>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-logo-descarga="svg" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-logo-descarga="png" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+			<button type="button" data-logo-reiniciar class={BOTON}>
+				<Icon name="restore" class="size-4 shrink-0" />
+				Empezar de nuevo
+			</button>
+		</div>
+
+		<p data-logo-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div data-logo-panel="logo" class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span id="logo-icono" class="text-sm text-muted">Icono</span>
+				<div role="group" aria-labelledby="logo-icono" class="grid grid-cols-8 gap-1">
+					{
+						ICONS.map((name) => (
+							<button
+								type="button"
+								data-logo-icono={name}
+								aria-pressed="false"
+								aria-label={name}
+								title={name}
+								class="flex aspect-square items-center justify-center border border-line text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-bg"
+							>
+								<Icon name={name} class="size-5" />
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Nombre</span>
+				<input type="text" data-logo-campo="logo.name" maxlength={NAME_MAX} placeholder="Tu marca" autocomplete="off" class={CAMPO} />
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Lema</span>
+				<input type="text" data-logo-campo="logo.tagline" maxlength={TAGLINE_MAX} placeholder="Lo que haces, en una línea" autocomplete="off" class={CAMPO} />
+			</label>
+
+			{
+				GRUPOS_LOGO.map((grupo) => (
+					<div class="flex flex-col gap-2">
+						<span id={`logo-${grupo.id}`} class="text-sm text-muted">{grupo.label}</span>
+						<div role="group" aria-labelledby={`logo-${grupo.id}`} class="flex flex-wrap gap-2">
+							{grupo.items.map((item) => (
+								<button type="button" data-logo-opcion={grupo.id} data-valor={item.id} aria-pressed="false" class={BOTON}>
+									<Icon name={item.icon} class="size-4 shrink-0" />
+									{item.label}
+								</button>
+							))}
+						</div>
+					</div>
+				))
+			}
+
+			<div class="grid grid-cols-3 gap-2">
+				{
+					COLORES.map((color) => (
+						<label class="flex flex-col gap-1">
+							<span class="text-sm text-muted">{color.label}</span>
+							<input type="color" data-logo-color={`logo.${color.id}`} class={COLOR} />
+						</label>
+					))
+				}
+			</div>
+
+			<label class="flex items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-logo-marca="logo.transparent" class="accent-accent" />
+				Fondo transparente
+			</label>
+		</div>
+
+		<div data-logo-panel="tarjeta" hidden class="flex flex-col gap-5">
+			<div class="grid gap-3 sm:grid-cols-2">
+				<label class="flex flex-col gap-1">
+					<span class="text-sm text-muted">Nombre</span>
+					<input type="text" data-logo-campo="card.name" maxlength={FIELD_MAX} placeholder="Nombre y apellido" autocomplete="off" class={CAMPO} />
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-sm text-muted">Cargo</span>
+					<input type="text" data-logo-campo="card.role" maxlength={FIELD_MAX} placeholder="Lo que haces" autocomplete="off" class={CAMPO} />
+				</label>
+				{
+					CONTACT.map((item) => (
+						<label class="flex flex-col gap-1">
+							<span class="flex items-center gap-2 text-sm text-muted">
+								<Icon name={item.icon} class="size-4 shrink-0" />
+								{item.label}
+							</span>
+							<input type="text" data-logo-campo={`card.${item.id}`} maxlength={FIELD_MAX} placeholder={item.placeholder} autocomplete="off" class={CAMPO} />
+						</label>
+					))
+				}
+			</div>
+
+			{
+				GRUPOS_TARJETA.map((grupo) => (
+					<div class="flex flex-col gap-2">
+						<span id={`logo-${grupo.id}`} class="text-sm text-muted">{grupo.label}</span>
+						<div role="group" aria-labelledby={`logo-${grupo.id}`} class="flex flex-wrap gap-2">
+							{grupo.items.map((item) => (
+								<button type="button" data-logo-opcion={grupo.id} data-valor={item.id} aria-pressed="false" class={BOTON}>
+									<Icon name={item.icon} class="size-4 shrink-0" />
+									{item.label}
+								</button>
+							))}
+						</div>
+					</div>
+				))
+			}
+
+			<div class="flex flex-col gap-2">
+				<div class="grid grid-cols-3 gap-2">
+					{
+						COLORES.map((color) => (
+							<label class="flex flex-col gap-1">
+								<span class="text-sm text-muted">{color.label}</span>
+								<input type="color" data-logo-color={`card.${color.id}`} class={COLOR} />
+							</label>
+						))
+					}
+				</div>
+				<button type="button" data-logo-copiar-colores class={`${BOTON} self-start px-2 py-1`}>
+					<Icon name="palette" class="size-4 shrink-0" />
+					Los colores del logo
+				</button>
+			</div>
+
+			<label class="flex items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-logo-marca="card.showLogo" class="accent-accent" />
+				Llevar el logo
+			</label>
+		</div>
+
+		<p class="text-xs text-muted">Se guarda solo en tu navegador. No se envía a ninguna parte.</p>
+	</div>
+</section>
+
+<style>
+	/* Un damero detrás, para que se note cuándo el fondo es transparente. */
+	.logo-vista {
+		background-color: var(--color-panel);
+		background-image:
+			linear-gradient(45deg, var(--color-line) 25%, transparent 25%, transparent 75%, var(--color-line) 75%),
+			linear-gradient(45deg, var(--color-line) 25%, transparent 25%, transparent 75%, var(--color-line) 75%);
+		background-position:
+			0 0,
+			8px 8px;
+		background-size: 16px 16px;
+	}
+</style>
+
+<script>
+	import { type Design, type IconBodies, SAMPLE, designSvg, fontsOf, loadDesign, saveDesign, toDesign } from '../lib/logo';
+	import { FONTS, fontOf, fontSpec } from '../lib/wordcloud';
+
+	type Parte = 'logo' | 'card';
+
+	const vista = document.querySelector<HTMLElement>('[data-logo-vista]');
+	const nota = document.querySelector<HTMLElement>('[data-logo-nota]');
+
+	let cuerpos: IconBodies = {};
+	try {
+		cuerpos = JSON.parse(document.querySelector('[data-logo-iconos]')?.textContent ?? '{}');
+	} catch {
+		cuerpos = {};
+	}
+
+	let design: Design = loadDesign() ?? structuredClone(SAMPLE);
+
+	function avisar(mensaje: string) {
+		if (nota) nota.textContent = mensaje;
+	}
+
+	function partir(ruta: string): [Parte, string] {
+		const [parte, clave] = ruta.split('.');
+		return [parte === 'card' ? 'card' : 'logo', clave ?? ''];
+	}
+
+	function leer(ruta: string) {
+		const [parte, clave] = partir(ruta);
+		return (design[parte] as unknown as Record<string, unknown>)[clave];
+	}
+
+	/** Todo cambio pasa por el mismo filtro que lo que se lee del localStorage. */
+	function poner(ruta: string, valor: unknown) {
+		const [parte, clave] = partir(ruta);
+		design = toDesign({ ...design, [parte]: { ...design[parte], [clave]: valor } });
+	}
+
+	/**
+	 * Los campos se rellenan solo al cargar o al cambiar de golpe: si se tocaran
+	 * en cada tecla, se comerían el espacio que se está escribiendo.
+	 */
+	function rellenarCampos() {
+		document.querySelectorAll<HTMLInputElement>('[data-logo-campo]').forEach((campo) => {
+			campo.value = String(leer(campo.dataset.logoCampo ?? '') ?? '');
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-logo-color]').forEach((campo) => {
+			campo.value = String(leer(campo.dataset.logoColor ?? '') ?? '#000000');
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-logo-marca]').forEach((campo) => {
+			campo.checked = leer(campo.dataset.logoMarca ?? '') === true;
+		});
+	}
+
+	function pintarMandos() {
+		document.querySelectorAll<HTMLButtonElement>('[data-logo-modo]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.logoModo === design.mode));
+		});
+		document.querySelectorAll<HTMLElement>('[data-logo-panel]').forEach((panel) => {
+			panel.hidden = panel.dataset.logoPanel !== design.mode;
+		});
+		document.querySelectorAll<HTMLButtonElement>('[data-logo-icono]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.logoIcono === design.logo.icon));
+		});
+		document.querySelectorAll<HTMLButtonElement>('[data-logo-opcion]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(leer(button.dataset.logoOpcion ?? '') === button.dataset.valor));
+		});
+	}
+
+	function pintarVista() {
+		if (!vista) return;
+		const doc = new DOMParser().parseFromString(designSvg(design, cuerpos), 'image/svg+xml');
+		const svg = doc.documentElement;
+		if (svg.nodeName !== 'svg') return;
+		vista.replaceChildren(document.importNode(svg, true));
+	}
+
+	function render() {
+		pintarMandos();
+		pintarVista();
+	}
+
+	function cambiar() {
+		if (!saveDesign(design)) avisar('No se pudo guardar en tu navegador: lo que cambies se pierde al salir.');
+		render();
+	}
+
+	/** Al escribir se espera un pelo, para no rehacer el dibujo en cada tecla. */
+	let espera = 0;
+	function pronto() {
+		clearTimeout(espera);
+		espera = window.setTimeout(cambiar, 120);
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-logo-modo]').forEach((button) => {
+		button.addEventListener('click', () => {
+			design = toDesign({ ...design, mode: button.dataset.logoModo });
+			avisar('');
+			cambiar();
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-logo-icono]').forEach((button) => {
+		button.addEventListener('click', () => {
+			poner('logo.icon', button.dataset.logoIcono);
+			cambiar();
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-logo-opcion]').forEach((button) => {
+		button.addEventListener('click', () => {
+			poner(button.dataset.logoOpcion ?? '', button.dataset.valor);
+			cambiar();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-logo-campo]').forEach((campo) => {
+		campo.addEventListener('input', () => {
+			poner(campo.dataset.logoCampo ?? '', campo.value);
+			pronto();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-logo-color]').forEach((campo) => {
+		campo.addEventListener('input', () => {
+			poner(campo.dataset.logoColor ?? '', campo.value);
+			cambiar();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-logo-marca]').forEach((campo) => {
+		campo.addEventListener('change', () => {
+			poner(campo.dataset.logoMarca ?? '', campo.checked);
+			cambiar();
+		});
+	});
+
+	document.querySelector('[data-logo-copiar-colores]')?.addEventListener('click', () => {
+		const { bg, fg, accent } = design.logo;
+		design = toDesign({ ...design, card: { ...design.card, bg, fg, accent } });
+		rellenarCampos();
+		cambiar();
+	});
+
+	document.querySelector('[data-logo-reiniciar]')?.addEventListener('click', () => {
+		if (!confirm('¿Volver al logo y la tarjeta de ejemplo? Se pierde lo que tienes.')) return;
+		design = { ...structuredClone(SAMPLE), mode: design.mode };
+		avisar('');
+		rellenarCampos();
+		cambiar();
+	});
+
+	function nombreFichero(ext: string) {
+		const fuente = design.mode === 'tarjeta' ? design.card.name : design.logo.name;
+		const base = fuente
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `${design.mode === 'tarjeta' ? 'tarjeta' : 'logo'}${base ? `-${base}` : ''}.${ext}`;
+	}
+
+	function bajar(blob: Blob, ext: string) {
+		const url = URL.createObjectURL(blob);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = nombreFichero(ext);
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/** La fuente va dentro del SVG; sale de esta misma web. Si falla, va sin ella. */
+	async function fuenteEnBase64(file: string) {
+		try {
+			const respuesta = await fetch(file);
+			if (!respuesta.ok) return undefined;
+			const bytes = new Uint8Array(await respuesta.arrayBuffer());
+			let binario = '';
+			for (let i = 0; i < bytes.length; i += 0x8000) {
+				binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+			}
+			return btoa(binario);
+		} catch {
+			return undefined;
+		}
+	}
+
+	async function fuentesEnBase64() {
+		const fuentes: Record<string, string> = {};
+		for (const id of new Set(fontsOf(design))) {
+			const datos = await fuenteEnBase64(fontOf(id).file);
+			if (datos) fuentes[id] = datos;
+		}
+		return fuentes;
+	}
+
+	/** El PNG sale del mismo SVG, pintado en un lienzo al doble para que no se vea borroso. */
+	function svgAPng(svg: string) {
+		return new Promise<Blob | null>((resolve) => {
+			const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+			const imagen = new Image();
+			imagen.onload = () => {
+				const lienzo = document.createElement('canvas');
+				lienzo.width = imagen.naturalWidth * 2;
+				lienzo.height = imagen.naturalHeight * 2;
+				const pincel = lienzo.getContext('2d');
+				if (!pincel) {
+					URL.revokeObjectURL(url);
+					resolve(null);
+					return;
+				}
+				pincel.scale(2, 2);
+				pincel.drawImage(imagen, 0, 0);
+				URL.revokeObjectURL(url);
+				try {
+					lienzo.toBlob(resolve, 'image/png');
+				} catch {
+					resolve(null);
+				}
+			};
+			imagen.onerror = () => {
+				URL.revokeObjectURL(url);
+				resolve(null);
+			};
+			imagen.src = url;
+		});
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-logo-descarga]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			button.disabled = true;
+			const svg = designSvg(design, cuerpos, await fuentesEnBase64());
+			if (button.dataset.logoDescarga === 'svg') {
+				bajar(new Blob([svg], { type: 'image/svg+xml' }), 'svg');
+			} else {
+				const png = await svgAPng(svg);
+				if (png) bajar(png, 'png');
+				else avisar('No se pudo generar la imagen.');
+			}
+			button.disabled = false;
+		});
+	});
+
+	rellenarCampos();
+	render();
+
+	// Las fuentes son nuestras, pero la vista previa se repinta cuando están.
+	Promise.all(FONTS.map((font) => document.fonts.load(fontSpec(font, 16))))
+		.catch(() => undefined)
+		.then(() => pintarVista());
+</script>

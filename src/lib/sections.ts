@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Casi todo corre en tu navegador; los consejos y los retos que publicas los ve todo el mundo.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, hacerte un logo y una tarjeta de visita, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Casi todo corre en tu navegador; los consejos y los retos que publicas los ve todo el mundo.',
 	},
 	{
 		id: 'juegos',
@@ -149,6 +149,15 @@ export const SECTIONS: Section[] = [
 		card: 'Dos o tres conjuntos, lo que va en cada uno y lo que comparten.',
 		intro:
 			'Cruza dos o tres conjuntos y apunta lo que va en cada zona: lo que es solo de uno, lo que comparten dos y lo que tienen los tres. Ponle nombre y color a cada círculo, elige el fondo, la fuente y cuánto se rellenan, y te lo llevas en SVG o en PNG. Se dibuja en tu navegador y lo que apuntas se queda en él para seguir otro día.',
+	},
+	{
+		href: '/logos',
+		title: 'Logos y tarjetas',
+		icon: 'id-badge-2',
+		group: 'herramientas',
+		card: 'Un logo sencillo y tu tarjeta de visita con él dentro, en SVG o PNG.',
+		intro:
+			'Dos cosas en una. El logo: un icono, el nombre, un lema, los colores y la fuente, con el icono suelto, lleno o con borde. La tarjeta de visita: nombre, cargo, correo, teléfono, web y dónde estás, en tres diseños y con tu logo dentro si quieres. La vista previa cambia según tocas y te lo llevas en SVG o en PNG. Se dibuja en tu navegador y lo que haces se queda en él para seguir otro día.',
 	},
 	{
 		href: '/animaciones',
