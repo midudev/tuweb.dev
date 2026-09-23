@@ -83,9 +83,9 @@ export const SECTIONS: Section[] = [
 		title: 'Caja de herramientas',
 		icon: 'adjustments',
 		group: 'herramientas',
-		card: 'JSON a YAML, cron en cristiano, regex, Base64, HTML a PHP, colores, tramas, gráficos, tema y config.',
+		card: 'JSON a YAML, cron en cristiano, regex, Base64, HTML a PHP, colores, tramas, gráficos, diagramas, tema y config.',
 		intro:
-			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, Base64 en los dos sentidos, HTML a PHP, colores, tramas SVG, gráficos de datos —de una tabla o un CSV a SVG y PNG—, tema —claro u oscuro, con plantillas de color— y config. Cada pestaña tiene su propio enlace para compartirla.',
+			'Lo que salió de ideas ganadoras: JSON a YAML, cron en cristiano, probador de regex, Base64 en los dos sentidos, HTML a PHP, colores, tramas SVG, gráficos de datos —de una tabla o un CSV a SVG y PNG—, diagramas de flujo —nodos que se arrastran y se unen con flechas, guardados en tu navegador—, tema —claro u oscuro, con plantillas de color— y config. Cada pestaña tiene su propio enlace para compartirla.',
 	},
 	{
 		href: '/playground',

@@ -60,7 +60,7 @@ export const PALETTE: Record<Theme, string[]> = {
 };
 
 /** Los colores de la casa, escritos a mano: el SVG descargado no ve el CSS de la web. */
-const SURFACE: Record<Theme, Record<'bg' | 'fg' | 'muted' | 'line' | 'axis' | 'panel' | 'accent', string>> = {
+export const SURFACE: Record<Theme, Record<'bg' | 'fg' | 'muted' | 'line' | 'axis' | 'panel' | 'accent', string>> = {
 	claro: {
 		bg: '#fdf6ef',
 		fg: '#3b2d24',
@@ -222,7 +222,7 @@ function niceScale(min: number, max: number, count = 5) {
 	return { lo, hi, ticks };
 }
 
-const MONO = 'Geist Mono Variable, ui-monospace, monospace';
+export const MONO = 'Geist Mono Variable, ui-monospace, monospace';
 const PIXEL = 'Geist Pixel, Geist Mono Variable, monospace';
 const W = 960;
 const PAD = 48;
@@ -243,7 +243,7 @@ const safe = (value: string, fallback: string) => (/^#[0-9a-f]{6}$/i.test(value)
 const ENTIDADES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 /** Todo lo que escribe la gente pasa por aquí antes de entrar en el SVG. */
-function esc(value: string) {
+export function esc(value: string) {
 	return value.replace(/[&<>"']/g, (c) => ENTIDADES[c] ?? c);
 }
 

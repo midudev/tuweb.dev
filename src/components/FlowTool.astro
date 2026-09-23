@@ -1,0 +1,560 @@
+---
+/**
+ * Diagramas de flujo: nodos de inicio/fin, proceso y decisión que se arrastran
+ * por el lienzo y se unen con flechas. Se guarda solo en este navegador
+ * (localStorage) y se baja en SVG; no se envía nada.
+ */
+import { COLORS, MAX_LABEL, MAX_TEXT, SHAPES } from '../lib/flow';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-40';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+---
+
+<div
+	role="tabpanel"
+	id="diagramas"
+	aria-labelledby="tab-diagramas"
+	data-panel="diagramas"
+	hidden
+	class="flex flex-col gap-5"
+>
+	<div class="flex flex-wrap items-center gap-2">
+		<span class="mr-1 text-sm text-muted">Añadir</span>
+		{
+			SHAPES.map((shape) => (
+				<button type="button" data-flujo-nuevo={shape.id} class={OPCION}>
+					<Icon name={shape.icon} class="size-4 shrink-0" />
+					{shape.label}
+				</button>
+			))
+		}
+		<button type="button" data-flujo-unir aria-pressed="false" class={OPCION}>
+			<Icon name="arrow-narrow-right" class="size-4 shrink-0" />
+			Unir con flecha
+		</button>
+	</div>
+
+	<div
+		data-flujo-lienzo
+		tabindex="0"
+		aria-label="Lienzo del diagrama"
+		class="touch-none select-none border border-line outline-none focus-visible:border-accent [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"
+	>
+	</div>
+	<p data-flujo-pista class="-mt-2 min-h-5 text-sm text-mark" aria-live="polite"></p>
+
+	<div class="grid gap-7 md:grid-cols-2">
+		<div class="flex min-w-0 flex-col gap-4">
+			<p data-flujo-si="nada" class="text-sm text-muted">Toca un nodo o una flecha para editarlo.</p>
+
+			<div data-flujo-si="nodo" hidden class="flex flex-col gap-4">
+				<label class="flex flex-col gap-1">
+					<span class="text-sm text-muted">Texto (Intro para otra línea)</span>
+					<textarea data-flujo-texto rows="3" maxlength={MAX_TEXT} spellcheck="false" class={`${CAMPO} resize-y`}></textarea>
+				</label>
+				<div class="flex flex-col gap-2">
+					<h3 id="flujo-forma" class="text-sm text-muted">Forma</h3>
+					<div role="group" aria-labelledby="flujo-forma" class="flex flex-wrap gap-2">
+						{
+							SHAPES.map((shape) => (
+								<button type="button" data-flujo-forma={shape.id} aria-pressed="false" class={OPCION}>
+									<Icon name={shape.icon} class="size-4 shrink-0" />
+									{shape.label}
+								</button>
+							))
+						}
+					</div>
+				</div>
+				<div class="flex flex-col gap-2">
+					<h3 id="flujo-color" class="text-sm text-muted">Color</h3>
+					<div role="group" aria-labelledby="flujo-color" class="flex flex-wrap items-center gap-2">
+						{
+							COLORS.map((color) => (
+								<button
+									type="button"
+									data-flujo-color={color}
+									aria-pressed="false"
+									aria-label={`Color ${color}`}
+									title={color}
+									class="size-8 border-2 border-line aria-pressed:border-fg"
+									style={`background:${color}`}
+								/>
+							))
+						}
+						<input
+							type="color"
+							data-flujo-color-libre
+							aria-label="Otro color"
+							title="Otro color"
+							class="h-8 w-10 cursor-pointer border border-line bg-panel p-0.5"
+						/>
+					</div>
+				</div>
+				<div>
+					<button type="button" data-flujo-borra class={OPCION}>
+						<Icon name="trash" class="size-4 shrink-0" />
+						Borrar nodo
+					</button>
+				</div>
+			</div>
+
+			<div data-flujo-si="flecha" hidden class="flex flex-col gap-4">
+				<label class="flex flex-col gap-1">
+					<span class="text-sm text-muted">Texto de la flecha (Sí, No…)</span>
+					<input type="text" data-flujo-etiqueta maxlength={MAX_LABEL} class={CAMPO} />
+				</label>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-flujo-vuelta class={OPCION}>
+						<Icon name="arrows-exchange" class="size-4 shrink-0" />
+						Darle la vuelta
+					</button>
+					<button type="button" data-flujo-borra class={OPCION}>
+						<Icon name="trash" class="size-4 shrink-0" />
+						Borrar flecha
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<label class="inline-flex items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-flujo-oscuro class="size-4 accent-accent" />
+				Fondo oscuro
+			</label>
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-flujo-baja class={OPCION}>
+					<Icon name="file-type-svg" class="size-4 shrink-0" />
+					Descargar .svg
+				</button>
+				<button type="button" data-flujo-ejemplo class={OPCION}>
+					<Icon name="template" class="size-4 shrink-0" />
+					Ejemplo
+				</button>
+				<button type="button" data-flujo-vacia class={OPCION}>
+					<Icon name="eraser" class="size-4 shrink-0" />
+					Vaciar
+				</button>
+			</div>
+			<p class="text-sm text-muted">
+				Se guarda solo en este navegador. Arrastra los nodos para moverlos. Con uno elegido, lo nuevo sale
+				debajo y ya unido; las flechas del teclado lo mueven y Supr lo borra.
+			</p>
+		</div>
+	</div>
+</div>
+
+<script>
+	import {
+		DEFAULT_COLOR,
+		DEFAULT_DIAGRAM,
+		GRID,
+		MAX_EDGES,
+		MAX_NODES,
+		SHAPES,
+		WIDTH,
+		type Diagram,
+		type Seleccion,
+		type Shape,
+		buildSvg,
+		clampX,
+		clampY,
+		nextId,
+		sanitize,
+	} from '../lib/flow';
+
+	const CLAVE = 'tuweb:diagrama';
+
+	const lienzo = document.querySelector<HTMLElement>('[data-flujo-lienzo]');
+	const pista = document.querySelector<HTMLElement>('[data-flujo-pista]');
+	const unir = document.querySelector<HTMLButtonElement>('[data-flujo-unir]');
+	const texto = document.querySelector<HTMLTextAreaElement>('[data-flujo-texto]');
+	const colorLibre = document.querySelector<HTMLInputElement>('[data-flujo-color-libre]');
+	const etiqueta = document.querySelector<HTMLInputElement>('[data-flujo-etiqueta]');
+	const oscuro = document.querySelector<HTMLInputElement>('[data-flujo-oscuro]');
+
+	let diagrama = carga();
+	let elegido: Seleccion | null = null;
+	let uniendo = false;
+	let origen: string | null = null;
+	let arrastre: { id: string; dx: number; dy: number; pointerId: number; movido: boolean } | null = null;
+	let avisoTimer: number | undefined;
+
+	function ejemplo(): Diagram {
+		const d = structuredClone(DEFAULT_DIAGRAM);
+		// Quien entra de noche se lo encuentra oscuro.
+		if (document.documentElement.dataset.modo === 'oscuro') d.theme = 'oscuro';
+		return d;
+	}
+
+	function carga(): Diagram {
+		try {
+			const guardado = localStorage.getItem(CLAVE);
+			const d = guardado ? sanitize(JSON.parse(guardado)) : null;
+			if (d) return d;
+		} catch {
+			// Guardado roto o sin acceso al almacenamiento: se empieza con el ejemplo.
+		}
+		return ejemplo();
+	}
+
+	function guarda() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(diagrama));
+		} catch {
+			avisa('No se pudo guardar en este navegador. Bájalo en SVG para no perderlo.');
+		}
+	}
+
+	const nodo = (id: string | undefined) => diagrama.nodes.find((n) => n.id === id);
+	const flecha = (id: string | undefined) => diagrama.edges.find((e) => e.id === id);
+	const nodoElegido = () => (elegido?.kind === 'nodo' ? nodo(elegido.id) : undefined);
+	const flechaElegida = () => (elegido?.kind === 'flecha' ? flecha(elegido.id) : undefined);
+	const snap = (v: number) => Math.round(v / GRID) * GRID;
+
+	function avisa(mensaje: string) {
+		if (!pista) return;
+		pista.textContent = mensaje;
+		clearTimeout(avisoTimer);
+		avisoTimer = window.setTimeout(pintaPista, 3000);
+	}
+
+	function pintaPista() {
+		if (!pista) return;
+		if (!uniendo) pista.textContent = '';
+		else if (!origen) pista.textContent = 'Toca el nodo de salida. Esc para terminar.';
+		else pista.textContent = 'Ahora el de llegada.';
+	}
+
+	/** Rehacer el SVG se come el foco; si estaba dentro del lienzo, vuelve al nodo elegido. */
+	function pinta(foco = false) {
+		if (!lienzo) return;
+		const tenia = foco || lienzo.contains(document.activeElement);
+		lienzo.innerHTML = buildSvg(diagrama, { editor: true, selected: elegido, linkFrom: origen }).svg;
+		if (!tenia) return;
+		const destino = elegido
+			? lienzo.querySelector<SVGElement>(`[data-${elegido.kind}="${elegido.id}"]`)
+			: null;
+		(destino ?? lienzo).focus({ preventScroll: true });
+	}
+
+	function pintaPanel() {
+		const n = nodoElegido();
+		const f = flechaElegida();
+		const tipo = n ? 'nodo' : f ? 'flecha' : 'nada';
+		document.querySelectorAll<HTMLElement>('[data-flujo-si]').forEach((bloque) => {
+			bloque.hidden = bloque.dataset.flujoSi !== tipo;
+		});
+		if (n) {
+			if (texto && document.activeElement !== texto) texto.value = n.text;
+			document.querySelectorAll<HTMLButtonElement>('[data-flujo-forma]').forEach((button) => {
+				button.setAttribute('aria-pressed', String(button.dataset.flujoForma === n.shape));
+			});
+			document.querySelectorAll<HTMLButtonElement>('[data-flujo-color]').forEach((button) => {
+				button.setAttribute('aria-pressed', String(button.dataset.flujoColor === n.color));
+			});
+			if (colorLibre) colorLibre.value = n.color;
+		}
+		if (f && etiqueta && document.activeElement !== etiqueta) etiqueta.value = f.text;
+		if (oscuro) oscuro.checked = diagrama.theme === 'oscuro';
+		unir?.setAttribute('aria-pressed', String(uniendo));
+	}
+
+	function elige(seleccion: Seleccion | null, foco = false) {
+		elegido = seleccion;
+		pinta(foco);
+		pintaPanel();
+	}
+
+	function cambio() {
+		guarda();
+		pinta();
+		pintaPanel();
+	}
+
+	function modoUnir(activo: boolean) {
+		uniendo = activo;
+		origen = null;
+		pinta();
+		pintaPanel();
+		pintaPista();
+	}
+
+	function une(id: string) {
+		if (!origen) {
+			origen = id;
+			pinta(true);
+			pintaPista();
+			return;
+		}
+		const desde = origen;
+		origen = null;
+		if (desde === id) {
+			pinta(true);
+			pintaPista();
+			return;
+		}
+		if (diagrama.edges.some((e) => e.from === desde && e.to === id)) {
+			avisa('Esos dos ya están unidos en ese sentido.');
+		} else if (diagrama.edges.length >= MAX_EDGES) {
+			avisa(`Como mucho ${MAX_EDGES} flechas.`);
+		} else {
+			diagrama.edges.push({ id: nextId(diagrama.edges, 'f'), from: desde, to: id, text: '' });
+			guarda();
+			pintaPista();
+		}
+		pinta(true);
+		pintaPanel();
+	}
+
+	/** Un hueco donde no haya ya un nodo, recorriendo una rejilla desde (x, y). */
+	function hueco(x: number, y: number) {
+		const libre = (px: number, py: number) => !diagrama.nodes.some((n) => Math.abs(n.x - px) < 120 && Math.abs(n.y - py) < 64);
+		for (let fila = 0; fila < 6; fila++) {
+			for (const col of [0, 144, -144, 288, -288, 432, -432]) {
+				const px = clampX(snap(x + col));
+				const py = clampY(snap(y + fila * 96));
+				if (libre(px, py)) return { x: px, y: py };
+			}
+		}
+		return { x: clampX(snap(x + 16)), y: clampY(snap(y + 16)) };
+	}
+
+	function nuevo(shape: Shape) {
+		if (diagrama.nodes.length >= MAX_NODES) {
+			avisa(`Como mucho ${MAX_NODES} nodos.`);
+			return;
+		}
+		const base = nodoElegido();
+		const sitio = base ? hueco(base.x, base.y + 104) : hueco(WIDTH / 2, 48);
+		const id = nextId(diagrama.nodes, 'n');
+		const text = SHAPES.find((s) => s.id === shape)?.text ?? '';
+		diagrama.nodes.push({ id, shape, ...sitio, text, color: DEFAULT_COLOR[shape] });
+		if (base && diagrama.edges.length < MAX_EDGES) {
+			diagrama.edges.push({ id: nextId(diagrama.edges, 'f'), from: base.id, to: id, text: '' });
+		}
+		if (uniendo) modoUnir(false);
+		elegido = { kind: 'nodo', id };
+		cambio();
+		texto?.focus();
+		texto?.select();
+	}
+
+	function borra() {
+		if (elegido?.kind === 'nodo') {
+			const id = elegido.id;
+			diagrama.nodes = diagrama.nodes.filter((n) => n.id !== id);
+			diagrama.edges = diagrama.edges.filter((e) => e.from !== id && e.to !== id);
+		} else if (elegido?.kind === 'flecha') {
+			const id = elegido.id;
+			diagrama.edges = diagrama.edges.filter((e) => e.id !== id);
+		} else return;
+		elegido = null;
+		cambio();
+	}
+
+	function punto(event: PointerEvent) {
+		const ctm = lienzo?.querySelector('svg')?.getScreenCTM();
+		return ctm ? new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse()) : null;
+	}
+
+	lienzo?.addEventListener('pointerdown', (event) => {
+		if (event.button !== 0) return;
+		const destino = event.target as Element;
+		const n = nodo(destino.closest<SVGElement>('[data-nodo]')?.dataset.nodo);
+		const f = flecha(destino.closest<SVGElement>('[data-flecha]')?.dataset.flecha);
+		// El foco lo ponemos a mano: el elemento pulsado desaparece al repintar.
+		event.preventDefault();
+		if (n) {
+			if (uniendo) {
+				une(n.id);
+				return;
+			}
+			if (elegido?.id !== n.id) elige({ kind: 'nodo', id: n.id }, true);
+			else pinta(true);
+			const p = punto(event);
+			if (!p) return;
+			arrastre = { id: n.id, dx: p.x - n.x, dy: p.y - n.y, pointerId: event.pointerId, movido: false };
+			lienzo.setPointerCapture(event.pointerId);
+		} else if (f && !uniendo) {
+			elige({ kind: 'flecha', id: f.id }, true);
+		} else if (uniendo && origen) {
+			origen = null;
+			pinta(true);
+			pintaPista();
+		} else {
+			elige(null, true);
+		}
+	});
+
+	lienzo?.addEventListener('pointermove', (event) => {
+		if (!arrastre || event.pointerId !== arrastre.pointerId) return;
+		const n = nodo(arrastre.id);
+		const p = punto(event);
+		if (!n || !p) return;
+		const x = clampX(snap(p.x - arrastre.dx));
+		const y = clampY(snap(p.y - arrastre.dy));
+		if (x === n.x && y === n.y) return;
+		n.x = x;
+		n.y = y;
+		arrastre.movido = true;
+		pinta();
+	});
+
+	function suelta(event: PointerEvent) {
+		if (!arrastre || event.pointerId !== arrastre.pointerId) return;
+		if (arrastre.movido) guarda();
+		arrastre = null;
+	}
+	lienzo?.addEventListener('pointerup', suelta);
+	lienzo?.addEventListener('pointercancel', suelta);
+
+	// Con el tabulador se recorren nodos y flechas; el que coge el foco queda elegido.
+	lienzo?.addEventListener('focusin', (event) => {
+		const destino = event.target as Element;
+		const id = destino.closest<SVGElement>('[data-nodo]')?.dataset.nodo;
+		const idFlecha = destino.closest<SVGElement>('[data-flecha]')?.dataset.flecha;
+		if (id && elegido?.id !== id) elige({ kind: 'nodo', id });
+		else if (idFlecha && elegido?.id !== idFlecha) elige({ kind: 'flecha', id: idFlecha });
+	});
+
+	const PASOS: Record<string, [number, number]> = {
+		ArrowUp: [0, -1],
+		ArrowDown: [0, 1],
+		ArrowLeft: [-1, 0],
+		ArrowRight: [1, 0],
+	};
+
+	lienzo?.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape') {
+			if (uniendo) modoUnir(false);
+			else elige(null, true);
+			return;
+		}
+		if (event.key === 'Delete' || event.key === 'Backspace') {
+			event.preventDefault();
+			borra();
+			lienzo.focus({ preventScroll: true });
+			return;
+		}
+		if ((event.key === 'Enter' || event.key === ' ') && uniendo && elegido?.kind === 'nodo') {
+			event.preventDefault();
+			une(elegido.id);
+			return;
+		}
+		const paso = PASOS[event.key];
+		const n = nodoElegido();
+		if (!paso || !n) return;
+		event.preventDefault();
+		const salto = event.shiftKey ? GRID * 4 : GRID;
+		n.x = clampX(n.x + paso[0] * salto);
+		n.y = clampY(n.y + paso[1] * salto);
+		cambio();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-flujo-nuevo]').forEach((button) => {
+		button.addEventListener('click', () => nuevo(button.dataset.flujoNuevo as Shape));
+	});
+
+	unir?.addEventListener('click', () => {
+		modoUnir(!uniendo);
+		if (uniendo) lienzo?.focus({ preventScroll: true });
+	});
+
+	texto?.addEventListener('input', () => {
+		const n = nodoElegido();
+		if (!n) return;
+		n.text = texto.value;
+		guarda();
+		pinta();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-flujo-forma]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const n = nodoElegido();
+			if (!n) return;
+			n.shape = button.dataset.flujoForma as Shape;
+			cambio();
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-flujo-color]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const n = nodoElegido();
+			if (!n || !button.dataset.flujoColor) return;
+			n.color = button.dataset.flujoColor;
+			cambio();
+		});
+	});
+
+	colorLibre?.addEventListener('input', () => {
+		const n = nodoElegido();
+		if (!n || !/^#[0-9a-f]{6}$/i.test(colorLibre.value)) return;
+		n.color = colorLibre.value;
+		cambio();
+	});
+
+	etiqueta?.addEventListener('input', () => {
+		const f = flechaElegida();
+		if (!f) return;
+		f.text = etiqueta.value;
+		guarda();
+		pinta();
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-flujo-vuelta]')?.addEventListener('click', () => {
+		const f = flechaElegida();
+		if (!f) return;
+		if (diagrama.edges.some((e) => e.from === f.to && e.to === f.from)) {
+			avisa('Ya hay una flecha en ese sentido.');
+			return;
+		}
+		[f.from, f.to] = [f.to, f.from];
+		cambio();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-flujo-borra]').forEach((button) => {
+		button.addEventListener('click', borra);
+	});
+
+	oscuro?.addEventListener('change', () => {
+		diagrama.theme = oscuro.checked ? 'oscuro' : 'claro';
+		cambio();
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-flujo-ejemplo]')?.addEventListener('click', () => {
+		if (diagrama.nodes.length && !confirm('¿Cambiar tu diagrama por el ejemplo?')) return;
+		const theme = diagrama.theme;
+		diagrama = { ...ejemplo(), theme };
+		elegido = null;
+		if (uniendo) modoUnir(false);
+		cambio();
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-flujo-vacia]')?.addEventListener('click', () => {
+		if (diagrama.nodes.length && !confirm('¿Borrar todo el diagrama?')) return;
+		diagrama = { ...diagrama, nodes: [], edges: [] };
+		elegido = null;
+		if (uniendo) modoUnir(false);
+		cambio();
+		avisa('Lienzo vacío. Añade un nodo para empezar.');
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-flujo-baja]')?.addEventListener('click', () => {
+		if (!diagrama.nodes.length) {
+			avisa('No hay nada que bajar todavía.');
+			return;
+		}
+		const url = URL.createObjectURL(new Blob([buildSvg(diagrama).svg], { type: 'image/svg+xml' }));
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = 'diagrama.svg';
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	pinta();
+	pintaPanel();
+</script>
