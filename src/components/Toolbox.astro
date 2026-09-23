@@ -13,6 +13,7 @@ import GradientTool from './GradientTool.astro';
 import Icon from './Icon.astro';
 import ImageTool from './ImageTool.astro';
 import LayoutTool from './LayoutTool.astro';
+import OverlayTool from './OverlayTool.astro';
 import ParallaxTool from './ParallaxTool.astro';
 import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
@@ -42,6 +43,7 @@ const tools = [
 	{ id: 'parallax', label: 'Parallax', icon: 'stack-2' },
 	{ id: 'maquetador', label: 'Maquetador', icon: 'layout-board' },
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
+	{ id: 'superposicion', label: 'Superposición', icon: 'layers-difference' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
 	{ id: 'graficos', label: 'Gráficos', icon: 'chart-bar' },
@@ -202,6 +204,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<LayoutTool />
 
 	<ImageTool />
+
+	<OverlayTool />
 
 	<PatternTool />
 

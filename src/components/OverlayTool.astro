@@ -1,0 +1,680 @@
+---
+/**
+ * Comparador de diseños por superposición: dos capturas de una web, una encima
+ * de la otra. Se comparan con opacidad, con una cortinilla que se arrastra o
+ * en modo diferencia, que marca los píxeles que cambian. Todo pasa en el
+ * navegador: las imágenes no salen de él y no se guardan al recargar.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const HUECOS = [
+	{ id: 'a', label: 'Captura A · antes' },
+	{ id: 'b', label: 'Captura B · después' },
+];
+
+const MODOS = [
+	{ id: 'superposicion', label: 'Opacidad', icon: 'layers-intersect' },
+	{ id: 'cortinilla', label: 'Cortinilla', icon: 'separator-vertical' },
+	{ id: 'diferencia', label: 'Diferencia', icon: 'layers-difference' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="superposicion"
+	aria-labelledby="tab-superposicion"
+	data-panel="superposicion"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-3 sm:grid-cols-2">
+		{
+			HUECOS.map((h) => (
+				<div
+					data-sp-hueco={h.id}
+					class="flex min-w-0 flex-col gap-2 border border-dashed border-line bg-panel p-3 data-lleno:border-solid data-encima:border-accent"
+				>
+					<span class="flex items-center gap-2 text-sm text-fg">
+						<Icon name="photo" class="size-4 shrink-0 text-accent" />
+						{h.label}
+					</span>
+					<span data-sp-info={h.id} class="truncate text-xs text-muted">
+						Sin imagen
+					</span>
+					<label class={`${BOTON} w-max cursor-pointer focus-within:border-accent`}>
+						<Icon name="upload" class="size-4 shrink-0" />
+						Subir
+						<input type="file" accept="image/*" data-sp-subir={h.id} class="sr-only" />
+					</label>
+				</div>
+			))
+		}
+	</div>
+
+	<div class="flex flex-wrap items-center gap-2">
+		<button type="button" data-sp-ejemplo class={BOTON}>
+			<Icon name="photo" class="size-4 shrink-0" />
+			Ejemplo
+		</button>
+		<button type="button" data-sp-cambiar class={BOTON}>
+			<Icon name="switch-horizontal" class="size-4 shrink-0" />
+			Intercambiar
+		</button>
+		<button type="button" data-sp-reset class={BOTON}>
+			<Icon name="eraser" class="size-4 shrink-0" />
+			Restablecer
+		</button>
+	</div>
+	<p class="-mt-3 text-xs text-muted">
+		También puedes arrastrarlas aquí o pegarlas con Ctrl+V. No salen de tu navegador.
+	</p>
+	<p data-sp-aviso class="-mt-3 text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-col gap-2">
+		<span id="sp-modo" class="text-sm text-muted">Modo</span>
+		<div role="group" aria-labelledby="sp-modo" class="flex flex-wrap gap-2">
+			{
+				MODOS.map((m) => (
+					<button type="button" data-sp-modo={m.id} aria-pressed="false" class={BOTON}>
+						<Icon name={m.icon} class="size-4 shrink-0" />
+						{m.label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="grid gap-4 sm:grid-cols-2">
+		<label data-sp-control="superposicion" class="flex flex-col gap-1">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				Opacidad de B
+				<output data-sp-salida="opacidad" class="text-mark"></output>
+			</span>
+			<input type="range" data-sp-campo="opacidad" min="0" max="100" step="1" class="w-full accent-accent" />
+		</label>
+
+		<label data-sp-control="cortinilla" class="flex flex-col gap-1">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				Corte: A a la izquierda, B a la derecha
+				<output data-sp-salida="corte" class="text-mark"></output>
+			</span>
+			<input type="range" data-sp-campo="corte" min="0" max="100" step="1" class="w-full accent-accent" />
+		</label>
+
+		<div data-sp-control="diferencia" class="flex flex-col gap-3">
+			<label class="flex flex-col gap-1">
+				<span class="flex justify-between gap-2 text-sm text-muted">
+					Umbral
+					<output data-sp-salida="umbral" class="text-mark"></output>
+				</span>
+				<input type="range" data-sp-campo="umbral" min="0" max="128" step="1" class="w-full accent-accent" />
+			</label>
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-sp-cruda="false" aria-pressed="false" class={`${BOTON} px-2 py-1`}>
+					Resaltar
+				</button>
+				<button type="button" data-sp-cruda="true" aria-pressed="false" class={`${BOTON} px-2 py-1`}>
+					Cruda
+				</button>
+			</div>
+		</div>
+
+		<div class="flex flex-wrap items-start gap-2 sm:justify-end">
+			<button type="button" data-sp-igualar aria-pressed="false" class={BOTON} title="Escala B al ancho de A">
+				<Icon name="arrows-horizontal" class="size-4 shrink-0" />
+				Igualar anchos
+			</button>
+			<button type="button" data-sp-real aria-pressed="false" class={BOTON}>
+				<Icon name="zoom-in" class="size-4 shrink-0" />
+				Tamaño real
+			</button>
+			<button type="button" data-sp-png class={BOTON}>
+				<Icon name="download" class="size-4 shrink-0" />
+				PNG
+			</button>
+		</div>
+	</div>
+
+	<p data-sp-datos class="text-sm text-mark empty:hidden" aria-live="polite"></p>
+
+	<div
+		data-sp-escenario
+		class="max-h-[70vh] overflow-auto border border-line bg-panel data-encima:border-accent"
+	>
+		<p data-sp-vacio class="px-4 py-16 text-center text-sm text-muted">
+			Sube dos capturas, o prueba con el ejemplo.
+		</p>
+		<canvas data-sp-lienzo aria-label="Comparación de las dos capturas" class="block w-full max-w-none" hidden
+		></canvas>
+	</div>
+</div>
+
+<script>
+	type Id = 'a' | 'b';
+	type Modo = 'superposicion' | 'cortinilla' | 'diferencia';
+	type Campo = 'opacidad' | 'corte' | 'umbral';
+	type Captura = { fuente: CanvasImageSource; ancho: number; alto: number; nombre: string; url?: string };
+	type Estado = Record<Campo, number> & { modo: Modo; cruda: boolean; igualar: boolean; real: boolean };
+
+	const CLAVE = 'tuweb:superposicion';
+	const MAX_BYTES = 20 * 1024 * 1024;
+	// Por encima de esto el navegador se niega a pintar el lienzo (Safari, sobre todo).
+	const MAX_LADO = 16384;
+	const MAX_PIXELES = 16_000_000;
+	const MODOS: Modo[] = ['superposicion', 'cortinilla', 'diferencia'];
+	const RANGOS: Record<Campo, [number, number]> = { opacidad: [0, 100], corte: [0, 100], umbral: [0, 128] };
+	const CAMPOS = Object.keys(RANGOS) as Campo[];
+	const INICIAL: Estado = {
+		modo: 'superposicion',
+		opacidad: 50,
+		corte: 50,
+		umbral: 16,
+		cruda: false,
+		igualar: false,
+		real: false,
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="superposicion"]');
+	const aviso = panel?.querySelector<HTMLElement>('[data-sp-aviso]');
+	const datos = panel?.querySelector<HTMLElement>('[data-sp-datos]');
+	const escenario = panel?.querySelector<HTMLElement>('[data-sp-escenario]');
+	const vacio = panel?.querySelector<HTMLElement>('[data-sp-vacio]');
+	const lienzo = panel?.querySelector<HTMLCanvasElement>('[data-sp-lienzo]');
+	const png = panel?.querySelector<HTMLButtonElement>('[data-sp-png]');
+
+	const capturas: Partial<Record<Id, Captura>> = {};
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const numero = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 2 });
+
+	function cargar(): Estado {
+		const estado = { ...INICIAL };
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			if (MODOS.includes(guardado.modo)) estado.modo = guardado.modo;
+			CAMPOS.forEach((c) => {
+				const v = guardado[c];
+				if (typeof v === 'number' && Number.isFinite(v)) estado[c] = limitar(v, ...RANGOS[c]);
+			});
+			estado.cruda = guardado.cruda === true;
+			estado.igualar = guardado.igualar === true;
+			estado.real = guardado.real === true;
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento: la herramienta sigue igual.
+		}
+	}
+
+	function avisar(texto: string) {
+		if (aviso) aviso.textContent = texto;
+	}
+
+	// --- Capas: cada captura pintada a la medida de la comparación ---
+
+	let ancho = 0;
+	let alto = 0;
+	let reduccion = 1;
+	let capaA: HTMLCanvasElement | null = null;
+	let capaB: HTMLCanvasElement | null = null;
+	let pixelesA: ImageData | null = null;
+	let pixelesB: ImageData | null = null;
+
+	function capa(c: Captura, escala: number) {
+		const nodo = document.createElement('canvas');
+		nodo.width = ancho;
+		nodo.height = alto;
+		const g = nodo.getContext('2d', { willReadFrequently: true });
+		g?.drawImage(c.fuente, 0, 0, Math.round(c.ancho * escala), Math.round(c.alto * escala));
+		return nodo;
+	}
+
+	function preparar() {
+		const a = capturas.a;
+		const b = capturas.b;
+		capaA = capaB = null;
+		pixelesA = pixelesB = null;
+		if (!a && !b) {
+			ancho = alto = 0;
+			return;
+		}
+		// Con «igualar», B se estira o encoge hasta el ancho de A.
+		const escalaB = a && b && estado.igualar ? a.ancho / b.ancho : 1;
+		const w = Math.max(a?.ancho ?? 0, Math.round((b?.ancho ?? 0) * escalaB));
+		const h = Math.max(a?.alto ?? 0, Math.round((b?.alto ?? 0) * escalaB));
+		reduccion = Math.min(1, MAX_LADO / w, MAX_LADO / h, Math.sqrt(MAX_PIXELES / (w * h)));
+		ancho = Math.max(1, Math.floor(w * reduccion));
+		alto = Math.max(1, Math.floor(h * reduccion));
+		if (a) capaA = capa(a, reduccion);
+		if (b) capaB = capa(b, escalaB * reduccion);
+		if (reduccion < 1) avisar(`Son muy grandes: se comparan al ${numero(reduccion * 100)} % de su tamaño.`);
+	}
+
+	/** El acento de ahora, pase lo que pase con el tema: se pinta un píxel y se lee. */
+	function acento(): [number, number, number] {
+		const prueba = document.createElement('canvas');
+		prueba.width = prueba.height = 1;
+		const g = prueba.getContext('2d', { willReadFrequently: true });
+		if (!g) return [194, 65, 12];
+		g.fillStyle = '#c2410c';
+		g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#c2410c';
+		g.fillRect(0, 0, 1, 1);
+		const [r, v, b] = g.getImageData(0, 0, 1, 1).data;
+		return [r, v, b];
+	}
+
+	// --- Pintado ---
+
+	function diferencia(g: CanvasRenderingContext2D, color: [number, number, number], grosor: number) {
+		if (!capaA || !capaB) return;
+		pixelesA ??= capaA.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, ancho, alto) ?? null;
+		pixelesB ??= capaB.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, ancho, alto) ?? null;
+		if (!pixelesA || !pixelesB) return;
+		const a = pixelesA.data;
+		const b = pixelesB.data;
+		const salida = g.createImageData(ancho, alto);
+		const s = salida.data;
+		const [cr, cg, cb] = color;
+		let cambios = 0;
+		let x0 = ancho;
+		let y0 = alto;
+		let x1 = -1;
+		let y1 = -1;
+		for (let y = 0, i = 0; y < alto; y++) {
+			for (let x = 0; x < ancho; x++, i += 4) {
+				const dr = Math.abs(a[i] - b[i]);
+				const dg = Math.abs(a[i + 1] - b[i + 1]);
+				const db = Math.abs(a[i + 2] - b[i + 2]);
+				const distinto = Math.max(dr, dg, db, Math.abs(a[i + 3] - b[i + 3])) > estado.umbral;
+				if (distinto) {
+					cambios++;
+					if (x < x0) x0 = x;
+					if (x > x1) x1 = x;
+					if (y < y0) y0 = y;
+					y1 = y;
+				}
+				if (estado.cruda) {
+					s[i] = dr;
+					s[i + 1] = dg;
+					s[i + 2] = db;
+				} else if (distinto) {
+					s[i] = cr;
+					s[i + 1] = cg;
+					s[i + 2] = cb;
+				} else {
+					// Lo que no cambia queda de fondo: A en gris y muy lavado.
+					const gris = a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11;
+					const v = 255 - (255 - gris) * 0.25 * (a[i + 3] / 255);
+					s[i] = s[i + 1] = s[i + 2] = v;
+				}
+				s[i + 3] = 255;
+			}
+		}
+		g.putImageData(salida, 0, 0);
+		if (!datos) return;
+		if (!cambios) {
+			datos.textContent = 'Idénticas con este umbral.';
+			return;
+		}
+		g.strokeStyle = `rgb(${cr} ${cg} ${cb})`;
+		g.lineWidth = grosor;
+		g.strokeRect(x0 - grosor / 2, y0 - grosor / 2, x1 - x0 + 1 + grosor, y1 - y0 + 1 + grosor);
+		// Las coordenadas, en píxeles de la captura aunque se haya reducido.
+		const real = (n: number) => Math.round(n / reduccion);
+		datos.textContent =
+			`Cambia el ${numero((cambios / (ancho * alto)) * 100)} % de los píxeles, ` +
+			`entre ${real(x0)},${real(y0)} y ${real(x1 + 1)},${real(y1 + 1)}.`;
+	}
+
+	function pintar() {
+		if (!lienzo || !vacio) return;
+		const hay = Boolean(capaA || capaB);
+		lienzo.hidden = !hay;
+		vacio.hidden = hay;
+		if (png) png.disabled = !hay;
+		if (datos) datos.textContent = '';
+		if (!hay) return;
+		if (lienzo.width !== ancho) lienzo.width = ancho;
+		if (lienzo.height !== alto) lienzo.height = alto;
+		lienzo.style.width = estado.real ? `${ancho}px` : '100%';
+		// En la cortinilla, arrastrar de lado con el dedo la mueve; en vertical, la página baja.
+		lienzo.style.touchAction = estado.modo === 'cortinilla' ? 'pan-y' : '';
+		lienzo.style.cursor = estado.modo === 'cortinilla' ? 'ew-resize' : '';
+		const g = lienzo.getContext('2d');
+		if (!g) return;
+		g.clearRect(0, 0, ancho, alto);
+		g.globalAlpha = 1;
+		if (!capaA || !capaB) {
+			const sola = capaA ?? capaB;
+			if (sola) g.drawImage(sola, 0, 0);
+			if (datos) datos.textContent = `Falta la captura ${capaA ? 'B' : 'A'} para comparar.`;
+			return;
+		}
+		const color = acento();
+		const grosor = Math.max(2, Math.round(ancho / 400));
+		if (estado.modo === 'superposicion') {
+			g.drawImage(capaA, 0, 0);
+			g.globalAlpha = estado.opacidad / 100;
+			g.drawImage(capaB, 0, 0);
+			g.globalAlpha = 1;
+		} else if (estado.modo === 'cortinilla') {
+			const x = Math.round((ancho * estado.corte) / 100);
+			g.drawImage(capaA, 0, 0);
+			if (x < ancho) g.drawImage(capaB, x, 0, ancho - x, alto, x, 0, ancho - x, alto);
+			g.fillStyle = `rgb(${color.join(' ')})`;
+			g.fillRect(Math.min(Math.max(0, x - grosor / 2), ancho - grosor), 0, grosor, alto);
+		} else {
+			diferencia(g, color, grosor);
+		}
+	}
+
+	let pendiente = false;
+	function pedirPintado() {
+		if (pendiente) return;
+		pendiente = true;
+		requestAnimationFrame(() => {
+			pendiente = false;
+			pintar();
+		});
+	}
+
+	// --- Controles ---
+
+	function pintarControles() {
+		if (!panel) return;
+		panel.querySelectorAll<HTMLButtonElement>('[data-sp-modo]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.spModo === estado.modo));
+		});
+		panel.querySelectorAll<HTMLElement>('[data-sp-control]').forEach((control) => {
+			control.hidden = control.dataset.spControl !== estado.modo;
+		});
+		panel.querySelectorAll<HTMLButtonElement>('[data-sp-cruda]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.spCruda === String(estado.cruda)));
+		});
+		panel.querySelector('[data-sp-igualar]')?.setAttribute('aria-pressed', String(estado.igualar));
+		panel.querySelector('[data-sp-real]')?.setAttribute('aria-pressed', String(estado.real));
+		CAMPOS.forEach((c) => {
+			const campo = panel.querySelector<HTMLInputElement>(`[data-sp-campo="${c}"]`);
+			if (campo) campo.value = String(estado[c]);
+		});
+		pintarSalidas();
+		(['a', 'b'] as Id[]).forEach((id) => {
+			const c = capturas[id];
+			const hueco = panel.querySelector<HTMLElement>(`[data-sp-hueco="${id}"]`);
+			const info = panel.querySelector<HTMLElement>(`[data-sp-info="${id}"]`);
+			hueco?.toggleAttribute('data-lleno', Boolean(c));
+			if (info) info.textContent = c ? `${c.nombre} · ${c.ancho} × ${c.alto}` : 'Sin imagen';
+		});
+	}
+
+	function pintarSalidas() {
+		const textos: Record<Campo, string> = {
+			opacidad: `${estado.opacidad} %`,
+			corte: `${estado.corte} %`,
+			umbral: String(estado.umbral),
+		};
+		panel?.querySelectorAll<HTMLOutputElement>('[data-sp-salida]').forEach((salida) => {
+			salida.textContent = textos[salida.dataset.spSalida as Campo] ?? '';
+		});
+	}
+
+	function todo() {
+		avisar('');
+		pintarControles();
+		preparar();
+		pintar();
+		guardar();
+	}
+
+	// --- Cargar capturas ---
+
+	function soltarCaptura(id: Id) {
+		const url = capturas[id]?.url;
+		if (url) URL.revokeObjectURL(url);
+		delete capturas[id];
+	}
+
+	function cargarFichero(id: Id, fichero: File) {
+		if (!fichero.type.startsWith('image/')) return avisar('Eso no es una imagen.');
+		if (fichero.size > MAX_BYTES) return avisar('La imagen pesa más de 20 MB.');
+		const url = URL.createObjectURL(fichero);
+		const img = new Image();
+		img.onload = () => {
+			if (!img.naturalWidth || !img.naturalHeight) {
+				URL.revokeObjectURL(url);
+				return avisar('Esa imagen no tiene tamaño.');
+			}
+			soltarCaptura(id);
+			capturas[id] = {
+				fuente: img,
+				ancho: img.naturalWidth,
+				alto: img.naturalHeight,
+				nombre: fichero.name || 'captura',
+				url,
+			};
+			todo();
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			avisar('No se pudo leer esa imagen.');
+		};
+		img.src = url;
+	}
+
+	/** La siguiente libre; con las dos puestas, la nueva sustituye a B. */
+	const libre = (): Id => (capturas.a ? 'b' : 'a');
+
+	panel?.querySelectorAll<HTMLInputElement>('[data-sp-subir]').forEach((campo) => {
+		campo.addEventListener('change', () => {
+			const fichero = campo.files?.[0];
+			campo.value = '';
+			if (fichero) cargarFichero(campo.dataset.spSubir === 'b' ? 'b' : 'a', fichero);
+		});
+	});
+
+	function imagenesDe(lista: FileList | undefined | null) {
+		return [...(lista ?? [])].filter((f) => f.type.startsWith('image/'));
+	}
+
+	function zonaDeSoltar(zona: HTMLElement, id?: Id) {
+		zona.addEventListener('dragover', (evento) => {
+			evento.preventDefault();
+			zona.setAttribute('data-encima', '');
+		});
+		zona.addEventListener('dragleave', () => zona.removeAttribute('data-encima'));
+		zona.addEventListener('drop', (evento) => {
+			// Siempre: si no, el navegador abre el fichero y se va de la página.
+			evento.preventDefault();
+			evento.stopPropagation();
+			zona.removeAttribute('data-encima');
+			const ficheros = imagenesDe(evento.dataTransfer?.files);
+			if (!ficheros.length) return avisar('Eso no es una imagen.');
+			if (id) return cargarFichero(id, ficheros[0]);
+			if (ficheros.length >= 2) {
+				cargarFichero('a', ficheros[0]);
+				cargarFichero('b', ficheros[1]);
+				return;
+			}
+			cargarFichero(libre(), ficheros[0]);
+		});
+	}
+
+	panel?.querySelectorAll<HTMLElement>('[data-sp-hueco]').forEach((hueco) => {
+		zonaDeSoltar(hueco, hueco.dataset.spHueco === 'b' ? 'b' : 'a');
+	});
+	if (escenario) zonaDeSoltar(escenario);
+
+	document.addEventListener('paste', (evento) => {
+		if (!panel || panel.hidden) return;
+		const fichero = imagenesDe(evento.clipboardData?.files)[0];
+		if (!fichero) return;
+		evento.preventDefault();
+		cargarFichero(libre(), fichero);
+	});
+
+	/** Dos maquetas de mentira, casi iguales, para ver cómo va sin subir nada. */
+	function maqueta(cambiada: boolean): Captura {
+		const c = document.createElement('canvas');
+		c.width = 720;
+		c.height = 900;
+		const g = c.getContext('2d');
+		if (g) {
+			const caja = (color: string, x: number, y: number, w: number, h: number) => {
+				g.fillStyle = color;
+				g.fillRect(x, y, w, h);
+			};
+			caja('#fdf6ef', 0, 0, 720, 900);
+			caja('#3b2d24', 0, 0, 720, 64);
+			caja('#fdf6ef', 32, 24, 120, 16);
+			[0, 1, 2].forEach((i) => caja('#e8d9c8', 420 + i * 96, 28, 72, 8));
+			caja(cambiada ? '#c2410c' : '#3b2d24', 32, 120, cambiada ? 520 : 460, 36);
+			[600, 560, 380].forEach((w, i) => caja('#7a6152', 32, 184 + i * 24, w, 10));
+			caja('#c2410c', 32, cambiada ? 272 : 264, cambiada ? 200 : 160, 44);
+			[0, 1, 2].forEach((i) => {
+				const x = 32 + i * 228;
+				caja('#e8d9c8', x, 360, 200, 240);
+				caja('#f7ece1', x + 1, 361, 198, 238);
+				caja(cambiada && i === 1 ? '#e8b04a' : '#e8d9c8', x + 12, 372, 176, 110);
+				[150, 120, cambiada && i === 2 ? 60 : 90].forEach((w, j) => caja('#7a6152', x + 12, 500 + j * 22, w, 8));
+			});
+			caja('#e8d9c8', 0, 820, 720, 1);
+			caja('#7a6152', 32, 848, cambiada ? 300 : 240, 8);
+		}
+		return { fuente: c, ancho: c.width, alto: c.height, nombre: cambiada ? 'despues.png' : 'antes.png' };
+	}
+
+	panel?.querySelector('[data-sp-ejemplo]')?.addEventListener('click', () => {
+		soltarCaptura('a');
+		soltarCaptura('b');
+		capturas.a = maqueta(false);
+		capturas.b = maqueta(true);
+		todo();
+	});
+
+	panel?.querySelector('[data-sp-cambiar]')?.addEventListener('click', () => {
+		const a = capturas.a;
+		const b = capturas.b;
+		delete capturas.a;
+		delete capturas.b;
+		if (b) capturas.a = b;
+		if (a) capturas.b = a;
+		todo();
+	});
+
+	panel?.querySelector('[data-sp-reset]')?.addEventListener('click', () => {
+		soltarCaptura('a');
+		soltarCaptura('b');
+		estado = { ...INICIAL };
+		todo();
+	});
+
+	// --- Ajustes ---
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-sp-modo]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const modo = boton.dataset.spModo as Modo;
+			if (!MODOS.includes(modo)) return;
+			estado.modo = modo;
+			pintarControles();
+			pintar();
+			guardar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-sp-cruda]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.cruda = boton.dataset.spCruda === 'true';
+			pintarControles();
+			pintar();
+			guardar();
+		});
+	});
+
+	panel?.querySelector('[data-sp-igualar]')?.addEventListener('click', () => {
+		estado.igualar = !estado.igualar;
+		todo();
+	});
+
+	panel?.querySelector('[data-sp-real]')?.addEventListener('click', () => {
+		estado.real = !estado.real;
+		pintarControles();
+		pintar();
+		guardar();
+	});
+
+	panel?.querySelectorAll<HTMLInputElement>('[data-sp-campo]').forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const clave = campo.dataset.spCampo as Campo;
+			const valor = Number(campo.value);
+			if (!CAMPOS.includes(clave) || !Number.isFinite(valor)) return;
+			estado[clave] = limitar(valor, ...RANGOS[clave]);
+			pintarSalidas();
+			pedirPintado();
+			guardar();
+		});
+	});
+
+	// La cortinilla también se arrastra sobre la propia imagen.
+	let arrastrando = false;
+
+	function cortarEn(evento: PointerEvent) {
+		if (!lienzo) return;
+		const caja = lienzo.getBoundingClientRect();
+		if (!caja.width) return;
+		estado.corte = limitar(((evento.clientX - caja.left) / caja.width) * 100, 0, 100);
+		const campo = panel?.querySelector<HTMLInputElement>('[data-sp-campo="corte"]');
+		if (campo) campo.value = String(estado.corte);
+		pintarSalidas();
+		pedirPintado();
+	}
+
+	lienzo?.addEventListener('pointerdown', (evento) => {
+		if (estado.modo !== 'cortinilla' || !capaA || !capaB) return;
+		arrastrando = true;
+		lienzo.setPointerCapture(evento.pointerId);
+		cortarEn(evento);
+	});
+	lienzo?.addEventListener('pointermove', (evento) => {
+		if (arrastrando) cortarEn(evento);
+	});
+	const soltarCortinilla = () => {
+		if (!arrastrando) return;
+		arrastrando = false;
+		guardar();
+	};
+	lienzo?.addEventListener('pointerup', soltarCortinilla);
+	lienzo?.addEventListener('pointercancel', soltarCortinilla);
+
+	png?.addEventListener('click', () => {
+		lienzo?.toBlob((blob) => {
+			if (!blob) return;
+			const url = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `comparacion-${estado.modo}.png`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		}, 'image/png');
+	});
+
+	// Si cambia el tema, el acento de la cortinilla y la diferencia cambia con él.
+	new MutationObserver(() => pedirPintado()).observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ['data-modo', 'style', 'class'],
+	});
+
+	todo();
+</script>
