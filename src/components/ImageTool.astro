@@ -1,0 +1,441 @@
+---
+/**
+ * Análisis de imagen: se sube una imagen y salen su histograma, la paleta
+ * dominante y medidas de brillo y contraste. Se lee en un canvas del navegador
+ * y no se envía a ningún sitio. La lógica está en src/lib/imagen.ts.
+ */
+import Icon from './Icon.astro';
+
+const CANALES = [
+	{ id: 'l', label: 'Brillo' },
+	{ id: 'rgb', label: 'RGB' },
+	{ id: 'r', label: 'Rojo' },
+	{ id: 'g', label: 'Verde' },
+	{ id: 'b', label: 'Azul' },
+];
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const ROTULO = 'font-pixel text-xs tracking-wide text-accent';
+const ELIGE =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<div role="tabpanel" id="imagen" aria-labelledby="tab-imagen" data-panel="imagen" hidden class="flex flex-col gap-8">
+	<div class="grid gap-6 md:grid-cols-2">
+		<div class="flex flex-col gap-3">
+			<div
+				data-img-zona
+				class="flex min-h-56 items-center justify-center border border-dashed border-line bg-panel p-3 data-drag:border-accent"
+			>
+				<canvas data-img-lienzo hidden aria-label="La imagen que se analiza" class="block h-auto max-h-96 w-auto max-w-full"
+				></canvas>
+				<p data-img-pista class="flex items-center gap-2 p-6 text-center text-sm text-muted">
+					<Icon name="drag-drop" class="size-4 shrink-0 text-accent" />
+					Arrastra una imagen aquí, pégala con Ctrl+V o súbela.
+				</p>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<label class={`${BOTON} cursor-pointer focus-within:border-accent focus-within:text-accent`}>
+					<Icon name="photo-plus" class="size-4 shrink-0" />
+					Subir imagen
+					<input type="file" accept="image/*" data-img-archivo class="sr-only" />
+				</label>
+				<button type="button" data-img-muestra class={BOTON}>
+					<Icon name="sparkles" class="size-4 shrink-0" />
+					Probar con una de muestra
+				</button>
+				<button type="button" data-img-quitar disabled class={BOTON}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Quitar
+				</button>
+			</div>
+			<p data-img-nota class="text-sm text-muted" aria-live="polite">
+				Se analiza en tu navegador: la imagen no se sube a ninguna parte.
+			</p>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 class={ROTULO}>Medidas</h3>
+			<p data-img-veredicto class="text-mark">Sin imagen todavía.</p>
+			<dl data-img-medidas class="grid grid-cols-2 gap-2 text-sm"></dl>
+			<p data-img-pixeles class="text-xs text-muted empty:hidden"></p>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h3 class={ROTULO}>Histograma</h3>
+			<div class="flex flex-wrap gap-2">
+				<div role="group" aria-label="Canal" class="flex flex-wrap gap-2">
+					{
+						CANALES.map((canal, i) => (
+							<button type="button" data-img-canal={canal.id} aria-pressed={i === 0 ? 'true' : 'false'} class={ELIGE}>
+								{canal.label}
+							</button>
+						))
+					}
+				</div>
+				<button type="button" data-img-raiz aria-pressed="false" class={ELIGE} title="Escala en raíz: se ven los tonos con pocos píxeles">
+					Escala suave
+				</button>
+			</div>
+		</div>
+		<svg
+			data-img-histo
+			viewBox="0 0 255 100"
+			preserveAspectRatio="none"
+			role="img"
+			aria-label="Histograma"
+			class="h-44 w-full border border-line bg-panel"></svg>
+		<div class="flex justify-between text-xs text-muted" aria-hidden="true">
+			<span>0 · negro</span>
+			<span>128</span>
+			<span>255 · blanco</span>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h3 class={ROTULO}>Paleta dominante</h3>
+			<div role="group" aria-label="Número de colores" class="flex flex-wrap gap-2">
+				{
+					[4, 6, 8, 12].map((n) => (
+						<button type="button" data-img-cuantos={n} aria-pressed={n === 6 ? 'true' : 'false'} class={ELIGE}>
+							{n}
+						</button>
+					))
+				}
+			</div>
+		</div>
+		<div data-img-tira class="flex h-6 border border-line empty:hidden" aria-hidden="true"></div>
+		<ul data-img-paleta class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6"></ul>
+		<p class="text-sm text-muted">Toca un color para copiar su hex. El tanto por ciento es cuánta imagen ocupa.</p>
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-img-copia-css disabled class={BOTON}>
+				<Icon name="copy" class="size-4 shrink-0" />
+				Copiar como CSS
+			</button>
+			<span data-img-aviso class="text-sm text-muted" aria-live="polite"></span>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-img-histo] path {
+		vector-effect: non-scaling-stroke;
+		stroke-width: 1;
+	}
+</style>
+
+<script>
+	import { type ColorDominante, type Histograma, cssDe, histograma, medidas, paleta, tinta, trazo, veredicto } from '../lib/imagen';
+
+	const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector);
+	const $$ = <T extends Element>(selector: string) => document.querySelectorAll<T>(selector);
+
+	const panel = $<HTMLElement>('[data-panel="imagen"]');
+	const zona = $<HTMLElement>('[data-img-zona]');
+	const lienzo = $<HTMLCanvasElement>('[data-img-lienzo]');
+	const pista = $<HTMLElement>('[data-img-pista]');
+	const archivo = $<HTMLInputElement>('[data-img-archivo]');
+	const quitar = $<HTMLButtonElement>('[data-img-quitar]');
+	const nota = $<HTMLElement>('[data-img-nota]');
+	const veredictoTexto = $<HTMLElement>('[data-img-veredicto]');
+	const listaMedidas = $<HTMLElement>('[data-img-medidas]');
+	const pixeles = $<HTMLElement>('[data-img-pixeles]');
+	const histo = $<SVGSVGElement>('[data-img-histo]');
+	const tira = $<HTMLElement>('[data-img-tira]');
+	const listaPaleta = $<HTMLElement>('[data-img-paleta]');
+	const copiaCss = $<HTMLButtonElement>('[data-img-copia-css]');
+	const aviso = $<HTMLElement>('[data-img-aviso]');
+
+	const NOTA = nota?.textContent?.trim() ?? '';
+	/** Lado largo del lienzo de análisis: más que esto no cambia los números y tarda. */
+	const LADO = 800;
+	const ALTO = 100;
+	const SVG = 'http://www.w3.org/2000/svg';
+	const COLORES: Record<string, string> = { r: '#dc2626', g: '#16a34a', b: '#2563eb', l: 'var(--color-fg)' };
+
+	let datos: Uint8ClampedArray | null = null;
+	let h: Histograma | null = null;
+	let colores: ColorDominante[] = [];
+	let canal = 'l';
+	let raiz = false;
+	let cuantos = 6;
+
+	function crea<K extends keyof HTMLElementTagNameMap>(etiqueta: K, clase = '', texto = '') {
+		const elemento = document.createElement(etiqueta);
+		if (clase) elemento.className = clase;
+		if (texto) elemento.textContent = texto;
+		return elemento;
+	}
+
+	async function copia(texto: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const campo = crea('textarea');
+				campo.value = texto;
+				campo.readOnly = true;
+				campo.style.position = 'fixed';
+				campo.style.opacity = '0';
+				document.body.append(campo);
+				campo.select();
+				const hecho = document.execCommand('copy');
+				campo.remove();
+				return hecho;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	const pct = (valor: number) => `${Math.round(valor * 100)}%`;
+
+	/* Pintar */
+
+	function pintaHistograma() {
+		if (!histo) return;
+		histo.replaceChildren();
+		if (!h) return;
+		const canales = canal === 'rgb' ? ['r', 'g', 'b'] : [canal];
+		// En RGB se escala a la vez para que los tres se puedan comparar.
+		for (const c of canales) {
+			const camino = document.createElementNS(SVG, 'path');
+			camino.setAttribute('d', trazo(h[c as keyof Histograma], ALTO, raiz));
+			// Por estilo y no por atributo: el atributo fill no entiende var().
+			camino.style.fill = COLORES[c];
+			camino.style.fillOpacity = canal === 'rgb' ? '0.35' : '0.5';
+			camino.style.stroke = COLORES[c];
+			histo.append(camino);
+		}
+		const nombre = $<HTMLElement>(`[data-img-canal="${canal}"]`)?.textContent?.trim() ?? '';
+		histo.setAttribute('aria-label', `Histograma: ${nombre}`);
+	}
+
+	function pintaMedidas() {
+		if (!veredictoTexto || !listaMedidas) return;
+		const m = datos && h ? medidas(datos, h) : null;
+		if (!m) {
+			veredictoTexto.textContent = datos ? 'La imagen es transparente: no hay nada que medir.' : 'Sin imagen todavía.';
+			listaMedidas.replaceChildren();
+			if (pixeles) pixeles.textContent = '';
+			return;
+		}
+		veredictoTexto.textContent = veredicto(m);
+		const filas: [string, string, string][] = [
+			['Brillo medio', pct(m.brillo), 'Del negro (0%) al blanco (100%).'],
+			['Brillo mediano', pct(m.mediana), 'La mitad de los píxeles está por debajo.'],
+			['Contraste RMS', pct(m.contraste * 2), 'Cuánto se separan los tonos del brillo medio.'],
+			['Rango tonal', `${pct(m.p1)} – ${pct(m.p99)}`, 'Del 1% más oscuro al 1% más claro.'],
+			['Negros puros', pct(m.sombras), 'Sombras sin detalle.'],
+			['Blancos puros', pct(m.luces), 'Luces quemadas.'],
+			['Saturación media', pct(m.saturacion), 'Del gris (0%) al color puro (100%).'],
+			['Color medio', m.medio, 'Todos los píxeles mezclados.'],
+		];
+		listaMedidas.replaceChildren(
+			...filas.map(([que, valor, ayuda]) => {
+				const celda = crea('div', 'flex flex-col gap-1 border border-line bg-panel p-3');
+				celda.title = ayuda;
+				const dd = crea('dd', 'flex items-center gap-2 text-lg text-mark', valor);
+				if (que === 'Color medio') {
+					const punto = crea('span', 'inline-block size-4 border border-line');
+					punto.style.background = valor;
+					dd.prepend(punto);
+				}
+				celda.append(crea('dt', 'text-xs text-muted', que), dd);
+				return celda;
+			}),
+		);
+		if (pixeles) pixeles.textContent = `Sobre ${m.pixeles.toLocaleString('es')} píxeles de la imagen reducida.`;
+	}
+
+	function pintaPaleta() {
+		colores = datos ? paleta(datos, cuantos) : [];
+		tira?.replaceChildren(
+			...colores.map((c) => {
+				const trozo = crea('span');
+				trozo.style.background = c.hex;
+				trozo.style.flexGrow = String(c.peso);
+				return trozo;
+			}),
+		);
+		listaPaleta?.replaceChildren(
+			...colores.map((c) => {
+				const li = crea('li', 'flex min-w-0 flex-col border border-line');
+				const boton = crea('button', 'flex h-16 items-end p-2 text-left text-xs', c.hex);
+				boton.type = 'button';
+				boton.title = `Copiar ${c.hex}`;
+				boton.style.background = c.hex;
+				boton.style.color = tinta(c.hex);
+				boton.addEventListener('click', async () => {
+					boton.textContent = (await copia(c.hex)) ? 'Copiado' : 'No se pudo';
+					window.setTimeout(() => (boton.textContent = c.hex), 1200);
+				});
+				li.append(boton, crea('span', 'px-2 py-1 text-xs text-muted', pct(c.peso)));
+				return li;
+			}),
+		);
+		if (copiaCss) copiaCss.disabled = !colores.length;
+	}
+
+	function pintaTodo() {
+		pintaHistograma();
+		pintaMedidas();
+		pintaPaleta();
+	}
+
+	/* Cargar */
+
+	function analiza(fuente: CanvasImageSource, ancho: number, alto: number) {
+		if (!lienzo) return;
+		const escala = Math.min(1, LADO / Math.max(ancho, alto));
+		lienzo.width = Math.max(1, Math.round(ancho * escala));
+		lienzo.height = Math.max(1, Math.round(alto * escala));
+		const ctx = lienzo.getContext('2d', { willReadFrequently: true });
+		if (!ctx) return;
+		ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+		ctx.drawImage(fuente, 0, 0, lienzo.width, lienzo.height);
+		datos = ctx.getImageData(0, 0, lienzo.width, lienzo.height).data;
+		h = histograma(datos);
+		lienzo.hidden = false;
+		if (pista) pista.hidden = true;
+		if (quitar) quitar.disabled = false;
+		pintaTodo();
+	}
+
+	async function cargar(fichero?: File | null) {
+		if (!fichero) return;
+		if (!fichero.type.startsWith('image/')) {
+			if (nota) nota.textContent = 'Eso no es una imagen.';
+			return;
+		}
+		const url = URL.createObjectURL(fichero);
+		try {
+			const img = new Image();
+			img.src = url;
+			await img.decode();
+			analiza(img, img.naturalWidth, img.naturalHeight);
+			const tamano = `${img.naturalWidth} × ${img.naturalHeight}`;
+			if (nota) nota.textContent = `${fichero.name} · ${tamano}. ${NOTA}`;
+		} catch {
+			if (nota) nota.textContent = 'No se pudo leer esa imagen. Prueba con PNG, JPEG o WebP.';
+		} finally {
+			URL.revokeObjectURL(url);
+		}
+	}
+
+	/** Un paisaje pintado aquí mismo, para ver la herramienta sin buscar una foto. */
+	function muestra() {
+		const [ancho, alto] = [640, 400];
+		const c = crea('canvas');
+		c.width = ancho;
+		c.height = alto;
+		const ctx = c.getContext('2d');
+		if (!ctx) return;
+		const cielo = ctx.createLinearGradient(0, 0, 0, alto * 0.7);
+		cielo.addColorStop(0, '#2b1b3d');
+		cielo.addColorStop(0.55, '#c2410c');
+		cielo.addColorStop(1, '#f6c177');
+		ctx.fillStyle = cielo;
+		ctx.fillRect(0, 0, ancho, alto);
+		ctx.fillStyle = '#fdf6ef';
+		ctx.beginPath();
+		ctx.arc(ancho * 0.68, alto * 0.52, 46, 0, Math.PI * 2);
+		ctx.fill();
+		const montes: [string, number, number][] = [
+			['#7a3b2e', 0.62, 38],
+			['#3b2d24', 0.74, 28],
+			['#1a130f', 0.86, 18],
+		];
+		for (const [color, base, ola] of montes) {
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.moveTo(0, alto);
+			for (let x = 0; x <= ancho; x += 8) {
+				ctx.lineTo(x, alto * base + Math.sin(x / (ola * 3) + base * 9) * ola);
+			}
+			ctx.lineTo(ancho, alto);
+			ctx.fill();
+		}
+		analiza(c, ancho, alto);
+		if (nota) nota.textContent = `Muestra de la casa · ${ancho} × ${alto}. ${NOTA}`;
+	}
+
+	archivo?.addEventListener('change', () => {
+		cargar(archivo.files?.[0]);
+		archivo.value = '';
+	});
+
+	$<HTMLButtonElement>('[data-img-muestra]')?.addEventListener('click', muestra);
+
+	quitar?.addEventListener('click', () => {
+		datos = null;
+		h = null;
+		if (lienzo) lienzo.hidden = true;
+		if (pista) pista.hidden = false;
+		quitar.disabled = true;
+		if (nota) nota.textContent = NOTA;
+		pintaTodo();
+	});
+
+	if (zona) {
+		['dragenter', 'dragover'].forEach((tipo) => {
+			zona.addEventListener(tipo, (event) => {
+				event.preventDefault();
+				zona.dataset.drag = '';
+			});
+		});
+		zona.addEventListener('dragleave', () => delete zona.dataset.drag);
+		zona.addEventListener('drop', (event) => {
+			event.preventDefault();
+			delete zona.dataset.drag;
+			cargar(event.dataTransfer?.files?.[0]);
+		});
+	}
+
+	// Pegar una captura con Ctrl+V, solo con esta pestaña a la vista.
+	document.addEventListener('paste', (event) => {
+		if (panel?.hidden) return;
+		const fichero = event.clipboardData?.files?.[0];
+		if (!fichero?.type.startsWith('image/')) return;
+		event.preventDefault();
+		cargar(fichero);
+	});
+
+	/* Opciones */
+
+	$$<HTMLButtonElement>('[data-img-canal]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			canal = boton.dataset.imgCanal ?? 'l';
+			$$<HTMLButtonElement>('[data-img-canal]').forEach((b) => b.setAttribute('aria-pressed', String(b === boton)));
+			pintaHistograma();
+		});
+	});
+
+	$<HTMLButtonElement>('[data-img-raiz]')?.addEventListener('click', (event) => {
+		raiz = !raiz;
+		(event.currentTarget as HTMLElement).setAttribute('aria-pressed', String(raiz));
+		pintaHistograma();
+	});
+
+	$$<HTMLButtonElement>('[data-img-cuantos]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			cuantos = Number(boton.dataset.imgCuantos) || 6;
+			$$<HTMLButtonElement>('[data-img-cuantos]').forEach((b) => b.setAttribute('aria-pressed', String(b === boton)));
+			pintaPaleta();
+		});
+	});
+
+	let avisoTimer: number | undefined;
+	copiaCss?.addEventListener('click', async () => {
+		if (!colores.length || !aviso) return;
+		aviso.textContent = (await copia(cssDe(colores))) ? 'CSS copiado.' : 'No se pudo copiar.';
+		clearTimeout(avisoTimer);
+		avisoTimer = window.setTimeout(() => (aviso.textContent = ''), 2500);
+	});
+</script>
