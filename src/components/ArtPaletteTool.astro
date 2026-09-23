@@ -1,0 +1,329 @@
+---
+/**
+ * Paletas de obras de arte: un catálogo escrito a mano con los colores
+ * dominantes de cuadros famosos. Se elige una obra y se lleva su paleta como
+ * variables CSS o como PNG. Sin imágenes: todo sale de src/lib/art-palettes.ts.
+ */
+import { OBRAS } from '../lib/art-palettes';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40';
+---
+
+<div
+	role="tabpanel"
+	id="obras"
+	aria-labelledby="tab-obras"
+	data-panel="obras"
+	hidden
+	class="grid gap-7 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+>
+	<div class="flex min-w-0 flex-col gap-3">
+		<label class="flex flex-col gap-1">
+			<span class="text-sm text-muted">Buscar obra o autor</span>
+			<input
+				type="search"
+				data-arte-busca
+				placeholder="Van Gogh"
+				spellcheck="false"
+				class="w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent"
+			/>
+		</label>
+		<ul data-arte-lista class="flex max-h-[32rem] flex-col gap-2 overflow-y-auto pr-1">
+			{
+				OBRAS.map((obra) => (
+					<li data-arte-item={`${obra.titulo} ${obra.autor}`}>
+						<button
+							type="button"
+							data-arte-obra={obra.id}
+							aria-pressed="false"
+							class="flex w-full flex-col gap-2 border border-line p-3 text-left hover:border-accent aria-pressed:border-accent"
+						>
+							<span class="flex h-3 w-full" aria-hidden="true">
+								{obra.colores.map((color) => (
+									<span style={`background:${color.hex};flex-grow:${color.peso}`} />
+								))}
+							</span>
+							<span class="text-sm">{obra.titulo}</span>
+							<span class="text-xs text-muted">
+								{obra.autor}, {obra.anio}
+							</span>
+						</button>
+					</li>
+				))
+			}
+		</ul>
+		<p data-arte-nada hidden class="text-sm text-muted">Ninguna obra con ese nombre.</p>
+	</div>
+
+	<div class="flex min-w-0 flex-col gap-5 lg:sticky lg:top-6 lg:self-start">
+		<div class="flex flex-col gap-1">
+			<h3 data-arte-titulo class="font-pixel text-titulo text-mark"></h3>
+			<p data-arte-autor class="text-sm text-muted"></p>
+		</div>
+
+		<div data-arte-barra class="flex h-16 w-full border border-line" aria-hidden="true"></div>
+
+		<ul data-arte-colores class="grid grid-cols-2 gap-2 sm:grid-cols-3"></ul>
+
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Variables CSS</span>
+			<textarea
+				data-arte-css
+				rows="9"
+				readonly
+				spellcheck="false"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"></textarea>
+		</label>
+
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-arte-copia class={OPCION}>
+				<Icon name="copy" class="size-4 shrink-0" />
+				Copiar CSS
+			</button>
+			<button type="button" data-arte-baja="css" class={OPCION}>
+				<Icon name="file-type-css" class="size-4 shrink-0" />
+				Descargar .css
+			</button>
+			<button type="button" data-arte-baja="png" class={OPCION}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+		</div>
+		<p data-arte-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+		<p class="text-sm text-muted">
+			Colores sacados a ojo, del que más pesa al que menos. Toca uno para copiar su hex.
+		</p>
+	</div>
+</div>
+
+<script>
+	import { OBRAS, type Obra, cssDe, tinta } from '../lib/art-palettes';
+
+	const CLAVE = 'tuweb:obra';
+	const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector);
+
+	const busca = $<HTMLInputElement>('[data-arte-busca]');
+	const nada = $<HTMLElement>('[data-arte-nada]');
+	const titulo = $<HTMLElement>('[data-arte-titulo]');
+	const autor = $<HTMLElement>('[data-arte-autor]');
+	const barra = $<HTMLElement>('[data-arte-barra]');
+	const colores = $<HTMLElement>('[data-arte-colores]');
+	const css = $<HTMLTextAreaElement>('[data-arte-css]');
+	const aviso = $<HTMLElement>('[data-arte-aviso]');
+
+	let obra: Obra = OBRAS[0];
+	try {
+		obra = OBRAS.find((o) => o.id === localStorage.getItem(CLAVE)) ?? obra;
+	} catch {
+		// Sin localStorage: se empieza por la primera.
+	}
+
+	let avisoTimer: number | undefined;
+	function avisa(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		clearTimeout(avisoTimer);
+		avisoTimer = window.setTimeout(() => (aviso.textContent = ''), 2500);
+	}
+
+	async function copia(texto: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	function total(o: Obra) {
+		return o.colores.reduce((suma, color) => suma + color.peso, 0);
+	}
+
+	function pinta() {
+		document.querySelectorAll<HTMLButtonElement>('[data-arte-obra]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.arteObra === obra.id));
+		});
+		if (titulo) titulo.textContent = obra.titulo;
+		if (autor) autor.textContent = `${obra.autor}, ${obra.anio}`;
+		if (css) css.value = cssDe(obra);
+
+		const suma = total(obra);
+		barra?.replaceChildren(
+			...obra.colores.map((color) => {
+				const trozo = document.createElement('span');
+				trozo.style.background = color.hex;
+				trozo.style.flexGrow = String(color.peso);
+				return trozo;
+			}),
+		);
+
+		colores?.replaceChildren(
+			...obra.colores.map((color) => {
+				const li = document.createElement('li');
+				const boton = document.createElement('button');
+				boton.type = 'button';
+				boton.title = `Copiar ${color.hex}`;
+				boton.className = 'flex w-full flex-col border border-line text-left hover:border-accent';
+				const muestra = document.createElement('span');
+				muestra.className = 'flex h-16 items-end p-2 text-xs';
+				muestra.style.background = color.hex;
+				muestra.style.color = tinta(color.hex);
+				muestra.textContent = `${Math.round((color.peso / suma) * 100)}%`;
+				const texto = document.createElement('span');
+				texto.className = 'flex flex-col px-2 py-1.5 text-xs';
+				const nombre = document.createElement('span');
+				nombre.textContent = color.nombre;
+				const hex = document.createElement('code');
+				hex.className = 'text-muted';
+				hex.textContent = color.hex;
+				texto.append(nombre, hex);
+				boton.append(muestra, texto);
+				boton.addEventListener('click', async () => {
+					avisa((await copia(color.hex)) ? `${color.hex} copiado.` : 'No se pudo copiar.');
+				});
+				li.append(boton);
+				return li;
+			}),
+		);
+
+		try {
+			localStorage.setItem(CLAVE, obra.id);
+		} catch {
+			// Modo privado: no se recuerda, sin más.
+		}
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-arte-obra]').forEach((button) => {
+		button.addEventListener('click', () => {
+			obra = OBRAS.find((o) => o.id === button.dataset.arteObra) ?? obra;
+			pinta();
+		});
+	});
+
+	busca?.addEventListener('input', () => {
+		const q = busca.value
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.trim();
+		let visibles = 0;
+		document.querySelectorAll<HTMLElement>('[data-arte-item]').forEach((item) => {
+			const texto = (item.dataset.arteItem ?? '')
+				.normalize('NFD')
+				.replace(/[̀-ͯ]/g, '')
+				.toLowerCase();
+			item.hidden = !texto.includes(q);
+			if (!item.hidden) visibles++;
+		});
+		if (nada) nada.hidden = visibles > 0;
+	});
+
+	$<HTMLButtonElement>('[data-arte-copia]')?.addEventListener('click', async () => {
+		avisa((await copia(cssDe(obra))) ? 'CSS copiado.' : 'No se pudo copiar. Selecciónalo a mano.');
+	});
+
+	function bajar(fichero: Blob, nombre: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = nombre;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	const ANCHO = 1200;
+	const ALTO = 675;
+	const MARGEN = 56;
+	const MONO = '"Geist Mono Variable", ui-monospace, monospace';
+	const PIXEL = '"Geist Pixel", ui-monospace, monospace';
+
+	/** Recorta un texto con puntos suspensivos si no cabe en el ancho dado. */
+	function cabe(ctx: CanvasRenderingContext2D, texto: string, ancho: number) {
+		if (ctx.measureText(texto).width <= ancho) return texto;
+		let corto = texto;
+		while (corto.length > 1 && ctx.measureText(`${corto}…`).width > ancho) corto = corto.slice(0, -1);
+		return `${corto}…`;
+	}
+
+	async function png() {
+		// Las fuentes son de la casa y ya están en la página; solo hay que esperarlas.
+		await Promise.all([document.fonts.load(`40px ${PIXEL}`), document.fonts.load(`20px ${MONO}`)]);
+
+		const lienzo = document.createElement('canvas');
+		lienzo.width = ANCHO * 2;
+		lienzo.height = ALTO * 2;
+		const ctx = lienzo.getContext('2d');
+		if (!ctx) throw new Error('sin canvas');
+		ctx.scale(2, 2);
+
+		ctx.fillStyle = '#fdf6ef';
+		ctx.fillRect(0, 0, ANCHO, ALTO);
+
+		const util = ANCHO - MARGEN * 2;
+		ctx.textBaseline = 'alphabetic';
+		ctx.fillStyle = '#3b2d24';
+		ctx.font = `40px ${PIXEL}`;
+		ctx.fillText(cabe(ctx, obra.titulo, util), MARGEN, MARGEN + 36);
+		ctx.fillStyle = '#7a6152';
+		ctx.font = `20px ${MONO}`;
+		ctx.fillText(cabe(ctx, `${obra.autor}, ${obra.anio}`, util), MARGEN, MARGEN + 72);
+
+		// La barra con el peso de cada color.
+		const suma = total(obra);
+		let x = MARGEN;
+		for (const color of obra.colores) {
+			const w = (color.peso / suma) * util;
+			ctx.fillStyle = color.hex;
+			ctx.fillRect(x, 160, w + 0.5, 40);
+			x += w;
+		}
+
+		// Y las muestras, todas del mismo ancho, con su nombre y su hex dentro.
+		const hueco = 12;
+		const n = obra.colores.length;
+		const ancho = (util - hueco * (n - 1)) / n;
+		const arriba = 224;
+		const alto = ALTO - arriba - 80;
+		obra.colores.forEach((color, i) => {
+			const cx = MARGEN + i * (ancho + hueco);
+			ctx.fillStyle = color.hex;
+			ctx.fillRect(cx, arriba, ancho, alto);
+			ctx.fillStyle = tinta(color.hex);
+			ctx.font = `16px ${MONO}`;
+			ctx.fillText(cabe(ctx, color.nombre, ancho - 32), cx + 16, arriba + alto - 42);
+			ctx.font = `600 18px ${MONO}`;
+			ctx.fillText(color.hex, cx + 16, arriba + alto - 18);
+		});
+
+		ctx.fillStyle = '#7a6152';
+		ctx.font = `16px ${MONO}`;
+		ctx.textAlign = 'right';
+		ctx.fillText('tuweb.dev', ANCHO - MARGEN, ALTO - 34);
+
+		const blob = await new Promise<Blob | null>((resolve) => lienzo.toBlob(resolve, 'image/png'));
+		if (!blob) throw new Error('sin PNG');
+		bajar(blob, `paleta-${obra.id}.png`);
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-arte-baja]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (button.dataset.arteBaja === 'css') {
+				bajar(new Blob([cssDe(obra)], { type: 'text/css' }), `paleta-${obra.id}.css`);
+				return;
+			}
+			button.disabled = true;
+			try {
+				await png();
+			} catch {
+				avisa('No se pudo sacar el PNG. Prueba con el CSS.');
+			} finally {
+				button.disabled = false;
+			}
+		});
+	});
+
+	pinta();
+</script>
