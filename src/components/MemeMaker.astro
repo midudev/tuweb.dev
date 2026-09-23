@@ -1,13 +1,15 @@
 ---
 /**
- * El generador de memes. Pones tu imagen —de tu disco, arrastrada o pegada—,
- * escribes arriba y abajo, y te lo llevas en PNG.
+ * El generador de memes. Pones tu imagen —de tu disco, arrastrada o pegada— o
+ * eliges una plantilla, escribes arriba y abajo, y te lo llevas en PNG o JPEG.
  *
  * Todo pasa en tu navegador: la imagen se pinta en un <canvas> y de ahí sale la
  * descarga. No se sube a ningún sitio ni se guarda nada. El dibujo está en
- * src/lib/meme.ts; aquí solo están los mandos.
+ * src/lib/meme.ts y las plantillas en src/lib/meme-templates.ts; aquí solo
+ * están los mandos.
  */
-import { DEFAULT_MEME, FONTS, SIZE, STROKE, STYLES } from '../lib/meme';
+import { DEFAULT_MEME, FONTS, FORMATS, SIZE, STROKE, STYLES } from '../lib/meme';
+import { TEMPLATES } from '../lib/meme-templates';
 import Icon from './Icon.astro';
 
 const BOTON =
@@ -60,8 +62,24 @@ const COLORES = [
 
 			<button type="button" data-meme-descarga class={`${BOTON} border-accent text-accent`}>
 				<Icon name="download" class="size-4 shrink-0" />
-				Descargar .png
+				Descargar .<span data-meme-ext>png</span>
 			</button>
+
+			<div role="group" aria-label="Formato de descarga" class="flex">
+				{
+					FORMATS.map((formato, index) => (
+						<button
+							type="button"
+							data-meme-formato={formato.id}
+							aria-pressed={index === 0 ? 'true' : 'false'}
+							class={`${BOTON} ${index ? '-ml-px' : ''}`}
+						>
+							<Icon name={formato.icon} class="size-4 shrink-0" />
+							{formato.label}
+						</button>
+					))
+				}
+			</div>
 
 			<button type="button" data-meme-copia class={BOTON}>
 				<Icon name="clipboard" class="size-4 shrink-0" />
@@ -70,6 +88,28 @@ const COLORES = [
 		</div>
 
 		<p data-meme-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+		<div class="flex flex-col gap-2">
+			<span id="meme-plantillas" class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="template" class="size-4 shrink-0 text-accent" />
+				O parte de una plantilla
+			</span>
+			<div role="group" aria-labelledby="meme-plantillas" class="flex flex-wrap gap-2">
+				{
+					TEMPLATES.map((plantilla) => (
+						<button
+							type="button"
+							data-meme-plantilla={plantilla.id}
+							aria-pressed="false"
+							class={BOTON}
+						>
+							<Icon name={plantilla.icon} class="size-4 shrink-0" />
+							{plantilla.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
 	</div>
 
 	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
@@ -180,12 +220,15 @@ const COLORES = [
 	import {
 		DEFAULT_MEME,
 		FONTS,
+		FORMATS,
+		JPEG_QUALITY,
 		type Meme,
 		STYLES,
 		canvasSize,
 		drawMeme,
 		fontSpec,
 	} from '../lib/meme';
+	import { type Template, templateOf } from '../lib/meme-templates';
 
 	const lienzo = document.querySelector<HTMLCanvasElement>('[data-meme-lienzo]');
 	const ctx = lienzo?.getContext('2d') ?? null;
@@ -206,27 +249,50 @@ const COLORES = [
 
 	let meme: Meme = { ...DEFAULT_MEME };
 	let imagen: HTMLImageElement | null = null;
+	/** La plantilla elegida. Con imagen propia no hay plantilla, y al revés. */
+	let plantilla: Template | null = null;
 	/** La URL del objeto que está puesta, para soltarla al cambiar de imagen. */
 	let url = '';
 	let nombre = 'meme';
+	let formato = FORMATS[0];
 
 	function avisar(texto: string) {
 		if (nota) nota.textContent = texto;
+	}
+
+	function soltarImagen() {
+		if (url) URL.revokeObjectURL(url);
+		url = '';
+		imagen = null;
 	}
 
 	function render() {
 		if (!lienzo || !ctx) return;
 
 		const { width, height } = canvasSize(
-			imagen && { width: imagen.naturalWidth, height: imagen.naturalHeight },
+			imagen
+				? { width: imagen.naturalWidth, height: imagen.naturalHeight }
+				: plantilla && { width: plantilla.width, height: plantilla.height },
 		);
 		lienzo.width = width;
 		lienzo.height = height;
-		drawMeme(ctx, imagen, meme, width, height);
+		drawMeme(ctx, imagen ?? plantilla, meme, width, height);
+
+		const puesta = Boolean(imagen || plantilla);
 
 		document.querySelectorAll<HTMLButtonElement>('[data-meme-fuente]').forEach((button) => {
 			button.setAttribute('aria-pressed', String(button.dataset.memeFuente === meme.fuente));
 		});
+
+		document.querySelectorAll<HTMLButtonElement>('[data-meme-plantilla]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.memePlantilla === plantilla?.id));
+		});
+
+		document.querySelectorAll<HTMLButtonElement>('[data-meme-formato]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.memeFormato === formato.id));
+		});
+		const ext = document.querySelector<HTMLElement>('[data-meme-ext]');
+		if (ext) ext.textContent = formato.ext;
 
 		rangos.forEach((rango) => {
 			const clave = rango.dataset.memeRango as Numerico;
@@ -239,12 +305,12 @@ const COLORES = [
 			const clave = color.dataset.memeColor as Tinta;
 			color.value = meme[clave];
 			// El fondo solo se ve mientras no hay imagen encima.
-			color.disabled = clave === 'fondo' && Boolean(imagen);
+			color.disabled = clave === 'fondo' && puesta;
 		});
 
 		if (mayusculas) mayusculas.checked = meme.mayusculas;
-		if (quitar) quitar.disabled = !imagen;
-		if (zona) zona.toggleAttribute('data-lista', Boolean(imagen));
+		if (quitar) quitar.disabled = !puesta;
+		if (zona) zona.toggleAttribute('data-lista', puesta);
 	}
 
 	function cambiar(patch: Partial<Meme>) {
@@ -267,9 +333,10 @@ const COLORES = [
 		const img = new Image();
 
 		img.addEventListener('load', () => {
-			if (url) URL.revokeObjectURL(url);
+			soltarImagen();
 			url = siguiente;
 			imagen = img;
+			plantilla = null;
 			nombre = file.name.replace(/\.[^.]+$/, '').replace(/[^\p{L}\d-]+/gu, '-') || 'meme';
 			avisar('');
 			render();
@@ -330,12 +397,34 @@ const COLORES = [
 	});
 
 	quitar?.addEventListener('click', () => {
-		if (url) URL.revokeObjectURL(url);
-		url = '';
-		imagen = null;
+		soltarImagen();
+		plantilla = null;
 		nombre = 'meme';
 		avisar('');
 		render();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-meme-plantilla]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const elegida = templateOf(button.dataset.memePlantilla ?? '');
+			if (!elegida) return;
+			soltarImagen();
+			plantilla = elegida;
+			nombre = elegida.id;
+			// La plantilla trae sus textos; se ponen también en los campos para editarlos.
+			document.querySelectorAll<HTMLTextAreaElement>('[data-meme-texto]').forEach((campo) => {
+				campo.value = campo.dataset.memeTexto === 'abajo' ? elegida.abajo : elegida.arriba;
+			});
+			avisar('');
+			cambiar({ arriba: elegida.arriba, abajo: elegida.abajo });
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-meme-formato]').forEach((button) => {
+		button.addEventListener('click', () => {
+			formato = FORMATS.find((item) => item.id === button.dataset.memeFormato) ?? FORMATS[0];
+			render();
+		});
 	});
 
 	// Arrastrar y soltar sobre el lienzo.
@@ -368,24 +457,29 @@ const COLORES = [
 		cargar(file);
 	});
 
-	/** El PNG se arma en el momento desde el lienzo; no pasa por ningún sitio. */
-	function conPng(hacer: (blob: Blob) => void) {
+	/** La imagen se arma en el momento desde el lienzo; no pasa por ningún sitio. */
+	function conImagen(mime: string, hacer: (blob: Blob) => void) {
 		if (!lienzo) return;
-		lienzo.toBlob((blob) => {
-			if (!blob) {
-				avisar('No se pudo generar el PNG.');
-				return;
-			}
-			hacer(blob);
-		}, 'image/png');
+		lienzo.toBlob(
+			(blob) => {
+				if (!blob) {
+					avisar('No se pudo generar la imagen.');
+					return;
+				}
+				hacer(blob);
+			},
+			mime,
+			JPEG_QUALITY,
+		);
 	}
 
 	document.querySelector<HTMLButtonElement>('[data-meme-descarga]')?.addEventListener('click', () => {
-		conPng((blob) => {
+		const { mime, ext } = formato;
+		conImagen(mime, (blob) => {
 			const salida = URL.createObjectURL(blob);
 			const enlace = document.createElement('a');
 			enlace.href = salida;
-			enlace.download = `${nombre}-meme.png`;
+			enlace.download = `${nombre}-meme.${ext}`;
 			enlace.click();
 			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
 			setTimeout(() => URL.revokeObjectURL(salida), 1000);
@@ -398,7 +492,8 @@ const COLORES = [
 			return;
 		}
 
-		conPng(async (blob) => {
+		// El portapapeles solo se fía del PNG, elijas el formato que elijas.
+		conImagen('image/png', async (blob) => {
 			try {
 				await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 				avisar('Copiado al portapapeles.');

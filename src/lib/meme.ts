@@ -6,6 +6,7 @@
  * su navegador: se pinta en un <canvas> y de ahí salen la descarga y la copia.
  * No hay servidor, ni petición, ni nada guardado.
  */
+import type { Template } from './meme-templates';
 
 export interface Meme {
 	/** El texto de arriba. Los saltos de línea escritos se respetan. */
@@ -77,6 +78,16 @@ export const STYLES: readonly { label: string; icon: string; meme: Partial<Meme>
 		meme: { fuente: 'mono', color: '#3b2d24', contorno: '#fdf6ef', grosor: 22, mayusculas: false },
 	},
 ];
+
+/** Los formatos de descarga. El JPEG pesa menos y no tiene transparencia, que aquí no hace falta. */
+export const FORMATS: readonly { id: string; label: string; icon: string; mime: string; ext: string }[] =
+	[
+		{ id: 'png', label: 'PNG', icon: 'file-type-png', mime: 'image/png', ext: 'png' },
+		{ id: 'jpg', label: 'JPEG', icon: 'file-type-jpg', mime: 'image/jpeg', ext: 'jpg' },
+	];
+
+/** Calidad del JPEG: alta, que el texto con contorno se emborrona enseguida. */
+export const JPEG_QUALITY = 0.92;
 
 /** Nada baja de aquí ni sube de allá: el lienzo se queda en medidas sanas. */
 export const SIZE = { min: 4, max: 16, step: 0.5 };
@@ -187,10 +198,13 @@ function drawBlock(
 	});
 }
 
-/** Pinta el meme entero: primero la imagen —o el fondo liso— y encima los textos. */
+/**
+ * Pinta el meme entero: primero la imagen, la plantilla o el fondo liso, y
+ * encima los textos.
+ */
 export function drawMeme(
 	ctx: CanvasRenderingContext2D,
-	image: CanvasImageSource | null,
+	image: CanvasImageSource | Template | null,
 	meme: Meme,
 	width: number,
 	height: number,
@@ -198,7 +212,14 @@ export function drawMeme(
 	ctx.clearRect(0, 0, width, height);
 	ctx.fillStyle = safeColor(meme.fondo, DEFAULT_MEME.fondo);
 	ctx.fillRect(0, 0, width, height);
-	if (image) ctx.drawImage(image, 0, 0, width, height);
+	if (image && 'draw' in image) {
+		// Cada plantilla deja el pincel a su manera; se guarda y se repone.
+		ctx.save();
+		image.draw(ctx, width, height);
+		ctx.restore();
+	} else if (image) {
+		ctx.drawImage(image, 0, 0, width, height);
+	}
 
 	drawBlock(ctx, meme.arriba, meme, width, height, true);
 	drawBlock(ctx, meme.abajo, meme, width, height, false);

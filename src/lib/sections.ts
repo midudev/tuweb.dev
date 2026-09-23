@@ -110,9 +110,9 @@ export const SECTIONS: Section[] = [
 		title: 'Generador de memes',
 		icon: 'photo-edit',
 		group: 'herramientas',
-		card: 'Tu imagen, un texto arriba, otro abajo y el PNG descargado.',
+		card: 'Tu imagen o una plantilla, un texto arriba, otro abajo y a descargar.',
 		intro:
-			'Pon tu imagen —súbela, arrástrala o pégala con Ctrl+V—, escribe el texto de arriba y el de abajo y ajusta la fuente, el cuerpo, los colores y el contorno. Cuando esté, te lo llevas en PNG o lo copias al portapapeles. Se pinta todo en tu navegador: la imagen no se sube a ninguna parte y no se guarda nada.',
+			'Pon tu imagen —súbela, arrástrala o pégala con Ctrl+V— o parte de una de las plantillas de la casa, escribe el texto de arriba y el de abajo y ajusta la fuente, el cuerpo, los colores y el contorno. Cuando esté, te lo llevas en PNG o JPEG o lo copias al portapapeles. Se pinta todo en tu navegador: la imagen no se sube a ninguna parte y no se guarda nada.',
 	},
 	{
 		href: '/comparador',
