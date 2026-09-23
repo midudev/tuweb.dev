@@ -1,0 +1,557 @@
+---
+/**
+ * Generador de gradientes CSS: dos o más colores con su posición, lineal o
+ * radial, con ángulo. La vista previa es el propio CSS aplicado a una caja; el
+ * PNG se pinta aparte en un canvas con la misma geometría que usa el navegador
+ * para el CSS, así lo que se baja es lo que se ve. Todo pasa en el navegador y
+ * lo único que se guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const ANGULOS = [0, 45, 90, 135, 180, 225, 270, 315];
+
+const TAMANOS = [
+	{ id: '1200x630', label: '1200×630 (redes)' },
+	{ id: '1920x1080', label: '1920×1080 (fondo)' },
+	{ id: '1080x1080', label: '1080×1080 (cuadrado)' },
+	{ id: '1080x1920', label: '1080×1920 (vertical)' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="gradientes"
+	aria-labelledby="tab-gradientes"
+	data-panel="gradientes"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Tipo</span>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-gr-tipo="linear" aria-pressed="true" class={OPCION}>Lineal</button>
+					<button type="button" data-gr-tipo="radial" aria-pressed="false" class={OPCION}>Radial</button>
+				</div>
+			</div>
+
+			<div data-gr-lineal class="flex flex-col gap-2">
+				<label class="flex items-center justify-between gap-3 text-sm text-muted" for="gr-angulo">
+					Ángulo
+					<span class="inline-flex items-center gap-1">
+						<input
+							type="number"
+							min="0"
+							max="360"
+							step="1"
+							data-gr-angulo-num
+							aria-label="Ángulo en grados"
+							class="w-20 border border-line bg-panel px-2 py-1 text-right text-sm text-fg outline-none focus-visible:border-accent"
+						/>
+						deg
+					</span>
+				</label>
+				<input id="gr-angulo" type="range" min="0" max="360" step="1" data-gr-angulo class="w-full accent-accent" />
+				<div class="flex flex-wrap gap-1">
+					{
+						ANGULOS.map((angulo) => (
+							<button
+								type="button"
+								data-gr-angulo-rapido={angulo}
+								class="border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								{angulo}°
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div data-gr-radial hidden class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Forma</span>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-gr-forma="circle" aria-pressed="true" class={OPCION}>Círculo</button>
+					<button type="button" data-gr-forma="ellipse" aria-pressed="false" class={OPCION}>Elipse</button>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<span class="text-sm text-muted">Colores</span>
+				<div data-gr-lista class="flex flex-col gap-3"></div>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-gr-nuevo class={`${BOTON} disabled:opacity-40`}>
+						<Icon name="plus" class="size-4 shrink-0" />
+						Otro color
+					</button>
+					<button type="button" data-gr-repartir class={BOTON}>
+						<Icon name="line-dashed" class="size-4 shrink-0" />
+						Repartir
+					</button>
+					<button type="button" data-gr-azar class={BOTON}>
+						<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+						Al azar
+					</button>
+					<button type="button" data-gr-reset class={BOTON}>
+						<Icon name="refresh" class="size-4 shrink-0" />
+						Restablecer
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div data-gr-vista class="w-full border border-line" style="aspect-ratio: 1200 / 630;" role="img" aria-label="Vista previa del gradiente"></div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">CSS</span>
+				<pre data-gr-css class="overflow-x-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-gr-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-gr-copiar-texto aria-live="polite">Copiar CSS</span>
+				</button>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<span class="sr-only">Tamaño del PNG</span>
+					<select data-gr-tamano class={`${CAMPO} w-auto`}>
+						{TAMANOS.map((tamano) => <option value={tamano.id}>{tamano.label}</option>)}
+					</select>
+				</label>
+				<button type="button" data-gr-png class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .png
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<template data-gr-plantilla>
+		<div data-gr-fila class="flex items-center gap-2">
+			<input
+				type="color"
+				data-gr-color
+				aria-label="Color"
+				class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+			/>
+			<input
+				type="text"
+				data-gr-hex
+				spellcheck="false"
+				autocomplete="off"
+				maxlength="7"
+				aria-label="Color en hexadecimal"
+				class="w-24 shrink-0 border border-line bg-panel px-2 py-2 text-sm outline-none focus-visible:border-accent"
+			/>
+			<input type="range" min="0" max="100" step="1" data-gr-pos aria-label="Posición" class="min-w-0 flex-1 accent-accent" />
+			<span data-gr-pos-texto class="w-10 shrink-0 text-right text-xs text-muted"></span>
+			<button
+				type="button"
+				data-gr-quitar
+				aria-label="Quitar el color"
+				class="shrink-0 border border-line p-2 text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted"
+			>
+				<Icon name="trash" class="size-4 shrink-0" />
+			</button>
+		</div>
+	</template>
+</div>
+
+<style>
+	[data-gr-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-gr-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-gr-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-gr-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-gr-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-gr-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-gr-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-gr-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Parada = { color: string; pos: number };
+	type Estado = { tipo: 'linear' | 'radial'; angulo: number; forma: 'circle' | 'ellipse'; paradas: Parada[]; tamano: string };
+
+	const CLAVE = 'tuweb:gradientes';
+	const MAX_PARADAS = 8;
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const INICIAL: Estado = {
+		tipo: 'linear',
+		angulo: 135,
+		forma: 'circle',
+		paradas: [
+			{ color: '#c2410c', pos: 0 },
+			{ color: '#f5c542', pos: 50 },
+			{ color: '#2563eb', pos: 100 },
+		],
+		tamano: '1200x630',
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="gradientes"]');
+	const lista = panel?.querySelector<HTMLElement>('[data-gr-lista]');
+	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-gr-plantilla]');
+	const vista = panel?.querySelector<HTMLElement>('[data-gr-vista]');
+	const salida = panel?.querySelector<HTMLElement>('[data-gr-css]');
+	const bloqueLineal = panel?.querySelector<HTMLElement>('[data-gr-lineal]');
+	const bloqueRadial = panel?.querySelector<HTMLElement>('[data-gr-radial]');
+	const angulo = panel?.querySelector<HTMLInputElement>('[data-gr-angulo]');
+	const anguloNum = panel?.querySelector<HTMLInputElement>('[data-gr-angulo-num]');
+	const tamano = panel?.querySelector<HTMLSelectElement>('[data-gr-tamano]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-gr-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-gr-copiar-texto]');
+	const tipos = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-tipo]') ?? [];
+	const formas = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-forma]') ?? [];
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+
+	function cargar(): Estado {
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (guardado && Array.isArray(guardado.paradas) && guardado.paradas.length >= 2) {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				return {
+					tipo: guardado.tipo === 'radial' ? 'radial' : 'linear',
+					angulo: limitar(num(guardado.angulo, INICIAL.angulo), 0, 360),
+					forma: guardado.forma === 'ellipse' ? 'ellipse' : 'circle',
+					paradas: guardado.paradas.slice(0, MAX_PARADAS).map((p: Partial<Parada>) => ({
+						color: HEX.test(String(p.color)) ? String(p.color).toLowerCase() : '#000000',
+						pos: limitar(num(p.pos, 0), 0, 100),
+					})),
+					tamano: typeof guardado.tamano === 'string' ? guardado.tamano : INICIAL.tamano,
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return structuredClone(INICIAL);
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	// Ordenadas por posición: el CSS y el canvas las leen así, y si no se
+	// ordenan, una parada «atrasada» se pega a la anterior y no se ve.
+	const ordenadas = () => [...estado.paradas].sort((a, b) => a.pos - b.pos);
+
+	function gradiente() {
+		const paradas = ordenadas()
+			.map((p) => `${p.color} ${p.pos}%`)
+			.join(', ');
+		return estado.tipo === 'linear'
+			? `linear-gradient(${estado.angulo}deg, ${paradas})`
+			: `radial-gradient(${estado.forma}, ${paradas})`;
+	}
+
+	function medidas() {
+		const [ancho, alto] = (estado.tamano.match(/^(\d+)x(\d+)$/)?.slice(1) ?? ['1200', '630']).map(Number);
+		return { ancho, alto };
+	}
+
+	function pintar() {
+		const css = gradiente();
+		if (vista) {
+			vista.style.background = css;
+			const { ancho, alto } = medidas();
+			vista.style.aspectRatio = `${ancho} / ${alto}`;
+		}
+		if (salida) salida.textContent = `background: ${css};`;
+	}
+
+	function actualizar() {
+		pintar();
+		guardar();
+	}
+
+	function pintarControles() {
+		tipos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grTipo === estado.tipo)));
+		formas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grForma === estado.forma)));
+		if (bloqueLineal) bloqueLineal.hidden = estado.tipo !== 'linear';
+		if (bloqueRadial) bloqueRadial.hidden = estado.tipo !== 'radial';
+		if (angulo) angulo.value = String(estado.angulo);
+		if (anguloNum) anguloNum.value = String(estado.angulo);
+		if (tamano) {
+			if (![...tamano.options].some((o) => o.value === estado.tamano)) estado.tamano = INICIAL.tamano;
+			tamano.value = estado.tamano;
+		}
+	}
+
+	function pintarFilas() {
+		if (!lista || !plantilla) return;
+		lista.replaceChildren();
+		estado.paradas.forEach((parada, i) => {
+			const fila = plantilla.content.firstElementChild?.cloneNode(true) as HTMLElement;
+			const color = fila.querySelector<HTMLInputElement>('[data-gr-color]')!;
+			const hex = fila.querySelector<HTMLInputElement>('[data-gr-hex]')!;
+			const pos = fila.querySelector<HTMLInputElement>('[data-gr-pos]')!;
+			const posTexto = fila.querySelector<HTMLElement>('[data-gr-pos-texto]')!;
+			const quitar = fila.querySelector<HTMLButtonElement>('[data-gr-quitar]')!;
+
+			color.value = parada.color;
+			hex.value = parada.color;
+			pos.value = String(parada.pos);
+			posTexto.textContent = `${parada.pos}%`;
+			// Un gradiente con un solo color no es un gradiente.
+			quitar.disabled = estado.paradas.length <= 2;
+
+			color.addEventListener('input', () => {
+				parada.color = color.value.toLowerCase();
+				hex.value = parada.color;
+				actualizar();
+			});
+			hex.addEventListener('input', () => {
+				let valor = hex.value.trim();
+				if (!valor.startsWith('#')) valor = `#${valor}`;
+				// #abc vale como #aabbcc, igual que en CSS.
+				if (/^#[0-9a-f]{3}$/i.test(valor)) valor = `#${[...valor.slice(1)].map((c) => c + c).join('')}`;
+				if (!HEX.test(valor)) return;
+				parada.color = valor.toLowerCase();
+				color.value = parada.color;
+				actualizar();
+			});
+			hex.addEventListener('blur', () => {
+				hex.value = parada.color;
+			});
+			pos.addEventListener('input', () => {
+				parada.pos = limitar(Number(pos.value), 0, 100);
+				posTexto.textContent = `${parada.pos}%`;
+				actualizar();
+			});
+			quitar.addEventListener('click', () => {
+				if (estado.paradas.length <= 2) return;
+				estado.paradas.splice(i, 1);
+				pintarFilas();
+				actualizar();
+			});
+			lista.append(fila);
+		});
+		const nuevo = panel?.querySelector<HTMLButtonElement>('[data-gr-nuevo]');
+		if (nuevo) nuevo.disabled = estado.paradas.length >= MAX_PARADAS;
+	}
+
+	function mezclar(a: string, b: string) {
+		const canal = (hex: string, k: number) => parseInt(hex.slice(1 + k * 2, 3 + k * 2), 16);
+		return `#${[0, 1, 2]
+			.map((k) => Math.round((canal(a, k) + canal(b, k)) / 2).toString(16).padStart(2, '0'))
+			.join('')}`;
+	}
+
+	function anadir() {
+		if (estado.paradas.length >= MAX_PARADAS) return;
+		// El nuevo va en el hueco más grande, con el color de en medio.
+		const orden = ordenadas();
+		let mejor = 0;
+		for (let i = 1; i < orden.length - 1; i++) {
+			if (orden[i + 1].pos - orden[i].pos > orden[mejor + 1].pos - orden[mejor].pos) mejor = i;
+		}
+		const a = orden[mejor];
+		const b = orden[mejor + 1] ?? a;
+		estado.paradas.push({ color: mezclar(a.color, b.color), pos: Math.round((a.pos + b.pos) / 2) });
+		pintarFilas();
+		actualizar();
+	}
+
+	function repartir() {
+		const n = estado.paradas.length;
+		ordenadas().forEach((p, i) => {
+			p.pos = Math.round((i / (n - 1)) * 100);
+		});
+		pintarFilas();
+		actualizar();
+	}
+
+	function hsl(h: number, s: number, l: number) {
+		const f = (n: number) => {
+			const k = (n + h / 30) % 12;
+			const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+			return Math.round(v * 255).toString(16).padStart(2, '0');
+		};
+		return `#${f(0)}${f(8)}${f(4)}`;
+	}
+
+	function alAzar() {
+		// Tonos repartidos alrededor de uno al azar: suelen casar mejor que tres sueltos.
+		const base = Math.random() * 360;
+		const salto = 30 + Math.random() * 90;
+		const n = estado.paradas.length;
+		estado.paradas = Array.from({ length: n }, (_, i) => ({
+			color: hsl((base + salto * i) % 360, 0.6 + Math.random() * 0.3, 0.45 + Math.random() * 0.2),
+			pos: Math.round((i / (n - 1)) * 100),
+		}));
+		if (estado.tipo === 'linear') estado.angulo = Math.round(Math.random() * 8) * 45;
+		pintarControles();
+		pintarFilas();
+		actualizar();
+	}
+
+	// ——— El PNG ———
+	// La misma geometría que usa el navegador para el CSS. Lineal: la línea del
+	// gradiente pasa por el centro con el ángulo dado (0deg es hacia arriba y gira
+	// como el reloj) y mide lo justo para que las esquinas caigan en el 0% y el
+	// 100%. Radial: centrado y hasta la esquina más lejana, que es lo que hace
+	// CSS cuando no se le dice tamaño.
+	function lienzo() {
+		const { ancho, alto } = medidas();
+		const canvas = document.createElement('canvas');
+		canvas.width = ancho;
+		canvas.height = alto;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return null;
+		const cx = ancho / 2;
+		const cy = alto / 2;
+		const poner = (g: CanvasGradient) => ordenadas().forEach((p) => g.addColorStop(p.pos / 100, p.color));
+
+		if (estado.tipo === 'linear') {
+			const rad = (estado.angulo * Math.PI) / 180;
+			const dx = Math.sin(rad);
+			const dy = -Math.cos(rad);
+			const medio = (Math.abs(ancho * dx) + Math.abs(alto * dy)) / 2;
+			const g = ctx.createLinearGradient(cx - dx * medio, cy - dy * medio, cx + dx * medio, cy + dy * medio);
+			poner(g);
+			ctx.fillStyle = g;
+			ctx.fillRect(0, 0, ancho, alto);
+		} else if (estado.forma === 'circle') {
+			const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(cx, cy));
+			poner(g);
+			ctx.fillStyle = g;
+			ctx.fillRect(0, 0, ancho, alto);
+		} else {
+			// La elipse guarda la proporción del lienzo y toca las esquinas: radios
+			// de la mitad de cada lado por raíz de dos. Se pinta un círculo aplastado.
+			const rx = cx * Math.SQRT2;
+			const ry = cy * Math.SQRT2;
+			const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+			poner(g);
+			ctx.translate(cx, cy);
+			ctx.scale(1, ry / rx);
+			ctx.fillStyle = g;
+			ctx.fillRect(-cx, (-cy * rx) / ry, ancho, (alto * rx) / ry);
+		}
+		return canvas;
+	}
+
+	panel?.querySelector('[data-gr-png]')?.addEventListener('click', () => {
+		const canvas = lienzo();
+		if (!canvas) return;
+		canvas.toBlob((blob) => {
+			if (!blob) return;
+			const url = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `gradiente-${estado.tipo === 'linear' ? 'lineal' : 'radial'}-${estado.tamano}.png`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		}, 'image/png');
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar CSS';
+		}, 2000);
+	});
+
+	function ponerAngulo(valor: number) {
+		if (!Number.isFinite(valor)) return;
+		estado.angulo = limitar(valor, 0, 360);
+		if (angulo) angulo.value = String(estado.angulo);
+		if (anguloNum && document.activeElement !== anguloNum) anguloNum.value = String(estado.angulo);
+		actualizar();
+	}
+
+	angulo?.addEventListener('input', () => ponerAngulo(Number(angulo.value)));
+	anguloNum?.addEventListener('input', () => {
+		if (anguloNum.value.trim() !== '') ponerAngulo(Number(anguloNum.value));
+	});
+	anguloNum?.addEventListener('blur', () => {
+		anguloNum.value = String(estado.angulo);
+	});
+	panel?.querySelectorAll<HTMLButtonElement>('[data-gr-angulo-rapido]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			ponerAngulo(Number(boton.dataset.grAnguloRapido));
+			if (anguloNum) anguloNum.value = String(estado.angulo);
+		});
+	});
+
+	tipos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.tipo = boton.dataset.grTipo === 'radial' ? 'radial' : 'linear';
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	formas.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.forma = boton.dataset.grForma === 'ellipse' ? 'ellipse' : 'circle';
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	tamano?.addEventListener('change', () => {
+		estado.tamano = tamano.value;
+		actualizar();
+	});
+
+	panel?.querySelector('[data-gr-nuevo]')?.addEventListener('click', anadir);
+	panel?.querySelector('[data-gr-repartir]')?.addEventListener('click', repartir);
+	panel?.querySelector('[data-gr-azar]')?.addEventListener('click', alAzar);
+	panel?.querySelector('[data-gr-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		pintarControles();
+		pintarFilas();
+		actualizar();
+	});
+
+	pintarControles();
+	pintarFilas();
+	pintar();
+</script>

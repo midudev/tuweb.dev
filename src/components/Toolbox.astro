@@ -9,6 +9,7 @@ import ColorTool from './ColorTool.astro';
 import ConfigTool from './ConfigTool.astro';
 import FlowTool from './FlowTool.astro';
 import FunctionTool from './FunctionTool.astro';
+import GradientTool from './GradientTool.astro';
 import Icon from './Icon.astro';
 import ImageTool from './ImageTool.astro';
 import PatternTool from './PatternTool.astro';
@@ -29,6 +30,7 @@ const tools = [
 	{ id: 'colores', label: 'Colores', icon: 'palette' },
 	{ id: 'laboratorio', label: 'Laboratorio de color', icon: 'flask' },
 	{ id: 'obras', label: 'Paletas de obras', icon: 'artboard' },
+	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
@@ -176,6 +178,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ColorLab />
 
 	<ArtPaletteTool />
+
+	<GradientTool />
 
 	<ImageTool />
 
