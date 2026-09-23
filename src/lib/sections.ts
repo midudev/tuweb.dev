@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, hacerte un logo y una tarjeta de visita, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Casi todo corre en tu navegador; los consejos y los retos que publicas los ve todo el mundo.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, pintar el mural de píxeles del día, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, hacerte un logo y una tarjeta de visita, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Casi todo corre en tu navegador; los consejos y los retos que publicas los ve todo el mundo.',
 	},
 	{
 		id: 'juegos',
@@ -122,6 +122,15 @@ export const SECTIONS: Section[] = [
 		card: 'Una tira cómica sin dibujar: viñetas, fondos, personajes y bocadillos.',
 		intro:
 			'Monta una tira sin saber dibujar. Elige cuántas viñetas, y en cada una el fondo, quién sale a cada lado —dev, jefa, robot, gata o fantasma— y qué dice: hablando, pensando o a gritos. Ponle un rótulo y un título, y te la llevas en PNG o la copias al portapapeles. Se pinta en tu navegador y lo que llevas se queda en él para seguir otro día.',
+	},
+	{
+		href: '/mural',
+		title: 'Mural de píxeles',
+		icon: 'grid-pattern',
+		group: 'herramientas',
+		card: 'Un lienzo de 32 × 32, dieciséis colores y un tema nuevo cada día.',
+		intro:
+			'Cada día, un tema y un lienzo de 32 × 32 para pintarlo con una paleta de dieciséis colores: lápiz, goma, cubo y cuentagotas, con deshacer y rejilla. Te lo llevas en PNG. Lo que pintas se guarda en tu navegador, un dibujo por día, y los de días anteriores quedan a mano para bajarlos.',
 	},
 	{
 		href: '/nube',

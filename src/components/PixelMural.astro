@@ -1,0 +1,612 @@
+---
+/**
+ * El mural de píxeles: un lienzo de 32 × 32 y una paleta de dieciséis colores.
+ * Cada día trae un tema, y el dibujo de cada día se guarda aparte en tu
+ * navegador. Te lo llevas en PNG. No se envía nada: la paleta y los temas
+ * están en src/lib/mural.ts y todo lo demás pasa aquí.
+ */
+import { LADO, PALETA } from '../lib/mural';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const HERRAMIENTAS = [
+	{ id: 'lapiz', label: 'Lápiz', icon: 'pencil', tecla: 'B' },
+	{ id: 'goma', label: 'Goma', icon: 'eraser', tecla: 'E' },
+	{ id: 'cubo', label: 'Cubo', icon: 'bucket', tecla: 'G' },
+	{ id: 'gotero', label: 'Cuentagotas', icon: 'color-picker', tecla: 'I' },
+];
+
+const ESCALAS = [8, 16, 32];
+---
+
+<section id="mural" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-col gap-1 border border-accent bg-panel px-4 py-3">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="calendar-event" class="size-4 shrink-0 text-accent" />
+				Tema de hoy · <span data-mural-fecha></span>
+			</span>
+			<p data-mural-tema class="font-pixel text-marca text-mark">…</p>
+			<span class="text-xs text-muted">Mañana, otro. Lo de hoy se queda guardado abajo.</span>
+		</div>
+
+		<div class="flex justify-center border border-line bg-panel p-4">
+			<canvas
+				data-mural-lienzo
+				width={LADO * 16}
+				height={LADO * 16}
+				role="img"
+				aria-label="El mural de hoy"
+				class="block aspect-square w-full max-w-[512px] cursor-crosshair touch-none border border-line [image-rendering:pixelated]"
+			></canvas>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-mural-png class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+			<button type="button" data-mural-deshacer class={BOTON} title="Ctrl+Z">
+				<Icon name="arrow-back-up" class="size-4 shrink-0" />
+				Deshacer
+			</button>
+			<button type="button" data-mural-rehacer class={BOTON} title="Ctrl+Y">
+				<Icon name="arrow-forward-up" class="size-4 shrink-0" />
+				Rehacer
+			</button>
+			<button type="button" data-mural-rejilla aria-pressed="false" class={BOTON}>
+				<Icon name="grid-4x4" class="size-4 shrink-0" />
+				Rejilla
+			</button>
+			<button type="button" data-mural-vaciar class={BOTON}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Vaciar
+			</button>
+		</div>
+
+		<p data-mural-cuenta class="text-sm text-muted" aria-live="polite"></p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-2">
+			<span id="mural-herramienta" class="text-sm text-muted">Herramienta</span>
+			<div role="group" aria-labelledby="mural-herramienta" class="flex flex-wrap gap-2">
+				{
+					HERRAMIENTAS.map((h) => (
+						<button
+							type="button"
+							data-mural-herramienta={h.id}
+							aria-pressed="false"
+							title={`${h.label} (${h.tecla})`}
+							class={BOTON}
+						>
+							<Icon name={h.icon} class="size-4 shrink-0" />
+							{h.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<span id="mural-paleta">Paleta</span>
+				<span data-mural-color class="text-mark"></span>
+			</span>
+			<div role="group" aria-labelledby="mural-paleta" class="grid grid-cols-8 gap-2">
+				{
+					PALETA.map((p, i) => (
+						<button
+							type="button"
+							data-mural-tinta={i}
+							aria-pressed="false"
+							aria-label={p.nombre}
+							title={p.nombre}
+							class="aspect-square w-full border border-line outline-accent hover:border-accent aria-pressed:outline-2 aria-pressed:outline-offset-2"
+							style={`background:${p.color}`}
+						/>
+					))
+				}
+			</div>
+			<p class="text-xs text-muted">
+				Clic derecho pinta con papel. Teclas: B lápiz, E goma, G cubo, I cuentagotas.
+			</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span id="mural-escala" class="text-sm text-muted">Tamaño del PNG</span>
+			<div role="group" aria-labelledby="mural-escala" class="flex flex-wrap gap-2">
+				{
+					ESCALAS.map((e) => (
+						<button type="button" data-mural-escala={e} aria-pressed="false" class={`${BOTON} px-2 py-1`}>
+							{LADO * e} px
+						</button>
+					))
+				}
+			</div>
+			<label class="inline-flex items-center gap-2 pt-1 text-sm text-muted">
+				<input type="checkbox" data-mural-transparente class="size-4 accent-accent" />
+				Papel transparente
+			</label>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="history" class="size-4 shrink-0 text-accent" />
+				Días anteriores
+			</span>
+			<ul data-mural-dias class="flex flex-col gap-2"></ul>
+			<p data-mural-sin-dias class="text-xs text-muted">
+				Aún nada. Lo que pintes hoy saldrá aquí mañana.
+			</p>
+		</div>
+	</div>
+
+	<template data-mural-plantilla>
+		<li class="flex items-center gap-3 border border-line bg-bg p-2">
+			<canvas data-dia-lienzo class="size-12 shrink-0 border border-line [image-rendering:pixelated]"></canvas>
+			<span class="flex min-w-0 grow flex-col">
+				<span data-dia-tema class="truncate text-sm text-fg"></span>
+				<span data-dia-fecha class="text-xs text-muted"></span>
+			</span>
+			<button type="button" data-dia-png class="p-1 text-muted hover:text-accent" title="Descargar .png" aria-label="Descargar .png">
+				<Icon name="download" class="size-4 shrink-0" />
+			</button>
+			<button type="button" data-dia-borrar class="p-1 text-muted hover:text-heart" title="Borrar" aria-label="Borrar">
+				<Icon name="trash" class="size-4 shrink-0" />
+			</button>
+		</li>
+	</template>
+</section>
+
+<script>
+	import { LADO, PALETA, fechaDe, temaDe } from '../lib/mural';
+
+	type Herramienta = 'lapiz' | 'goma' | 'cubo' | 'gotero';
+	type Guardado = {
+		dias: Record<string, string>;
+		tinta: number;
+		herramienta: Herramienta;
+		rejilla: boolean;
+		escala: number;
+		transparente: boolean;
+	};
+
+	const CLAVE = 'tuweb:mural';
+	const CELDA = 16;
+	const TOTAL = LADO * LADO;
+	const MAX_DIAS = 14;
+	const MAX_HISTORIAL = 60;
+	const HERRAMIENTAS: Herramienta[] = ['lapiz', 'goma', 'cubo', 'gotero'];
+	const ESCALAS = [8, 16, 32];
+	const COLORES = PALETA.map((p) => p.color);
+
+	const raiz = document.querySelector<HTMLElement>('#mural');
+	const lienzo = raiz?.querySelector<HTMLCanvasElement>('[data-mural-lienzo]');
+	const g = lienzo?.getContext('2d');
+	const cuenta = raiz?.querySelector<HTMLElement>('[data-mural-cuenta]');
+	const listaDias = raiz?.querySelector<HTMLUListElement>('[data-mural-dias]');
+	const sinDias = raiz?.querySelector<HTMLElement>('[data-mural-sin-dias]');
+	const plantilla = raiz?.querySelector<HTMLTemplateElement>('[data-mural-plantilla]');
+	const deshacerBoton = raiz?.querySelector<HTMLButtonElement>('[data-mural-deshacer]');
+	const rehacerBoton = raiz?.querySelector<HTMLButtonElement>('[data-mural-rehacer]');
+	const transparente = raiz?.querySelector<HTMLInputElement>('[data-mural-transparente]');
+
+	// --- Lo guardado ---
+
+	const valido = (texto: unknown): texto is string =>
+		typeof texto === 'string' && texto.length === TOTAL && /^[0-9a-f]+$/.test(texto);
+
+	function cargar(): Guardado {
+		const estado: Guardado = { dias: {}, tinta: 1, herramienta: 'lapiz', rejilla: true, escala: 16, transparente: false };
+		try {
+			const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!leido || typeof leido !== 'object') return estado;
+			if (leido.dias && typeof leido.dias === 'object') {
+				Object.entries(leido.dias).forEach(([fecha, texto]) => {
+					if (/^\d{4}-\d{2}-\d{2}$/.test(fecha) && valido(texto)) estado.dias[fecha] = texto;
+				});
+			}
+			if (Number.isInteger(leido.tinta) && leido.tinta >= 0 && leido.tinta < COLORES.length) estado.tinta = leido.tinta;
+			if (HERRAMIENTAS.includes(leido.herramienta)) estado.herramienta = leido.herramienta;
+			if (typeof leido.rejilla === 'boolean') estado.rejilla = leido.rejilla;
+			if (ESCALAS.includes(leido.escala)) estado.escala = leido.escala;
+			estado.transparente = leido.transparente === true;
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	const estado = cargar();
+	let hoy = fechaDe(new Date());
+	let pixeles = leer(estado.dias[hoy]);
+	let historial: string[] = [];
+	let futuro: string[] = [];
+
+	function leer(texto: string | undefined) {
+		const salida = new Uint8Array(TOTAL);
+		if (valido(texto)) for (let i = 0; i < TOTAL; i++) salida[i] = parseInt(texto[i], 16);
+		return salida;
+	}
+
+	const escribir = (p: Uint8Array) => Array.from(p, (n) => n.toString(16)).join('');
+
+	function guardar() {
+		const texto = escribir(pixeles);
+		if (/^0+$/.test(texto)) delete estado.dias[hoy];
+		else estado.dias[hoy] = texto;
+		// Solo los últimos días: lo demás se va.
+		Object.keys(estado.dias)
+			.sort()
+			.reverse()
+			.slice(MAX_DIAS)
+			.forEach((fecha) => delete estado.dias[fecha]);
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento se pinta igual; solo que no se guarda.
+		}
+	}
+
+	// --- Pintado ---
+
+	function pintar() {
+		if (!g) return;
+		const lado = LADO * CELDA;
+		for (let i = 0; i < TOTAL; i++) {
+			g.fillStyle = COLORES[pixeles[i]];
+			g.fillRect((i % LADO) * CELDA, Math.floor(i / LADO) * CELDA, CELDA, CELDA);
+		}
+		if (estado.rejilla) {
+			for (let n = 1; n < LADO; n++) {
+				g.fillStyle = n % 8 === 0 ? 'rgba(59, 45, 36, 0.3)' : 'rgba(59, 45, 36, 0.1)';
+				g.fillRect(n * CELDA, 0, 1, lado);
+				g.fillRect(0, n * CELDA, lado, 1);
+			}
+		}
+		if (cuenta) {
+			let llenos = 0;
+			pixeles.forEach((n) => (llenos += n ? 1 : 0));
+			cuenta.textContent = `${llenos} de ${TOTAL} píxeles pintados.`;
+		}
+		if (deshacerBoton) deshacerBoton.disabled = !historial.length;
+		if (rehacerBoton) rehacerBoton.disabled = !futuro.length;
+	}
+
+	function pintarControles() {
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-mural-herramienta]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.muralHerramienta === estado.herramienta));
+		});
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-mural-tinta]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(Number(b.dataset.muralTinta) === estado.tinta));
+		});
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-mural-escala]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(Number(b.dataset.muralEscala) === estado.escala));
+		});
+		raiz?.querySelector('[data-mural-rejilla]')?.setAttribute('aria-pressed', String(estado.rejilla));
+		const color = raiz?.querySelector<HTMLElement>('[data-mural-color]');
+		if (color) color.textContent = PALETA[estado.tinta].nombre;
+		if (transparente) transparente.checked = estado.transparente;
+	}
+
+	function pintarTema() {
+		const tema = raiz?.querySelector<HTMLElement>('[data-mural-tema]');
+		const fecha = raiz?.querySelector<HTMLElement>('[data-mural-fecha]');
+		if (tema) tema.textContent = temaDe(hoy);
+		if (fecha) fecha.textContent = legible(hoy);
+		lienzo?.setAttribute('aria-label', `El mural de hoy: ${temaDe(hoy)}`);
+	}
+
+	function legible(fecha: string) {
+		const [y, m, d] = fecha.split('-').map(Number);
+		return new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+	}
+
+	// --- Días anteriores ---
+
+	function pintarDias() {
+		if (!listaDias || !plantilla) return;
+		const fechas = Object.keys(estado.dias)
+			.filter((f) => f !== hoy)
+			.sort()
+			.reverse();
+		listaDias.replaceChildren();
+		if (sinDias) sinDias.hidden = fechas.length > 0;
+		fechas.forEach((fecha) => {
+			const nodo = plantilla.content.firstElementChild?.cloneNode(true);
+			if (!(nodo instanceof HTMLElement)) return;
+			const dibujo = leer(estado.dias[fecha]);
+			const mini = nodo.querySelector<HTMLCanvasElement>('[data-dia-lienzo]');
+			if (mini) {
+				mini.width = mini.height = LADO;
+				const mg = mini.getContext('2d');
+				if (mg) volcar(mg, dibujo, 1, false);
+				mini.setAttribute('role', 'img');
+				mini.setAttribute('aria-label', temaDe(fecha));
+			}
+			const tema = nodo.querySelector('[data-dia-tema]');
+			const cuando = nodo.querySelector('[data-dia-fecha]');
+			if (tema) tema.textContent = temaDe(fecha);
+			if (cuando) cuando.textContent = legible(fecha);
+			nodo.querySelector('[data-dia-png]')?.addEventListener('click', () => descargar(dibujo, fecha));
+			nodo.querySelector('[data-dia-borrar]')?.addEventListener('click', () => {
+				delete estado.dias[fecha];
+				guardar();
+				pintarDias();
+			});
+			listaDias.append(nodo);
+		});
+	}
+
+	// --- PNG ---
+
+	function volcar(destino: CanvasRenderingContext2D, dibujo: Uint8Array, escala: number, sinPapel: boolean) {
+		for (let i = 0; i < TOTAL; i++) {
+			if (sinPapel && dibujo[i] === 0) continue;
+			destino.fillStyle = COLORES[dibujo[i]];
+			destino.fillRect((i % LADO) * escala, Math.floor(i / LADO) * escala, escala, escala);
+		}
+	}
+
+	function descargar(dibujo: Uint8Array, fecha: string) {
+		const salida = document.createElement('canvas');
+		salida.width = salida.height = LADO * estado.escala;
+		const sg = salida.getContext('2d');
+		if (!sg) return;
+		volcar(sg, dibujo, estado.escala, estado.transparente);
+		salida.toBlob((blob) => {
+			if (!blob) return;
+			const url = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `mural-${fecha}.png`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		}, 'image/png');
+	}
+
+	// --- Historial ---
+
+	function apuntar() {
+		historial.push(escribir(pixeles));
+		if (historial.length > MAX_HISTORIAL) historial.shift();
+		futuro = [];
+	}
+
+	function deshacer() {
+		const antes = historial.pop();
+		if (antes === undefined) return;
+		futuro.push(escribir(pixeles));
+		pixeles = leer(antes);
+		pintar();
+		guardar();
+	}
+
+	function rehacer() {
+		const despues = futuro.pop();
+		if (despues === undefined) return;
+		historial.push(escribir(pixeles));
+		pixeles = leer(despues);
+		pintar();
+		guardar();
+	}
+
+	// --- Herramientas ---
+
+	function rellenar(inicio: number, tinta: number) {
+		const objetivo = pixeles[inicio];
+		if (objetivo === tinta) return;
+		const pila = [inicio];
+		while (pila.length) {
+			const i = pila.pop() as number;
+			if (pixeles[i] !== objetivo) continue;
+			pixeles[i] = tinta;
+			const x = i % LADO;
+			if (x > 0) pila.push(i - 1);
+			if (x < LADO - 1) pila.push(i + 1);
+			if (i >= LADO) pila.push(i - LADO);
+			if (i < TOTAL - LADO) pila.push(i + LADO);
+		}
+	}
+
+	/** Una línea de celda a celda, para que un trazo rápido no deje huecos. */
+	function linea(x0: number, y0: number, x1: number, y1: number, tinta: number) {
+		const dx = Math.abs(x1 - x0);
+		const dy = -Math.abs(y1 - y0);
+		const sx = x0 < x1 ? 1 : -1;
+		const sy = y0 < y1 ? 1 : -1;
+		let error = dx + dy;
+		for (;;) {
+			pixeles[y0 * LADO + x0] = tinta;
+			if (x0 === x1 && y0 === y1) return;
+			const e2 = 2 * error;
+			if (e2 >= dy) {
+				error += dy;
+				x0 += sx;
+			}
+			if (e2 <= dx) {
+				error += dx;
+				y0 += sy;
+			}
+		}
+	}
+
+	function celda(evento: PointerEvent): [number, number] | null {
+		if (!lienzo) return null;
+		const caja = lienzo.getBoundingClientRect();
+		if (!caja.width || !caja.height) return null;
+		const x = Math.floor(((evento.clientX - caja.left) / caja.width) * LADO);
+		const y = Math.floor(((evento.clientY - caja.top) / caja.height) * LADO);
+		if (x < 0 || y < 0 || x >= LADO || y >= LADO) return null;
+		return [x, y];
+	}
+
+	let trazo: { x: number; y: number; tinta: number } | null = null;
+
+	lienzo?.addEventListener('contextmenu', (evento) => evento.preventDefault());
+
+	lienzo?.addEventListener('pointerdown', (evento) => {
+		const punto = celda(evento);
+		if (!punto || (evento.button !== 0 && evento.button !== 2)) return;
+		evento.preventDefault();
+		const [x, y] = punto;
+		const i = y * LADO + x;
+		const borra = evento.button === 2 || estado.herramienta === 'goma';
+		const tinta = borra ? 0 : estado.tinta;
+
+		if (estado.herramienta === 'gotero' && evento.button === 0) {
+			estado.tinta = pixeles[i];
+			estado.herramienta = 'lapiz';
+			pintarControles();
+			guardar();
+			return;
+		}
+		apuntar();
+		if (estado.herramienta === 'cubo') {
+			rellenar(i, tinta);
+			if (historial.at(-1) === escribir(pixeles)) historial.pop();
+			pintar();
+			guardar();
+			return;
+		}
+		trazo = { x, y, tinta };
+		pixeles[i] = tinta;
+		lienzo.setPointerCapture(evento.pointerId);
+		pintar();
+	});
+
+	lienzo?.addEventListener('pointermove', (evento) => {
+		if (!trazo || !lienzo) return;
+		const caja = lienzo.getBoundingClientRect();
+		// Con el puntero capturado, lo que se sale del lienzo se pega al borde.
+		const x = Math.min(LADO - 1, Math.max(0, Math.floor(((evento.clientX - caja.left) / caja.width) * LADO)));
+		const y = Math.min(LADO - 1, Math.max(0, Math.floor(((evento.clientY - caja.top) / caja.height) * LADO)));
+		if (x === trazo.x && y === trazo.y) return;
+		linea(trazo.x, trazo.y, x, y, trazo.tinta);
+		trazo.x = x;
+		trazo.y = y;
+		pintar();
+	});
+
+	function soltar() {
+		if (!trazo) return;
+		trazo = null;
+		// Un clic que no cambia nada no cuenta para deshacer.
+		if (historial.at(-1) === escribir(pixeles)) historial.pop();
+		pintar();
+		guardar();
+	}
+
+	lienzo?.addEventListener('pointerup', soltar);
+	lienzo?.addEventListener('pointercancel', soltar);
+
+	// --- Mandos ---
+
+	function elegirHerramienta(h: Herramienta) {
+		estado.herramienta = h;
+		pintarControles();
+		guardar();
+	}
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-mural-herramienta]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const h = b.dataset.muralHerramienta as Herramienta;
+			if (HERRAMIENTAS.includes(h)) elegirHerramienta(h);
+		});
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-mural-tinta]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const n = Number(b.dataset.muralTinta);
+			if (!Number.isInteger(n) || n < 0 || n >= COLORES.length) return;
+			estado.tinta = n;
+			// Elegir color con la goma o el cuentagotas puestos es que quieres pintar.
+			if (estado.herramienta === 'goma' || estado.herramienta === 'gotero') estado.herramienta = 'lapiz';
+			pintarControles();
+			guardar();
+		});
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-mural-escala]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const e = Number(b.dataset.muralEscala);
+			if (!ESCALAS.includes(e)) return;
+			estado.escala = e;
+			pintarControles();
+			guardar();
+		});
+	});
+
+	transparente?.addEventListener('change', () => {
+		estado.transparente = transparente.checked;
+		guardar();
+	});
+
+	raiz?.querySelector('[data-mural-rejilla]')?.addEventListener('click', () => {
+		estado.rejilla = !estado.rejilla;
+		pintarControles();
+		pintar();
+		guardar();
+	});
+
+	raiz?.querySelector('[data-mural-vaciar]')?.addEventListener('click', () => {
+		if (!pixeles.some((n) => n)) return;
+		apuntar();
+		pixeles = new Uint8Array(TOTAL);
+		pintar();
+		guardar();
+	});
+
+	deshacerBoton?.addEventListener('click', deshacer);
+	rehacerBoton?.addEventListener('click', rehacer);
+	raiz?.querySelector('[data-mural-png]')?.addEventListener('click', () => descargar(pixeles, hoy));
+
+	const TECLAS: Record<string, Herramienta> = { b: 'lapiz', e: 'goma', g: 'cubo', i: 'gotero' };
+
+	document.addEventListener('keydown', (evento) => {
+		const destino = evento.target as HTMLElement | null;
+		if (destino?.closest('input, textarea, select, [contenteditable="true"]')) return;
+		const tecla = evento.key.toLowerCase();
+		if (evento.ctrlKey || evento.metaKey) {
+			if (tecla === 'z' && !evento.shiftKey) deshacer();
+			else if (tecla === 'y' || (tecla === 'z' && evento.shiftKey)) rehacer();
+			else return;
+			evento.preventDefault();
+			return;
+		}
+		if (evento.altKey) return;
+		const h = TECLAS[tecla];
+		if (h) elegirHerramienta(h);
+	});
+
+	// --- El cambio de día ---
+
+	// Si la pestaña sigue abierta a medianoche, lo de ayer se archiva y llega el tema nuevo.
+	function revisarDia() {
+		const ahora = fechaDe(new Date());
+		if (ahora === hoy) return;
+		guardar();
+		hoy = ahora;
+		pixeles = leer(estado.dias[hoy]);
+		historial = [];
+		futuro = [];
+		trazo = null;
+		pintarTema();
+		pintarDias();
+		pintar();
+	}
+
+	setInterval(revisarDia, 60_000);
+	document.addEventListener('visibilitychange', () => {
+		if (!document.hidden) revisarDia();
+	});
+
+	pintarTema();
+	pintarControles();
+	pintarDias();
+	pintar();
+</script>
