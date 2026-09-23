@@ -98,16 +98,115 @@ pintar();
 setInterval(pintar, 1000);`,
 };
 
+/** Un bloque de prueba para ver con los marcos cómo se adapta el CSS. */
+const RESPONSIVE: Sources = {
+	html: `<main class="bloque">
+	<header>
+		<h1>Bloque de prueba</h1>
+		<p>Cambia de marco o toca el CSS y mira cómo se recoloca.</p>
+	</header>
+	<section class="tarjetas">
+		<article>Uno</article>
+		<article>Dos</article>
+		<article>Tres</article>
+	</section>
+	<p id="ancho"></p>
+</main>`,
+	css: `body {
+	margin: 0;
+	background: #fdf6ef;
+	color: #3b2d24;
+	font-family: ui-monospace, monospace;
+}
+
+.bloque {
+	padding: 1rem;
+}
+
+h1 {
+	color: #c2410c;
+	font-size: 1.25rem;
+}
+
+.tarjetas {
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: 1fr;
+}
+
+article {
+	padding: 1.5rem 1rem;
+	border: 1px solid #e8d9c8;
+	background: #f7ece1;
+}
+
+/* Tablet: dos columnas. */
+@media (min-width: 640px) {
+	.bloque { padding: 2rem; }
+	h1 { font-size: 1.75rem; }
+	.tarjetas { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Escritorio: tres columnas. */
+@media (min-width: 1024px) {
+	.bloque { max-width: 60rem; margin: 0 auto; }
+	.tarjetas { grid-template-columns: repeat(3, 1fr); }
+}`,
+	js: `const ancho = document.querySelector('#ancho');
+
+function medir() {
+	ancho.textContent = 'Ancho: ' + innerWidth + 'px';
+}
+
+medir();
+addEventListener('resize', medir);`,
+};
+
 const EMPTY: Sources = { html: '', css: '', js: '' };
 
 /** Por dónde empezar. La primera es también lo que sale la primera vez. */
 export const TEMPLATES = [
 	{ id: 'contador', label: 'Contador', icon: 'click', sources: COUNTER },
 	{ id: 'reloj', label: 'Reloj', icon: 'clock', sources: CLOCK },
+	{ id: 'responsive', label: 'Responsive', icon: 'layout-cards', sources: RESPONSIVE },
 	{ id: 'vacio', label: 'En blanco', icon: 'eraser', sources: EMPTY },
 ] as const;
 
 export const DEFAULT_SOURCES = COUNTER;
+
+/**
+ * Los marcos de la vista previa. El iframe se pone a ese ancho de verdad, así
+ * que las media queries saltan como en el aparato, y luego se encoge para caber.
+ * «Libre» es el de siempre: ocupa lo que haya.
+ */
+export const DEVICES = [
+	{ id: 'libre', label: 'Libre', icon: 'arrows-horizontal', width: 0, height: 0 },
+	{ id: 'movil', label: 'Móvil', icon: 'device-mobile', width: 375, height: 667 },
+	{ id: 'tablet', label: 'Tablet', icon: 'device-tablet', width: 768, height: 1024 },
+	{ id: 'escritorio', label: 'Escritorio', icon: 'device-desktop', width: 1280, height: 800 },
+] as const;
+
+export type DeviceId = (typeof DEVICES)[number]['id'];
+
+const DEVICE_KEY = 'tuweb:playground:marco';
+
+export function readDevice(): DeviceId {
+	try {
+		const saved = localStorage.getItem(DEVICE_KEY);
+		const device = DEVICES.find((item) => item.id === saved);
+		return device ? device.id : 'libre';
+	} catch {
+		return 'libre';
+	}
+}
+
+export function saveDevice(id: DeviceId) {
+	try {
+		localStorage.setItem(DEVICE_KEY, id);
+	} catch {
+		// Sin almacenamiento, el marco vuelve a «Libre» en la próxima visita.
+	}
+}
 
 /**
  * El puente de la vista previa: lo que hace que los console.log y los errores

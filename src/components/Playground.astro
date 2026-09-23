@@ -8,7 +8,7 @@
  * corre en un origen opaco, así que no ve esta página ni lo que hay guardado en
  * ella. Nada se envía a ningún sitio: lo escrito se queda en tu navegador.
  */
-import { DEFAULT_SOURCES, EDITORS, MAX_LENGTH, TEMPLATES } from '../lib/playground';
+import { DEFAULT_SOURCES, DEVICES, EDITORS, MAX_LENGTH, TEMPLATES } from '../lib/playground';
 import Icon from './Icon.astro';
 
 const BOTON =
@@ -73,17 +73,38 @@ const BOTON =
 			}
 		</div>
 
-		<div class="flex flex-col gap-4 lg:sticky lg:top-6">
+		<div class="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6">
 			<div class="flex flex-col gap-2">
-				<span class="flex items-center gap-2 text-sm text-muted">
-					<Icon name="device-desktop" class="size-4 shrink-0 text-accent" />
-					Vista previa
+				<span class="flex items-center justify-between gap-3 text-sm text-muted">
+					<span class="inline-flex items-center gap-2">
+						<Icon name="device-desktop" class="size-4 shrink-0 text-accent" />
+						Vista previa
+					</span>
+					<span data-pg-size class="text-mark" aria-live="polite"></span>
 				</span>
-				<iframe
-					data-pg-preview
-					title="Vista previa del playground"
-					sandbox="allow-scripts allow-modals allow-forms"
-					class="h-[28rem] w-full border border-line bg-panel"></iframe>
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Marco de la vista previa">
+					{
+						DEVICES.map((device) => (
+							<button
+								type="button"
+								data-pg-device={device.id}
+								aria-pressed={device.id === 'libre' ? 'true' : 'false'}
+								title={device.width ? `${device.width} × ${device.height}` : 'Ocupa lo que haya'}
+								class={`${BOTON} aria-pressed:border-accent aria-pressed:text-accent`}
+							>
+								<Icon name={device.icon} class="size-4 shrink-0" />
+								{device.label}
+							</button>
+						))
+					}
+				</div>
+				<div data-pg-stage class="relative w-full overflow-hidden">
+					<iframe
+						data-pg-preview
+						title="Vista previa del playground"
+						sandbox="allow-scripts allow-modals allow-forms"
+						class="block h-[28rem] w-full origin-top-left border border-line bg-panel"></iframe>
+				</div>
 			</div>
 
 			<div class="flex flex-col gap-2">
@@ -105,6 +126,8 @@ const BOTON =
 	<p class="text-sm text-muted">
 		Se ejecuta todo en tu navegador, dentro de un marco aislado que no ve esta página. Lo que
 		escribes se guarda solo aquí, en tu navegador, y no se envía a ningún sitio.
+		Los marcos de móvil, tablet y escritorio ponen la vista previa a ese ancho de verdad, así
+		que tus media queries saltan como en el aparato; si no cabe, se ve a escala.
 		Con <code class="text-mark">Ctrl</code>+<code class="text-mark">Enter</code> se ejecuta sin
 		esperar.
 	</p>
@@ -149,11 +172,15 @@ const BOTON =
 <script>
 	import {
 		BRIDGE,
+		DEVICES,
 		EDITORS,
 		TEMPLATES,
 		buildDocument,
+		readDevice,
 		readSources,
+		saveDevice,
 		saveSources,
+		type DeviceId,
 		type Sources,
 	} from '../lib/playground';
 
@@ -321,6 +348,71 @@ const BOTON =
 				if (copiaLabel) copiaLabel.textContent = 'Copiar el HTML';
 			}, 2000);
 		});
+
+		/*
+		 * Los marcos. El iframe se pone al ancho y alto del aparato, para que las
+		 * media queries vean ese ancho, y se encoge con transform hasta caber en la
+		 * columna. El escenario de fuera lleva la altura ya encogida, que el
+		 * transform no cuenta para el hueco que ocupa.
+		 */
+		const escenario = document.querySelector<HTMLElement>('[data-pg-stage]');
+		const medida = document.querySelector<HTMLElement>('[data-pg-size]');
+		const botonesMarco = document.querySelectorAll<HTMLButtonElement>('[data-pg-device]');
+		/** Que una tablet en vertical no se coma la pantalla entera. */
+		const ALTO_MAX = 640;
+		let marco: DeviceId = 'libre';
+
+		function encajar() {
+			if (!escenario) return;
+			const device = DEVICES.find((item) => item.id === marco) ?? DEVICES[0];
+
+			if (!device.width) {
+				preview.style.cssText = '';
+				escenario.style.height = '';
+				if (medida) medida.textContent = `${Math.round(preview.clientWidth)}px`;
+				return;
+			}
+
+			// El borde de un píxel por lado va aparte, para que dentro quede el ancho justo.
+			const fuera = { width: device.width + 2, height: device.height + 2 };
+			const disponible = escenario.clientWidth;
+			const escala = Math.min(1, disponible / fuera.width, ALTO_MAX / fuera.height);
+			const ancho = fuera.width * escala;
+
+			// Absoluto: si no, su ancho sin encoger ensancharía la columna entera.
+			preview.style.position = 'absolute';
+			preview.style.top = '0';
+			preview.style.left = `${Math.max(0, (disponible - ancho) / 2)}px`;
+			preview.style.width = `${fuera.width}px`;
+			preview.style.height = `${fuera.height}px`;
+			preview.style.transform = `scale(${escala})`;
+			escenario.style.height = `${fuera.height * escala}px`;
+
+			if (medida) {
+				const tanto = Math.round(escala * 100);
+				medida.textContent = `${device.width} × ${device.height}${tanto < 100 ? ` · ${tanto} %` : ''}`;
+			}
+		}
+
+		function elegirMarco(id: DeviceId) {
+			marco = id;
+			botonesMarco.forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.pgDevice === id));
+			});
+			encajar();
+		}
+
+		botonesMarco.forEach((boton) => {
+			boton.addEventListener('click', () => {
+				const device = DEVICES.find((item) => item.id === boton.dataset.pgDevice);
+				if (!device) return;
+				elegirMarco(device.id);
+				saveDevice(device.id);
+			});
+		});
+
+		if (escenario) new ResizeObserver(encajar).observe(escenario);
+		elegirMarco(readDevice());
 
 		// Al entrar: lo de la última visita si lo hay, y la vista previa ya pintada.
 		const guardado = readSources();

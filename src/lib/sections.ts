@@ -92,9 +92,9 @@ export const SECTIONS: Section[] = [
 		title: 'Playground',
 		icon: 'code',
 		group: 'herramientas',
-		card: 'Tres editores —HTML, CSS y JS— y la vista previa al lado, en vivo.',
+		card: 'Tres editores —HTML, CSS y JS— y la vista previa al lado, en vivo, con marcos de móvil, tablet y escritorio.',
 		intro:
-			'Para probar una idea suelta sin abrir nada: escribe HTML, CSS y JavaScript en los tres editores y la vista previa se repinta según escribes. Los console.log y los errores salen en la consola de al lado. Se ejecuta en tu navegador, dentro de un marco aislado, y lo que escribes se queda ahí: no se envía nada.',
+			'Para probar una idea suelta sin abrir nada: escribe HTML, CSS y JavaScript en los tres editores y la vista previa se repinta según escribes. Con los marcos de móvil, tablet y escritorio ves cómo se adapta tu CSS. Los console.log y los errores salen en la consola de al lado. Se ejecuta en tu navegador, dentro de un marco aislado, y lo que escribes se queda ahí: no se envía nada.',
 	},
 	{
 		href: '/prompts',
