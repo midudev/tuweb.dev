@@ -1,0 +1,458 @@
+---
+/**
+ * Generador de sombras CSS: una o varias capas de box-shadow, cada una con su
+ * desplazamiento, difuminado, extensión, color, opacidad y si va por dentro. La
+ * vista previa es el propio CSS aplicado a un cuadro de prueba. Todo pasa en el
+ * navegador y lo único que se guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+const NUMERO =
+	'w-20 border border-line bg-panel px-2 py-1 text-right text-sm text-fg outline-none focus-visible:border-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const MEDIDAS = [
+	{ id: 'x', label: 'Desplazamiento X', min: -100, max: 100, unidad: 'px' },
+	{ id: 'y', label: 'Desplazamiento Y', min: -100, max: 100, unidad: 'px' },
+	{ id: 'blur', label: 'Difuminado', min: 0, max: 150, unidad: 'px' },
+	{ id: 'spread', label: 'Extensión', min: -50, max: 100, unidad: 'px' },
+	{ id: 'alpha', label: 'Opacidad', min: 0, max: 100, unidad: '%' },
+];
+
+const MUESTRAS = [
+	{ id: 'suave', label: 'Suave' },
+	{ id: 'flotante', label: 'Flotante' },
+	{ id: 'dura', label: 'Dura' },
+	{ id: 'hundida', label: 'Hundida' },
+	{ id: 'neon', label: 'Neón' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="sombras"
+	aria-labelledby="tab-sombras"
+	data-panel="sombras"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Capas</span>
+				<div data-sh-capas class="flex flex-wrap gap-2"></div>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-sh-nueva class={BOTON}>
+						<Icon name="plus" class="size-4 shrink-0" />
+						Otra capa
+					</button>
+					<button type="button" data-sh-quitar class={BOTON}>
+						<Icon name="trash" class="size-4 shrink-0" />
+						Quitar esta
+					</button>
+				</div>
+			</div>
+
+			{
+				MEDIDAS.map((m) => (
+					<div class="flex flex-col gap-2">
+						<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`sh-${m.id}`}>
+							{m.label}
+							<span class="inline-flex items-center gap-1">
+								<input
+									type="number"
+									min={m.min}
+									max={m.max}
+									step="1"
+									data-sh-num={m.id}
+									aria-label={`${m.label} en ${m.unidad}`}
+									class={NUMERO}
+								/>
+								<span class="w-5">{m.unidad}</span>
+							</span>
+						</label>
+						<input
+							id={`sh-${m.id}`}
+							type="range"
+							min={m.min}
+							max={m.max}
+							step="1"
+							data-sh-rango={m.id}
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+
+			<div class="flex flex-wrap items-center gap-4">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-sh-color aria-label="Color de la sombra" class={COLOR} />
+					Color
+				</label>
+				<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-sh-inset class="size-4 accent-accent" />
+					Interior (inset)
+				</label>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div
+				data-sh-fondo
+				class="flex min-h-80 w-full items-center justify-center overflow-hidden border border-line p-16"
+			>
+				<div data-sh-cuadro class="size-40 sm:size-48" role="img" aria-label="Cuadro de prueba con la sombra"></div>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-4">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-sh-fondo-color aria-label="Color del fondo" class={COLOR} />
+					Fondo
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-sh-cuadro-color aria-label="Color del cuadro" class={COLOR} />
+					Cuadro
+				</label>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Muestras</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						MUESTRAS.map((muestra) => (
+							<button
+								type="button"
+								data-sh-muestra={muestra.id}
+								class="border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								{muestra.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">CSS</span>
+				<pre data-sh-css class="overflow-x-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-sh-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-sh-copiar-texto aria-live="polite">Copiar CSS</span>
+				</button>
+				<button type="button" data-sh-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<template data-sh-plantilla>
+		<button type="button" data-sh-capa aria-pressed="false" class={OPCION}></button>
+	</template>
+</div>
+
+<style>
+	[data-panel='sombras'] input[type='color']::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='sombras'] input[type='color']::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='sombras'] input[type='color']::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-sh-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-sh-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-sh-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-sh-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-sh-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Capa = { x: number; y: number; blur: number; spread: number; alpha: number; color: string; inset: boolean };
+	type Medida = 'x' | 'y' | 'blur' | 'spread' | 'alpha';
+	type Estado = { capas: Capa[]; activa: number; fondo: string; cuadro: string };
+
+	const CLAVE = 'tuweb:sombras';
+	const MAX_CAPAS = 6;
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const RANGOS: Record<Medida, [number, number]> = {
+		x: [-100, 100],
+		y: [-100, 100],
+		blur: [0, 150],
+		spread: [-50, 100],
+		alpha: [0, 100],
+	};
+	const MEDIDAS = Object.keys(RANGOS) as Medida[];
+
+	const capa = (x: number, y: number, blur: number, spread: number, alpha: number, color = '#000000', inset = false): Capa => ({
+		x,
+		y,
+		blur,
+		spread,
+		alpha,
+		color,
+		inset,
+	});
+
+	const MUESTRAS: Record<string, Capa[]> = {
+		suave: [capa(0, 4, 12, 0, 12), capa(0, 1, 3, 0, 8)],
+		flotante: [capa(0, 24, 48, -12, 35), capa(0, 8, 16, -4, 20)],
+		dura: [capa(8, 8, 0, 0, 100)],
+		hundida: [capa(0, 4, 10, 0, 35, '#000000', true), capa(0, -2, 6, 0, 10, '#ffffff', true)],
+		neon: [capa(0, 0, 8, 2, 90, '#f5c542'), capa(0, 0, 32, 8, 50, '#c2410c')],
+	};
+
+	const INICIAL: Estado = {
+		capas: structuredClone(MUESTRAS.suave),
+		activa: 0,
+		fondo: '#e7e5e4',
+		cuadro: '#ffffff',
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="sombras"]');
+	const capas = panel?.querySelector<HTMLElement>('[data-sh-capas]');
+	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-sh-plantilla]');
+	const fondo = panel?.querySelector<HTMLElement>('[data-sh-fondo]');
+	const cuadro = panel?.querySelector<HTMLElement>('[data-sh-cuadro]');
+	const salida = panel?.querySelector<HTMLElement>('[data-sh-css]');
+	const color = panel?.querySelector<HTMLInputElement>('[data-sh-color]');
+	const inset = panel?.querySelector<HTMLInputElement>('[data-sh-inset]');
+	const fondoColor = panel?.querySelector<HTMLInputElement>('[data-sh-fondo-color]');
+	const cuadroColor = panel?.querySelector<HTMLInputElement>('[data-sh-cuadro-color]');
+	const nueva = panel?.querySelector<HTMLButtonElement>('[data-sh-nueva]');
+	const quitar = panel?.querySelector<HTMLButtonElement>('[data-sh-quitar]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-sh-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-sh-copiar-texto]');
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const hexValido = (v: unknown, d: string) => (HEX.test(String(v)) ? String(v).toLowerCase() : d);
+
+	function cargar(): Estado {
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (guardado && Array.isArray(guardado.capas) && guardado.capas.length >= 1) {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				const lista: Capa[] = guardado.capas.slice(0, MAX_CAPAS).map((c: Partial<Capa>) => ({
+					x: limitar(num(c.x, 0), ...RANGOS.x),
+					y: limitar(num(c.y, 0), ...RANGOS.y),
+					blur: limitar(num(c.blur, 0), ...RANGOS.blur),
+					spread: limitar(num(c.spread, 0), ...RANGOS.spread),
+					alpha: limitar(num(c.alpha, 100), ...RANGOS.alpha),
+					color: hexValido(c.color, '#000000'),
+					inset: c.inset === true,
+				}));
+				return {
+					capas: lista,
+					activa: limitar(num(guardado.activa, 0), 0, lista.length - 1),
+					fondo: hexValido(guardado.fondo, INICIAL.fondo),
+					cuadro: hexValido(guardado.cuadro, INICIAL.cuadro),
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return structuredClone(INICIAL);
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	const actual = () => estado.capas[estado.activa];
+
+	// Con opacidad al 100 % el hex va tal cual; si no, rgb() con su alfa, que es
+	// lo que se lee mejor y lo entiende cualquier navegador.
+	function colorCss(c: Capa) {
+		if (c.alpha >= 100) return c.color;
+		const canal = (k: number) => parseInt(c.color.slice(1 + k * 2, 3 + k * 2), 16);
+		return `rgb(${canal(0)} ${canal(1)} ${canal(2)} / ${c.alpha / 100})`;
+	}
+
+	const px = (v: number) => (v === 0 ? '0' : `${v}px`);
+
+	function sombra() {
+		return estado.capas
+			.map((c) => `${c.inset ? 'inset ' : ''}${px(c.x)} ${px(c.y)} ${px(c.blur)} ${px(c.spread)} ${colorCss(c)}`)
+			.join(',\n    ');
+	}
+
+	function pintar() {
+		const css = sombra();
+		if (cuadro) {
+			cuadro.style.boxShadow = css;
+			cuadro.style.background = estado.cuadro;
+		}
+		if (fondo) fondo.style.background = estado.fondo;
+		if (salida) salida.textContent = estado.capas.length > 1 ? `box-shadow:\n    ${css};` : `box-shadow: ${css};`;
+	}
+
+	function actualizar() {
+		pintar();
+		guardar();
+	}
+
+	function pintarControles() {
+		const c = actual();
+		MEDIDAS.forEach((m) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-sh-rango="${m}"]`);
+			const numero = panel?.querySelector<HTMLInputElement>(`[data-sh-num="${m}"]`);
+			if (rango) rango.value = String(c[m]);
+			if (numero && document.activeElement !== numero) numero.value = String(c[m]);
+		});
+		if (color) color.value = c.color;
+		if (inset) inset.checked = c.inset;
+		if (fondoColor) fondoColor.value = estado.fondo;
+		if (cuadroColor) cuadroColor.value = estado.cuadro;
+		if (nueva) nueva.disabled = estado.capas.length >= MAX_CAPAS;
+		// Sin capas no hay sombra que enseñar.
+		if (quitar) quitar.disabled = estado.capas.length <= 1;
+	}
+
+	function pintarCapas() {
+		if (!capas || !plantilla) return;
+		capas.replaceChildren();
+		estado.capas.forEach((c, i) => {
+			const boton = plantilla.content.firstElementChild?.cloneNode(true) as HTMLButtonElement;
+			boton.textContent = `${i + 1}${c.inset ? ' · dentro' : ''}`;
+			boton.setAttribute('aria-label', `Capa ${i + 1}${c.inset ? ', interior' : ''}`);
+			boton.setAttribute('aria-pressed', String(i === estado.activa));
+			boton.addEventListener('click', () => {
+				estado.activa = i;
+				pintarCapas();
+				pintarControles();
+				guardar();
+			});
+			capas.append(boton);
+		});
+	}
+
+	function todo() {
+		pintarCapas();
+		pintarControles();
+		actualizar();
+	}
+
+	function ponerMedida(m: Medida, valor: number) {
+		if (!Number.isFinite(valor)) return;
+		actual()[m] = limitar(valor, ...RANGOS[m]);
+		pintarControles();
+		actualizar();
+	}
+
+	MEDIDAS.forEach((m) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-sh-rango="${m}"]`);
+		const numero = panel?.querySelector<HTMLInputElement>(`[data-sh-num="${m}"]`);
+		rango?.addEventListener('input', () => ponerMedida(m, Number(rango.value)));
+		numero?.addEventListener('input', () => {
+			if (numero.value.trim() !== '') ponerMedida(m, Number(numero.value));
+		});
+		numero?.addEventListener('blur', () => {
+			numero.value = String(actual()[m]);
+		});
+	});
+
+	color?.addEventListener('input', () => {
+		actual().color = hexValido(color.value, actual().color);
+		actualizar();
+	});
+
+	inset?.addEventListener('change', () => {
+		actual().inset = inset.checked;
+		pintarCapas();
+		actualizar();
+	});
+
+	fondoColor?.addEventListener('input', () => {
+		estado.fondo = hexValido(fondoColor.value, estado.fondo);
+		actualizar();
+	});
+
+	cuadroColor?.addEventListener('input', () => {
+		estado.cuadro = hexValido(cuadroColor.value, estado.cuadro);
+		actualizar();
+	});
+
+	nueva?.addEventListener('click', () => {
+		if (estado.capas.length >= MAX_CAPAS) return;
+		// La nueva sale de la que está elegida, un poco más lejos: así se nota.
+		const base = actual();
+		estado.capas.push({ ...base, y: limitar(base.y * 2 || 8, ...RANGOS.y), blur: limitar(base.blur * 2 || 16, ...RANGOS.blur) });
+		estado.activa = estado.capas.length - 1;
+		todo();
+	});
+
+	quitar?.addEventListener('click', () => {
+		if (estado.capas.length <= 1) return;
+		estado.capas.splice(estado.activa, 1);
+		estado.activa = Math.min(estado.activa, estado.capas.length - 1);
+		todo();
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-sh-muestra]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const muestra = MUESTRAS[boton.dataset.shMuestra ?? ''];
+			if (!muestra) return;
+			estado.capas = structuredClone(muestra);
+			estado.activa = 0;
+			todo();
+		});
+	});
+
+	panel?.querySelector('[data-sh-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		todo();
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar CSS';
+		}, 2000);
+	});
+
+	pintarCapas();
+	pintarControles();
+	pintar();
+</script>
