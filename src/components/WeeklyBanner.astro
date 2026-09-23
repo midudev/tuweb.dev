@@ -1,0 +1,99 @@
+---
+/**
+ * El reto de la semana, en corto, para los chats: los tres de la casa, cuáles
+ * llevas hechos y cuánto le queda a la semana. Todo sale del reloj de aquí y de
+ * lo que marcaste en /retos, que vive en tu navegador: no pide nada al servidor.
+ */
+import Icon from './Icon.astro';
+import { HOUSE_COUNT } from '../lib/retos';
+---
+
+<aside data-semanal class="flex flex-col gap-3 border border-line bg-panel p-4">
+	<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+		<span class="inline-flex items-center gap-2 font-pixel">
+			<Icon name="target-arrow" class="size-4 shrink-0 text-accent" />
+			Retos de la semana
+		</span>
+		<span class="inline-flex items-center gap-2 text-sm text-muted">
+			<Icon name="clock" class="size-4 shrink-0" />
+			<span data-semanal-left></span>
+		</span>
+	</div>
+
+	<ul data-semanal-list class="flex flex-col gap-1 text-sm">
+		{Array.from({ length: HOUSE_COUNT }, () => <li class="text-muted">…</li>)}
+	</ul>
+
+	<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-sm">
+		<span data-semanal-cuenta class="text-muted"></span>
+		<a href="/retos" class="inline-flex items-center gap-2 text-accent hover:underline">
+			Al tablero
+			<Icon name="arrow-right" class="size-4 shrink-0" />
+		</a>
+	</div>
+</aside>
+
+<style is:global>
+	/* Las filas las pinta el script: cuelgan de [data-semanal]. */
+	[data-semanal] [data-semanal-list] > li[data-hecho='si'] {
+		color: var(--color-muted);
+		text-decoration: line-through;
+	}
+	[data-semanal] [data-semanal-list] > li::before {
+		content: '- ';
+		color: var(--color-muted);
+	}
+	[data-semanal] [data-semanal-list] > li[data-hecho='si']::before {
+		content: '+ ';
+		color: var(--color-ok);
+	}
+</style>
+
+<script>
+	import {
+		houseRetos,
+		nextWeekStart,
+		readDone,
+		spanText,
+		isDone,
+		weekIndex,
+		weekStart,
+	} from '../lib/retos';
+
+	document.querySelectorAll<HTMLElement>('[data-semanal]').forEach((raiz) => {
+		const lista = raiz.querySelector<HTMLElement>('[data-semanal-list]')!;
+		const left = raiz.querySelector<HTMLElement>('[data-semanal-left]')!;
+		const cuenta = raiz.querySelector<HTMLElement>('[data-semanal-cuenta]')!;
+
+		function pintar() {
+			const start = weekStart(Date.now());
+			const week = weekIndex(start);
+			// Se relee cada vez: si marcas algo en /retos en otra pestaña, aquí sale.
+			const done = readDone();
+			const casa = houseRetos(week);
+
+			lista.replaceChildren(
+				...casa.map((reto) => {
+					const fila = document.createElement('li');
+					fila.textContent = reto.title;
+					fila.title = reto.detail;
+					fila.dataset.hecho = isDone(done, week, reto.id) ? 'si' : 'no';
+					return fila;
+				}),
+			);
+
+			const hechos = casa.filter((reto) => isDone(done, week, reto.id)).length;
+			const total = done[String(week)]?.length ?? 0;
+			const deGente = total - hechos;
+			cuenta.textContent =
+				`${hechos} de ${casa.length} de la casa` +
+				(deGente > 0 ? ` y ${deGente} de la gente` : '') +
+				'. Cuéntalo aquí cuando lo cierres.';
+			left.textContent = `Quedan ${spanText(nextWeekStart(start) - Date.now())}`;
+		}
+
+		pintar();
+		setInterval(pintar, 30_000);
+		window.addEventListener('storage', pintar);
+	});
+</script>

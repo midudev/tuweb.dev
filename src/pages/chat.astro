@@ -1,5 +1,6 @@
 ---
 import Chat from '../components/Chat.astro';
+import WeeklyBanner from '../components/WeeklyBanner.astro';
 import { getSessionUser } from '../lib/auth';
 import { getHomeData } from '../lib/db/queries';
 import Section from '../layouts/Section.astro';
@@ -10,5 +11,6 @@ const data = await getHomeData(user?.id);
 ---
 
 <Section href="/chat">
+	<WeeklyBanner />
 	<Chat login={user?.login ?? null} version={data.version} />
 </Section>

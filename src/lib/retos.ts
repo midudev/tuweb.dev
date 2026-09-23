@@ -340,6 +340,37 @@ export function pointsOf(retos: Reto[], done: Done, week: number) {
 		.reduce((suma, reto) => suma + nivelOf(reto.nivel).points, 0);
 }
 
+export interface Semana {
+	week: number;
+	start: number;
+	/** Todo lo hecho esa semana, de la casa o de la gente. */
+	hechos: number;
+	/** Los de la casa hechos: de esos se sabe el título aunque la semana ya pasó. */
+	casa: Reto[];
+}
+
+/**
+ * Las últimas semanas, de la de ahora hacia atrás. De los retos de la gente de
+ * semanas pasadas solo queda la cuenta: el servidor ya no los enseña.
+ */
+export function historyOf(done: Done, week: number, start: number, count: number): Semana[] {
+	const semanas: Semana[] = [];
+	let lunes = start;
+
+	for (let i = 0; i < count; i++) {
+		const actual = week - i;
+		semanas.push({
+			week: actual,
+			start: lunes,
+			hechos: done[String(actual)]?.length ?? 0,
+			casa: houseRetos(actual).filter((reto) => isDone(done, actual, reto.id)),
+		});
+		// Un día antes del lunes cae en la semana anterior; su lunes es el de esa.
+		lunes = weekStart(lunes - DAY / 2);
+	}
+	return semanas;
+}
+
 /**
  * La racha: semanas seguidas con al menos un reto hecho. La de ahora no la
  * rompe aunque siga vacía, que todavía no ha terminado.

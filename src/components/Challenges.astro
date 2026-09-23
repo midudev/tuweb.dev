@@ -221,6 +221,30 @@ const DATO = 'inline-flex items-center gap-2';
 		</li>
 	</template>
 
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+				<Icon name="history" class="size-5 shrink-0 text-accent" />
+				Tus semanas
+			</h2>
+			<span data-hist-total class="text-sm tabular-nums text-muted"></span>
+		</div>
+		<ol data-historial class="flex flex-col gap-2"></ol>
+	</div>
+
+	<template data-semana>
+		<li data-semana-li class="flex flex-col gap-1.5 border-t border-line pt-2 text-sm">
+			<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+				<span data-semana-label class="text-muted"></span>
+				<span data-semana-hechos class="tabular-nums"></span>
+			</div>
+			<div class="h-px w-full bg-line">
+				<div data-semana-barra class="h-px bg-accent" style="width: 0%"></div>
+			</div>
+			<span data-semana-casa class="text-xs text-muted"></span>
+		</li>
+	</template>
+
 	<p class="text-sm text-muted">
 		Los tres retos de la casa cambian cada lunes, y los que propone la gente duran lo que dura la
 		semana. Lo que marcas como hecho, los puntos, la racha, las soluciones y sus votos solo están en
@@ -267,6 +291,14 @@ const DATO = 'inline-flex items-center gap-2';
 	#retos [data-sol-vote][aria-pressed='true'] {
 		color: var(--color-mark);
 	}
+
+	/* La semana en curso se marca en el canto; las vacías se apagan. */
+	#retos [data-semana-li][data-actual='si'] {
+		border-top-color: var(--color-mark);
+	}
+	#retos [data-semana-li][data-vacia='si'] [data-semana-hechos] {
+		color: var(--color-muted);
+	}
 </style>
 
 <script>
@@ -277,6 +309,7 @@ const DATO = 'inline-flex items-center gap-2';
 		type Done,
 		type Reto,
 		fromApi,
+		historyOf,
 		houseRetos,
 		isDone,
 		nextWeekStart,
@@ -322,6 +355,12 @@ const DATO = 'inline-flex items-center gap-2';
 	const destList = section?.querySelector<HTMLElement>('[data-destacadas]');
 	const destVacio = section?.querySelector<HTMLElement>('[data-destacadas-vacio]');
 	const destTemplate = section?.querySelector<HTMLTemplateElement>('[data-destacada]');
+	const histList = section?.querySelector<HTMLElement>('[data-historial]');
+	const histTotal = section?.querySelector<HTMLElement>('[data-hist-total]');
+	const semanaTemplate = section?.querySelector<HTMLTemplateElement>('[data-semana]');
+
+	/** Las semanas que se enseñan en «Tus semanas», la de ahora incluida. */
+	const HIST_WEEKS = 8;
 
 	/** Lo que la gente puede proponer: lo que dejan libre los de la casa. */
 	const SHARED_MAX = MAX_RETOS - HOUSE_COUNT;
@@ -593,10 +632,44 @@ const DATO = 'inline-flex items-center gap-2';
 			if (destVacio) destVacio.hidden = items.length > 0;
 		}
 
+		/** Lo hecho en las últimas semanas, de la de ahora hacia atrás. */
+		function historial(tablero: Reto[]) {
+			if (!histList || !semanaTemplate) return;
+			const semanas = historyOf(done, week, start, HIST_WEEKS);
+			// La barra se mide contra la mejor semana, o contra el tablero de ahora si es mayor.
+			const tope = Math.max(tablero.length, ...semanas.map((semana) => semana.hechos), 1);
+
+			histList.replaceChildren(
+				...semanas.map((semana, i) => {
+					const node = semanaTemplate.content.firstElementChild!.cloneNode(true) as HTMLElement;
+					node.dataset.actual = i === 0 ? 'si' : 'no';
+					node.dataset.vacia = semana.hechos === 0 ? 'si' : 'no';
+					node.querySelector('[data-semana-label]')!.textContent =
+						(i === 0 ? 'Esta semana · ' : '') + weekLabel(semana.start);
+					node.querySelector('[data-semana-hechos]')!.textContent =
+						semana.hechos === 0
+							? 'nada'
+							: `${semana.hechos} ${semana.hechos === 1 ? 'hecho' : 'hechos'}`;
+					node.querySelector<HTMLElement>('[data-semana-barra]')!.style.width =
+						`${(semana.hechos / tope) * 100}%`;
+					const casa = node.querySelector<HTMLElement>('[data-semana-casa]')!;
+					casa.textContent = `De la casa: ${semana.casa.map((reto) => reto.title).join(' · ')}`;
+					casa.hidden = semana.casa.length === 0;
+					return node;
+				}),
+			);
+
+			const total = semanas.reduce((suma, semana) => suma + semana.hechos, 0);
+			const activas = semanas.filter((semana) => semana.hechos > 0).length;
+			if (histTotal)
+				histTotal.textContent = `${total} ${total === 1 ? 'reto' : 'retos'} en ${activas} de ${HIST_WEEKS} semanas`;
+		}
+
 		function render() {
 			const tablero = board();
 			list!.replaceChildren(...tablero.map(card));
 			destacadas(tablero);
+			historial(tablero);
 
 			if (enfocar) {
 				const index = tablero.findIndex((reto) => reto.id === enfocar);

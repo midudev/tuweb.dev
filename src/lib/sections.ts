@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, pintar el mural de píxeles del día, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, hacerte un logo y una tarjeta de visita, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Casi todo corre en tu navegador; los consejos y los retos que publicas los ve todo el mundo.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, pintar el mural de píxeles del día, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, hacerte un logo y una tarjeta de visita, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio o apuntar lo que toca hoy. Casi todo corre en tu navegador; los consejos que publicas los ve todo el mundo.',
 	},
 	{
 		id: 'juegos',
@@ -49,9 +49,9 @@ export const GROUPS: Group[] = [
 		id: 'canales',
 		title: 'Canales',
 		icon: 'messages',
-		card: 'Hablar: con nombre o sin él, y sin servidor.',
+		card: 'Donde se junta la gente: hablar, con nombre o sin él, y el reto de la semana.',
 		intro:
-			'Los dos canales de la web. No hay servidor: lo que escribes se queda en tu navegador y se ve al momento en el resto de pestañas que tengas abiertas.',
+			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número— y los retos semanales: tres de la casa cada lunes, los que propone la gente y un tablón de soluciones para cada uno. En los chats sale el reto de la semana, por si quieres hablar de él.',
 	},
 	{
 		id: 'proceso',
@@ -214,15 +214,6 @@ export const SECTIONS: Section[] = [
 			'Apunta lo que hay que hacer con su nivel —de leve a urgente— y la hora a la que toca. Cada tarea lleva su cuenta atrás: cuánto le falta, y cuánto lleva vencida si se te pasó. Filtra por estado o por nivel, y si quieres que el navegador avise al vencer, dale a los avisos. No hay servidor: la lista se queda en tu navegador.',
 	},
 	{
-		href: '/retos',
-		title: 'Retos semanales',
-		icon: 'target-arrow',
-		group: 'herramientas',
-		card: 'Tres retos de la casa cada lunes, más los que propone la gente.',
-		intro:
-			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propone la gente con su cuenta de GitHub: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas. Lo que marcas se queda en tu navegador, y el lunes el tablero vuelve a empezar.',
-	},
-	{
 		href: '/minijuego',
 		title: 'Minijuego',
 		icon: 'device-gamepad-2',
@@ -338,6 +329,15 @@ export const SECTIONS: Section[] = [
 		card: 'El mismo canal sin nombre. Cada mensaje se borra solo a los diez minutos.',
 		intro:
 			'Sin nombre y sin memoria. Tu alias es un número que puedes cambiar cuando quieras y no se guarda en tu navegador. Lo que escribes lo ve quien esté aquí y el servidor lo borra solo a los diez minutos.',
+	},
+	{
+		href: '/retos',
+		title: 'Retos semanales',
+		icon: 'target-arrow',
+		group: 'canales',
+		card: 'Tres retos de la casa cada lunes, más los que propone la gente.',
+		intro:
+			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propone la gente con su cuenta de GitHub: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas; abajo, tus últimas semanas. Lo que marcas se queda en tu navegador, y el lunes el tablero vuelve a empezar.',
 	},
 	{
 		href: '/ideas',
