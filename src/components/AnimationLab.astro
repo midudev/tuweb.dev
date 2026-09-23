@@ -1,0 +1,366 @@
+---
+/**
+ * El laboratorio de animaciones CSS. Eliges un efecto y lo afinas —duración,
+ * retraso, repeticiones, dirección y función de tiempo—, lo ves moverse sobre
+ * una caja de prueba y te llevas el CSS: los @keyframes y la regla animation.
+ *
+ * Todo pasa en tu navegador: los ajustes se guardan en el localStorage y la
+ * vista previa usa los mismos fotogramas que el CSS. El cálculo está en
+ * src/lib/animation.ts; aquí solo están los mandos.
+ */
+import { DELAY, DIRECTIONS, DURATION, EFFECTS, FILLS, ITERATIONS_MAX, SELECTOR_MAX, SIDES, TIMINGS } from '../lib/animation';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const CAMPO = 'w-full border border-line bg-bg p-3 text-sm outline-none focus-visible:border-accent';
+
+const RANGO = 'w-full accent-accent disabled:opacity-50';
+
+const GRUPOS = [
+	{ id: 'direction', label: 'Dirección', items: DIRECTIONS },
+	{ id: 'timing', label: 'Función de tiempo', items: TIMINGS },
+	{ id: 'fill', label: 'Al parar se queda con', items: FILLS },
+];
+---
+
+<section id="animaciones" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<div
+			class="relative flex h-72 items-center justify-center overflow-hidden border border-line bg-panel"
+			aria-label="Vista previa de la animación"
+			role="img"
+		>
+			<div
+				data-anim-caja
+				class="flex size-28 items-center justify-center border border-accent bg-accent font-pixel text-2xl text-bg"
+			>
+				tuweb
+			</div>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-anim-play class={`${BOTON} border-accent text-accent`}>
+				<span data-anim-play-icono="play"><Icon name="player-play" class="size-4 shrink-0" /></span>
+				<span data-anim-play-icono="pause" hidden><Icon name="player-pause" class="size-4 shrink-0" /></span>
+				<span data-anim-play-texto>Pausar</span>
+			</button>
+			<button type="button" data-anim-otra class={BOTON}>
+				<Icon name="refresh" class="size-4 shrink-0" />
+				Otra vez
+			</button>
+			<span data-anim-estado class="text-sm text-muted" aria-live="polite"></span>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center justify-between gap-2">
+				<span class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="keyframes" class="size-4 shrink-0 text-accent" />
+					El CSS
+				</span>
+				<button type="button" data-anim-copiar class={`${BOTON} px-2 py-1`}>
+					<Icon name="copy" class="size-4 shrink-0" />
+					<span data-anim-copiar-texto>Copiar</span>
+				</button>
+			</span>
+			<pre
+				class="overflow-auto border border-line bg-panel p-4 text-sm text-fg"><code data-anim-css></code></pre>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center justify-between gap-2">
+				<span id="anim-effect" class="text-sm text-muted">Efecto</span>
+				<button type="button" data-anim-reset class={`${BOTON} px-2 py-1`}>
+					<Icon name="eraser" class="size-4 shrink-0" />
+					Por defecto
+				</button>
+			</span>
+			<div role="group" aria-labelledby="anim-effect" class="flex flex-wrap gap-2">
+				{
+					EFFECTS.map((item) => (
+						<button type="button" data-anim-opcion="effect" data-valor={item.id} aria-pressed="false" class={BOTON}>
+							<Icon name={item.icon} class="size-4 shrink-0" />
+							{item.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div data-anim-lados class="flex flex-col gap-2">
+			<span id="anim-side" class="text-sm text-muted">Entra desde</span>
+			<div role="group" aria-labelledby="anim-side" class="flex flex-wrap gap-2">
+				{
+					SIDES.map((item) => (
+						<button type="button" data-anim-opcion="side" data-valor={item.id} aria-pressed="false" class={BOTON}>
+							<Icon name={item.icon} class="size-4 shrink-0" />
+							{item.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<label class="flex flex-col gap-1">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<span class="flex items-center gap-2"><Icon name="hourglass" class="size-4 shrink-0" />Duración</span>
+				<output data-anim-valor="duration" class="text-mark"></output>
+			</span>
+			<input
+				type="range"
+				data-anim-rango="duration"
+				min={DURATION.min}
+				max={DURATION.max}
+				step={DURATION.step}
+				class={RANGO}
+			/>
+		</label>
+
+		<label class="flex flex-col gap-1">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<span class="flex items-center gap-2"><Icon name="clock" class="size-4 shrink-0" />Retraso</span>
+				<output data-anim-valor="delay" class="text-mark"></output>
+			</span>
+			<input type="range" data-anim-rango="delay" min={DELAY.min} max={DELAY.max} step={DELAY.step} class={RANGO} />
+		</label>
+
+		<div class="flex flex-col gap-1">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<label for="anim-veces" class="flex items-center gap-2">
+					<Icon name="repeat" class="size-4 shrink-0" />Repeticiones
+				</label>
+				<output data-anim-valor="iterations" class="text-mark"></output>
+			</span>
+			<input type="range" id="anim-veces" data-anim-veces min="1" max={ITERATIONS_MAX} step="1" class={RANGO} />
+			<label class="inline-flex items-center gap-2 pt-1 text-sm text-muted">
+				<input type="checkbox" data-anim-sinfin class="accent-accent" />
+				Sin fin (infinite)
+			</label>
+		</div>
+
+		{
+			GRUPOS.map((grupo) => (
+				<div class="flex flex-col gap-2">
+					<span id={`anim-${grupo.id}`} class="text-sm text-muted">
+						{grupo.label}
+					</span>
+					<div role="group" aria-labelledby={`anim-${grupo.id}`} class="flex flex-wrap gap-2">
+						{grupo.items.map((item) => (
+							<button
+								type="button"
+								data-anim-opcion={grupo.id}
+								data-valor={item.id}
+								aria-pressed="false"
+								class={BOTON}
+							>
+								{item.label}
+							</button>
+						))}
+					</div>
+				</div>
+			))
+		}
+
+		<label class="flex flex-col gap-1">
+			<span class="text-sm text-muted">Clase del elemento</span>
+			<input
+				type="text"
+				data-anim-clase
+				maxlength={SELECTOR_MAX}
+				placeholder="caja"
+				autocomplete="off"
+				spellcheck="false"
+				class={CAMPO}
+			/>
+		</label>
+
+		<p class="text-xs text-muted">Se guarda solo en tu navegador. No se envía a ninguna parte.</p>
+	</div>
+</section>
+
+<script>
+	import {
+		DEFAULT_OPTIONS,
+		type AnimationOptions,
+		cleanSelector,
+		cssOf,
+		loadOptions,
+		saveOptions,
+		toOptions,
+		webFrames,
+		webTiming,
+	} from '../lib/animation';
+
+	const caja = document.querySelector<HTMLElement>('[data-anim-caja]');
+	const css = document.querySelector<HTMLElement>('[data-anim-css]');
+	const estado = document.querySelector<HTMLElement>('[data-anim-estado]');
+	const play = document.querySelector<HTMLButtonElement>('[data-anim-play]');
+	const playTexto = document.querySelector<HTMLElement>('[data-anim-play-texto]');
+	const copiarTexto = document.querySelector<HTMLElement>('[data-anim-copiar-texto]');
+	const lados = document.querySelector<HTMLElement>('[data-anim-lados]');
+	const veces = document.querySelector<HTMLInputElement>('[data-anim-veces]');
+	const sinFin = document.querySelector<HTMLInputElement>('[data-anim-sinfin]');
+	const clase = document.querySelector<HTMLInputElement>('[data-anim-clase]');
+
+	let opciones: AnimationOptions = loadOptions();
+	/** Las repeticiones que había antes de marcar «sin fin», para volver a ellas. */
+	let ultimasVeces = opciones.iterations || 3;
+	let animacion: Animation | null = null;
+	let reloj: number | undefined;
+
+	// Quien pide menos movimiento no se come la caja moviéndose sola al entrar.
+	const calma = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	function ms(valor: number) {
+		return valor >= 1000 ? `${(valor / 1000).toFixed(2).replace(/\.?0+$/, '')} s` : `${valor} ms`;
+	}
+
+	function pintarPlay() {
+		const parada = !animacion || animacion.playState !== 'running';
+		document.querySelectorAll<HTMLElement>('[data-anim-play-icono]').forEach((icono) => {
+			icono.hidden = (icono.dataset.animPlayIcono === 'play') !== parada;
+		});
+		if (playTexto) playTexto.textContent = parada ? 'Reproducir' : 'Pausar';
+		if (estado) estado.textContent = animacion?.playState === 'finished' ? 'Terminada.' : '';
+	}
+
+	function lanzar() {
+		if (!caja) return;
+		animacion?.cancel();
+		try {
+			animacion = caja.animate(webFrames(opciones), webTiming(opciones));
+		} catch {
+			animacion = null;
+		}
+		animacion?.addEventListener('finish', pintarPlay);
+		pintarPlay();
+	}
+
+	function pintarMandos() {
+		const valores = opciones as unknown as Record<string, string | number>;
+		document.querySelectorAll<HTMLButtonElement>('[data-anim-opcion]').forEach((button) => {
+			const grupo = button.dataset.animOpcion ?? '';
+			button.setAttribute('aria-pressed', String(String(valores[grupo]) === button.dataset.valor));
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-anim-rango]').forEach((rango) => {
+			rango.value = String(valores[rango.dataset.animRango ?? '']);
+		});
+		const salidas: Record<string, string> = {
+			duration: ms(opciones.duration),
+			delay: ms(opciones.delay),
+			iterations:
+				opciones.iterations === 0
+					? 'sin fin'
+					: `${opciones.iterations} ${opciones.iterations === 1 ? 'vez' : 'veces'}`,
+		};
+		document.querySelectorAll<HTMLOutputElement>('[data-anim-valor]').forEach((salida) => {
+			salida.textContent = salidas[salida.dataset.animValor ?? ''] ?? '';
+		});
+		if (lados) lados.hidden = opciones.effect !== 'slide';
+		if (veces) {
+			veces.value = String(opciones.iterations || ultimasVeces);
+			veces.disabled = opciones.iterations === 0;
+		}
+		if (sinFin) sinFin.checked = opciones.iterations === 0;
+		if (clase && document.activeElement !== clase) clase.value = opciones.selector;
+		if (css) css.textContent = cssOf(opciones);
+	}
+
+	function cambiar(parcial: Record<string, unknown>) {
+		opciones = toOptions({ ...opciones, ...parcial });
+		saveOptions(opciones);
+		pintarMandos();
+		lanzar();
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-anim-opcion]').forEach((button) => {
+		button.addEventListener('click', () => {
+			cambiar({ [button.dataset.animOpcion ?? '']: button.dataset.valor });
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-anim-rango]').forEach((rango) => {
+		rango.addEventListener('input', () => {
+			cambiar({ [rango.dataset.animRango ?? '']: Number(rango.value) });
+		});
+	});
+
+	veces?.addEventListener('input', () => {
+		ultimasVeces = Number(veces.value);
+		cambiar({ iterations: ultimasVeces });
+	});
+
+	sinFin?.addEventListener('change', () => {
+		cambiar({ iterations: sinFin.checked ? 0 : ultimasVeces });
+	});
+
+	clase?.addEventListener('input', () => {
+		const limpia = cleanSelector(clase.value);
+		// El CSS cambia al escribir; la animación no hace falta relanzarla.
+		opciones = toOptions({ ...opciones, selector: limpia });
+		saveOptions(opciones);
+		if (css) css.textContent = cssOf(opciones);
+	});
+
+	clase?.addEventListener('blur', () => {
+		clase.value = opciones.selector;
+	});
+
+	document.querySelector('[data-anim-reset]')?.addEventListener('click', () => {
+		ultimasVeces = 3;
+		cambiar({ ...DEFAULT_OPTIONS });
+	});
+
+	play?.addEventListener('click', () => {
+		if (!animacion || animacion.playState === 'finished') lanzar();
+		else if (animacion.playState === 'running') animacion.pause();
+		else animacion.play();
+		pintarPlay();
+	});
+
+	document.querySelector('[data-anim-otra]')?.addEventListener('click', lanzar);
+
+	async function copiar(texto: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const campo = document.createElement('textarea');
+				campo.value = texto;
+				campo.readOnly = true;
+				campo.style.position = 'fixed';
+				campo.style.opacity = '0';
+				document.body.append(campo);
+				campo.select();
+				const hecho = document.execCommand('copy');
+				campo.remove();
+				return hecho;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	document.querySelector('[data-anim-copiar]')?.addEventListener('click', async () => {
+		const hecho = await copiar(cssOf(opciones));
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo';
+		window.clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 1600);
+	});
+
+	pintarMandos();
+	lanzar();
+	if (calma && animacion) {
+		animacion.pause();
+		animacion.currentTime = 0;
+		pintarPlay();
+		if (estado) estado.textContent = 'Pediste menos movimiento: dale a reproducir para verla.';
+	}
+</script>

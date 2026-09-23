@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -140,6 +140,15 @@ export const SECTIONS: Section[] = [
 		card: 'Eventos con fecha, título y descripción, ordenados sobre una línea.',
 		intro:
 			'Apunta lo que pasó y cuándo: cada evento lleva su fecha, un título y una descripción, y sale en su sitio de la línea, ordenado solo. Tumbada o de pie, a paso fijo o separada según el tiempo que pasa entre uno y otro, con los colores y la fuente que elijas. Te la llevas en SVG o en PNG. Se dibuja en tu navegador y lo que apuntas se queda en él para seguir otro día.',
+	},
+	{
+		href: '/animaciones',
+		title: 'Laboratorio de animaciones',
+		icon: 'keyframes',
+		group: 'herramientas',
+		card: 'Un efecto, sus tiempos y la vista previa en vivo. Te llevas el CSS.',
+		intro:
+			'Diseña una animación CSS mirándola moverse. Elige el efecto —desvanecer, deslizar, rotar, escalar, rebotar, latir o sacudir— y afina la duración, el retraso, las repeticiones, la dirección y la función de tiempo: la caja de prueba lo repite al momento. Cuando esté, copias el CSS entero, con sus @keyframes y su animation. Corre en tu navegador y los ajustes se quedan en él.',
 	},
 	{
 		href: '/comparador',
