@@ -1,0 +1,674 @@
+---
+/**
+ * Transiciones CSS: qué propiedades cambian al pasar el ratón (color, tamaño,
+ * transformación, opacidad), cuánto dura, cuánto espera y con qué curva. La
+ * curva cubic-bezier se edita arrastrando sus dos puntos de control. La vista
+ * previa es el propio CSS aplicado a un cuadro de prueba. Todo pasa en el
+ * navegador y lo único que se guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+const NUMERO =
+	'w-20 border border-line bg-panel px-2 py-1 text-right text-sm text-fg outline-none focus-visible:border-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const MEDIDAS = [
+	{ id: 'duracion', grupo: 'tiempo', label: 'Duración', min: 0, max: 3000, step: 50, unidad: 'ms' },
+	{ id: 'retraso', grupo: 'tiempo', label: 'Retraso', min: 0, max: 2000, step: 50, unidad: 'ms' },
+	{ id: 'tamano', grupo: 'tamano', label: 'Lado final', min: 48, max: 200, step: 1, unidad: 'px' },
+	{ id: 'giro', grupo: 'transform', label: 'Giro', min: -360, max: 360, step: 1, unidad: 'deg' },
+	{ id: 'escala', grupo: 'transform', label: 'Escala', min: 50, max: 200, step: 1, unidad: '%' },
+	{ id: 'mover', grupo: 'transform', label: 'Desplazamiento Y', min: -80, max: 80, step: 1, unidad: 'px' },
+	{ id: 'opacidad', grupo: 'opacidad', label: 'Opacidad final', min: 0, max: 100, step: 1, unidad: '%' },
+];
+
+const PROPIEDADES = [
+	{ id: 'color', label: 'Color', css: 'background-color' },
+	{ id: 'tamano', label: 'Tamaño', css: 'width, height' },
+	{ id: 'transform', label: 'Transformación', css: 'transform' },
+	{ id: 'opacidad', label: 'Opacidad', css: 'opacity' },
+];
+
+const CURVAS = [
+	{ id: 'ease', label: 'ease' },
+	{ id: 'linear', label: 'linear' },
+	{ id: 'ease-in', label: 'ease-in' },
+	{ id: 'ease-out', label: 'ease-out' },
+	{ id: 'ease-in-out', label: 'ease-in-out' },
+	{ id: 'suave', label: 'Suave' },
+	{ id: 'rebote', label: 'Rebote' },
+	{ id: 'retroceso', label: 'Retroceso' },
+	{ id: 'brusca', label: 'Brusca' },
+];
+
+const PUNTOS = [
+	{ id: 'x1', label: 'x1' },
+	{ id: 'y1', label: 'y1' },
+	{ id: 'x2', label: 'x2' },
+	{ id: 'y2', label: 'y2' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="transiciones"
+	aria-labelledby="tab-transiciones"
+	data-panel="transiciones"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			{
+				MEDIDAS.filter((m) => m.grupo === 'tiempo').map((m) => (
+					<div class="flex flex-col gap-2">
+						<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`tr-${m.id}`}>
+							{m.label}
+							<span class="inline-flex items-center gap-1">
+								<input
+									type="number"
+									min={m.min}
+									max={m.max}
+									step={m.step}
+									data-tr-num={m.id}
+									aria-label={`${m.label} en ${m.unidad}`}
+									class={NUMERO}
+								/>
+								<span class="w-7">{m.unidad}</span>
+							</span>
+						</label>
+						<input
+							id={`tr-${m.id}`}
+							type="range"
+							min={m.min}
+							max={m.max}
+							step={m.step}
+							data-tr-rango={m.id}
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+
+			<span class="text-sm text-muted">Qué cambia al pasar el ratón</span>
+
+			{
+				PROPIEDADES.map((p) => (
+					<fieldset data-tr-grupo={p.id} class="flex flex-col gap-3 border border-line p-3">
+						<legend class="px-1">
+							<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-fg">
+								<input type="checkbox" data-tr-prop={p.id} class="size-4 accent-accent" />
+								{p.label}
+								<code class="text-xs text-muted">{p.css}</code>
+							</label>
+						</legend>
+						<div data-tr-cuerpo class="flex flex-col gap-3">
+							{p.id === 'color' ? (
+								<div class="flex flex-wrap items-center gap-4">
+									<label class="inline-flex items-center gap-2 text-sm text-muted">
+										<input type="color" data-tr-inicio aria-label="Color inicial" class={COLOR} />
+										Inicial
+									</label>
+									<label class="inline-flex items-center gap-2 text-sm text-muted">
+										<input type="color" data-tr-fin aria-label="Color final" class={COLOR} />
+										Final
+									</label>
+								</div>
+							) : (
+								MEDIDAS.filter((m) => m.grupo === p.id).map((m) => (
+									<div class="flex flex-col gap-2">
+										<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`tr-${m.id}`}>
+											{m.label}
+											<span class="inline-flex items-center gap-1">
+												<input
+													type="number"
+													min={m.min}
+													max={m.max}
+													step={m.step}
+													data-tr-num={m.id}
+													aria-label={`${m.label} en ${m.unidad}`}
+													class={NUMERO}
+												/>
+												<span class="w-7">{m.unidad}</span>
+											</span>
+										</label>
+										<input
+											id={`tr-${m.id}`}
+											type="range"
+											min={m.min}
+											max={m.max}
+											step={m.step}
+											data-tr-rango={m.id}
+											class="w-full accent-accent"
+										/>
+									</div>
+								))
+							)}
+						</div>
+					</fieldset>
+				))
+			}
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-6">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Vista previa: pasa el ratón por el recuadro</span>
+				<div
+					data-tr-escena
+					tabindex="0"
+					aria-label="Cuadro de prueba. Pasa el ratón o enfócalo para ver la transición"
+					class="flex min-h-96 w-full items-center justify-center overflow-hidden border border-line bg-panel p-8 outline-none focus-visible:border-accent"
+				>
+					<div data-tr-cuadro aria-hidden="true"></div>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-tr-probar aria-pressed="false" class={BOTON}>
+						<Icon name="player-play" class="size-4 shrink-0" />
+						Dejarlo en el estado final
+					</button>
+				</div>
+			</div>
+
+			<div class="grid gap-6 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+				<div class="flex flex-col gap-2">
+					<span class="text-sm text-muted">Curva</span>
+					<svg
+						data-tr-lienzo
+						viewBox="0 0 200 320"
+						role="img"
+						aria-label="Editor de la curva cubic-bezier. Arrastra los dos puntos"
+						class="w-full max-w-64 cursor-crosshair touch-none border border-line bg-panel select-none"
+					>
+						<rect x="20" y="80" width="160" height="160" class="fill-none stroke-line" stroke-width="1"></rect>
+						<line x1="20" y1="240" x2="180" y2="80" class="stroke-line" stroke-width="1" stroke-dasharray="4 4"></line>
+						<line data-tr-brazo="0" class="stroke-muted" stroke-width="1"></line>
+						<line data-tr-brazo="1" class="stroke-muted" stroke-width="1"></line>
+						<path data-tr-curva class="fill-none stroke-accent" stroke-width="3"></path>
+						<rect data-tr-punto="0" width="12" height="12" class="cursor-grab fill-accent stroke-bg" stroke-width="2"></rect>
+						<rect data-tr-punto="1" width="12" height="12" class="cursor-grab fill-mark stroke-bg" stroke-width="2"></rect>
+					</svg>
+					<div class="grid grid-cols-2 gap-2">
+						{
+							PUNTOS.map((p) => (
+								<label class="flex items-center justify-between gap-2 text-sm text-muted">
+									{p.label}
+									<input
+										type="number"
+										step="0.01"
+										min={p.id.startsWith('x') ? 0 : -0.5}
+										max={p.id.startsWith('x') ? 1 : 1.5}
+										data-tr-bezier={p.id}
+										aria-label={`Punto de control ${p.label}`}
+										class={NUMERO}
+									/>
+								</label>
+							))
+						}
+					</div>
+				</div>
+
+				<div class="flex min-w-0 flex-col gap-4">
+					<div class="flex flex-col gap-2">
+						<span class="text-sm text-muted">Curvas listas</span>
+						<div class="flex flex-wrap gap-2">
+							{
+								CURVAS.map((curva) => (
+									<button
+										type="button"
+										data-tr-curva-lista={curva.id}
+										aria-pressed="false"
+										class="border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent"
+									>
+										{curva.label}
+									</button>
+								))
+							}
+						</div>
+					</div>
+
+					<div class="flex flex-col gap-2">
+						<span class="text-sm text-muted">CSS</span>
+						<pre data-tr-css class="overflow-x-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+					</div>
+
+					<div class="flex flex-wrap items-center gap-2">
+						<button type="button" data-tr-copiar class={BOTON}>
+							<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+							<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+							<span data-tr-copiar-texto aria-live="polite">Copiar CSS</span>
+						</button>
+						<button type="button" data-tr-reset class={BOTON}>
+							<Icon name="refresh" class="size-4 shrink-0" />
+							Restablecer
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-panel='transiciones'] input[type='color']::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='transiciones'] input[type='color']::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='transiciones'] input[type='color']::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* Propiedad sin marcar: sus controles se quedan ahí, pero apagados. */
+	[data-tr-grupo]:disabled [data-tr-cuerpo] {
+		opacity: 0.4;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-tr-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-tr-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-tr-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-tr-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-tr-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Prop = 'color' | 'tamano' | 'transform' | 'opacidad';
+	type Medida = 'duracion' | 'retraso' | 'tamano' | 'giro' | 'escala' | 'mover' | 'opacidad';
+	type Curva = [number, number, number, number];
+	type Estado = Record<Medida, number> & {
+		props: Record<Prop, boolean>;
+		inicio: string;
+		fin: string;
+		curva: Curva;
+	};
+
+	const CLAVE = 'tuweb:transiciones';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const LADO = 112;
+	const PROPS: Prop[] = ['color', 'tamano', 'transform', 'opacidad'];
+	const RANGOS: Record<Medida, [number, number]> = {
+		duracion: [0, 3000],
+		retraso: [0, 2000],
+		tamano: [48, 200],
+		giro: [-360, 360],
+		escala: [50, 200],
+		mover: [-80, 80],
+		opacidad: [0, 100],
+	};
+	const MEDIDAS = Object.keys(RANGOS) as Medida[];
+
+	// Las cinco con nombre en CSS salen con su palabra; el resto, con sus números.
+	const CURVAS: Record<string, Curva> = {
+		ease: [0.25, 0.1, 0.25, 1],
+		linear: [0, 0, 1, 1],
+		'ease-in': [0.42, 0, 1, 1],
+		'ease-out': [0, 0, 0.58, 1],
+		'ease-in-out': [0.42, 0, 0.58, 1],
+		suave: [0.25, 1, 0.5, 1],
+		rebote: [0.34, 1.56, 0.64, 1],
+		retroceso: [0.36, 0, 0.66, -0.56],
+		brusca: [0.87, 0, 0.13, 1],
+	};
+	const CON_NOMBRE = ['ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out'];
+
+	const INICIAL: Estado = {
+		props: { color: true, tamano: false, transform: true, opacidad: false },
+		duracion: 400,
+		retraso: 0,
+		tamano: 160,
+		giro: 12,
+		escala: 120,
+		mover: -12,
+		opacidad: 50,
+		inicio: '#c2410c',
+		fin: '#3b2d24',
+		curva: [...CURVAS.ease] as Curva,
+	};
+
+	// Coordenadas del editor: el cuadrado 0..1 ocupa 160 unidades y deja sitio
+	// arriba y abajo para curvas que se pasan (y de -0,5 a 1,5).
+	const PAD = 20;
+	const S = 160;
+	const BASE = 240;
+	const Y_MIN = -0.5;
+	const Y_MAX = 1.5;
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="transiciones"]');
+	const escena = panel?.querySelector<HTMLElement>('[data-tr-escena]');
+	const cuadro = panel?.querySelector<HTMLElement>('[data-tr-cuadro]');
+	const probar = panel?.querySelector<HTMLButtonElement>('[data-tr-probar]');
+	const inicio = panel?.querySelector<HTMLInputElement>('[data-tr-inicio]');
+	const fin = panel?.querySelector<HTMLInputElement>('[data-tr-fin]');
+	const lienzo = panel?.querySelector<SVGSVGElement>('[data-tr-lienzo]');
+	const trazo = panel?.querySelector<SVGPathElement>('[data-tr-curva]');
+	const salida = panel?.querySelector<HTMLElement>('[data-tr-css]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-tr-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-tr-copiar-texto]');
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const dos = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v * 100) / 100, min), max);
+	const hexValido = (v: unknown, d: string) => (HEX.test(String(v)) ? String(v).toLowerCase() : d);
+	const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+	function cargar(): Estado {
+		const estado = structuredClone(INICIAL);
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			MEDIDAS.forEach((m) => {
+				estado[m] = limitar(num(guardado[m], INICIAL[m]), ...RANGOS[m]);
+			});
+			PROPS.forEach((p) => {
+				if (typeof guardado.props?.[p] === 'boolean') estado.props[p] = guardado.props[p];
+			});
+			estado.inicio = hexValido(guardado.inicio, INICIAL.inicio);
+			estado.fin = hexValido(guardado.fin, INICIAL.fin);
+			if (Array.isArray(guardado.curva) && guardado.curva.length === 4) {
+				const [x1, y1, x2, y2] = guardado.curva.map((v: unknown) => num(v, 0));
+				estado.curva = [dos(x1, 0, 1), dos(y1, Y_MIN, Y_MAX), dos(x2, 0, 1), dos(y2, Y_MIN, Y_MAX)];
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+	let encima = false;
+	let fijo = false;
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	const mismaCurva = (a: Curva, b: Curva) => a.every((v, i) => Math.abs(v - b[i]) < 0.001);
+
+	function curvaCss() {
+		const nombre = CON_NOMBRE.find((id) => mismaCurva(estado.curva, CURVAS[id]));
+		return nombre ?? `cubic-bezier(${estado.curva.join(', ')})`;
+	}
+
+	function transformCss() {
+		const partes: string[] = [];
+		if (estado.mover !== 0) partes.push(`translateY(${estado.mover}px)`);
+		if (estado.giro !== 0) partes.push(`rotate(${estado.giro}deg)`);
+		if (estado.escala !== 100) partes.push(`scale(${estado.escala / 100})`);
+		return partes.join(' ') || 'none';
+	}
+
+	// Nombres CSS de lo marcado, en el orden de la lista.
+	function propiedades() {
+		const lista: string[] = [];
+		if (estado.props.color) lista.push('background-color');
+		if (estado.props.tamano) lista.push('width', 'height');
+		if (estado.props.transform) lista.push('transform');
+		if (estado.props.opacidad) lista.push('opacity');
+		return lista;
+	}
+
+	function transicion() {
+		const lista = propiedades();
+		if (lista.length === 0) return 'none';
+		const retraso = estado.retraso > 0 ? ` ${estado.retraso}ms` : '';
+		return lista.map((p) => `${p} ${estado.duracion}ms ${curvaCss()}${retraso}`).join(',\n    ');
+	}
+
+	// Lo que cambia en :hover, como pares propiedad/valor.
+	function final(): [string, string][] {
+		const pares: [string, string][] = [];
+		if (estado.props.color) pares.push(['background-color', estado.fin]);
+		if (estado.props.tamano) pares.push(['width', `${estado.tamano}px`], ['height', `${estado.tamano}px`]);
+		if (estado.props.transform) pares.push(['transform', transformCss()]);
+		if (estado.props.opacidad) pares.push(['opacity', String(estado.opacidad / 100)]);
+		return pares;
+	}
+
+	function css() {
+		const t = transicion();
+		const base = [
+			`  width: ${LADO}px;`,
+			`  height: ${LADO}px;`,
+			`  background-color: ${estado.inicio};`,
+			...(estado.props.transform ? ['  transform: none;'] : []),
+			...(estado.props.opacidad ? ['  opacity: 1;'] : []),
+			t.includes('\n') ? `  transition:\n    ${t};` : `  transition: ${t};`,
+		];
+		const hover = final().map(([p, v]) => `  ${p}: ${v};`);
+		const bloques = [`.caja {\n${base.join('\n')}\n}`];
+		if (hover.length) bloques.push(`.caja:hover {\n${hover.join('\n')}\n}`);
+		return bloques.join('\n\n');
+	}
+
+	function pintarCuadro() {
+		if (!cuadro) return;
+		const activo = encima || fijo;
+		cuadro.style.transition = transicion().replace(/\n\s*/g, ' ');
+		cuadro.style.width = `${LADO}px`;
+		cuadro.style.height = `${LADO}px`;
+		cuadro.style.backgroundColor = estado.inicio;
+		cuadro.style.transform = 'none';
+		cuadro.style.opacity = '1';
+		if (!activo) return;
+		final().forEach(([p, v]) => cuadro.style.setProperty(p, v));
+	}
+
+	const X = (x: number) => PAD + x * S;
+	const Y = (y: number) => BASE - y * S;
+
+	function pintarCurva() {
+		const [x1, y1, x2, y2] = estado.curva;
+		trazo?.setAttribute('d', `M ${X(0)} ${Y(0)} C ${X(x1)} ${Y(y1)}, ${X(x2)} ${Y(y2)}, ${X(1)} ${Y(1)}`);
+		[
+			[0, 0, x1, y1],
+			[1, 1, x2, y2],
+		].forEach(([ax, ay, bx, by], i) => {
+			const brazo = lienzo?.querySelector(`[data-tr-brazo="${i}"]`);
+			brazo?.setAttribute('x1', String(X(ax)));
+			brazo?.setAttribute('y1', String(Y(ay)));
+			brazo?.setAttribute('x2', String(X(bx)));
+			brazo?.setAttribute('y2', String(Y(by)));
+			const punto = lienzo?.querySelector(`[data-tr-punto="${i}"]`);
+			punto?.setAttribute('x', String(X(bx) - 6));
+			punto?.setAttribute('y', String(Y(by) - 6));
+		});
+		panel?.querySelectorAll<HTMLInputElement>('[data-tr-bezier]').forEach((campo, i) => {
+			if (document.activeElement !== campo) campo.value = String(estado.curva[i]);
+		});
+		panel?.querySelectorAll<HTMLButtonElement>('[data-tr-curva-lista]').forEach((boton) => {
+			const curva = CURVAS[boton.dataset.trCurvaLista ?? ''];
+			boton.setAttribute('aria-pressed', String(Boolean(curva) && mismaCurva(estado.curva, curva)));
+		});
+	}
+
+	function pintarControles() {
+		MEDIDAS.forEach((m) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-tr-rango="${m}"]`);
+			const numero = panel?.querySelector<HTMLInputElement>(`[data-tr-num="${m}"]`);
+			if (rango) rango.value = String(estado[m]);
+			if (numero && document.activeElement !== numero) numero.value = String(estado[m]);
+		});
+		PROPS.forEach((p) => {
+			const casilla = panel?.querySelector<HTMLInputElement>(`[data-tr-prop="${p}"]`);
+			const grupo = panel?.querySelector<HTMLFieldSetElement>(`[data-tr-grupo="${p}"]`);
+			if (casilla) casilla.checked = estado.props[p];
+			if (grupo) grupo.disabled = !estado.props[p];
+		});
+		if (inicio) inicio.value = estado.inicio;
+		if (fin) fin.value = estado.fin;
+	}
+
+	function actualizar() {
+		pintarCuadro();
+		if (salida) salida.textContent = css();
+		guardar();
+	}
+
+	function todo() {
+		pintarControles();
+		pintarCurva();
+		actualizar();
+	}
+
+	function ponerMedida(m: Medida, valor: number) {
+		if (!Number.isFinite(valor)) return;
+		estado[m] = limitar(valor, ...RANGOS[m]);
+		pintarControles();
+		actualizar();
+	}
+
+	MEDIDAS.forEach((m) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-tr-rango="${m}"]`);
+		const numero = panel?.querySelector<HTMLInputElement>(`[data-tr-num="${m}"]`);
+		rango?.addEventListener('input', () => ponerMedida(m, Number(rango.value)));
+		numero?.addEventListener('input', () => {
+			if (numero.value.trim() !== '') ponerMedida(m, Number(numero.value));
+		});
+		numero?.addEventListener('blur', () => {
+			numero.value = String(estado[m]);
+		});
+	});
+
+	PROPS.forEach((p) => {
+		const casilla = panel?.querySelector<HTMLInputElement>(`[data-tr-prop="${p}"]`);
+		casilla?.addEventListener('change', () => {
+			estado.props[p] = casilla.checked;
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	inicio?.addEventListener('input', () => {
+		estado.inicio = hexValido(inicio.value, estado.inicio);
+		actualizar();
+	});
+
+	fin?.addEventListener('input', () => {
+		estado.fin = hexValido(fin.value, estado.fin);
+		actualizar();
+	});
+
+	// El hover se escucha en el recuadro entero y no en el cuadro: si no, al
+	// crecer o moverse se escaparía del ratón y parpadearía.
+	const ponerEncima = (valor: boolean) => {
+		encima = valor;
+		pintarCuadro();
+	};
+	escena?.addEventListener('pointerenter', () => ponerEncima(true));
+	escena?.addEventListener('pointerleave', () => ponerEncima(false));
+	escena?.addEventListener('focus', () => ponerEncima(true));
+	escena?.addEventListener('blur', () => ponerEncima(false));
+
+	probar?.addEventListener('click', () => {
+		fijo = !fijo;
+		probar.setAttribute('aria-pressed', String(fijo));
+		pintarCuadro();
+	});
+
+	function ponerPunto(i: number, x: number, y: number) {
+		estado.curva[i * 2] = dos(x, 0, 1);
+		estado.curva[i * 2 + 1] = dos(y, Y_MIN, Y_MAX);
+		pintarCurva();
+		actualizar();
+	}
+
+	function aCurva(e: PointerEvent) {
+		const matriz = lienzo?.getScreenCTM();
+		if (!matriz) return null;
+		const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(matriz.inverse());
+		return { x: (p.x - PAD) / S, y: (BASE - p.y) / S };
+	}
+
+	let arrastre: number | null = null;
+
+	// Se pulse donde se pulse, se lleva el punto más cercano: así no hace falta
+	// acertar en el cuadradito, sobre todo con el dedo.
+	lienzo?.addEventListener('pointerdown', (e) => {
+		const p = aCurva(e);
+		if (!p) return;
+		const [x1, y1, x2, y2] = estado.curva;
+		arrastre = Math.hypot(p.x - x1, p.y - y1) <= Math.hypot(p.x - x2, p.y - y2) ? 0 : 1;
+		lienzo.setPointerCapture(e.pointerId);
+		ponerPunto(arrastre, p.x, p.y);
+		e.preventDefault();
+	});
+
+	lienzo?.addEventListener('pointermove', (e) => {
+		if (arrastre === null) return;
+		const p = aCurva(e);
+		if (p) ponerPunto(arrastre, p.x, p.y);
+	});
+
+	const soltar = () => {
+		arrastre = null;
+	};
+	lienzo?.addEventListener('pointerup', soltar);
+	lienzo?.addEventListener('pointercancel', soltar);
+
+	panel?.querySelectorAll<HTMLInputElement>('[data-tr-bezier]').forEach((campo, i) => {
+		campo.addEventListener('input', () => {
+			const valor = Number(campo.value);
+			if (campo.value.trim() === '' || !Number.isFinite(valor)) return;
+			const punto = i < 2 ? 0 : 1;
+			const x = i % 2 === 0 ? valor : estado.curva[punto * 2];
+			const y = i % 2 === 1 ? valor : estado.curva[punto * 2 + 1];
+			ponerPunto(punto, x, y);
+		});
+		campo.addEventListener('blur', () => {
+			campo.value = String(estado.curva[i]);
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-tr-curva-lista]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const curva = CURVAS[boton.dataset.trCurvaLista ?? ''];
+			if (!curva) return;
+			estado.curva = [...curva] as Curva;
+			pintarCurva();
+			actualizar();
+		});
+	});
+
+	panel?.querySelector('[data-tr-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		todo();
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar CSS';
+		}, 2000);
+	});
+
+	todo();
+</script>

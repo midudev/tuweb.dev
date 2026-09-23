@@ -16,6 +16,7 @@ import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
 import ShadowTool from './ShadowTool.astro';
 import ThemeTool from './ThemeTool.astro';
+import TransitionTool from './TransitionTool.astro';
 import TypeTool from './TypeTool.astro';
 import UnitTool from './UnitTool.astro';
 
@@ -33,6 +34,7 @@ const tools = [
 	{ id: 'obras', label: 'Paletas de obras', icon: 'artboard' },
 	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
 	{ id: 'sombras', label: 'Sombras', icon: 'shadow' },
+	{ id: 'transiciones', label: 'Transiciones', icon: 'vector-bezier-2' },
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
@@ -184,6 +186,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<GradientTool />
 
 	<ShadowTool />
+
+	<TransitionTool />
 
 	<ImageTool />
 
