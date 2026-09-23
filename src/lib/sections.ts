@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -122,6 +122,15 @@ export const SECTIONS: Section[] = [
 		card: 'Una tira cómica sin dibujar: viñetas, fondos, personajes y bocadillos.',
 		intro:
 			'Monta una tira sin saber dibujar. Elige cuántas viñetas, y en cada una el fondo, quién sale a cada lado —dev, jefa, robot, gata o fantasma— y qué dice: hablando, pensando o a gritos. Ponle un rótulo y un título, y te la llevas en PNG o la copias al portapapeles. Se pinta en tu navegador y lo que llevas se queda en él para seguir otro día.',
+	},
+	{
+		href: '/nube',
+		title: 'Nube de palabras',
+		icon: 'cloud',
+		group: 'herramientas',
+		card: 'Pegas un texto y salen sus palabras, más grandes cuanto más se repiten.',
+		intro:
+			'Pega un texto y sale su nube al momento: cada palabra, más grande cuanto más se repite, sin las palabras vacías que no dicen nada. Elige la forma, los colores, la fuente y si van tumbadas o de pie, quita las que sobren y te la llevas en SVG o en PNG. Se cuenta y se pinta en tu navegador: el texto no se envía ni se guarda.',
 	},
 	{
 		href: '/comparador',

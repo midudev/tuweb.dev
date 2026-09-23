@@ -1,0 +1,440 @@
+---
+/**
+ * La nube de palabras. Pegas un texto y sale al momento: cada palabra, más
+ * grande cuanto más se repite, sin las palabras vacías, en la forma, los
+ * colores y la fuente que elijas. Te la llevas en SVG o en PNG.
+ *
+ * Todo pasa en tu navegador: se cuenta y se pinta aquí, en un <canvas>, y de
+ * ahí salen las descargas. No se envía ni se guarda nada. El cálculo está en
+ * src/lib/wordcloud.ts; aquí solo están los mandos.
+ */
+import { FONTS, MAX_WORDS, ORIENTATIONS, PALETTES, SAMPLE, SHAPES } from '../lib/wordcloud';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const CAMPO = 'w-full border border-line bg-bg p-3 text-sm outline-none focus-visible:border-accent';
+
+const GRUPOS = [
+	{ id: 'forma', label: 'Forma', items: SHAPES.map((s) => ({ id: s.id, label: s.label, icon: s.icon })) },
+	{ id: 'fuente', label: 'Fuente', items: FONTS.map((f) => ({ id: f.id, label: f.label, icon: 'typography' })) },
+	{
+		id: 'orientacion',
+		label: 'Palabras',
+		items: ORIENTATIONS.map((o) => ({ id: o.id, label: o.label, icon: o.icon })),
+	},
+];
+---
+
+<section id="nube" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex flex-col gap-4">
+		<div class="flex justify-center border border-line bg-panel p-4">
+			<canvas
+				data-nube-lienzo
+				role="img"
+				aria-label="Vista previa de la nube de palabras"
+				class="block h-auto max-h-[70vh] w-auto max-w-full border border-line"></canvas>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-nube-descarga="svg" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-nube-descarga="png" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+			<button type="button" data-nube-barajar class={BOTON}>
+				<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+				Barajar
+			</button>
+		</div>
+
+		<p data-nube-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="list-numbers" class="size-4 shrink-0 text-accent" />
+				Las que más salen
+			</span>
+			<ol data-nube-lista class="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2"></ol>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center justify-between gap-2">
+				<label for="nube-texto" class="text-sm text-muted">Texto</label>
+				<span class="flex gap-2">
+					<button type="button" data-nube-ejemplo class={`${BOTON} px-2 py-1`}>
+						<Icon name="file-text" class="size-4 shrink-0" />
+						Ejemplo
+					</button>
+					<button type="button" data-nube-vaciar class={`${BOTON} px-2 py-1`}>
+						<Icon name="eraser" class="size-4 shrink-0" />
+						Vaciar
+					</button>
+				</span>
+			</span>
+			<textarea
+				id="nube-texto"
+				data-nube-texto
+				rows="8"
+				spellcheck="false"
+				autocomplete="off"
+				placeholder="Pega aquí un texto: un artículo, una charla, un hilo…"
+				class={`${CAMPO} resize-y`}
+				set:text={SAMPLE}></textarea>
+			<p data-nube-cuenta class="text-xs text-muted"></p>
+		</div>
+
+		{
+			GRUPOS.map((grupo) => (
+				<div class="flex flex-col gap-2">
+					<span id={`nube-${grupo.id}`} class="text-sm text-muted">
+						{grupo.label}
+					</span>
+					<div role="group" aria-labelledby={`nube-${grupo.id}`} class="flex flex-wrap gap-2">
+						{grupo.items.map((item) => (
+							<button
+								type="button"
+								data-nube-opcion={grupo.id}
+								data-valor={item.id}
+								aria-pressed="false"
+								class={BOTON}
+							>
+								<Icon name={item.icon} class="size-4 shrink-0" />
+								{item.label}
+							</button>
+						))}
+					</div>
+				</div>
+			))
+		}
+
+		<div class="flex flex-col gap-2">
+			<span id="nube-paleta" class="text-sm text-muted">Colores</span>
+			<div role="group" aria-labelledby="nube-paleta" class="flex flex-wrap gap-2">
+				{
+					PALETTES.map((paleta) => (
+						<button
+							type="button"
+							data-nube-opcion="paleta"
+							data-valor={paleta.id}
+							aria-pressed="false"
+							class={BOTON}
+						>
+							<span class="flex" aria-hidden="true">
+								{paleta.colors.slice(0, 4).map((color) => (
+									<span class="size-3 border border-line" style={`background:${color}`} />
+								))}
+							</span>
+							{paleta.label}
+						</button>
+					))
+				}
+			</div>
+			<div class="flex flex-wrap items-center gap-4 pt-1">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Un color
+					<input
+						type="color"
+						data-nube-propio
+						value="#c2410c"
+						class="h-9 w-14 cursor-pointer border border-line bg-bg p-1"
+					/>
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Fondo
+					<input
+						type="color"
+						data-nube-fondo
+						class="h-9 w-14 cursor-pointer border border-line bg-bg p-1 disabled:opacity-40"
+					/>
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-nube-transparente class="size-4 accent-accent" />
+					Sin fondo
+				</label>
+			</div>
+		</div>
+
+		<label class="flex flex-col gap-1">
+			<span class="flex justify-between text-sm text-muted">
+				<span>Palabras como mucho</span>
+				<span data-nube-max-valor class="text-mark"></span>
+			</span>
+			<input
+				type="range"
+				data-nube-max
+				min={MAX_WORDS.min}
+				max={MAX_WORDS.max}
+				step={MAX_WORDS.step}
+				value="80"
+				class="w-full accent-accent"
+			/>
+		</label>
+
+		<div class="flex flex-col gap-3">
+			<label class="inline-flex items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-nube-vacias checked class="size-4 accent-accent" />
+				Quitar palabras vacías (de, la, que, the…)
+			</label>
+			<label class="inline-flex items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-nube-mayusculas class="size-4 accent-accent" />
+				Mayúsculas
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Quitar también</span>
+				<input
+					type="text"
+					data-nube-extra
+					placeholder="web, idea, gente"
+					spellcheck="false"
+					autocomplete="off"
+					class={CAMPO}
+				/>
+			</label>
+		</div>
+	</div>
+</section>
+
+<script>
+	import {
+		FONTS,
+		type Placed,
+		SAMPLE,
+		cloudSvg,
+		countWords,
+		drawCloud,
+		fontOf,
+		fontSpec,
+		layoutCloud,
+		orientationOf,
+		paletteOf,
+		safeColor,
+		shapeOf,
+	} from '../lib/wordcloud';
+
+	const lienzo = document.querySelector<HTMLCanvasElement>('[data-nube-lienzo]');
+	const ctx = lienzo?.getContext('2d') ?? null;
+	const texto = document.querySelector<HTMLTextAreaElement>('[data-nube-texto]');
+	const nota = document.querySelector<HTMLElement>('[data-nube-nota]');
+	const cuenta = document.querySelector<HTMLElement>('[data-nube-cuenta]');
+	const lista = document.querySelector<HTMLElement>('[data-nube-lista]');
+	const propio = document.querySelector<HTMLInputElement>('[data-nube-propio]');
+	const fondo = document.querySelector<HTMLInputElement>('[data-nube-fondo]');
+	const transparente = document.querySelector<HTMLInputElement>('[data-nube-transparente]');
+	const maximo = document.querySelector<HTMLInputElement>('[data-nube-max]');
+	const maximoValor = document.querySelector<HTMLElement>('[data-nube-max-valor]');
+	const vacias = document.querySelector<HTMLInputElement>('[data-nube-vacias]');
+	const mayusculas = document.querySelector<HTMLInputElement>('[data-nube-mayusculas]');
+	const extra = document.querySelector<HTMLInputElement>('[data-nube-extra]');
+
+	/** Lo que se elige con botones. La paleta «propio» es la de un solo color. */
+	const eleccion: Record<string, string> = {
+		forma: 'nube',
+		fuente: 'mono',
+		orientacion: 'mixta',
+		paleta: 'casa',
+	};
+	let semilla = 1;
+	let colocadas: Placed[] = [];
+	let espera = 0;
+
+	if (fondo) fondo.value = paletteOf(eleccion.paleta).background;
+
+	function avisar(mensaje: string) {
+		if (nota) nota.textContent = mensaje;
+	}
+
+	function colores() {
+		if (eleccion.paleta === 'propio') return [safeColor(propio?.value ?? '', '#c2410c')];
+		return paletteOf(eleccion.paleta).colors;
+	}
+
+	function fondoActual() {
+		return transparente?.checked ? null : safeColor(fondo?.value ?? '', '#ffffff');
+	}
+
+	function pintarMandos() {
+		document.querySelectorAll<HTMLButtonElement>('[data-nube-opcion]').forEach((button) => {
+			const grupo = button.dataset.nubeOpcion ?? '';
+			button.setAttribute('aria-pressed', String(eleccion[grupo] === button.dataset.valor));
+		});
+		if (fondo) fondo.disabled = Boolean(transparente?.checked);
+		if (maximoValor && maximo) maximoValor.textContent = maximo.value;
+	}
+
+	function render() {
+		pintarMandos();
+		if (!lienzo || !ctx) return;
+
+		const forma = shapeOf(eleccion.forma);
+		const fuente = fontOf(eleccion.fuente);
+		const { words, total } = countWords(texto?.value ?? '', {
+			stopwords: Boolean(vacias?.checked),
+			extra: extra?.value ?? '',
+			minLength: 2,
+		});
+		const tope = Number(maximo?.value) || 80;
+		const elegidas = words
+			.slice(0, tope)
+			.map((word) => (mayusculas?.checked ? { ...word, text: word.text.toUpperCase() } : word));
+
+		colocadas = layoutCloud(ctx, elegidas, {
+			shape: forma,
+			font: fuente,
+			colors: colores(),
+			vertical: orientationOf(eleccion.orientacion).vertical,
+			seed: semilla,
+		});
+
+		lienzo.width = forma.width;
+		lienzo.height = forma.height;
+		drawCloud(ctx, colocadas, forma, fuente, fondoActual(), 1);
+
+		if (cuenta) {
+			cuenta.textContent = total
+				? `${total} palabras, ${words.length} distintas, ${colocadas.length} en la nube.`
+				: '';
+		}
+
+		if (lista) {
+			lista.replaceChildren(
+				...elegidas.slice(0, 12).map((word, index) => {
+					const item = document.createElement('li');
+					item.className = 'flex justify-between gap-3 border-b border-line py-1';
+					const nombre = document.createElement('span');
+					nombre.textContent = `${index + 1}. ${word.text}`;
+					nombre.className = 'truncate';
+					const veces = document.createElement('span');
+					veces.textContent = String(word.count);
+					veces.className = 'text-mark';
+					item.append(nombre, veces);
+					return item;
+				}),
+			);
+		}
+
+		if (!total) avisar('Pega un texto y la nube sale sola.');
+		else if (!colocadas.length) avisar('No queda ninguna palabra: prueba a quitar menos.');
+		else if (colocadas.length < elegidas.length)
+			avisar(`${elegidas.length - colocadas.length} no caben: prueba otra forma o menos palabras.`);
+		else avisar('');
+	}
+
+	/** Al escribir se espera un pelo, para no recolocar la nube en cada tecla. */
+	function pronto() {
+		clearTimeout(espera);
+		espera = window.setTimeout(render, 150);
+	}
+
+	texto?.addEventListener('input', pronto);
+	extra?.addEventListener('input', pronto);
+	maximo?.addEventListener('input', () => {
+		pintarMandos();
+		pronto();
+	});
+	vacias?.addEventListener('change', render);
+	mayusculas?.addEventListener('change', render);
+	transparente?.addEventListener('change', render);
+	fondo?.addEventListener('input', render);
+	propio?.addEventListener('input', () => {
+		eleccion.paleta = 'propio';
+		render();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-nube-opcion]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const grupo = button.dataset.nubeOpcion ?? '';
+			eleccion[grupo] = button.dataset.valor ?? '';
+			// Cada paleta trae su fondo; luego se cambia si se quiere.
+			if (grupo === 'paleta' && fondo) fondo.value = paletteOf(eleccion.paleta).background;
+			render();
+		});
+	});
+
+	document.querySelector('[data-nube-barajar]')?.addEventListener('click', () => {
+		semilla = Math.floor(Math.random() * 2 ** 31);
+		render();
+	});
+
+	document.querySelector('[data-nube-ejemplo]')?.addEventListener('click', () => {
+		if (texto) texto.value = SAMPLE;
+		render();
+	});
+
+	document.querySelector('[data-nube-vaciar]')?.addEventListener('click', () => {
+		if (texto) {
+			texto.value = '';
+			texto.focus();
+		}
+		render();
+	});
+
+	function bajar(blob: Blob, ext: string) {
+		const url = URL.createObjectURL(blob);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = `nube-de-palabras.${ext}`;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/** La fuente va dentro del SVG; sale de esta misma web. Si falla, va sin ella. */
+	async function fuenteEnBase64(file: string) {
+		try {
+			const respuesta = await fetch(file);
+			if (!respuesta.ok) return undefined;
+			const bytes = new Uint8Array(await respuesta.arrayBuffer());
+			let binario = '';
+			for (let i = 0; i < bytes.length; i += 0x8000) {
+				binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+			}
+			return btoa(binario);
+		} catch {
+			return undefined;
+		}
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-nube-descarga]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (!colocadas.length) {
+				avisar('No hay nube que descargar todavía.');
+				return;
+			}
+			const forma = shapeOf(eleccion.forma);
+			const fuente = fontOf(eleccion.fuente);
+
+			if (button.dataset.nubeDescarga === 'svg') {
+				const svg = cloudSvg(colocadas, forma, fuente, fondoActual(), await fuenteEnBase64(fuente.file));
+				bajar(new Blob([svg], { type: 'image/svg+xml' }), 'svg');
+				return;
+			}
+
+			// El PNG sale al doble, para que no se vea borroso al ampliarlo.
+			const salida = document.createElement('canvas');
+			salida.width = forma.width * 2;
+			salida.height = forma.height * 2;
+			const pincel = salida.getContext('2d');
+			if (!pincel) return;
+			drawCloud(pincel, colocadas, forma, fuente, fondoActual(), 2);
+			salida.toBlob((blob) => {
+				if (blob) bajar(blob, 'png');
+				else avisar('No se pudo generar la imagen.');
+			}, 'image/png');
+		});
+	});
+
+	render();
+
+	// Las dos fuentes son nuestras y el canvas no las espera solo: si se mide
+	// antes de que estén, las palabras se colocan con la del sistema.
+	Promise.all(FONTS.map((font) => document.fonts.load(fontSpec(font, 64))))
+		.catch(() => undefined)
+		.then(() => render());
+</script>
