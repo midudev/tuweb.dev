@@ -1,0 +1,728 @@
+---
+/**
+ * Laboratorio de color: un color base con ajustes, sus armonías y paletas que
+ * se comparan en una maqueta con aviso de contraste. La conversión fina entre
+ * formatos raros vive en la pestaña de Colores; aquí van HEX, RGB y HSL, que es
+ * lo que se pega en una hoja de estilos. La lógica está en src/lib/color-lab.ts.
+ */
+import Icon from './Icon.astro';
+
+const AJUSTES = [
+	{ id: 'saturacion', label: 'Saturación', min: -100, max: 100, value: 0 },
+	{ id: 'brillo', label: 'Brillo', min: -100, max: 100, value: 0 },
+	{ id: 'contraste', label: 'Contraste', min: -100, max: 100, value: 0 },
+	{ id: 'opacidad', label: 'Opacidad', min: 0, max: 100, value: 100 },
+];
+
+const FORMATOS = [
+	{ id: 'hex', label: 'HEX' },
+	{ id: 'rgb', label: 'RGB' },
+	{ id: 'hsl', label: 'HSL' },
+];
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const ROTULO = 'font-pixel text-xs tracking-wide text-accent';
+---
+
+<div
+	role="tabpanel"
+	id="laboratorio"
+	aria-labelledby="tab-laboratorio"
+	data-panel="laboratorio"
+	hidden
+	class="flex flex-col gap-10"
+>
+	<!-- Los iconos que el script pinta a mano salen de aquí, ya renderizados. -->
+	<template data-lab-icono="plus"><Icon name="plus" class="size-3.5 shrink-0" /></template>
+	<template data-lab-icono="x"><Icon name="x" class="size-3.5 shrink-0" /></template>
+	<template data-lab-icono="arrow-left"><Icon name="arrow-left" class="size-3.5 shrink-0" /></template>
+
+	<div class="grid gap-6 md:grid-cols-2">
+		<div class="flex flex-col gap-4">
+			<div class="flex items-end gap-4">
+				<div class="relative size-20 shrink-0 border border-line" data-lab-tablero>
+					<div data-lab-muestra class="absolute inset-0"></div>
+				</div>
+				<label class="flex flex-col gap-2">
+					<span class="text-sm text-muted">Color base</span>
+					<input
+						type="color"
+						data-lab-selector
+						value="#c2410c"
+						class="h-12 w-24 cursor-pointer border border-line bg-panel p-1"
+					/>
+				</label>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				{
+					AJUSTES.map((ajuste) => (
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between text-sm text-muted">
+								<span>{ajuste.label}</span>
+								<span data-lab-valor={ajuste.id} class="text-mark" />
+							</span>
+							<input
+								type="range"
+								data-lab-ajuste={ajuste.id}
+								min={ajuste.min}
+								max={ajuste.max}
+								step="1"
+								value={ajuste.value}
+								class="w-full accent-accent"
+							/>
+						</label>
+					))
+				}
+			</div>
+
+			<div>
+				<button type="button" data-lab-reinicia class={BOTON}>
+					<Icon name="rotate" class="size-4 shrink-0" />
+					Quitar ajustes
+				</button>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<span class="text-sm text-muted">Resultado. Escribe en cualquiera y se mueven los demás.</span>
+			<ul class="flex flex-col gap-2">
+				{
+					FORMATOS.map((formato) => (
+						<li class="flex items-center gap-3 border border-line bg-panel p-3">
+							<span class="w-10 shrink-0 text-sm text-muted">{formato.label}</span>
+							<input
+								type="text"
+								data-lab-formato={formato.id}
+								aria-label={formato.label}
+								spellcheck="false"
+								autocomplete="off"
+								class="min-w-0 grow bg-transparent text-sm text-mark outline-none focus-visible:underline"
+							/>
+							<button
+								type="button"
+								data-lab-copia-formato={formato.id}
+								aria-label={`Copiar ${formato.label}`}
+								class="shrink-0 text-muted hover:text-accent"
+							>
+								<span data-icon="copy" class="inline-flex">
+									<Icon name="copy" class="size-4" />
+								</span>
+								<span data-icon="check" class="inline-flex">
+									<Icon name="check" class="size-4" />
+								</span>
+							</button>
+						</li>
+					))
+				}
+			</ul>
+			<p data-lab-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+			<div>
+				<button type="button" data-lab-anade class={BOTON}>
+					<Icon name="plus" class="size-4 shrink-0" />
+					<span data-lab-anade-texto>Añadir a la paleta</span>
+				</button>
+			</div>
+			<p class="text-sm text-muted">La paleta guarda los colores opacos, sin la transparencia.</p>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<h3 class={ROTULO}>Armonías</h3>
+		<div data-lab-armonias class="flex flex-col gap-4"></div>
+		<h3 class={ROTULO}>Variaciones de tono</h3>
+		<ul data-lab-variaciones class="grid grid-cols-3 gap-2 md:grid-cols-9"></ul>
+		<p class="text-sm text-muted">Toca un color para copiar su hex. El + lo mete en la paleta.</p>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<h3 class={ROTULO}>Paletas</h3>
+		<div class="flex flex-wrap items-center gap-2">
+			<div data-lab-paletas role="group" aria-label="Paletas" class="flex flex-wrap gap-2"></div>
+			<button type="button" data-lab-nueva class={BOTON}>
+				<Icon name="plus" class="size-4 shrink-0" />
+				Nueva
+			</button>
+			<button type="button" data-lab-duplica class={BOTON}>
+				<Icon name="copy" class="size-4 shrink-0" />
+				Duplicar
+			</button>
+			<button type="button" data-lab-borra class={BOTON}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Borrar
+			</button>
+		</div>
+		<ul data-lab-colores class="grid grid-cols-2 gap-2 sm:grid-cols-4"></ul>
+		<p data-lab-vacia hidden class="text-sm text-muted">
+			Paleta vacía. Añade el color base o cualquiera de las armonías.
+		</p>
+		<p class="text-sm text-muted">
+			El orden manda en la maqueta: fondo, texto, acento, superficie y secundario. Hasta 8
+			colores y 4 paletas, guardadas en este navegador.
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<h3 class={ROTULO}>Maqueta</h3>
+		<div data-lab-maquetas class="grid gap-4 lg:grid-cols-2"></div>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<h3 class={ROTULO}>Exportar</h3>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Variables CSS de la paleta <span data-lab-nombre></span></span>
+			<textarea
+				data-lab-css
+				rows="8"
+				readonly
+				spellcheck="false"
+				class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"></textarea>
+		</label>
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-lab-copia-css class={BOTON}>
+				<Icon name="copy" class="size-4 shrink-0" />
+				Copiar CSS
+			</button>
+			<button type="button" data-lab-baja="css" class={BOTON}>
+				<Icon name="file-type-css" class="size-4 shrink-0" />
+				Descargar .css
+			</button>
+			<button type="button" data-lab-baja="png" class={BOTON}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+		</div>
+		<p data-lab-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+	</div>
+</div>
+
+<style>
+	/* Tablero para que se vea la opacidad, con los colores del tema. */
+	[data-lab-tablero] {
+		background-image: repeating-conic-gradient(var(--color-line) 0% 25%, var(--color-panel) 0% 50%);
+		background-size: 16px 16px;
+	}
+
+	[data-lab-copia-formato] [data-icon='check'] {
+		display: none;
+	}
+	[data-lab-copia-formato][data-state='done'] {
+		color: var(--color-accent);
+	}
+	[data-lab-copia-formato][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-lab-copia-formato][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	import {
+		type Ajustes,
+		MAX_COLORES,
+		MAX_PALETAS,
+		NOMBRES,
+		type Paleta,
+		type Rgba,
+		SIN_AJUSTES,
+		ajusta,
+		armonias,
+		chequeos,
+		cssDe,
+		guardaPaletas,
+		hexDe,
+		hslDe,
+		leeColor,
+		leePaletas,
+		papelDe,
+		papeles,
+		rgbDe,
+		tinta,
+		variaciones,
+	} from '../lib/color-lab';
+
+	const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector);
+	const $$ = <T extends Element>(selector: string) => document.querySelectorAll<T>(selector);
+
+	const selector = $<HTMLInputElement>('[data-lab-selector]');
+	const muestraBase = $<HTMLElement>('[data-lab-muestra]');
+	const nota = $<HTMLElement>('[data-lab-nota]');
+	const anade = $<HTMLButtonElement>('[data-lab-anade]');
+	const anadeTexto = $<HTMLElement>('[data-lab-anade-texto]');
+	const listaArmonias = $<HTMLElement>('[data-lab-armonias]');
+	const listaVariaciones = $<HTMLElement>('[data-lab-variaciones]');
+	const pestanas = $<HTMLElement>('[data-lab-paletas]');
+	const colores = $<HTMLElement>('[data-lab-colores]');
+	const vacia = $<HTMLElement>('[data-lab-vacia]');
+	const maquetas = $<HTMLElement>('[data-lab-maquetas]');
+	const css = $<HTMLTextAreaElement>('[data-lab-css]');
+	const nombre = $<HTMLElement>('[data-lab-nombre]');
+	const aviso = $<HTMLElement>('[data-lab-aviso]');
+
+	let base: Rgba = leeColor(selector?.value ?? '') ?? { r: 0.76, g: 0.25, b: 0.05, a: 1 };
+	let ajustes: Ajustes = { ...SIN_AJUSTES };
+	let paletas: Paleta[] = leePaletas();
+	let activa = 0;
+
+	const resultado = () => ajusta(base, ajustes);
+	const llena = () => paletas[activa].colores.length >= MAX_COLORES;
+
+	function icono(nombreIcono: string) {
+		const plantilla = $<HTMLTemplateElement>(`[data-lab-icono="${nombreIcono}"]`);
+		return plantilla?.content.firstElementChild?.cloneNode(true) ?? document.createTextNode('');
+	}
+
+	function crea<K extends keyof HTMLElementTagNameMap>(etiqueta: K, clase = '', texto = '') {
+		const elemento = document.createElement(etiqueta);
+		if (clase) elemento.className = clase;
+		if (texto) elemento.textContent = texto;
+		return elemento;
+	}
+
+	async function copia(texto: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const campo = crea('textarea');
+				campo.value = texto;
+				campo.readOnly = true;
+				campo.style.position = 'fixed';
+				campo.style.opacity = '0';
+				document.body.append(campo);
+				campo.select();
+				const hecho = document.execCommand('copy');
+				campo.remove();
+				return hecho;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	/** Copia y lo dice en el propio botón un momento. */
+	async function copiaEn(boton: HTMLElement, texto: string) {
+		const antes = boton.textContent;
+		boton.textContent = (await copia(texto)) ? 'Copiado' : 'No se pudo';
+		window.setTimeout(() => (boton.textContent = antes), 1200);
+	}
+
+	let avisoTimer: number | undefined;
+	function avisa(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		clearTimeout(avisoTimer);
+		avisoTimer = window.setTimeout(() => (aviso.textContent = ''), 2500);
+	}
+
+	/* El color base */
+
+	function pintaFormatos(excepto?: string) {
+		const color = resultado();
+		const valores: Record<string, string> = { hex: hexDe(color), rgb: rgbDe(color), hsl: hslDe(color) };
+		$$<HTMLInputElement>('[data-lab-formato]').forEach((campo) => {
+			if (campo.dataset.labFormato !== excepto) campo.value = valores[campo.dataset.labFormato ?? ''] ?? '';
+		});
+	}
+
+	/** Una muestra que copia su hex al tocarla, con un + para llevarla a la paleta. */
+	function muestra(hex: string) {
+		const li = crea('li', 'flex min-w-0 flex-col border border-line');
+		const boton = crea('button', 'flex h-14 items-end p-2 text-left text-xs', hex);
+		boton.type = 'button';
+		boton.title = `Copiar ${hex}`;
+		boton.style.background = hex;
+		boton.style.color = tinta(hex);
+		boton.addEventListener('click', () => copiaEn(boton, hex));
+		const mas = crea(
+			'button',
+			'flex items-center justify-center py-1 text-muted hover:text-accent disabled:opacity-40',
+		);
+		mas.type = 'button';
+		mas.dataset.labMas = '';
+		mas.disabled = llena();
+		mas.setAttribute('aria-label', `Añadir ${hex} a la paleta`);
+		mas.append(icono('plus'));
+		mas.addEventListener('click', () => anadir(hex));
+		li.append(boton, mas);
+		return li;
+	}
+
+	function pintaArmonias() {
+		const color = resultado();
+		listaArmonias?.replaceChildren(
+			...armonias(color).map((armonia) => {
+				const bloque = crea('div', 'flex flex-col gap-2');
+				const lista = crea('ul', 'grid gap-2');
+				lista.style.gridTemplateColumns = `repeat(${armonia.colores.length}, minmax(0, 1fr))`;
+				lista.append(...armonia.colores.map(muestra));
+				bloque.append(crea('span', 'text-sm text-muted', armonia.etiqueta), lista);
+				return bloque;
+			}),
+		);
+		listaVariaciones?.replaceChildren(...variaciones(color).map(muestra));
+	}
+
+	function pintaBase(excepto?: string) {
+		const color = resultado();
+		if (muestraBase) muestraBase.style.background = rgbDe(color);
+		if (selector) selector.value = hexDe(base, false);
+		$$<HTMLInputElement>('[data-lab-ajuste]').forEach((barra) => {
+			const clave = barra.dataset.labAjuste as keyof Ajustes;
+			barra.value = String(ajustes[clave]);
+			const valor = $<HTMLElement>(`[data-lab-valor="${clave}"]`);
+			if (valor) valor.textContent = clave === 'opacidad' ? `${ajustes[clave]}%` : String(ajustes[clave]);
+		});
+		pintaFormatos(excepto);
+		pintaArmonias();
+	}
+
+	selector?.addEventListener('input', () => {
+		const leido = leeColor(selector.value);
+		if (!leido) return;
+		base = { ...leido, a: base.a };
+		pintaBase();
+	});
+
+	$$<HTMLInputElement>('[data-lab-ajuste]').forEach((barra) => {
+		barra.addEventListener('input', () => {
+			ajustes = { ...ajustes, [barra.dataset.labAjuste ?? '']: Number(barra.value) };
+			pintaBase();
+		});
+	});
+
+	$<HTMLButtonElement>('[data-lab-reinicia]')?.addEventListener('click', () => {
+		ajustes = { ...SIN_AJUSTES };
+		pintaBase();
+	});
+
+	// Lo que se escribe pasa a ser el color base, ya sin ajustes encima.
+	$$<HTMLInputElement>('[data-lab-formato]').forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const leido = leeColor(campo.value);
+			if (!leido) {
+				if (nota) nota.textContent = campo.value.trim() ? 'No entiendo ese color.' : '';
+				return;
+			}
+			if (nota) nota.textContent = '';
+			base = leido;
+			ajustes = { ...SIN_AJUSTES };
+			pintaBase(campo.dataset.labFormato);
+		});
+		campo.addEventListener('change', () => {
+			if (nota) nota.textContent = '';
+			pintaFormatos();
+		});
+	});
+
+	const copiados = new Map<HTMLButtonElement, number>();
+	$$<HTMLButtonElement>('[data-lab-copia-formato]').forEach((boton) => {
+		boton.addEventListener('click', async () => {
+			const campo = $<HTMLInputElement>(`[data-lab-formato="${boton.dataset.labCopiaFormato}"]`);
+			if (!campo?.value || !(await copia(campo.value))) return;
+			boton.dataset.state = 'done';
+			clearTimeout(copiados.get(boton));
+			copiados.set(
+				boton,
+				window.setTimeout(() => boton.removeAttribute('data-state'), 1500),
+			);
+		});
+	});
+
+	anade?.addEventListener('click', () => anadir(hexDe(resultado(), false)));
+
+	/* Las paletas */
+
+	function anadir(hex: string) {
+		if (llena()) return;
+		paletas[activa].colores.push(hex);
+		pintaPaletas();
+	}
+
+	function pestana(paleta: Paleta, indice: number) {
+		const boton = crea(
+			'button',
+			'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent',
+		);
+		boton.type = 'button';
+		boton.setAttribute('aria-pressed', String(indice === activa));
+		const tira = crea('span', 'flex h-3 w-16 border border-line');
+		tira.setAttribute('aria-hidden', 'true');
+		for (const hex of paleta.colores) {
+			const trozo = crea('span', 'grow');
+			trozo.style.background = hex;
+			tira.append(trozo);
+		}
+		boton.append(crea('span', '', paleta.nombre), tira);
+		boton.addEventListener('click', () => {
+			activa = indice;
+			pintaPaletas();
+		});
+		return boton;
+	}
+
+	function fichaColor(hex: string, indice: number) {
+		const lista = paletas[activa].colores;
+		const li = crea('li', 'flex min-w-0 flex-col border border-line');
+		const boton = crea('button', 'flex h-16 items-end p-2 text-left text-xs', hex);
+		boton.type = 'button';
+		boton.title = `Copiar ${hex}`;
+		boton.style.background = hex;
+		boton.style.color = tinta(hex);
+		boton.addEventListener('click', () => copiaEn(boton, hex));
+
+		const pie = crea('div', 'flex items-center gap-2 px-2 py-1 text-xs');
+		pie.append(crea('span', 'grow truncate text-muted', papelDe(indice)));
+
+		const accion = (etiqueta: string, nombreIcono: string, hacer: () => void) => {
+			const b = crea('button', 'text-muted hover:text-accent disabled:opacity-40');
+			b.type = 'button';
+			b.setAttribute('aria-label', etiqueta);
+			b.title = etiqueta;
+			b.append(icono(nombreIcono));
+			b.addEventListener('click', () => {
+				hacer();
+				pintaPaletas();
+			});
+			return b;
+		};
+		const antes = accion(`Mover ${hex} antes`, 'arrow-left', () => {
+			[lista[indice - 1], lista[indice]] = [lista[indice], lista[indice - 1]];
+		});
+		antes.disabled = indice === 0;
+		pie.append(
+			antes,
+			accion(`Quitar ${hex}`, 'x', () => lista.splice(indice, 1)),
+		);
+		li.append(boton, pie);
+		return li;
+	}
+
+	function maqueta(paleta: Paleta, indice: number) {
+		const p = papeles(paleta.colores);
+		const caja = crea(
+			'div',
+			`flex flex-col gap-3 border p-3 ${indice === activa ? 'border-accent' : 'border-line'}`,
+		);
+		const cabecera = crea('button', 'self-start text-sm text-muted hover:text-accent', `Paleta ${paleta.nombre}`);
+		cabecera.type = 'button';
+		cabecera.addEventListener('click', () => {
+			activa = indice;
+			pintaPaletas();
+		});
+
+		const lienzo = crea('div', 'flex flex-col gap-4 p-5');
+		lienzo.style.background = p.fondo;
+		lienzo.style.color = p.texto;
+
+		const nav = crea('div', 'flex items-center justify-between gap-3 border-b pb-3 text-xs');
+		nav.style.borderColor = p.superficie === p.fondo ? p.texto : p.superficie;
+		const logo = crea('span', 'font-pixel text-base', 'miweb');
+		logo.style.color = p.acento;
+		nav.append(logo, crea('span', '', 'Inicio · Blog · Contacto'));
+
+		const titulo = crea('p', 'font-pixel text-titulo', 'Tu web, a tu manera');
+		const texto = crea('p', 'text-sm', 'Así queda un párrafo normal con esta paleta. Y un ');
+		const enlace = crea('span', 'underline', 'enlace');
+		enlace.style.color = p.acento;
+		texto.append(enlace, ' en medio.');
+
+		const botones = crea('div', 'flex flex-wrap gap-2 text-sm');
+		const primario = crea('span', 'px-3 py-2', 'Empezar');
+		primario.style.background = p.acento;
+		primario.style.color = tinta(p.acento);
+		const secundario = crea('span', 'border px-3 py-2', 'Ver más');
+		secundario.style.borderColor = p.acento;
+		secundario.style.color = p.acento;
+		botones.append(primario, secundario);
+
+		const tarjeta = crea('div', 'flex flex-col gap-2 p-4 text-sm');
+		tarjeta.style.background = p.superficie;
+		const etiqueta = crea('span', 'self-start border px-2 text-xs', 'Nuevo');
+		etiqueta.style.borderColor = p.secundario;
+		etiqueta.style.color = p.secundario;
+		tarjeta.append(etiqueta, crea('span', '', 'Una tarjeta sobre la superficie.'));
+
+		lienzo.append(nav, titulo, texto, botones, tarjeta);
+
+		const lista = chequeos(paleta.colores);
+		const fallos = lista.filter((chequeo) => !chequeo.nivel.ok).length;
+		const resumen = crea(
+			'p',
+			`text-sm ${fallos ? 'text-heart' : 'text-ok'}`,
+			fallos ?
+				`Ojo: ${fallos === 1 ? 'una pareja no llega' : `${fallos} parejas no llegan`} a 4.5:1.`
+			:	'Todo se lee bien.',
+		);
+		const detalle = crea('ul', 'flex flex-col gap-1 text-xs');
+		for (const chequeo of lista) {
+			const fila = crea('li', 'flex justify-between gap-3');
+			fila.append(
+				crea('span', 'text-muted', chequeo.que),
+				crea(
+					'span',
+					chequeo.nivel.ok ? 'text-ok' : 'text-heart',
+					`${chequeo.ratio.toFixed(2)}:1 · ${chequeo.nivel.etiqueta}`,
+				),
+			);
+			detalle.append(fila);
+		}
+
+		caja.append(cabecera, lienzo, resumen, detalle);
+		return caja;
+	}
+
+	function pintaPaletas() {
+		activa = Math.min(activa, paletas.length - 1);
+		const paleta = paletas[activa];
+
+		pestanas?.replaceChildren(...paletas.map(pestana));
+		colores?.replaceChildren(...paleta.colores.map(fichaColor));
+		if (vacia) vacia.hidden = paleta.colores.length > 0;
+		maquetas?.replaceChildren(...paletas.map(maqueta));
+
+		if (nombre) nombre.textContent = paleta.nombre;
+		if (css) css.value = cssDe(paleta);
+
+		const lleno = llena();
+		if (anade) anade.disabled = lleno;
+		if (anadeTexto) {
+			anadeTexto.textContent = lleno ? `La paleta ${paleta.nombre} está llena` : `Añadir a la paleta ${paleta.nombre}`;
+		}
+		$$<HTMLButtonElement>('[data-lab-mas]').forEach((mas) => (mas.disabled = lleno));
+
+		const nueva = $<HTMLButtonElement>('[data-lab-nueva]');
+		const duplica = $<HTMLButtonElement>('[data-lab-duplica]');
+		const borra = $<HTMLButtonElement>('[data-lab-borra]');
+		if (nueva) nueva.disabled = paletas.length >= MAX_PALETAS;
+		if (duplica) duplica.disabled = paletas.length >= MAX_PALETAS;
+		if (borra) borra.disabled = paletas.length <= 1;
+
+		guardaPaletas(paletas);
+	}
+
+	function renombra() {
+		paletas.forEach((paleta, i) => (paleta.nombre = NOMBRES[i]));
+	}
+
+	$<HTMLButtonElement>('[data-lab-nueva]')?.addEventListener('click', () => {
+		if (paletas.length >= MAX_PALETAS) return;
+		paletas.push({ nombre: '', colores: [] });
+		renombra();
+		activa = paletas.length - 1;
+		pintaPaletas();
+	});
+
+	$<HTMLButtonElement>('[data-lab-duplica]')?.addEventListener('click', () => {
+		if (paletas.length >= MAX_PALETAS) return;
+		paletas.push({ nombre: '', colores: [...paletas[activa].colores] });
+		renombra();
+		activa = paletas.length - 1;
+		pintaPaletas();
+	});
+
+	$<HTMLButtonElement>('[data-lab-borra]')?.addEventListener('click', () => {
+		if (paletas.length <= 1) return;
+		paletas.splice(activa, 1);
+		renombra();
+		pintaPaletas();
+	});
+
+	/* Exportar */
+
+	$<HTMLButtonElement>('[data-lab-copia-css]')?.addEventListener('click', async () => {
+		avisa((await copia(cssDe(paletas[activa]))) ? 'CSS copiado.' : 'No se pudo copiar. Selecciónalo a mano.');
+	});
+
+	function bajar(fichero: Blob, nombreFichero: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = crea('a');
+		enlace.href = url;
+		enlace.download = nombreFichero;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	const ANCHO = 1200;
+	const ALTO = 675;
+	const MARGEN = 56;
+	const MONO = '"Geist Mono Variable", ui-monospace, monospace';
+	const PIXEL = '"Geist Pixel", ui-monospace, monospace';
+
+	async function png(paleta: Paleta) {
+		// Las fuentes son de la casa y ya están en la página; solo hay que esperarlas.
+		await Promise.all([document.fonts.load(`40px ${PIXEL}`), document.fonts.load(`20px ${MONO}`)]);
+
+		const lienzo = crea('canvas');
+		lienzo.width = ANCHO * 2;
+		lienzo.height = ALTO * 2;
+		const ctx = lienzo.getContext('2d');
+		if (!ctx) throw new Error('sin canvas');
+		ctx.scale(2, 2);
+
+		ctx.fillStyle = '#fdf6ef';
+		ctx.fillRect(0, 0, ANCHO, ALTO);
+		ctx.fillStyle = '#3b2d24';
+		ctx.font = `40px ${PIXEL}`;
+		ctx.fillText(`Paleta ${paleta.nombre}`, MARGEN, MARGEN + 36);
+		ctx.fillStyle = '#7a6152';
+		ctx.font = `20px ${MONO}`;
+		ctx.fillText('Laboratorio de color', MARGEN, MARGEN + 72);
+
+		const util = ANCHO - MARGEN * 2;
+		const hueco = 12;
+		const n = paleta.colores.length;
+		const ancho = (util - hueco * (n - 1)) / n;
+		const arriba = 176;
+		const alto = ALTO - arriba - 80;
+		paleta.colores.forEach((hex, i) => {
+			const x = MARGEN + i * (ancho + hueco);
+			ctx.fillStyle = hex;
+			ctx.fillRect(x, arriba, ancho, alto);
+			ctx.fillStyle = tinta(hex);
+			ctx.font = `15px ${MONO}`;
+			ctx.fillText(papelDe(i), x + 14, arriba + alto - 42);
+			ctx.font = `600 17px ${MONO}`;
+			ctx.fillText(hex, x + 14, arriba + alto - 18);
+		});
+
+		ctx.fillStyle = '#7a6152';
+		ctx.font = `16px ${MONO}`;
+		ctx.textAlign = 'right';
+		ctx.fillText('tuweb.dev', ANCHO - MARGEN, ALTO - 34);
+
+		const blob = await new Promise<Blob | null>((resolve) => lienzo.toBlob(resolve, 'image/png'));
+		if (!blob) throw new Error('sin PNG');
+		bajar(blob, `paleta-${paleta.nombre.toLowerCase()}.png`);
+	}
+
+	$$<HTMLButtonElement>('[data-lab-baja]').forEach((boton) => {
+		boton.addEventListener('click', async () => {
+			const paleta = paletas[activa];
+			if (!paleta.colores.length) {
+				avisa('La paleta está vacía: no hay nada que exportar.');
+				return;
+			}
+			if (boton.dataset.labBaja === 'css') {
+				bajar(new Blob([cssDe(paleta)], { type: 'text/css' }), `paleta-${paleta.nombre.toLowerCase()}.css`);
+				return;
+			}
+			boton.disabled = true;
+			try {
+				await png(paleta);
+			} catch {
+				avisa('No se pudo sacar el PNG. Prueba con el CSS.');
+			} finally {
+				boton.disabled = false;
+			}
+		});
+	});
+
+	pintaBase();
+	pintaPaletas();
+</script>

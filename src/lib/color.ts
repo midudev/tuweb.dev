@@ -87,7 +87,7 @@ export function fromRgb(rgb: Rgb, alpha = 1): Color {
 	return { l: L, c, h, alpha };
 }
 
-function rgbToHsl({ r, g, b }: Rgb) {
+export function rgbToHsl({ r, g, b }: Rgb) {
 	const max = Math.max(r, g, b);
 	const min = Math.min(r, g, b);
 	const delta = max - min;
@@ -105,7 +105,7 @@ function rgbToHsl({ r, g, b }: Rgb) {
 	return { h, s, l };
 }
 
-function hslToRgb(h: number, s: number, l: number): Rgb {
+export function hslToRgb(h: number, s: number, l: number): Rgb {
 	const hue = ((h % 360) + 360) % 360;
 	const chroma = (1 - Math.abs(2 * l - 1)) * s;
 	const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
