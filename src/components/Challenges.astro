@@ -3,12 +3,14 @@
  * Los retos semanales: un tablero que se renueva cada lunes. Tres los pone la
  * casa, rotando el catálogo, y los demás los propone la gente con su cuenta de
  * GitHub y los ve todo el mundo. Lo que marcas como hecho es tuyo y se queda en
- * tu navegador; el lunes vuelve a estar todo por hacer.
+ * tu navegador; el lunes vuelve a estar todo por hacer. Cada reto tiene además su
+ * tablón de soluciones con votos, que también vive en el navegador.
  */
 import GitHubLogin from './GitHubLogin.astro';
 import Icon from './Icon.astro';
 import { getSessionUser } from '../lib/auth';
 import { DETAIL_MAX, NIVELES, TEMAS, TITLE_MAX } from '../lib/retos';
+import { FIRMA_MAX as SOL_FIRMA_MAX, TEXT_MAX as SOL_TEXT_MAX } from '../lib/soluciones';
 
 // Con sesión sale el formulario; sin ella, el enlace para entrar. El script lo
 // corrige si la sesión cambia mientras la página está abierta.
@@ -139,12 +141,90 @@ const DATO = 'inline-flex items-center gap-2';
 					Quitar
 				</button>
 			</div>
+
+			<div class="flex flex-col gap-3 border-t border-line pt-3">
+				<button type="button" data-sol-toggle aria-expanded="false" class={ENLACE}>
+					<Icon name="message-circle" class="size-4 shrink-0" />
+					<span data-sol-label>Soluciones</span>
+				</button>
+
+				<div data-sol-panel hidden class="flex flex-col gap-3">
+					<ul data-sol-list class="flex flex-col gap-2"></ul>
+
+					<form data-sol-form class="flex flex-col gap-2">
+						<textarea
+							data-sol-text
+							rows="3"
+							maxlength={SOL_TEXT_MAX}
+							placeholder="Cómo lo resolviste, en pocas líneas"
+							aria-label="Tu solución"
+							class={FIELD}></textarea>
+						<div class="flex flex-wrap items-center gap-3">
+							<input
+								type="text"
+								data-sol-firma
+								maxlength={SOL_FIRMA_MAX}
+								autocomplete="off"
+								placeholder="Firma (opcional)"
+								aria-label="Firma"
+								class={`${FIELD} sm:w-48`}
+							/>
+							<button type="submit" class={BOTON}>
+								<Icon name="send" class="size-4 shrink-0" />
+								Publicar
+							</button>
+						</div>
+						<p data-sol-error role="status" class="text-xs text-heart"></p>
+					</form>
+				</div>
+			</div>
+		</li>
+	</template>
+
+	<template data-sol-item>
+		<li data-sol-li class="flex flex-col gap-2 border border-line bg-bg p-3">
+			<p data-sol-texto class="whitespace-pre-line break-words text-sm"></p>
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+				<span data-sol-destacada class="inline-flex items-center gap-1 text-mark">
+					<Icon name="star" class="size-4 shrink-0" />
+					Destacada
+				</span>
+				<span data-sol-autor></span>
+				<button type="button" data-sol-vote aria-pressed="false" class={ENLACE}>
+					<Icon name="thumb-up" class="size-4 shrink-0" />
+					<span data-sol-vote-label>Votar</span>
+				</button>
+				<button type="button" data-sol-remove class={ENLACE}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Quitar
+				</button>
+			</div>
+		</li>
+	</template>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="star" class="size-5 shrink-0 text-mark" />
+			Soluciones destacadas
+		</h2>
+		<ul data-destacadas class="flex flex-col gap-3"></ul>
+		<p data-destacadas-vacio class="text-sm text-muted">
+			Todavía no has votado ninguna. Abre las soluciones de un reto y vota las que merezcan estar aquí.
+		</p>
+	</div>
+
+	<template data-destacada>
+		<li class="flex flex-col gap-1 border-l-2 border-mark pl-3">
+			<span data-dest-reto class="text-xs text-muted"></span>
+			<p data-dest-texto class="whitespace-pre-line break-words text-sm"></p>
+			<span data-dest-autor class="text-xs text-muted"></span>
 		</li>
 	</template>
 
 	<p class="text-sm text-muted">
 		Los tres retos de la casa cambian cada lunes, y los que propone la gente duran lo que dura la
-		semana. Lo que marcas como hecho, los puntos y la racha solo están en tu navegador.
+		semana. Lo que marcas como hecho, los puntos, la racha, las soluciones y sus votos solo están en
+		tu navegador.
 	</p>
 </section>
 
@@ -176,6 +256,17 @@ const DATO = 'inline-flex items-center gap-2';
 	#retos [data-item]:not([data-mio='si']) [data-tools] {
 		display: none;
 	}
+
+	/* Una solución votada se marca en el canto y en su botón. */
+	#retos [data-sol-li][data-votada='si'] {
+		border-left: 2px solid var(--color-mark);
+	}
+	#retos [data-sol-li]:not([data-votada='si']) [data-sol-destacada] {
+		display: none;
+	}
+	#retos [data-sol-vote][aria-pressed='true'] {
+		color: var(--color-mark);
+	}
 </style>
 
 <script>
@@ -202,6 +293,17 @@ const DATO = 'inline-flex items-center gap-2';
 		weekLabel,
 		weekStart,
 	} from '../lib/retos';
+	import {
+		type Solucion,
+		type Soluciones,
+		addSolucion,
+		destacadasOf,
+		readSoluciones,
+		removeSolucion,
+		saveSoluciones,
+		solucionesOf,
+		toggleVoto,
+	} from '../lib/soluciones';
 
 	const section = document.querySelector<HTMLElement>('#retos');
 	const form = section?.querySelector<HTMLFormElement>('[data-form]');
@@ -216,6 +318,10 @@ const DATO = 'inline-flex items-center gap-2';
 	const pointsOut = section?.querySelector<HTMLElement>('[data-points]');
 	const streakOut = section?.querySelector<HTMLElement>('[data-streak]');
 	const countOut = section?.querySelector<HTMLElement>('[data-count]');
+	const solTemplate = section?.querySelector<HTMLTemplateElement>('[data-sol-item]');
+	const destList = section?.querySelector<HTMLElement>('[data-destacadas]');
+	const destVacio = section?.querySelector<HTMLElement>('[data-destacadas-vacio]');
+	const destTemplate = section?.querySelector<HTMLTemplateElement>('[data-destacada]');
 
 	/** Lo que la gente puede proponer: lo que dejan libre los de la casa. */
 	const SHARED_MAX = MAX_RETOS - HOUSE_COUNT;
@@ -257,7 +363,7 @@ const DATO = 'inline-flex items-center gap-2';
 		return 'No se pudo hablar con el servidor. Prueba otra vez.';
 	}
 
-	if (section && form && list && template && countOut) {
+	if (section && form && list && template && solTemplate && countOut) {
 		/** Los que propone la gente, tal como vinieron la última vez. */
 		let retos: Reto[] = [];
 		let done: Done = readDone();
@@ -272,6 +378,13 @@ const DATO = 'inline-flex items-center gap-2';
 		let retry = 0;
 		let retryTimer = 0;
 		let sending = false;
+		let soluciones: Soluciones = readSoluciones();
+		/** Los retos con las soluciones abiertas: repintar no los cierra. */
+		const abiertos = new Set<string>();
+		/** Lo que estabas escribiendo en cada reto, para que repintar no lo borre. */
+		const borradores = new Map<string, { text: string; firma: string }>();
+		/** El reto cuyo cuadro de texto recupera el foco al repintar. */
+		let enfocar = '';
 
 		function field(name: string) {
 			return form!.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`);
@@ -360,6 +473,8 @@ const DATO = 'inline-flex items-center gap-2';
 				render();
 			});
 
+			solucionesDe(node, reto);
+
 			if (!reto.mine) return node;
 
 			const remove = node.querySelector<HTMLButtonElement>('[data-remove]')!;
@@ -368,9 +483,126 @@ const DATO = 'inline-flex items-center gap-2';
 			return node;
 		}
 
+		function guardarSoluciones(next: Soluciones) {
+			soluciones = next;
+			saveSoluciones(soluciones, week);
+			render();
+		}
+
+		function solucion(reto: Reto, item: Solucion) {
+			const node = solTemplate!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+			node.dataset.votada = item.votada ? 'si' : 'no';
+			node.querySelector('[data-sol-texto]')!.textContent = item.text;
+			node.querySelector('[data-sol-autor]')!.textContent = item.firma
+				? `De ${item.firma}`
+				: 'Sin firma';
+
+			const vote = node.querySelector<HTMLButtonElement>('[data-sol-vote]')!;
+			vote.setAttribute('aria-pressed', item.votada ? 'true' : 'false');
+			vote.querySelector('[data-sol-vote-label]')!.textContent = item.votada ? 'Votada' : 'Votar';
+			vote.addEventListener('click', () =>
+				guardarSoluciones(toggleVoto(soluciones, week, reto.id, item.id)),
+			);
+
+			node
+				.querySelector<HTMLButtonElement>('[data-sol-remove]')!
+				.addEventListener('click', () =>
+					guardarSoluciones(removeSolucion(soluciones, week, reto.id, item.id)),
+				);
+
+			return node;
+		}
+
+		/** El tablón de soluciones de un reto: la lista, los votos y el formulario. */
+		function solucionesDe(node: HTMLElement, reto: Reto) {
+			const lista = solucionesOf(soluciones, week, reto.id);
+			const votadas = lista.filter((item) => item.votada).length;
+			const abierto = abiertos.has(reto.id);
+
+			const toggle = node.querySelector<HTMLButtonElement>('[data-sol-toggle]')!;
+			const panel = node.querySelector<HTMLElement>('[data-sol-panel]')!;
+			const label = node.querySelector<HTMLElement>('[data-sol-label]')!;
+
+			label.textContent =
+				lista.length === 0
+					? 'Publica tu solución'
+					: `${lista.length} ${lista.length === 1 ? 'solución' : 'soluciones'}` +
+						(votadas > 0 ? ` · ${votadas} ${votadas === 1 ? 'votada' : 'votadas'}` : '');
+			toggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+			panel.hidden = !abierto;
+			toggle.addEventListener('click', () => {
+				if (abiertos.has(reto.id)) abiertos.delete(reto.id);
+				else {
+					abiertos.add(reto.id);
+					enfocar = reto.id;
+				}
+				render();
+			});
+
+			node.querySelector('[data-sol-list]')!.replaceChildren(...lista.map((item) => solucion(reto, item)));
+
+			const solForm = node.querySelector<HTMLFormElement>('[data-sol-form]')!;
+			const text = solForm.querySelector<HTMLTextAreaElement>('[data-sol-text]')!;
+			const firma = solForm.querySelector<HTMLInputElement>('[data-sol-firma]')!;
+			const error = solForm.querySelector<HTMLElement>('[data-sol-error]')!;
+
+			const borrador = borradores.get(reto.id);
+			if (borrador) {
+				text.value = borrador.text;
+				firma.value = borrador.firma;
+			}
+			const recordar = () => borradores.set(reto.id, { text: text.value, firma: firma.value });
+			text.addEventListener('input', recordar);
+			firma.addEventListener('input', recordar);
+
+			solForm.addEventListener('submit', (event) => {
+				event.preventDefault();
+				const next = addSolucion(soluciones, week, reto.id, {
+					text: text.value,
+					firma: firma.value,
+				});
+				if (typeof next === 'string') {
+					error.textContent = next;
+					return;
+				}
+				// La firma se queda para la siguiente: suele ser la misma.
+				borradores.set(reto.id, { text: '', firma: firma.value });
+				enfocar = reto.id;
+				guardarSoluciones(next);
+			});
+		}
+
+		/** Las votadas de la semana, juntas, con el reto al que responden. */
+		function destacadas(tablero: Reto[]) {
+			if (!destList || !destTemplate) return;
+			const items = destacadasOf(soluciones, week)
+				.map(({ reto, solucion }) => ({ reto: tablero.find((item) => item.id === reto), solucion }))
+				.filter((item) => item.reto);
+
+			destList.replaceChildren(
+				...items.map(({ reto, solucion }) => {
+					const node = destTemplate.content.firstElementChild!.cloneNode(true) as HTMLElement;
+					node.querySelector('[data-dest-reto]')!.textContent = reto!.title;
+					node.querySelector('[data-dest-texto]')!.textContent = solucion.text;
+					node.querySelector('[data-dest-autor]')!.textContent = solucion.firma
+						? `De ${solucion.firma}`
+						: 'Sin firma';
+					return node;
+				}),
+			);
+			if (destVacio) destVacio.hidden = items.length > 0;
+		}
+
 		function render() {
 			const tablero = board();
 			list!.replaceChildren(...tablero.map(card));
+			destacadas(tablero);
+
+			if (enfocar) {
+				const index = tablero.findIndex((reto) => reto.id === enfocar);
+				list!.children[index]?.querySelector<HTMLTextAreaElement>('[data-sol-text]')?.focus();
+				enfocar = '';
+			}
 
 			const hechos = tablero.filter((reto) => isDone(done, week, reto.id)).length;
 			const racha = streakOf(done, week);
