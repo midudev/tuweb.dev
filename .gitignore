@@ -36,3 +36,4 @@ pnpm-debug.log*
 
 # guía de despliegue local
 GUIDE.md
+.iterate-backlog.json

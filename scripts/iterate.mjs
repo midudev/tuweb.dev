@@ -255,6 +255,9 @@ function runClaude(prompt, timeout) {
 			CLAUDE_MODEL,
 			'--settings',
 			CLAUDE_SETTINGS,
+			// Sin --mcp-config, esto la deja sin ningún servidor MCP: ni los locales
+			// ni los conectores de la cuenta de claude.ai (correo, Drive...).
+			'--strict-mcp-config',
 			'--permission-mode',
 			'acceptEdits',
 			'--allowedTools',
@@ -362,10 +365,13 @@ async function closeWindow() {
 }
 
 function commitMessage(cycle, repairs) {
+	const cycles = cycle.cycleIds ?? [cycle.cycleId];
 	return [
 		cycle.winnerSummary ?? '',
 		'',
-		`Ciclo #${cycle.cycleId}. Idea propuesta por la gente e implementada automáticamente.`,
+		cycles.length > 1
+			? `Ciclos ${cycles.map((id) => `#${id}`).join(', ')}. Ideas propuestas por la gente e implementadas juntas, automáticamente.`
+			: `Ciclo #${cycles[0]}. Idea propuesta por la gente e implementada automáticamente.`,
 		repairs > 0
 			? `Falló al desplegar y la IA lo arregló sola en ${repairs} ${repairs === 1 ? 'intento' : 'intentos'}.`
 			: '',
@@ -374,45 +380,12 @@ function commitMessage(cycle, repairs) {
 		.join('\n');
 }
 
-async function main() {
-	if (!SECRET) {
-		log('Falta CRON_SECRET.');
-		return;
-	}
-
-	if (!takeLock()) {
-		log('Ya hay una iteración en marcha. Me salgo.');
-		return;
-	}
-
-	if (changedPaths().length > 0) {
-		log('El repositorio tiene cambios sin guardar. No toco nada.');
-		return;
-	}
-
-	try {
-		execFileSync('git', ['pull', '--ff-only', REMOTE, BRANCH], { stdio: 'inherit' });
-	} catch {
-		log('No se pudo actualizar desde el remoto (¿historial divergido?). Reviso a mano.');
-		return;
-	}
-
-	const previousSha = currentSha();
-	const cycle = await closeWindow();
-
-	if (cycle.error) {
-		await report({ commitSha: previousSha, previousSha, status: 'failed', error: cycle.error });
-		log(cycle.error);
-		return;
-	}
-
-	if (cycle.skipped || !cycle.winner) {
-		log(`Nada que implementar: ${cycle.reason ?? 'no hubo idea ganadora'}`);
-		return;
-	}
-
-	log(`Idea ganadora: ${cycle.winner}`);
-
+/**
+ * Implementa una idea (o un grupo de ideas) sobre la versión que está viva:
+ * la IA escribe, se revisa, se despliega con turnos de arreglo y, solo si la
+ * web responde, commit y push. Devuelve true si quedó publicada.
+ */
+async function ship(cycle, previousSha) {
 	// Enciende el punto amarillo de la cabecera mientras se construye.
 	await report({ commitSha: previousSha, previousSha, status: 'building', error: null });
 
@@ -422,13 +395,13 @@ async function main() {
 		discardChanges();
 		await report({ commitSha: previousSha, previousSha, status: 'failed', error: 'la IA tardó demasiado' });
 		log('La IA se pasó del tiempo. Descartado.');
-		return;
+		return false;
 	}
 
 	if (claude.status !== 0) {
 		discardChanges();
 		await report({ commitSha: previousSha, previousSha, status: 'failed', error: `la IA falló (código ${claude.status})` });
-		return;
+		return false;
 	}
 
 	const review = reviewChanges();
@@ -436,7 +409,7 @@ async function main() {
 		discardChanges();
 		await report({ commitSha: previousSha, previousSha, status: 'failed', error: review.error });
 		log(`${review.error}. Descartado entero.`);
-		return;
+		return false;
 	}
 
 	log(`${review.paths} ficheros, ${review.lines} líneas. Compilando.`);
@@ -472,7 +445,7 @@ async function main() {
 		discardChanges();
 		await rollbackTo(previousSha, failure.reason, { commitSha: previousSha });
 		log(`No hubo manera: ${failure.reason}`);
-		return;
+		return false;
 	}
 
 	// Solo llegamos aquí si la web está viva y respondiendo.
@@ -500,12 +473,101 @@ async function main() {
 		log(`La web está desplegada pero el push falló: ${error.message}`);
 	}
 
-	await report({ commitSha, previousSha, status: 'live', error: null, featureId: cycle.featureId ?? null });
+	// Un grupo cierra varias funcionalidades con el mismo commit: cada una queda
+	// publicada por separado en el changelog.
+	for (const featureId of cycle.featureIds ?? [cycle.featureId ?? null]) {
+		await report({ commitSha, previousSha, status: 'live', error: null, featureId });
+	}
 	log(`Iteración terminada: ${cycle.winner}${repairs > 0 ? ` · arreglada en ${repairs}` : ''}`);
+	return true;
 }
 
-try {
-	await main();
-} finally {
-	releaseLock();
+/** Deja el repositorio listo para empezar: limpio y al día con el remoto. */
+function prepareTree() {
+	if (changedPaths().length > 0) {
+		log('El repositorio tiene cambios sin guardar. No toco nada.');
+		return false;
+	}
+
+	try {
+		execFileSync('git', ['pull', '--ff-only', REMOTE, BRANCH], { stdio: 'inherit' });
+	} catch {
+		log('No se pudo actualizar desde el remoto (¿historial divergido?). Reviso a mano.');
+		return false;
+	}
+	return true;
+}
+
+async function main() {
+	if (!prepareTree()) return;
+
+	const previousSha = currentSha();
+	const cycle = await closeWindow();
+
+	if (cycle.error) {
+		await report({ commitSha: previousSha, previousSha, status: 'failed', error: cycle.error });
+		log(cycle.error);
+		return;
+	}
+
+	if (cycle.skipped || !cycle.winner) {
+		log(`Nada que implementar: ${cycle.reason ?? 'no hubo idea ganadora'}`);
+		return;
+	}
+
+	log(`Idea ganadora: ${cycle.winner}`);
+	await ship(cycle, previousSha);
+}
+
+/**
+ * Pone al día ideas que ganaron y se quedaron sin implementar. Lee una lista de
+ * grupos ({ title, summary, featureIds, cycleIds }) y los implementa en orden,
+ * uno por commit, sin cerrar ventanas. El fichero lleva la cuenta: un grupo
+ * publicado queda marcado y, si la tanda se corta, al relanzarla sigue por donde
+ * iba. Un grupo que falla no para la tanda.
+ */
+async function backlog(file) {
+	const groups = JSON.parse(readFileSync(file, 'utf8'));
+	const save = () => writeFileSync(file, `${JSON.stringify(groups, null, '\t')}\n`);
+
+	for (const group of groups) {
+		if (group.done) continue;
+		if (!prepareTree()) return;
+
+		const pending = groups.filter((item) => !item.done).length;
+		log(`Tanda: ${group.title} (${group.featureIds.length} ideas, quedan ${pending} grupos)`);
+
+		const shipped = await ship(
+			{
+				winner: group.title,
+				winnerSummary: group.summary,
+				featureIds: group.featureIds,
+				cycleIds: group.cycleIds,
+			},
+			currentSha(),
+		);
+
+		group.attempts = (group.attempts ?? 0) + 1;
+		if (shipped) group.done = true;
+		save();
+	}
+
+	const left = groups.filter((item) => !item.done);
+	log(left.length === 0 ? 'Tanda terminada.' : `Tanda terminada con ${left.length} grupos sin publicar.`);
+}
+
+const backlogIndex = process.argv.indexOf('--backlog');
+const backlogFile = backlogIndex === -1 ? null : process.argv[backlogIndex + 1];
+
+if (!SECRET) {
+	log('Falta CRON_SECRET.');
+} else if (!takeLock()) {
+	log('Ya hay una iteración en marcha. Me salgo.');
+} else {
+	try {
+		if (backlogFile) await backlog(backlogFile);
+		else await main();
+	} finally {
+		releaseLock();
+	}
 }
