@@ -99,6 +99,19 @@ const MUESTRA = 'size-3.5 shrink-0';
 		</div>
 		<p data-plantilla-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
 
+		<!-- El tema aleatorio: escondido hasta que se encuentra el huevo de pascua. -->
+		<p data-aleatorio-pista class="max-w-[62ch] text-sm text-muted">
+			Hay un tema más que no está a la vista. Se escribe con siete letras, o late siete veces al
+			pie de la firma.
+		</p>
+		<div data-aleatorio hidden class="flex flex-wrap items-center gap-3 text-sm">
+			<button type="button" data-aleatorio-set class={OPCION}>
+				<Icon name="dice-5" class="size-4 shrink-0" />
+				Aleatorio
+			</button>
+			<span class="text-muted">Colores al azar en cada tirada. Si te gusta, guárdalo con nombre.</span>
+		</div>
+
 		<!-- El molde de las mías: el script lo clona y le pone nombre y colores. -->
 		<template data-plantilla-tpl>
 			<div data-plantilla-item class="flex items-stretch">
@@ -194,6 +207,7 @@ const MUESTRA = 'size-3.5 shrink-0';
 </div>
 
 <script>
+	import { isUnlocked, randomPalette } from '../lib/aleatorio';
 	import { parseColor, toHex } from '../lib/color';
 	import {
 		type Config,
@@ -463,6 +477,26 @@ const MUESTRA = 'size-3.5 shrink-0';
 		if (suya) aviso(`Borrada «${suya.label}». Los colores se quedan puestos.`);
 	});
 
+	/** El botón del tema aleatorio sale en cuanto se ha encontrado el huevo. */
+	function pintarAleatorio() {
+		const abierto = isUnlocked();
+		const bloque = document.querySelector<HTMLElement>('[data-aleatorio]');
+		const pista = document.querySelector<HTMLElement>('[data-aleatorio-pista]');
+		if (bloque) bloque.hidden = !abierto;
+		if (pista) pista.hidden = abierto;
+	}
+
+	document.querySelector('[data-aleatorio-set]')?.addEventListener('click', () => {
+		poner(randomPalette());
+		aviso('Tirada hecha. Otra vez y sale otro.');
+	});
+
+	document.addEventListener('tuweb:aleatorio', pintarAleatorio);
+	// Si se desbloquea en otra pestaña, aquí también aparece.
+	window.addEventListener('storage', (event) => {
+		if (event.key === null || event.key === 'tuweb:aleatorio') pintarAleatorio();
+	});
+
 	nombre?.addEventListener('input', estadoGuardar);
 	nombre?.addEventListener('keydown', (event) => {
 		if (event.key !== 'Enter') return;
@@ -488,5 +522,6 @@ const MUESTRA = 'size-3.5 shrink-0';
 	});
 
 	pintarMias();
+	pintarAleatorio();
 	render();
 </script>

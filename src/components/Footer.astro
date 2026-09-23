@@ -9,9 +9,13 @@ import ThemeToggle from './ThemeToggle.astro';
 	<div class="zona zona-pie flex flex-wrap items-center justify-between gap-x-6 gap-y-4 pt-7 text-sm text-muted">
 		<p class="inline-flex items-center gap-1.5">
 			Desarrollado con
-			<Icon name="heart-filled" class="size-4 shrink-0 text-heart" />
+			<!-- Late si se le da. Quien sepa cuántas veces, encuentra algo. -->
+			<button type="button" data-latido aria-label="Corazón" class="inline-flex text-heart">
+				<Icon name="heart-filled" class="size-4 shrink-0" />
+			</button>
 			con <a href="https://midu.dev" class="text-accent hover:underline">@midudev</a>
 		</p>
+		<p data-huevo-aviso role="status" class="w-full text-accent empty:hidden"></p>
 		<div class="flex flex-wrap items-center gap-x-6 gap-y-3">
 			<!-- La zona la pone el navegador: sin JavaScript esta línea no sale. -->
 			<p data-zona class="hidden items-center gap-2">
@@ -37,6 +41,7 @@ import ThemeToggle from './ThemeToggle.astro';
 </footer>
 
 <script>
+	import { BEATS, SECRET, isUnlocked, unlock } from '../lib/aleatorio';
 	import { zonaDelDispositivo } from '../lib/hora';
 
 	// Si el navegador no sabe decir la zona, la línea se queda escondida.
@@ -48,4 +53,62 @@ import ThemeToggle from './ThemeToggle.astro';
 		nombre.textContent = zona;
 		aviso.classList.replace('hidden', 'inline-flex');
 	}
+
+	/*
+	 * El huevo de pascua del tema aleatorio: siete latidos seguidos al corazón o
+	 * las siete letras de midudev tecleadas en cualquier parte que no sea un campo.
+	 */
+	const latido = document.querySelector<HTMLButtonElement>('[data-latido]');
+	const huevoAviso = document.querySelector<HTMLElement>('[data-huevo-aviso]');
+	/* Entre latido y latido no puede pasar más de esto, o se empieza a contar de cero. */
+	const PAUSA = 1200;
+	let latidos = 0;
+	let ultimo = 0;
+	let tecleado = '';
+
+	function premio() {
+		if (!unlock() || !huevoAviso) return;
+		huevoAviso.textContent =
+			'midudev te ha visto. Hay un tema nuevo en la caja de herramientas, en Tema: «Aleatorio».';
+	}
+
+	latido?.addEventListener('click', () => {
+		// Se quita, se fuerza un repintado y se vuelve a poner para que repita.
+		latido.removeAttribute('data-late');
+		void latido.offsetWidth;
+		latido.dataset.late = 'si';
+
+		if (isUnlocked()) return;
+		const ahora = Date.now();
+		latidos = ahora - ultimo > PAUSA ? 1 : latidos + 1;
+		ultimo = ahora;
+		if (latidos >= BEATS) premio();
+	});
+
+	document.addEventListener('keydown', (event) => {
+		if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+		const donde = event.target as HTMLElement | null;
+		if (donde?.closest('input, textarea, select, [contenteditable]')) return;
+
+		tecleado = (tecleado + event.key.toLowerCase()).slice(-SECRET.length);
+		if (tecleado === SECRET && !isUnlocked()) premio();
+	});
 </script>
+
+<style>
+	[data-latido][data-late='si'] {
+		animation: latido 0.3s ease-out;
+	}
+
+	@keyframes latido {
+		40% {
+			transform: scale(1.35);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-latido][data-late='si'] {
+			animation: none;
+		}
+	}
+</style>
