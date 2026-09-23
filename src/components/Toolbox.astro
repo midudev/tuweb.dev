@@ -13,6 +13,7 @@ import ImageTool from './ImageTool.astro';
 import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
 import ThemeTool from './ThemeTool.astro';
+import TypeTool from './TypeTool.astro';
 import UnitTool from './UnitTool.astro';
 
 // El id de cada herramienta es también su sitio en la URL:
@@ -29,6 +30,7 @@ const tools = [
 	{ id: 'obras', label: 'Paletas de obras', icon: 'artboard' },
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
+	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
 	{ id: 'graficos', label: 'Gráficos', icon: 'chart-bar' },
 	{ id: 'diagramas', label: 'Diagramas', icon: 'sitemap' },
 	{ id: 'ascii', label: 'ASCII art', icon: 'typography' },
@@ -176,6 +178,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ImageTool />
 
 	<PatternTool />
+
+	<TypeTool />
 
 	<ChartTool />
 

@@ -1,0 +1,726 @@
+---
+/**
+ * Laboratorio de tipografía: un titular y un texto dentro de una maqueta de
+ * web, con fuente, tamaño, peso, interlineado, espaciado, color y alineación.
+ * Solo fuentes de casa o del sistema: si una no está instalada, el navegador
+ * tira de la siguiente de la pila. Las configuraciones se guardan en el
+ * localStorage y el CSS se copia o se baja en un .txt; no se envía nada.
+ */
+import Icon from './Icon.astro';
+
+type Fuente = { id: string; nombre: string; pila: string };
+
+const FUENTES: Fuente[] = [
+	{ id: 'geist-mono', nombre: 'Geist Mono (de casa)', pila: "'Geist Mono Variable', ui-monospace, monospace" },
+	{ id: 'geist-pixel', nombre: 'Geist Pixel (de casa)', pila: "'Geist Pixel', ui-monospace, monospace" },
+	{ id: 'sistema', nombre: 'Sans del sistema', pila: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" },
+	{ id: 'helvetica', nombre: 'Helvetica / Arial', pila: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+	{ id: 'humanista', nombre: 'Humanista', pila: "'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif" },
+	{ id: 'industrial', nombre: 'Industrial', pila: "Bahnschrift, 'DIN Alternate', 'Franklin Gothic Medium', 'Arial Narrow', sans-serif" },
+	{ id: 'redondeada', nombre: 'Redondeada', pila: "ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', sans-serif" },
+	{ id: 'georgia', nombre: 'Georgia', pila: "Georgia, 'Times New Roman', serif" },
+	{ id: 'transicional', nombre: 'Serif transicional', pila: "Charter, 'Bitstream Charter', 'Sitka Text', Cambria, serif" },
+	{ id: 'antigua', nombre: 'Serif antigua', pila: "'Iowan Old Style', 'Palatino Linotype', Palatino, 'URW Palladio L', serif" },
+	{ id: 'didone', nombre: 'Didone', pila: "Didot, 'Bodoni MT', 'Noto Serif Display', serif" },
+	{ id: 'mono-sistema', nombre: 'Mono del sistema', pila: "ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace" },
+	{ id: 'manuscrita', nombre: 'Manuscrita', pila: "'Segoe Print', 'Bradley Hand', Chilanka, cursive" },
+];
+
+const PAREJAS = [
+	{ id: 'editorial', nombre: 'Editorial', titular: 'georgia', texto: 'sistema' },
+	{ id: 'clasica', nombre: 'Clásica', titular: 'didone', texto: 'transicional' },
+	{ id: 'suiza', nombre: 'Suiza', titular: 'helvetica', texto: 'helvetica' },
+	{ id: 'libro', nombre: 'Libro', titular: 'antigua', texto: 'antigua' },
+	{ id: 'tecnica', nombre: 'Técnica', titular: 'industrial', texto: 'mono-sistema' },
+	{ id: 'amable', nombre: 'Amable', titular: 'redondeada', texto: 'humanista' },
+	{ id: 'casa', nombre: 'De casa', titular: 'geist-pixel', texto: 'geist-mono' },
+];
+
+const PESOS = [300, 400, 500, 600, 700, 800, 900];
+
+type Mando = { id: string; label: string; min: number; max: number; step: number; unidad: string; valor: number };
+type Capa = { id: string; label: string; fuente: string; peso: number; color: string; mandos: Mando[] };
+
+const CAPAS: Capa[] = [
+	{
+		id: 't',
+		label: 'Titular',
+		fuente: 'georgia',
+		peso: 700,
+		color: '#3b2d24',
+		mandos: [
+			{ id: 'tamano', label: 'Tamaño', min: 20, max: 96, step: 1, unidad: 'px', valor: 52 },
+			{ id: 'interlineado', label: 'Interlineado', min: 0.8, max: 1.8, step: 0.05, unidad: '', valor: 1.1 },
+			{ id: 'espaciado', label: 'Espaciado', min: -0.06, max: 0.2, step: 0.005, unidad: 'em', valor: -0.01 },
+		],
+	},
+	{
+		id: 'c',
+		label: 'Texto',
+		fuente: 'sistema',
+		peso: 400,
+		color: '#5a4637',
+		mandos: [
+			{ id: 'tamano', label: 'Tamaño', min: 12, max: 26, step: 1, unidad: 'px', valor: 17 },
+			{ id: 'interlineado', label: 'Interlineado', min: 1.1, max: 2.4, step: 0.05, unidad: '', valor: 1.65 },
+			{ id: 'espaciado', label: 'Espaciado', min: -0.03, max: 0.15, step: 0.005, unidad: 'em', valor: 0 },
+		],
+	},
+];
+
+const ALINEACIONES = [
+	{ id: 'left', label: 'Izquierda', icon: 'align-left' },
+	{ id: 'center', label: 'Centro', icon: 'align-center' },
+	{ id: 'right', label: 'Derecha', icon: 'align-right' },
+	{ id: 'justify', label: 'Justificado', icon: 'align-justified' },
+];
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const COLOR = 'h-9 w-14 cursor-pointer border border-line bg-panel p-1';
+const ACCION = 'inline-flex items-center gap-2 text-sm text-accent hover:underline';
+---
+
+<div
+	role="tabpanel"
+	id="tipografia"
+	aria-labelledby="tab-tipografia"
+	data-panel="tipografia"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<script type="application/json" data-tipo-datos set:html={JSON.stringify({ fuentes: FUENTES, parejas: PAREJAS })} />
+
+	<form data-tipo-form class="grid gap-6 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-6">
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Titular</span>
+				<input
+					type="text"
+					data-tipo-campo="titular-texto"
+					value="La tipografía es la voz del texto"
+					maxlength="140"
+					class={CAMPO}
+				/>
+			</label>
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Texto (una línea en blanco separa párrafos)</span>
+				<textarea data-tipo-campo="cuerpo-texto" rows="5" maxlength="2000" class={`${CAMPO} resize-y`}
+					>Antes de leer una sola palabra ya has decidido si te fías de lo que pone. Lo decide la letra: su forma, su peso y el aire que la rodea.
+
+Prueba combinaciones, abre el interlineado y mira cómo cambia el tono de la página.</textarea
+				>
+			</label>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Combinaciones</span>
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Combinaciones de fuentes">
+					{
+						PAREJAS.map((pareja) => (
+							<button type="button" data-tipo-pareja={pareja.id} aria-pressed="false" class={OPCION}>
+								{pareja.nombre}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			{
+				CAPAS.map((capa) => (
+					<fieldset class="flex flex-col gap-4 border border-line p-4">
+						<legend class="px-1 text-sm text-fg">{capa.label}</legend>
+						<label class="flex flex-col gap-2">
+							<span class="text-sm text-muted">Fuente</span>
+							<select data-tipo-campo={`${capa.id}-fuente`} class={CAMPO}>
+								{FUENTES.map((fuente) => (
+									<option value={fuente.id} selected={fuente.id === capa.fuente}>
+										{fuente.nombre}
+									</option>
+								))}
+							</select>
+						</label>
+						{capa.mandos.map((mando) => (
+							<div class="flex flex-col gap-1">
+								<label
+									for={`tipo-${capa.id}-${mando.id}`}
+									class="flex items-center justify-between gap-3 text-sm text-muted"
+								>
+									{mando.label}
+									<span data-tipo-valor={`${capa.id}-${mando.id}`} data-unidad={mando.unidad} class="text-mark">
+										{mando.valor}
+										{mando.unidad}
+									</span>
+								</label>
+								<input
+									type="range"
+									id={`tipo-${capa.id}-${mando.id}`}
+									data-tipo-campo={`${capa.id}-${mando.id}`}
+									min={mando.min}
+									max={mando.max}
+									step={mando.step}
+									value={mando.valor}
+									class="w-full accent-accent"
+								/>
+							</div>
+						))}
+						<div class="flex items-end gap-4">
+							<label class="flex flex-1 flex-col gap-2">
+								<span class="text-sm text-muted">Peso</span>
+								<select data-tipo-campo={`${capa.id}-peso`} class={CAMPO}>
+									{PESOS.map((peso) => (
+										<option value={peso} selected={peso === capa.peso}>
+											{peso}
+										</option>
+									))}
+								</select>
+							</label>
+							<label class="flex flex-col gap-2">
+								<span class="text-sm text-muted">Color</span>
+								<input type="color" data-tipo-campo={`${capa.id}-color`} value={capa.color} class={COLOR} />
+							</label>
+						</div>
+					</fieldset>
+				))
+			}
+
+			<fieldset class="flex flex-col gap-4 border border-line p-4">
+				<legend class="px-1 text-sm text-fg">Página</legend>
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Alineación">
+					{
+						ALINEACIONES.map((alineacion, index) => (
+							<button
+								type="button"
+								data-tipo-alinea={alineacion.id}
+								aria-pressed={index === 0 ? 'true' : 'false'}
+								aria-label={alineacion.label}
+								title={alineacion.label}
+								class={OPCION}
+							>
+								<Icon name={alineacion.icon} class="size-4 shrink-0" />
+							</button>
+						))
+					}
+				</div>
+				<div class="flex flex-col gap-1">
+					<label for="tipo-ancho" class="flex items-center justify-between gap-3 text-sm text-muted">
+						Ancho de columna
+						<span data-tipo-valor="ancho" data-unidad="ch" class="text-mark">62ch</span>
+					</label>
+					<input
+						type="range"
+						id="tipo-ancho"
+						data-tipo-campo="ancho"
+						min="30"
+						max="90"
+						step="1"
+						value="62"
+						class="w-full accent-accent"
+					/>
+				</div>
+				<label class="flex items-center justify-between gap-3">
+					<span class="text-sm text-muted">Fondo</span>
+					<input type="color" data-tipo-campo="fondo" value="#fdf6ef" class={COLOR} />
+				</label>
+			</fieldset>
+
+			<button type="reset" class={`${ACCION} self-start`}>
+				<Icon name="refresh" class="size-4 shrink-0" />
+				Restablecer
+			</button>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-2 lg:sticky lg:top-6 lg:self-start">
+			<span class="text-sm text-muted">Maqueta</span>
+			<div data-tipo-maqueta lang="es" class="overflow-hidden border border-line">
+				<div data-tipo-nav class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
+					<span data-tipo-marca class="text-lg">Estudio Tinta</span>
+					<span data-tipo-menu class="flex gap-4 text-sm">
+						<span>Inicio</span>
+						<span>Trabajos</span>
+						<span>Contacto</span>
+					</span>
+				</div>
+				<article data-tipo-articulo class="px-6 py-10">
+					<p data-tipo-antetitulo class="mb-3 text-sm uppercase opacity-70">Diario · Tipografía</p>
+					<!-- Sin h1 ni h2 de verdad: la maqueta no debe liar el índice de la página. -->
+					<p data-tipo-h1></p>
+					<div data-tipo-cuerpo class="mt-5"></div>
+					<p data-tipo-h2 class="mt-8">Un subtítulo para ver la jerarquía</p>
+					<p data-tipo-extra class="mt-3">
+						Un buen par de fuentes contrasta en forma, pero comparte proporciones. Si dudas, usa una sola
+						familia y juega con el peso.
+					</p>
+					<span data-tipo-boton class="mt-6 inline-block border px-4 py-2">Leer más</span>
+				</article>
+			</div>
+			<p class="text-sm text-muted">
+				Si una fuente no está en tu equipo, se ve la siguiente de su pila. Nada se carga de fuera.
+			</p>
+		</div>
+	</form>
+
+	<div class="flex flex-col gap-2">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<span class="text-sm text-muted">CSS</span>
+			<span class="flex flex-wrap gap-4">
+				<button type="button" data-tipo-copia class={ACCION}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-tipo-copia-texto aria-live="polite">Copiar CSS</span>
+				</button>
+				<button type="button" data-tipo-descarga class={ACCION}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .txt
+				</button>
+			</span>
+		</div>
+		<textarea
+			data-tipo-css
+			rows="12"
+			readonly
+			spellcheck="false"
+			aria-label="CSS generado"
+			class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"></textarea>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<span class="text-sm text-muted">Guardadas en este navegador</span>
+		<div class="flex flex-wrap gap-2">
+			<input
+				type="text"
+				data-tipo-nombre
+				maxlength="40"
+				placeholder="Nombre de la configuración"
+				aria-label="Nombre de la configuración"
+				class={`${CAMPO} max-w-72 flex-1`}
+			/>
+			<button type="button" data-tipo-guarda class={OPCION}>
+				<Icon name="device-floppy" class="size-4 shrink-0" />
+				Guardar
+			</button>
+		</div>
+		<p data-tipo-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+		<ul data-tipo-lista class="flex flex-col border-t border-line empty:hidden"></ul>
+	</div>
+</div>
+
+<style>
+	[data-tipo-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-tipo-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-tipo-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-tipo-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+	/* La maqueta es de quien la diseña: nada de la escala de la web se cuela. */
+	[data-tipo-h1],
+	[data-tipo-h2] {
+		text-wrap: balance;
+		overflow-wrap: break-word;
+	}
+	[data-tipo-cuerpo] :global(p + p) {
+		margin-top: 1em;
+	}
+</style>
+
+<script>
+	type Fuente = { id: string; nombre: string; pila: string };
+	type Pareja = { id: string; nombre: string; titular: string; texto: string };
+	type Valores = Record<string, string>;
+	type Guardada = { nombre: string; valores: Valores; alineacion: string };
+	type Campo = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+	const CLAVE = 'tuweb:tipografia';
+	const MAXIMO = 30;
+	const ALINEACIONES: Record<string, string> = {
+		left: 'izquierda',
+		center: 'centro',
+		right: 'derecha',
+		justify: 'justificado',
+	};
+
+	const datos = document.querySelector<HTMLScriptElement>('[data-tipo-datos]');
+	const form = document.querySelector<HTMLFormElement>('[data-tipo-form]');
+	const maqueta = document.querySelector<HTMLElement>('[data-tipo-maqueta]');
+	const salida = document.querySelector<HTMLTextAreaElement>('[data-tipo-css]');
+
+	if (datos && form && maqueta && salida) {
+		const { fuentes, parejas }: { fuentes: Fuente[]; parejas: Pareja[] } = JSON.parse(datos.textContent ?? '{}');
+		const campos = [...form.querySelectorAll<Campo>('[data-tipo-campo]')];
+		const alineas = form.querySelectorAll<HTMLButtonElement>('[data-tipo-alinea]');
+		const botonesPareja = form.querySelectorAll<HTMLButtonElement>('[data-tipo-pareja]');
+		const parte = <T extends HTMLElement>(nombre: string) => maqueta.querySelector<T>(`[data-tipo-${nombre}]`)!;
+		const aviso = document.querySelector<HTMLElement>('[data-tipo-aviso]');
+		const lista = document.querySelector<HTMLUListElement>('[data-tipo-lista]');
+		const nombre = document.querySelector<HTMLInputElement>('[data-tipo-nombre]');
+
+		let alineacion = 'left';
+
+		const campo = (clave: string) => campos.find((c) => c.dataset.tipoCampo === clave);
+		const val = (clave: string) => campo(clave)?.value ?? '';
+		const num = (clave: string) => Number(val(clave));
+		const fuente = (id: string) => fuentes.find((f) => f.id === id) ?? fuentes[0];
+		// Sin la cola de decimales de coma flotante: 0.1 + 0.2 no pinta bien en CSS.
+		const corto = (n: number) => String(Number(n.toFixed(3)));
+
+		function capa(id: 't' | 'c') {
+			return {
+				fuente: fuente(val(`${id}-fuente`)),
+				tamano: num(`${id}-tamano`),
+				peso: val(`${id}-peso`),
+				interlineado: corto(num(`${id}-interlineado`)),
+				espaciado: `${corto(num(`${id}-espaciado`))}em`,
+				color: val(`${id}-color`),
+			};
+		}
+
+		// El h2 sale del titular, pero nunca por debajo del texto: si no, deja de
+		// parecer un subtítulo.
+		const tamanoH2 = (t: number, c: number) => Math.max(Math.round(t * 0.55), Math.round(c * 1.2));
+
+		function css() {
+			const t = capa('t');
+			const c = capa('c');
+			const casa = [t.fuente.id, c.fuente.id].some((id) => id.startsWith('geist-'));
+			const lineas = [
+				'/* Laboratorio de tipografía · tuweb.dev */',
+				...(casa ? ['/* Geist Mono y Geist Pixel necesitan su @font-face con el fichero local. */'] : []),
+				'body {',
+				`  background: ${val('fondo')};`,
+				`  color: ${c.color};`,
+				`  font-family: ${c.fuente.pila};`,
+				`  font-size: ${c.tamano}px;`,
+				`  font-weight: ${c.peso};`,
+				`  line-height: ${c.interlineado};`,
+				`  letter-spacing: ${c.espaciado};`,
+				`  text-align: ${alineacion};`,
+				...(alineacion === 'justify' ? ['  hyphens: auto;'] : []),
+				'}',
+				'',
+				'h1,',
+				'h2 {',
+				`  color: ${t.color};`,
+				`  font-family: ${t.fuente.pila};`,
+				`  font-weight: ${t.peso};`,
+				`  line-height: ${t.interlineado};`,
+				`  letter-spacing: ${t.espaciado};`,
+				`  text-align: ${alineacion === 'justify' ? 'left' : alineacion};`,
+				'  text-wrap: balance;',
+				'}',
+				'',
+				`h1 {\n  font-size: ${t.tamano}px;\n}`,
+				'',
+				`h2 {\n  font-size: ${tamanoH2(t.tamano, c.tamano)}px;\n}`,
+				'',
+				'p + p {\n  margin-top: 1em;\n}',
+				'',
+				'article {',
+				`  max-width: ${num('ancho')}ch;`,
+				...(alineacion === 'center' ? ['  margin-inline: auto;'] : alineacion === 'right' ? ['  margin-left: auto;'] : []),
+				'}',
+			];
+			return lineas.join('\n');
+		}
+
+		function estilo(el: HTMLElement, c: ReturnType<typeof capa>, tamano: number) {
+			el.style.fontFamily = c.fuente.pila;
+			el.style.fontSize = `${tamano}px`;
+			el.style.fontWeight = c.peso;
+			el.style.lineHeight = c.interlineado;
+			el.style.letterSpacing = c.espaciado;
+			el.style.color = c.color;
+		}
+
+		function pintar() {
+			const t = capa('t');
+			const c = capa('c');
+
+			document.querySelectorAll<HTMLElement>('[data-tipo-valor]').forEach((el) => {
+				el.textContent = `${corto(num(el.dataset.tipoValor ?? ''))}${el.dataset.unidad ?? ''}`;
+			});
+
+			maqueta!.style.background = val('fondo');
+			maqueta!.style.color = c.color;
+
+			const nav = parte('nav');
+			nav.style.borderColor = `color-mix(in oklab, ${c.color} 20%, transparent)`;
+			const marca = parte('marca');
+			marca.style.fontFamily = t.fuente.pila;
+			marca.style.fontWeight = t.peso;
+			marca.style.color = t.color;
+			parte('menu').style.fontFamily = c.fuente.pila;
+
+			// El ancho en ch se mide con la letra del texto, como en el CSS de salida.
+			const articulo = parte('articulo');
+			estilo(articulo, c, c.tamano);
+			articulo.style.maxWidth = `${num('ancho')}ch`;
+			articulo.style.marginLeft = alineacion === 'center' || alineacion === 'right' ? 'auto' : '0';
+			articulo.style.marginRight = alineacion === 'center' ? 'auto' : '0';
+			articulo.style.textAlign = alineacion;
+			articulo.style.hyphens = alineacion === 'justify' ? 'auto' : 'manual';
+
+			const encabezado = alineacion === 'justify' ? 'left' : alineacion;
+			const h1 = parte('h1');
+			estilo(h1, t, t.tamano);
+			h1.style.textAlign = encabezado;
+			h1.textContent = val('titular-texto').trim() || 'Sin titular';
+			const h2 = parte('h2');
+			estilo(h2, t, tamanoH2(t.tamano, c.tamano));
+			h2.style.textAlign = encabezado;
+
+			const texto = val('cuerpo-texto').trim() || 'Escribe algo para verlo aquí.';
+			parte('cuerpo').replaceChildren(
+				...texto.split(/\n\s*\n/).map((trozo) => {
+					const p = document.createElement('p');
+					p.textContent = trozo.trim();
+					p.style.whiteSpace = 'pre-line';
+					return p;
+				}),
+			);
+
+			const boton = parte('boton');
+			boton.style.color = t.color;
+			boton.style.borderColor = t.color;
+
+			alineas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tipoAlinea === alineacion)));
+			botonesPareja.forEach((b) => {
+				const p = parejas.find((x) => x.id === b.dataset.tipoPareja);
+				b.setAttribute('aria-pressed', String(p?.titular === t.fuente.id && p?.texto === c.fuente.id));
+			});
+
+			salida!.value = css();
+		}
+
+		form.addEventListener('input', pintar);
+		form.addEventListener('change', pintar);
+		// El reset cambia los campos después de lanzar el evento: se pinta al siguiente tick.
+		form.addEventListener('reset', () => {
+			alineacion = 'left';
+			setTimeout(pintar);
+		});
+		form.addEventListener('submit', (event) => event.preventDefault());
+
+		alineas.forEach((b) =>
+			b.addEventListener('click', () => {
+				alineacion = b.dataset.tipoAlinea ?? 'left';
+				pintar();
+			}),
+		);
+
+		botonesPareja.forEach((b) =>
+			b.addEventListener('click', () => {
+				const p = parejas.find((x) => x.id === b.dataset.tipoPareja);
+				if (!p) return;
+				campo('t-fuente')!.value = p.titular;
+				campo('c-fuente')!.value = p.texto;
+				pintar();
+			}),
+		);
+
+		// Guardadas
+
+		function leerGuardadas(): Guardada[] {
+			try {
+				const crudo = JSON.parse(localStorage.getItem(CLAVE) ?? '[]');
+				if (!Array.isArray(crudo)) return [];
+				return crudo.filter(
+					(g): g is Guardada =>
+						g && typeof g.nombre === 'string' && g.valores && typeof g.valores === 'object',
+				);
+			} catch {
+				return [];
+			}
+		}
+
+		function escribirGuardadas(guardadas: Guardada[]) {
+			try {
+				localStorage.setItem(CLAVE, JSON.stringify(guardadas));
+				return true;
+			} catch {
+				return false;
+			}
+		}
+
+		function avisar(texto: string) {
+			if (aviso) aviso.textContent = texto;
+		}
+
+		function valores(): Valores {
+			return Object.fromEntries(campos.map((c) => [c.dataset.tipoCampo ?? '', c.value]));
+		}
+
+		// Lo guardado viene del localStorage, que cualquiera puede tocar: cada valor
+		// pasa por su campo, y si el campo no lo acepta se queda el de fábrica.
+		function cargar(g: Guardada) {
+			campos.forEach((c) => {
+				const v = g.valores[c.dataset.tipoCampo ?? ''];
+				const defecto =
+					c instanceof HTMLSelectElement
+						? ([...c.options].find((o) => o.defaultSelected)?.value ?? c.options[0]?.value ?? '')
+						: c.defaultValue;
+				if (typeof v !== 'string') {
+					c.value = defecto;
+					return;
+				}
+				if (c instanceof HTMLInputElement && c.type === 'color' && !/^#[0-9a-f]{6}$/i.test(v)) {
+					c.value = defecto;
+					return;
+				}
+				c.value = v.slice(0, 2000);
+				if (c.value === '' && c instanceof HTMLSelectElement) c.value = defecto;
+			});
+			alineacion = Object.hasOwn(ALINEACIONES, g.alineacion) ? g.alineacion : 'left';
+			if (nombre) nombre.value = g.nombre;
+			pintar();
+		}
+
+		function pintarLista() {
+			if (!lista) return;
+			lista.replaceChildren(
+				...leerGuardadas().map((g) => {
+					const fila = document.createElement('li');
+					fila.className = 'flex items-center justify-between gap-3 border-b border-line py-2';
+
+					const abrir = document.createElement('button');
+					abrir.type = 'button';
+					abrir.className = 'min-w-0 truncate text-left text-sm hover:text-accent';
+					abrir.textContent = g.nombre;
+					abrir.title = `Cargar «${g.nombre}»`;
+					abrir.addEventListener('click', () => {
+						cargar(g);
+						avisar(`Cargada «${g.nombre}».`);
+					});
+
+					const borrar = document.createElement('button');
+					borrar.type = 'button';
+					borrar.className = 'text-sm text-muted hover:text-heart';
+					borrar.textContent = 'Borrar';
+					borrar.setAttribute('aria-label', `Borrar «${g.nombre}»`);
+					borrar.addEventListener('click', () => {
+						escribirGuardadas(leerGuardadas().filter((x) => x.nombre !== g.nombre));
+						pintarLista();
+						avisar(`Borrada «${g.nombre}».`);
+					});
+
+					fila.append(abrir, borrar);
+					return fila;
+				}),
+			);
+		}
+
+		function guardar() {
+			const titulo = (nombre?.value ?? '').trim().slice(0, 40) || `Sin nombre ${new Date().toLocaleString('es-ES')}`;
+			const resto = leerGuardadas().filter((g) => g.nombre !== titulo);
+			if (resto.length >= MAXIMO) {
+				avisar(`Caben ${MAXIMO} como mucho. Borra alguna antes.`);
+				return;
+			}
+			const hecho = escribirGuardadas([{ nombre: titulo, valores: valores(), alineacion }, ...resto]);
+			avisar(hecho ? `Guardada «${titulo}».` : 'Este navegador no deja guardar.');
+			if (nombre) nombre.value = titulo;
+			pintarLista();
+		}
+
+		document.querySelector('[data-tipo-guarda]')?.addEventListener('click', guardar);
+		nombre?.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') guardar();
+		});
+
+		// Copiar y descargar
+
+		const copia = document.querySelector<HTMLButtonElement>('[data-tipo-copia]');
+		const copiaTexto = copia?.querySelector('[data-tipo-copia-texto]');
+		let reloj: number | undefined;
+
+		async function copiar(texto: string) {
+			try {
+				await navigator.clipboard.writeText(texto);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const area = document.createElement('textarea');
+					area.value = texto;
+					area.readOnly = true;
+					area.style.position = 'fixed';
+					area.style.opacity = '0';
+					document.body.append(area);
+					area.select();
+					const hecho = document.execCommand('copy');
+					area.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		copia?.addEventListener('click', async () => {
+			const hecho = await copiar(css());
+			copia.dataset.state = hecho ? 'done' : 'error';
+			if (copiaTexto) copiaTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				copia.removeAttribute('data-state');
+				if (copiaTexto) copiaTexto.textContent = 'Copiar CSS';
+			}, 2000);
+		});
+
+		function describir(id: 't' | 'c', etiqueta: string) {
+			const c = capa(id);
+			return [
+				`${etiqueta}: ${c.fuente.nombre}`,
+				`  Pila: ${c.fuente.pila}`,
+				`  Tamaño ${c.tamano}px · peso ${c.peso} · interlineado ${c.interlineado} · espaciado ${c.espaciado} · color ${c.color}`,
+			].join('\n');
+		}
+
+		document.querySelector('[data-tipo-descarga]')?.addEventListener('click', () => {
+			const titulo = (nombre?.value ?? '').trim();
+			const texto = [
+				'Laboratorio de tipografía · tuweb.dev',
+				...(titulo ? [`Configuración: ${titulo}`] : []),
+				`Fecha: ${new Date().toLocaleString('es-ES')}`,
+				'',
+				describir('t', 'Titular'),
+				describir('c', 'Texto'),
+				`Página: alineación ${ALINEACIONES[alineacion]} · columna ${num('ancho')}ch · fondo ${val('fondo')}`,
+				'',
+				'Titular de prueba:',
+				val('titular-texto'),
+				'',
+				'Texto de prueba:',
+				val('cuerpo-texto'),
+				'',
+				'--- CSS ---',
+				'',
+				css(),
+				'',
+			].join('\n');
+
+			const slug =
+				titulo
+					.toLowerCase()
+					.normalize('NFD')
+					.replace(/[̀-ͯ]/g, '')
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, '') || 'configuracion';
+			const url = URL.createObjectURL(new Blob([texto], { type: 'text/plain;charset=utf-8' }));
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `tipografia-${slug}.txt`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		});
+
+		pintarLista();
+		pintar();
+	}
+</script>
