@@ -1,0 +1,29 @@
+---
+/** Una tanda de deslizadores del generador de tramas; el script de PatternTool los lee por su id. */
+interface Props {
+	sliders: readonly { id: string; label: string; min: number; max: number; step: number }[];
+}
+
+const { sliders } = Astro.props;
+---
+
+<div class="flex flex-col gap-3">
+	{
+		sliders.map((slider) => (
+			<label class="flex flex-col gap-1">
+				<span class="flex justify-between text-sm text-muted">
+					<span>{slider.label}</span>
+					<span data-trama-valor={slider.id} class="text-mark" />
+				</span>
+				<input
+					type="range"
+					data-trama-rango={slider.id}
+					min={slider.min}
+					max={slider.max}
+					step={slider.step}
+					class="w-full accent-accent"
+				/>
+			</label>
+		))
+	}
+</div>

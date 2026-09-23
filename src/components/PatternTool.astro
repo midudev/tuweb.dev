@@ -1,11 +1,13 @@
 ---
 /**
  * Generador de tramas SVG para fondos: figura, tamaño, colores, borde, giro y
- * opacidad. Sale un SVG y el CSS listo para pegar. Todo se pinta aquí, en el
- * navegador; no se guarda ni se envía nada.
+ * opacidad, y si se quiere, movimiento, cambio de color y latido. Sale un SVG
+ * y el CSS listo para pegar. Todo se pinta aquí, en el navegador; no se
+ * guarda ni se envía nada.
  */
-import { RECIPES, SHAPES } from '../lib/pattern';
+import { DIRECTIONS, RECIPES, SHAPES } from '../lib/pattern';
 import Icon from './Icon.astro';
+import PatternSliders from './PatternSliders.astro';
 
 const SLIDERS = [
 	{ id: 'size', label: 'Baldosa', min: 6, max: 120, step: 1 },
@@ -14,6 +16,16 @@ const SLIDERS = [
 	{ id: 'angle', label: 'Giro', min: 0, max: 180, step: 1 },
 	{ id: 'opacity', label: 'Opacidad', min: 0.05, max: 1, step: 0.01 },
 ];
+
+const MOVIMIENTO = [{ id: 'speed', label: 'Velocidad', min: 0, max: 120, step: 1 }];
+
+const CICLO = [
+	{ id: 'pulse', label: 'Latido', min: 0, max: 0.95, step: 0.05 },
+	{ id: 'cycle', label: 'Ciclo', min: 1, max: 20, step: 0.5 },
+];
+
+/** Las ocho flechas en rejilla de 3×3, con el hueco del centro vacío. */
+const ROSA = [...DIRECTIONS.slice(0, 4), null, ...DIRECTIONS.slice(4)];
 
 const COLORS = [
 	{ id: 'fill', label: 'Relleno' },
@@ -54,26 +66,7 @@ const OPCION =
 				</div>
 			</div>
 
-			<div class="flex flex-col gap-3">
-				{
-					SLIDERS.map((slider) => (
-						<label class="flex flex-col gap-1">
-							<span class="flex justify-between text-sm text-muted">
-								<span>{slider.label}</span>
-								<span data-trama-valor={slider.id} class="text-mark"></span>
-							</span>
-							<input
-								type="range"
-								data-trama-rango={slider.id}
-								min={slider.min}
-								max={slider.max}
-								step={slider.step}
-								class="w-full accent-accent"
-							/>
-						</label>
-					))
-				}
-			</div>
+			<PatternSliders sliders={SLIDERS} />
 
 			<div class="flex flex-col gap-3">
 				<h3 id="trama-colores" class="text-sm text-muted">Colores</h3>
@@ -99,6 +92,51 @@ const OPCION =
 			</div>
 
 			<div class="flex flex-col gap-3">
+				<h3 id="trama-movimiento" class="text-sm text-muted">Movimiento</h3>
+				<PatternSliders sliders={MOVIMIENTO} />
+				<div role="group" aria-labelledby="trama-movimiento" class="grid w-fit grid-cols-3 gap-2">
+					{
+						ROSA.map((direction) =>
+							direction ? (
+								<button
+									type="button"
+									data-trama-direccion={direction.id}
+									aria-pressed="false"
+									aria-label={direction.label}
+									title={direction.label}
+									class={`${OPCION} justify-center disabled:opacity-40`}
+								>
+									<Icon name={direction.icon} class="size-4 shrink-0" />
+								</button>
+							) : (
+								<span />
+							),
+						)
+					}
+				</div>
+				<p data-trama-nota-movimiento class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<h3 id="trama-ciclo" class="text-sm text-muted">Color y latido</h3>
+				<div role="group" aria-labelledby="trama-ciclo" class="flex flex-wrap items-center gap-4">
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						<input type="checkbox" data-trama-cambio class="size-4 accent-accent" />
+						Cambiar de color
+					</label>
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						Hacia
+						<input
+							type="color"
+							data-trama-color="shiftColor"
+							class="h-9 w-14 cursor-pointer border border-line bg-panel p-1 disabled:opacity-40"
+						/>
+					</label>
+				</div>
+				<PatternSliders sliders={CICLO} />
+			</div>
+
+			<div class="flex flex-col gap-3">
 				<h3 id="trama-recetas" class="text-sm text-muted">Recetas</h3>
 				<div role="group" aria-labelledby="trama-recetas" class="flex flex-wrap gap-2">
 					{
@@ -118,7 +156,24 @@ const OPCION =
 
 		<div class="flex flex-col gap-4">
 			<div class="flex flex-col gap-2">
-				<span class="text-sm text-muted">Así queda</span>
+				<span class="flex items-center justify-between text-sm text-muted">
+					Así queda
+					<button
+						type="button"
+						data-trama-pausa
+						aria-pressed="false"
+						hidden
+						class="inline-flex items-center gap-2 text-accent hover:underline"
+					>
+						<span data-icon="pause" class="inline-flex">
+							<Icon name="player-pause" class="size-4 shrink-0" />
+						</span>
+						<span data-icon="play" class="inline-flex">
+							<Icon name="player-play" class="size-4 shrink-0" />
+						</span>
+						<span data-trama-pausa-texto>Pausar</span>
+					</button>
+				</span>
 				<div class="border border-line" data-trama-tablero>
 					<div data-trama-previo class="h-64 w-full sm:h-80"></div>
 				</div>
@@ -133,7 +188,7 @@ const OPCION =
 					<Icon name="download" class="size-4 shrink-0" />
 					Descargar .svg
 				</button>
-				<span class="text-sm text-muted">El fichero sale a 1200×800.</span>
+				<span data-trama-fichero class="text-sm text-muted">El fichero sale a 1200×800.</span>
 			</div>
 
 			{
@@ -181,6 +236,16 @@ const OPCION =
 		background-size: 16px 16px;
 	}
 
+	[data-trama-pausa] [data-icon='play'] {
+		display: none;
+	}
+	[data-trama-pausa][aria-pressed='true'] [data-icon='pause'] {
+		display: none;
+	}
+	[data-trama-pausa][aria-pressed='true'] [data-icon='play'] {
+		display: inline-flex;
+	}
+
 	[data-trama-copia] [data-icon='check'] {
 		display: none;
 	}
@@ -202,6 +267,8 @@ const OPCION =
 		RECIPES,
 		SHAPES,
 		buildSvg,
+		directionOf,
+		isAnimated,
 		shapeOf,
 		toCss,
 		toDataUri,
@@ -209,22 +276,35 @@ const OPCION =
 
 	const previo = document.querySelector<HTMLElement>('[data-trama-previo]');
 	const nota = document.querySelector<HTMLElement>('[data-trama-nota]');
+	const notaMovimiento = document.querySelector<HTMLElement>('[data-trama-nota-movimiento]');
 	const transparente = document.querySelector<HTMLInputElement>('[data-trama-transparente]');
+	const cambio = document.querySelector<HTMLInputElement>('[data-trama-cambio]');
+	const pausa = document.querySelector<HTMLButtonElement>('[data-trama-pausa]');
+	const pausaTexto = document.querySelector<HTMLElement>('[data-trama-pausa-texto]');
+	const fichero = document.querySelector<HTMLElement>('[data-trama-fichero]');
 	const rangos = document.querySelectorAll<HTMLInputElement>('[data-trama-rango]');
 	const colores = document.querySelectorAll<HTMLInputElement>('[data-trama-color]');
+	const direcciones = document.querySelectorAll<HTMLButtonElement>('[data-trama-direccion]');
 
 	/** Los ajustes que van por deslizador y los que van por selector de color. */
-	type Numerico = 'size' | 'scale' | 'stroke' | 'angle' | 'opacity';
-	type Tinta = 'fill' | 'border' | 'background';
+	type Numerico = 'size' | 'scale' | 'stroke' | 'angle' | 'opacity' | 'speed' | 'pulse' | 'cycle';
+	type Tinta = 'fill' | 'border' | 'background' | 'shiftColor';
 
 	/** Las figuras de línea no tienen relleno: solo se ven si el borde tiene grosor. */
 	const GROSOR_MINIMO = 1.5;
 
 	let trama: Pattern = { ...DEFAULT_PATTERN };
 
+	// Quien pide menos movimiento en su sistema ve el previo quieto hasta que
+	// le dé a «Mover». El código que se copia sigue llevando la animación.
+	let pausado = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 	function mostrar(clave: Numerico, valor: number) {
 		if (clave === 'size' || clave === 'stroke') return `${valor}px`;
 		if (clave === 'angle') return `${valor}°`;
+		if (clave === 'speed') return valor ? `${valor}px/s` : 'Quieta';
+		if (clave === 'pulse') return valor ? `${Math.round(valor * 100)}%` : 'Sin latido';
+		if (clave === 'cycle') return `${valor}s`;
 		return `${Math.round(valor * 100)}%`;
 	}
 
@@ -249,22 +329,55 @@ const OPCION =
 			// El relleno no pinta nada en las figuras de línea, y el fondo tampoco
 			// si se ha pedido dejarlo transparente.
 			color.disabled =
-				(clave === 'fill' && Boolean(figura.line)) || (clave === 'background' && trama.transparent);
+				(clave === 'fill' && Boolean(figura.line)) ||
+				(clave === 'background' && trama.transparent) ||
+				(clave === 'shiftColor' && !trama.shift);
+		});
+
+		const direccion = directionOf(trama.direction);
+		direcciones.forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.tramaDireccion === direccion.id));
+			button.disabled = trama.speed <= 0;
 		});
 
 		if (transparente) transparente.checked = trama.transparent;
+		if (cambio) cambio.checked = trama.shift;
 		if (nota) {
 			nota.textContent = figura.line
 				? `«${figura.label}» se dibuja a trazos: manda el color del borde.`
 				: '';
 		}
+		if (notaMovimiento) {
+			notaMovimiento.textContent =
+				trama.speed > 0 && trama.angle
+					? 'Con giro, la dirección gira con la trama.'
+					: trama.speed > 0
+						? ''
+						: 'Sube la velocidad para que se mueva.';
+		}
 
+		const animada = isAnimated(trama);
 		const svg = buildSvg(trama);
-		if (previo) previo.style.backgroundImage = `url("${toDataUri(svg)}")`;
+		const quieta = animada ? buildSvg(trama, undefined, true) : svg;
+		if (previo) previo.style.backgroundImage = `url("${toDataUri(pausado ? quieta : svg)}")`;
+
+		if (pausa) {
+			pausa.hidden = !animada;
+			pausa.setAttribute('aria-pressed', String(pausado));
+		}
+		if (pausaTexto) pausaTexto.textContent = pausado ? 'Mover' : 'Pausar';
+		if (fichero) {
+			fichero.textContent = animada
+				? 'El fichero sale a 1200×800 y se mueve igual.'
+				: 'El fichero sale a 1200×800.';
+		}
 
 		const css = document.querySelector<HTMLTextAreaElement>('[data-trama-salida="css"]');
 		const codigo = document.querySelector<HTMLTextAreaElement>('[data-trama-salida="svg"]');
-		if (css) css.value = toCss(trama, svg);
+		if (css) {
+			css.value = animada ? toCss(trama, svg, quieta) : toCss(trama, svg);
+			css.rows = animada ? 10 : 4;
+		}
 		if (codigo) codigo.value = svg;
 	}
 
@@ -297,6 +410,16 @@ const OPCION =
 	});
 
 	transparente?.addEventListener('change', () => cambiar({ transparent: transparente.checked }));
+	cambio?.addEventListener('change', () => cambiar({ shift: cambio.checked }));
+
+	direcciones.forEach((button) => {
+		button.addEventListener('click', () => cambiar({ direction: button.dataset.tramaDireccion ?? '' }));
+	});
+
+	pausa?.addEventListener('click', () => {
+		pausado = !pausado;
+		render();
+	});
 
 	document.querySelectorAll<HTMLButtonElement>('[data-trama-receta]').forEach((button) => {
 		button.addEventListener('click', () => {

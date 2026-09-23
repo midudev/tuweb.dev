@@ -27,6 +27,17 @@ export interface Pattern {
 	background: string;
 	/** Sin fondo: la trama se queda transparente y deja ver lo que haya debajo. */
 	transparent: boolean;
+	/** Velocidad del desplazamiento, en píxeles por segundo. Con 0 no se mueve. */
+	speed: number;
+	/** Hacia dónde se mueve; uno de los ids de DIRECTIONS. */
+	direction: string;
+	/** Si la figura va y vuelve entre su color y «shiftColor». */
+	shift: boolean;
+	shiftColor: string;
+	/** Cuánto baja la opacidad en cada latido, de 0 a 1. Con 0 no late. */
+	pulse: number;
+	/** Segundos que tarda una vuelta del cambio de color y del latido. */
+	cycle: number;
 }
 
 interface Shape {
@@ -170,6 +181,26 @@ export const SHAPES: readonly Shape[] = [
 	},
 ];
 
+/**
+ * Direcciones del movimiento, en baldosas: la trama avanza una baldosa entera
+ * (o una en cada eje) por vuelta, así el bucle no se nota. Van en el espacio
+ * de la trama, de modo que con giro la dirección gira con ella.
+ */
+export const DIRECTIONS: readonly { id: string; label: string; icon: string; x: number; y: number }[] = [
+	{ id: 'arriba-izquierda', label: 'Arriba a la izquierda', icon: 'arrow-up-left', x: -1, y: -1 },
+	{ id: 'arriba', label: 'Arriba', icon: 'arrow-up', x: 0, y: -1 },
+	{ id: 'arriba-derecha', label: 'Arriba a la derecha', icon: 'arrow-up-right', x: 1, y: -1 },
+	{ id: 'izquierda', label: 'Izquierda', icon: 'arrow-left', x: -1, y: 0 },
+	{ id: 'derecha', label: 'Derecha', icon: 'arrow-right', x: 1, y: 0 },
+	{ id: 'abajo-izquierda', label: 'Abajo a la izquierda', icon: 'arrow-down-left', x: -1, y: 1 },
+	{ id: 'abajo', label: 'Abajo', icon: 'arrow-down', x: 0, y: 1 },
+	{ id: 'abajo-derecha', label: 'Abajo a la derecha', icon: 'arrow-down-right', x: 1, y: 1 },
+];
+
+export function directionOf(id: string) {
+	return DIRECTIONS.find((direction) => direction.id === id) ?? DIRECTIONS[4];
+}
+
 export const DEFAULT_PATTERN: Pattern = {
 	shape: 'puntos',
 	size: 28,
@@ -181,6 +212,12 @@ export const DEFAULT_PATTERN: Pattern = {
 	border: '#e8d9c8',
 	background: '#fdf6ef',
 	transparent: false,
+	speed: 0,
+	direction: 'derecha',
+	shift: false,
+	shiftColor: '#3b2d24',
+	pulse: 0,
+	cycle: 6,
 };
 
 /** Recetas para arrancar con algo puesto en vez de con la baldosa vacía. */
@@ -222,17 +259,95 @@ export const RECIPES: readonly { label: string; pattern: Pattern }[] = [
 		label: 'Marea',
 		pattern: { ...DEFAULT_PATTERN, shape: 'ondas', size: 52, scale: 0.8, stroke: 2, border: '#a75f2b', angle: 12 },
 	},
+	{
+		label: 'Oleaje',
+		pattern: {
+			...DEFAULT_PATTERN,
+			shape: 'ondas',
+			size: 48,
+			scale: 0.8,
+			stroke: 2,
+			border: '#a75f2b',
+			speed: 24,
+			direction: 'derecha',
+			shift: true,
+			shiftColor: '#91303f',
+			cycle: 8,
+		},
+	},
+	{
+		label: 'Brasas',
+		pattern: {
+			...DEFAULT_PATTERN,
+			size: 32,
+			scale: 0.35,
+			speed: 12,
+			direction: 'arriba',
+			shift: true,
+			shiftColor: '#9a6205',
+			pulse: 0.6,
+			cycle: 3,
+		},
+	},
 ];
+
+/** Si algo del SVG se mueve, cambia de color o late. */
+export function isAnimated(pattern: Pattern) {
+	return pattern.speed > 0 || pattern.shift || pattern.pulse > 0;
+}
 
 export function shapeOf(id: string) {
 	return SHAPES.find((shape) => shape.id === id) ?? SHAPES[0];
 }
 
 /**
+ * Las animaciones van dentro del propio SVG (SMIL), no en el CSS: así la
+ * trama se mueve igual de fondo, en el fichero descargado o abierta sola.
+ * El desplazamiento anima x/y del <pattern>, que viven bajo el giro.
+ */
+function motion(pattern: Pattern, size: number) {
+	if (pattern.speed <= 0) return '';
+	const direction = directionOf(pattern.direction);
+	const seconds = (size * Math.hypot(direction.x, direction.y)) / pattern.speed;
+	const axis = (name: 'x' | 'y', steps: number) =>
+		steps
+			? `\n\t\t\t<animate attributeName="${name}" values="0;${n(steps * size)}" dur="${n(seconds)}s" repeatCount="indefinite"/>`
+			: '';
+	return axis('x', direction.x) + axis('y', direction.y);
+}
+
+function cycles(pattern: Pattern, line: boolean, stroke: number) {
+	const dur = `dur="${n(Math.max(0.5, pattern.cycle))}s" repeatCount="indefinite"`;
+	const parts: string[] = [];
+
+	if (pattern.shift) {
+		// Cambia el color que manda: el relleno, o el borde en las de línea.
+		const from = line
+			? safeColor(pattern.border, DEFAULT_PATTERN.border)
+			: safeColor(pattern.fill, DEFAULT_PATTERN.fill);
+		const to = safeColor(pattern.shiftColor, DEFAULT_PATTERN.shiftColor);
+		const target = line ? 'stroke' : 'fill';
+		if (!line || stroke > 0) {
+			parts.push(`<animate attributeName="${target}" values="${from};${to};${from}" ${dur}/>`);
+		}
+	}
+
+	if (pattern.pulse > 0) {
+		const low = pattern.opacity * (1 - Math.min(1, pattern.pulse));
+		parts.push(
+			`<animate attributeName="opacity" values="${n(pattern.opacity)};${n(low)};${n(pattern.opacity)}" ${dur}/>`,
+		);
+	}
+
+	return parts.map((part) => `\n\t\t\t\t${part}`).join('');
+}
+
+/**
  * El SVG entero. Sin medidas sale a 100%, que es lo que quiere un
  * background-image; con medidas sale un fichero de ese tamaño para descargar.
+ * Con «still» sale quieto aunque la trama lleve animación.
  */
-export function buildSvg(pattern: Pattern, box?: { width: number; height: number }) {
+export function buildSvg(pattern: Pattern, box?: { width: number; height: number }, still = false) {
 	const shape = shapeOf(pattern.shape);
 	const size = Math.max(4, pattern.size);
 	const stroke = Math.max(0, pattern.stroke);
@@ -250,14 +365,18 @@ export function buildSvg(pattern: Pattern, box?: { width: number; height: number
 
 	const angle = ((pattern.angle % 360) + 360) % 360;
 	const turn = angle ? ` patternTransform="rotate(${n(angle)})"` : '';
-	const tile = `<g ${paint}>${shape.draw(size, pattern.scale, stroke)}</g>`;
+	const animated = !still && isAnimated(pattern);
+	const effects = animated ? cycles(pattern, Boolean(shape.line), stroke) : '';
+	const drawn = shape.draw(size, pattern.scale, stroke);
+	const tile = effects ? `<g ${paint}>${drawn}${effects}\n\t\t\t</g>` : `<g ${paint}>${drawn}</g>`;
+	const moving = animated ? motion(pattern, size) : '';
 	const measures = box ? `width="${box.width}" height="${box.height}"` : 'width="100%" height="100%"';
 	const floor = pattern.transparent ? '' : `\n\t<rect width="100%" height="100%" fill="${background}"/>`;
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" ${measures}>
 \t<defs>
 \t\t<pattern id="trama" width="${n(size)}" height="${n(size)}" patternUnits="userSpaceOnUse"${turn}>
-\t\t\t${tile}
+\t\t\t${tile}${moving}
 \t\t</pattern>
 \t</defs>${floor}
 \t<rect width="100%" height="100%" fill="url(#trama)"/>
@@ -277,10 +396,25 @@ export function toDataUri(svg: string) {
 	return `data:image/svg+xml,${escaped}`;
 }
 
-/** Las dos líneas de CSS que hay que pegar para tener el fondo puesto. */
-export function toCss(pattern: Pattern, svg: string) {
+/**
+ * Las dos líneas de CSS que hay que pegar para tener el fondo puesto. Si la
+ * trama se mueve, sale con clase y con la versión quieta para quien pide
+ * menos movimiento en su sistema.
+ */
+export function toCss(pattern: Pattern, svg: string, still?: string) {
 	const color = pattern.transparent
 		? ''
 		: `background-color: ${safeColor(pattern.background, DEFAULT_PATTERN.background)};\n`;
-	return `${color}background-image: url("${toDataUri(svg)}");`;
+	const image = `background-image: url("${toDataUri(svg)}");`;
+	if (!still) return color + image;
+
+	return `.fondo {
+\t${color}${color ? '\t' : ''}${image}
+}
+
+@media (prefers-reduced-motion: reduce) {
+\t.fondo {
+\t\tbackground-image: url("${toDataUri(still)}");
+\t}
+}`;
 }
