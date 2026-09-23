@@ -28,6 +28,9 @@ export function rejectWrite(context: APIContext) {
 
 /** El cuerpo en JSON, con tope de tamaño para que nadie mande megas. */
 export async function readJson<T = Record<string, unknown>>(request: Request, maxBytes = 4096) {
+	// Si ya dice que es más grande, ni se lee.
+	const declared = Number(request.headers.get('content-length') ?? 0);
+	if (declared > maxBytes) return null;
 	const text = await request.text();
 	if (text.length > maxBytes) return null;
 	try {
@@ -38,9 +41,24 @@ export async function readJson<T = Record<string, unknown>>(request: Request, ma
 	}
 }
 
-/** nginx manda la IP real; la web solo escucha en 127.0.0.1, así que es de fiar. */
+/**
+ * nginx manda la IP real; la web solo escucha en 127.0.0.1, así que es de fiar.
+ * En IPv6 cuenta el /64: a cada conexión le suele tocar un bloque entero, y
+ * frenar por dirección exacta se salta cambiando de dirección dentro de él.
+ */
 export function clientIp(request: Request) {
-	return request.headers.get('x-real-ip') ?? '127.0.0.1';
+	const ip = request.headers.get('x-real-ip') ?? '127.0.0.1';
+	if (!ip.includes(':')) return ip;
+	return `${expandIpv6(ip).slice(0, 4).join(':')}::/64`;
+}
+
+/** Las ocho partes de una IPv6, rellenando el "::". */
+function expandIpv6(ip: string) {
+	const [head, tail = ''] = ip.split('::');
+	const left = head ? head.split(':') : [];
+	const right = tail ? tail.split(':') : [];
+	const zeros = Array(Math.max(0, 8 - left.length - right.length)).fill('0');
+	return [...left, ...(ip.includes('::') ? zeros : []), ...right].map((part) => part.toLowerCase() || '0');
 }
 
 // Controles C0 y C1.

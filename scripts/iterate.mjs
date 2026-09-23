@@ -15,6 +15,7 @@ import {
 	dangerousCode,
 	DENIED,
 	forbiddenPaths,
+	ignoredPaths,
 	leakedSecrets,
 	stageForReview,
 } from './lib/guards.mjs';
@@ -122,8 +123,9 @@ function releaseLock() {
 /** Deja el árbol como estaba: nada de lo que escribió la IA sobrevive. */
 function discardChanges() {
 	execFileSync('git', ['reset', '--hard', 'HEAD'], { stdio: 'inherit' });
-	// Sin -x: los ficheros ignorados (.env, la base de datos) no se tocan.
-	execFileSync('git', ['clean', '-fd', '--', ...ALLOWED_PREFIXES], { stdio: 'inherit' });
+	// Solo dentro de src/ y public/, así que .env y la base de datos no se tocan.
+	// Con -x también se va lo que un .gitignore colado pudiera esconder ahí.
+	execFileSync('git', ['clean', '-fdx', '--', ...ALLOWED_PREFIXES], { stdio: 'inherit' });
 }
 
 /**
@@ -162,6 +164,9 @@ const RULES = [
 	'- No importes src/lib/env.ts, secrets.ts, github-dev.ts ni moderation-llm.ts, ni llames a getLlmConfig, getCronSecret, getGithubConfig, getDatabaseUrl ni getDb: ahí están las claves y el acceso crudo a la base.',
 	'- Para leer datos usa las funciones que ya existen en src/lib/db/queries.ts. Nada de SQL que escriba (INSERT, UPDATE, DELETE, DROP, ALTER, CREATE), ni de tocar la sesión o las cookies.',
 	'- No hagas commit ni git de nada: de eso se encarga el script que te ha llamado.',
+	'- Nada de process, globalThis, require, import.meta.glob, import() con ruta calculada, .constructor, Reflect, eval ni Function, ni nombres de propiedades construidos con + (obj["a" + "b"]). Imports solo relativos dentro de src/ o de astro y @iconify-json/tabler, sin ?raw ni ?url.',
+	'- Para navegar, solo rutas literales de esta web que empiecen por "/" (location.href = "/ideas"); nada de window.open, sendBeacon, meta refresh ni prefetch.',
+	'- Nada de export const prerender ni getStaticPaths, y ningún .ts o .js dentro de src/pages/.',
 ];
 
 /**
@@ -169,7 +174,11 @@ const RULES = [
  * escriba "IDEA>>>" se saldría del corral y el resto se leería como órdenes.
  */
 function fenced(text) {
-	return String(text ?? '').replaceAll(/(<<<|>>>)/g, '·');
+	// NFKC convierte ＜ y compañía en <; lo que queda con pinta de ángulo se va
+	// entero: una idea no necesita ninguno, y así no hay variante que cierre la valla.
+	return String(text ?? '')
+		.normalize('NFKC')
+		.replaceAll(/[<>«»‹›≪≫⟨⟩〈〉《》❮❯❬❭⋘⋙]/g, '·');
 }
 
 function buildPrompt(winner) {
@@ -234,16 +243,45 @@ function repairPrompt(winner, failure) {
  */
 const CLAUDE_SETTINGS = JSON.stringify({
 	permissions: {
+		// Un Read denegado impide también escribir ahí (y Grep y Glob). Fuera del
+		// proyecto no hay nada que leer: ni claves (~/.ssh, ~/.claude), ni el
+		// entorno de otros procesos (/proc), ni el sistema.
 		deny: [
+			'Read(//root/**)',
+			'Read(//home/**)',
+			'Read(//etc/**)',
+			'Read(//proc/**)',
+			'Read(//sys/**)',
+			'Read(//var/**)',
+			'Read(//tmp/**)',
+			'Read(//run/**)',
 			'Read(**/.env*)',
-			'Edit(**/.env*)',
 			'Read(**/*.db*)',
-			'Edit(**/*.db*)',
 			'Read(**/.iterate*)',
-			'Edit(**/.iterate*)',
+			'Read(./.git/**)',
+			// El build lleva dentro lo que el servidor necesita para arrancar.
+			'Read(./dist/**)',
+			// Las sesiones de antes de pasarlas a la base.
+			'Read(./node_modules/.astro/**)',
 		],
 	},
 });
+
+/**
+ * Lo único que se escribe: src/ y public/. Cualquier otra escritura pide un
+ * permiso que en modo -p nadie concede, así que se deniega (node_modules, la
+ * raíz del proyecto, .git...).
+ */
+const CLAUDE_ALLOWED = ['Read', 'Glob', 'Grep', 'Edit(./src/**)', 'Edit(./public/**)'];
+
+/**
+ * La IA no necesita ningún secreto: se lanza con lo justo para encontrar su
+ * binario y sus credenciales, sin las claves del .env que lleva este proceso.
+ */
+function claudeEnv() {
+	const keep = ['HOME', 'PATH', 'LANG', 'LC_ALL', 'TERM', 'USER', 'LOGNAME', 'SHELL', 'TZ'];
+	return Object.fromEntries(keep.filter((name) => process.env[name]).map((name) => [name, process.env[name]]));
+}
 
 function runClaude(prompt, timeout) {
 	return spawnSync(
@@ -259,15 +297,18 @@ function runClaude(prompt, timeout) {
 			// ni los conectores de la cuenta de claude.ai (correo, Drive...).
 			'--strict-mcp-config',
 			'--permission-mode',
-			'acceptEdits',
+			'default',
+			// Las herramientas que existen para ella, y dentro de esas, dónde.
+			'--tools',
+			'Read,Glob,Grep,Edit,Write',
 			'--allowedTools',
-			'Read,Edit,Write,Glob,Grep',
+			...CLAUDE_ALLOWED,
 			'--disallowedTools',
-			'Bash,WebFetch,WebSearch,Agent,Task',
+			'Bash,WebFetch,WebSearch,Agent,Task,NotebookEdit',
 			'--output-format',
 			'text',
 		],
-		{ timeout, encoding: 'utf8', stdio: ['ignore', 'inherit', 'inherit'] },
+		{ timeout, encoding: 'utf8', env: claudeEnv(), stdio: ['ignore', 'inherit', 'inherit'] },
 	);
 }
 
@@ -281,6 +322,9 @@ function reviewChanges() {
 
 	const fuera = forbiddenPaths(paths);
 	if (fuera.length > 0) return { error: `la IA tocó ficheros prohibidos: ${fuera.join(', ')}` };
+
+	const escondidos = ignoredPaths();
+	if (escondidos.length > 0) return { error: `la IA dejó ficheros que git no ve: ${escondidos.join(', ')}` };
 
 	// Los ficheros nuevos también tienen que pasar por el detector.
 	stageForReview();

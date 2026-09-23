@@ -1,16 +1,9 @@
 function read(name: string, fallback = '') {
-	const fromProcess = process.env[name];
-	if (fromProcess !== undefined && fromProcess !== '') {
-		return fromProcess;
-	}
-
-	const env = typeof import.meta.env === 'object' && import.meta.env ? import.meta.env : undefined;
-	const fromAstro = env ? env[name] : undefined;
-	if (fromAstro !== undefined && fromAstro !== '') {
-		return String(fromAstro);
-	}
-
-	return fallback;
+	// Solo process.env, también en desarrollo (pnpm dev arranca con --env-file).
+	// Nada de import.meta.env[name]: leerlo con una clave variable hace que Vite
+	// copie TODAS las variables del .env, secretos incluidos, dentro de dist/.
+	const value = process.env[name];
+	return value !== undefined && value !== '' ? value : fallback;
 }
 
 export function getSiteUrl() {

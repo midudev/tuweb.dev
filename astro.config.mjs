@@ -1,7 +1,7 @@
 // @ts-check
 import node from '@astrojs/node';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'astro/config';
+import { defineConfig, passthroughImageService } from 'astro/config';
 
 export default defineConfig({
 	output: 'server',
@@ -13,6 +13,9 @@ export default defineConfig({
 		// 30 días, igual que SESSION_TTL_MS en src/lib/db/session-ttl.ts.
 		ttl: 30 * 24 * 60 * 60,
 	},
+	// La web no optimiza imágenes: con passthrough, /_image no procesa nada
+	// (ahí estaba la ejecución remota de Astro < 7.2.8) y sobra sharp.
+	image: { service: passthroughImageService() },
 	security: {
 		// Detrás de nginx, el servidor solo ve http://localhost:4321. Sin esta
 		// lista, Astro ignora Host y X-Forwarded-Proto, y el POST del formulario

@@ -7,7 +7,7 @@
 		"node": ">=24.0.0"
 	},
 	"scripts": {
-		"dev": "astro dev",
+		"dev": "node --env-file-if-exists=.env node_modules/astro/bin/astro.mjs dev",
 		"build": "astro build",
 		"preview": "astro preview",
 		"start": "node --env-file=.env dist/server/entry.mjs",
@@ -20,10 +20,10 @@
 		"test": "tsx --test tests/*.test.mjs"
 	},
 	"dependencies": {
-		"@astrojs/node": "11.1.2",
+		"@astrojs/node": "11.1.6",
 		"@iconify-json/tabler": "1.2.38",
 		"@tailwindcss/vite": "4.3.3",
-		"astro": "7.2.2",
+		"astro": "7.2.10",
 		"tailwindcss": "4.3.3"
 	},
 	"devDependencies": {

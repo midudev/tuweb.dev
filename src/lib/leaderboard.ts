@@ -13,6 +13,7 @@
  * están en juego hasta que la ventana cierre.
  */
 import { all } from './db/client';
+import { memo } from './memo';
 
 /** Lo que suma cada cosa. Está escrito en la página, así que sale de aquí. */
 export const POINTS = { idea: 1, win: 5, shipped: 10 } as const;
@@ -76,7 +77,7 @@ interface ClusterRow {
 	shipped: number;
 }
 
-export function getLeaderboardData(userId?: number) {
+function computeLeaderboardData(userId?: number) {
 	// 'pending' es la ventana abierta; 'grouped' y 'selected' ya pasaron el
 	// filtro, y 'selected' es además la que ganó.
 	const people = all<PromptRow>(
@@ -173,4 +174,9 @@ export function getLeaderboardData(userId?: number) {
 		},
 		truncated: Math.max(0, ranked.length - rows.length),
 	};
+}
+
+/** getLeaderboardData, recordado unos segundos (ver memo.ts). */
+export function getLeaderboardData(userId?: number) {
+	return memo(`ranking:${userId ?? '-'}`, () => computeLeaderboardData(userId));
 }

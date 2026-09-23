@@ -5,10 +5,12 @@ module.exports = {
 			name: 'tuweb',
 			cwd: '/opt/tuweb',
 			script: 'dist/server/entry.mjs',
-			node_args: '--env-file=/opt/tuweb/.env',
+			node_args: '--env-file=/opt/tuweb/.env --max-old-space-size=512',
 			exec_mode: 'fork',
 			instances: 1,
-			max_memory_restart: '400M',
+			// Un render grande sube el heap de golpe: con 400M pm2 lo mataba a mitad
+			// de pico. Hay memoria de sobra; el tope de V8 va por debajo del de pm2.
+			max_memory_restart: '700M',
 			restart_delay: 3000,
 			max_restarts: 10,
 			env: { NODE_ENV: 'production' },

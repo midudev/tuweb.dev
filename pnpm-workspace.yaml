@@ -1,3 +1,10 @@
 allowBuilds:
   esbuild: true
   sharp: true
+
+# Versiones mínimas por avisos de seguridad en dependencias de Astro.
+overrides:
+  sharp: '>=0.35.4'
+  js-yaml: '>=4.3.2'
+  svgo: '>=4.1.0'
+  devalue: '>=5.9.1'

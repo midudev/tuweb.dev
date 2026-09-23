@@ -24,6 +24,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	// Solo HTTPS durante un año, también en los subdominios.
+	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
 	// En desarrollo, Astro inyecta scripts en línea para recargar en caliente.
 	if (import.meta.env.PROD) {

@@ -8,6 +8,7 @@
  * ciclos, las publicaciones y las funcionalidades— mezclado por fecha.
  */
 import { all } from './db/client';
+import { memo } from './memo';
 
 export type HistoryKind = 'live' | 'building' | 'repairing' | 'rolled_back' | 'failed' | 'cycle';
 
@@ -89,7 +90,7 @@ function plural(count: number, one: string, many: string) {
 	return `${count} ${count === 1 ? one : many}`;
 }
 
-export function getHistoryData() {
+function computeHistoryData() {
 	const releases = all<ReleaseRow>(
 		`SELECT r.id, r.feature_id AS featureId, r.commit_sha AS commitSha,
 			r.status, r.error, r.created_at AS createdAt,
@@ -222,4 +223,9 @@ export function getHistoryData() {
 	}
 
 	return { days, totals, version: shipped.length, truncated: events.length > shown.length };
+}
+
+/** getHistoryData, recordado unos segundos (ver memo.ts). */
+export function getHistoryData() {
+	return memo('historial', () => computeHistoryData());
 }

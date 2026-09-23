@@ -24,10 +24,10 @@ export function run(command) {
  * Como run(), pero se queda con la salida además de escribirla. Cuando el build
  * peta, ese texto es justo lo que la IA necesita leer para arreglar lo suyo.
  */
-export function runCapturing(command) {
+export function runCapturing(command, { env } = {}) {
 	log(`$ ${command}`);
 	try {
-		const output = execSync(command, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+		const output = execSync(command, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, env });
 		process.stdout.write(output);
 		return output;
 	} catch (error) {
@@ -41,9 +41,21 @@ export function currentSha() {
 	return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
 }
 
+/**
+ * El entorno sin nada que parezca una credencial. Instalar y compilar no las
+ * necesitan (el servidor las lee al arrancar, con --env-file), y el build
+ * ejecuta código del proyecto: si algo se colara ahí, no encontraría claves.
+ */
+export function envWithoutSecrets(env = process.env) {
+	return Object.fromEntries(
+		Object.entries(env).filter(([name]) => !/SECRET|KEY|TOKEN|PASSWORD|DATABASE_URL|CREDENTIAL/i.test(name)),
+	);
+}
+
 export function buildAndRestart() {
-	runCapturing(INSTALL_CMD);
-	runCapturing(BUILD_CMD);
+	const env = envWithoutSecrets();
+	runCapturing(INSTALL_CMD, { env });
+	runCapturing(BUILD_CMD, { env });
 	// El reinicio va con la salida en directo: aquí ya no hay nada que arreglar.
 	run(RESTART_CMD);
 }

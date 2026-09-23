@@ -7,6 +7,7 @@
  * aparece antes. Tampoco hay tabla nueva, sale de lo que ya está guardado.
  */
 import { all } from './db/client';
+import { memo } from './memo';
 import { getChangelogData } from './db/queries';
 
 export interface CreditPerson {
@@ -52,7 +53,7 @@ interface AuthorRow {
 	firstAt: string;
 }
 
-export function getCreditsData(userId?: number) {
+function computeCreditsData(userId?: number) {
 	// Entra quien haya propuesto algo, aunque la IA se lo tumbara: aportar es
 	// haber escrito, no haber acertado.
 	const people = all<PersonRow>(
@@ -138,4 +139,9 @@ export function getCreditsData(userId?: number) {
 			orphans: versions.filter((version) => version.people.length === 0).length,
 		},
 	};
+}
+
+/** getCreditsData, recordado unos segundos (ver memo.ts). */
+export function getCreditsData(userId?: number) {
+	return memo(`creditos:${userId ?? '-'}`, () => computeCreditsData(userId));
 }

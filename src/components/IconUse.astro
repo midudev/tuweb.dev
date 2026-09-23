@@ -1,0 +1,11 @@
+---
+/** Un icono de <IconSprite>, por referencia. El sprite tiene que estar en la misma página. */
+interface Props {
+	name: string;
+	class?: string;
+}
+
+const { name, class: className } = Astro.props;
+---
+
+<svg class={className} aria-hidden="true"><use href={`#i-${name}`} /></svg>

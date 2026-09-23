@@ -1,0 +1,24 @@
+---
+import { icons } from '@iconify-json/tabler';
+
+/**
+ * Los iconos que una lista larga repite en cada fila, definidos una sola vez.
+ * Cada fila los pinta con <IconUse>, que es un <use> de unos pocos bytes en
+ * lugar del SVG entero: en /creditos eran 800 copias del mismo dibujo.
+ */
+interface Props {
+	names: string[];
+}
+
+const { names } = Astro.props;
+const size = icons.width ?? 24;
+const symbols = names.map((name) => {
+	const icon = icons.icons[name];
+	if (!icon) throw new Error(`Icono de Tabler desconocido: ${name}`);
+	return { id: `i-${name}`, body: icon.body };
+});
+---
+
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" class="absolute size-0 overflow-hidden" aria-hidden="true">
+	{symbols.map((symbol) => <symbol id={symbol.id} viewBox={`0 0 ${size} ${size}`} set:html={symbol.body} />)}
+</svg>

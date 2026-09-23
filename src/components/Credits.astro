@@ -7,6 +7,8 @@
 import { getCreditsData, type CreditPerson } from '../lib/credits';
 import Hora from './Hora.astro';
 import Icon from './Icon.astro';
+import IconSprite from './IconSprite.astro';
+import IconUse from './IconUse.astro';
 import SectionLabel from './SectionLabel.astro';
 
 interface Props {
@@ -37,6 +39,7 @@ function detail(person: CreditPerson) {
 ---
 
 <section class="flex flex-col gap-10">
+	<IconSprite names={['brand-github', 'rocket', 'users']} />
 	{
 		data.people.length === 0 ? (
 			<p class="text-muted">Todavía no hay créditos. La primera idea abre la lista.</p>
@@ -73,7 +76,7 @@ function detail(person: CreditPerson) {
 									class="inline-flex min-w-0 items-baseline gap-2 hover:text-accent hover:underline"
 								>
 									<span class="truncate">@{person.login}</span>
-									<Icon name="brand-github" class="size-3.5 shrink-0 self-center text-muted" />
+									<IconUse name="brand-github" class="size-3.5 shrink-0 self-center text-muted" />
 								</a>
 								{person.me && <span class="font-pixel text-xs text-accent">TÚ</span>}
 							</span>
@@ -82,7 +85,7 @@ function detail(person: CreditPerson) {
 
 							{person.shipped > 0 && (
 								<span class="inline-flex items-center gap-2 text-sm text-ok">
-									<Icon name="rocket" class="size-4 shrink-0" />
+									<IconUse name="rocket" class="size-4 shrink-0" />
 									{person.shipped} {person.shipped === 1 ? 'versión suya' : 'versiones suyas'}
 								</span>
 							)}
@@ -125,7 +128,7 @@ function detail(person: CreditPerson) {
 
 								{version.people.length > 0 ? (
 									<p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-pretty">
-										<Icon name="users" class="size-4 shrink-0 text-accent" />
+										<IconUse name="users" class="size-4 shrink-0 text-accent" />
 										idea de
 										{version.people.map((login, index) => (
 											<span class="whitespace-nowrap">

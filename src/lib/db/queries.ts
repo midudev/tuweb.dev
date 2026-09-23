@@ -1,4 +1,5 @@
 import { WINDOW_MS } from '../window';
+import { memo } from '../memo';
 import { all, get, nowIso, run } from './client';
 import { FEATURE_COLUMNS, type Feature, type Release } from './schema';
 import { getLastRelease } from '../releases';
@@ -63,8 +64,10 @@ export function getHomeData(userId?: number) {
 	);
 	const totalOf = (status: string) => counts.find((row) => row.status === status)?.total ?? 0;
 
-	const shipped = all<Feature>(
-		`SELECT ${FEATURE_COLUMNS} FROM features WHERE status = 'shipped' ORDER BY id DESC`,
+	// Solo hacen falta cuántas hay y la última: no traer las 140 enteras.
+	const version = get<{ n: number }>("SELECT count(*) AS n FROM features WHERE status = 'shipped'")?.n ?? 0;
+	const lastShipped = get<Feature>(
+		`SELECT ${FEATURE_COLUMNS} FROM features WHERE status = 'shipped' ORDER BY id DESC LIMIT 1`,
 	);
 	const next = get<Feature>(
 		`SELECT ${FEATURE_COLUMNS} FROM features WHERE status = 'selected' ORDER BY id DESC LIMIT 1`,
@@ -74,8 +77,8 @@ export function getHomeData(userId?: number) {
 		window,
 		ideaCount: totalOf('pending'),
 		discardedCount: totalOf('discarded'),
-		version: shipped.length,
-		lastShipped: shipped[0] ?? null,
+		version,
+		lastShipped,
 		next,
 		myPrompt: userId ? getMyPromptInWindow(userId) : null,
 		lastRelease: getLastRelease() as Release | null,
@@ -115,7 +118,7 @@ export interface CyclePoint {
 }
 
 /** Los números del dashboard: totales de siempre y las últimas ventanas. */
-export function getDashboardData() {
+function computeDashboardData() {
 	const totals = get<{ prompts: number; people: number }>(
 		'SELECT count(*) AS prompts, count(DISTINCT user_id) AS people FROM prompts',
 	);
@@ -203,7 +206,7 @@ export function applyReview(id: number, verdict: { keep: boolean; reason?: strin
 	);
 }
 
-export function getChangelogData() {
+function computeChangelogData() {
 	const shipped = all<Feature>(
 		`SELECT ${FEATURE_COLUMNS} FROM features WHERE status = 'shipped' ORDER BY id ASC`,
 	);
@@ -232,3 +235,13 @@ export function getChangelogData() {
 }
 
 export { run };
+
+/** getChangelogData, recordado unos segundos (ver memo.ts). */
+export function getChangelogData() {
+	return memo('changelog', () => computeChangelogData());
+}
+
+/** getDashboardData, recordado unos segundos (ver memo.ts). */
+export function getDashboardData() {
+	return memo('dashboard', () => computeDashboardData());
+}
