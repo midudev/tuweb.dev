@@ -1,0 +1,217 @@
+---
+/**
+ * Generador de ASCII art: lo que escribes sale en letras grandes, en el estilo
+ * que elijas, al momento. Se copia o se baja como .txt. Se hace aquí, en el
+ * navegador: no se envía ni se guarda nada.
+ */
+import { MAX_CHARS, STYLES } from '../lib/ascii';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<div
+	role="tabpanel"
+	id="ascii"
+	aria-labelledby="tab-ascii"
+	data-panel="ascii"
+	hidden
+	class="flex flex-col gap-5"
+>
+	<label class="flex flex-col gap-2">
+		<span class="flex items-center justify-between gap-3 text-sm text-muted">
+			<span>Texto (una línea por bloque)</span>
+			<span data-ascii-cuenta class="text-mark"></span>
+		</span>
+		<textarea
+			data-ascii-texto
+			rows="2"
+			maxlength={MAX_CHARS}
+			spellcheck="false"
+			autocomplete="off"
+			placeholder="Escribe algo corto"
+			class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+		>tuweb</textarea>
+	</label>
+
+	<div class="flex flex-col gap-3">
+		<h3 id="ascii-estilo" class="text-sm text-muted">Estilo</h3>
+		<div role="group" aria-labelledby="ascii-estilo" class="flex flex-wrap gap-2">
+			{
+				STYLES.map((style, index) => (
+					<button
+						type="button"
+						data-ascii-estilo={style.id}
+						aria-pressed={index === 0 ? 'true' : 'false'}
+						class={OPCION}
+					>
+						{style.label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-2">
+		<span class="flex items-center justify-between gap-3 text-sm text-muted">
+			<span>Vista previa</span>
+			<span data-ascii-ancho class="text-mark"></span>
+		</span>
+		<pre
+			data-ascii-salida
+			aria-live="polite"
+			class="min-h-32 overflow-x-auto border border-line bg-panel p-4 font-mono text-sm leading-none whitespace-pre text-accent"></pre>
+	</div>
+
+	<p data-ascii-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-wrap items-center gap-3">
+		<button type="button" data-ascii-copia class={BOTON}>
+			<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-ascii-copia-texto aria-live="polite">Copiar</span>
+		</button>
+		<button type="button" data-ascii-baja class={BOTON}>
+			<Icon name="download" class="size-4 shrink-0" />
+			Descargar .txt
+		</button>
+		<button type="button" data-ascii-limpiar class={BOTON}>
+			<Icon name="eraser" class="size-4 shrink-0" />
+			Limpiar
+		</button>
+	</div>
+
+	<p class="text-sm text-muted">
+		Pega el resultado en un README, un comentario o una terminal: pide letra de ancho fijo para que
+		no se descuadre.
+	</p>
+</div>
+
+<style>
+	[data-ascii-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-ascii-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-ascii-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-ascii-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import { MAX_CHARS, STYLES, type Style, missing, toAscii } from '../lib/ascii';
+
+	const texto = document.querySelector<HTMLTextAreaElement>('[data-ascii-texto]');
+	const salida = document.querySelector<HTMLElement>('[data-ascii-salida]');
+	const aviso = document.querySelector<HTMLElement>('[data-ascii-aviso]');
+	const cuenta = document.querySelector<HTMLElement>('[data-ascii-cuenta]');
+	const ancho = document.querySelector<HTMLElement>('[data-ascii-ancho]');
+	const estilos = document.querySelectorAll<HTMLButtonElement>('[data-ascii-estilo]');
+	const copia = document.querySelector<HTMLButtonElement>('[data-ascii-copia]');
+	const copiaTexto = copia?.querySelector('[data-ascii-copia-texto]');
+
+	if (texto && salida) {
+		let estilo: Style = STYLES[0].id;
+		let resultado = '';
+
+		function pintar() {
+			resultado = toAscii(texto!.value, estilo);
+			salida!.textContent = resultado;
+
+			const letras = [...texto!.value].length;
+			if (cuenta) cuenta.textContent = `${letras}/${MAX_CHARS}`;
+
+			const columnas = Math.max(0, ...resultado.split('\n').map((fila) => [...fila].length));
+			if (ancho) ancho.textContent = resultado ? `${columnas} columnas` : '';
+
+			const fuera = missing(texto!.value);
+			const avisos: string[] = [];
+			if (fuera.length) avisos.push(`Sin dibujo, salen como «?»: ${fuera.join(' ')}`);
+			if (columnas > 80) avisos.push('Pasa de 80 columnas: en una terminal se partirá. Prueba a cortar la línea.');
+			if (aviso) aviso.textContent = avisos.join(' ');
+		}
+
+		estilos.forEach((boton) => {
+			boton.addEventListener('click', () => {
+				estilo = (boton.dataset.asciiEstilo as Style) ?? estilo;
+				estilos.forEach((otro) => otro.setAttribute('aria-pressed', String(otro === boton)));
+				pintar();
+			});
+		});
+
+		texto.addEventListener('input', pintar);
+
+		document.querySelector<HTMLButtonElement>('[data-ascii-limpiar]')?.addEventListener('click', () => {
+			texto.value = '';
+			pintar();
+			texto.focus();
+		});
+
+		async function copiar(valor: string) {
+			try {
+				await navigator.clipboard.writeText(valor);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const campo = document.createElement('textarea');
+					campo.value = valor;
+					campo.readOnly = true;
+					campo.style.position = 'fixed';
+					campo.style.opacity = '0';
+					document.body.append(campo);
+					campo.select();
+					const hecho = document.execCommand('copy');
+					campo.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		let reloj: number | undefined;
+
+		copia?.addEventListener('click', async () => {
+			if (!resultado) return;
+			const hecho = await copiar(resultado);
+			copia.dataset.state = hecho ? 'done' : 'error';
+			if (copiaTexto) copiaTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				copia.removeAttribute('data-state');
+				if (copiaTexto) copiaTexto.textContent = 'Copiar';
+			}, 2000);
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-ascii-baja]')?.addEventListener('click', () => {
+			if (!resultado) return;
+			// El nombre sale del propio texto: «hola mundo» baja como hola-mundo.txt.
+			const base = texto.value
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/[̀-ͯ]/g, '')
+				.replace(/[^a-z0-9]+/g, '-')
+				.replace(/^-+|-+$/g, '')
+				.slice(0, 40);
+			const url = URL.createObjectURL(new Blob([`${resultado}\n`], { type: 'text/plain;charset=utf-8' }));
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `${base || 'ascii'}.txt`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		});
+
+		// El ejemplo del markup sale ya pintado: se ve de qué va sin tocar nada.
+		pintar();
+	}
+</script>

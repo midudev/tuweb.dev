@@ -1,4 +1,5 @@
 ---
+import AsciiTool from './AsciiTool.astro';
 import Base64Tool from './Base64Tool.astro';
 import ChartTool from './ChartTool.astro';
 import ColorTool from './ColorTool.astro';
@@ -22,6 +23,7 @@ const tools = [
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'graficos', label: 'Gráficos', icon: 'chart-bar' },
 	{ id: 'diagramas', label: 'Diagramas', icon: 'sitemap' },
+	{ id: 'ascii', label: 'ASCII art', icon: 'typography' },
 	{ id: 'tema', label: 'Tema', icon: 'brush' },
 	{ id: 'config', label: 'Config', icon: 'adjustments' },
 ];
@@ -162,6 +164,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ChartTool />
 
 	<FlowTool />
+
+	<AsciiTool />
 
 	<ThemeTool />
 
