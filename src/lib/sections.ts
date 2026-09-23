@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -113,6 +113,15 @@ export const SECTIONS: Section[] = [
 		card: 'Tu imagen o una plantilla, un texto arriba, otro abajo y a descargar.',
 		intro:
 			'Pon tu imagen —súbela, arrástrala o pégala con Ctrl+V— o parte de una de las plantillas de la casa, escribe el texto de arriba y el de abajo y ajusta la fuente, el cuerpo, los colores y el contorno. Cuando esté, te lo llevas en PNG o JPEG o lo copias al portapapeles. Se pinta todo en tu navegador: la imagen no se sube a ninguna parte y no se guarda nada.',
+	},
+	{
+		href: '/comics',
+		title: 'Creador de cómics',
+		icon: 'bubble-text',
+		group: 'herramientas',
+		card: 'Una tira cómica sin dibujar: viñetas, fondos, personajes y bocadillos.',
+		intro:
+			'Monta una tira sin saber dibujar. Elige cuántas viñetas, y en cada una el fondo, quién sale a cada lado —dev, jefa, robot, gata o fantasma— y qué dice: hablando, pensando o a gritos. Ponle un rótulo y un título, y te la llevas en PNG o la copias al portapapeles. Se pinta en tu navegador y lo que llevas se queda en él para seguir otro día.',
 	},
 	{
 		href: '/comparador',

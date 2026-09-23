@@ -1,0 +1,402 @@
+---
+/**
+ * El creador de cómics. Eliges cuántas viñetas, y en cada una el fondo, quién
+ * sale a cada lado y qué dice. Nadie dibuja: los personajes y los fondos están
+ * hechos en el código, en src/lib/comic.ts. Aquí solo están los mandos.
+ *
+ * Todo pasa en tu navegador: la tira se pinta en un <canvas>, de ahí sale el
+ * PNG, y lo que llevas se guarda en este navegador para seguir otro día.
+ */
+import {
+	BACKGROUNDS,
+	BUBBLES,
+	CHARACTERS,
+	LAYOUTS,
+	MAX_PANELS,
+	MAX_TEXT,
+	MAX_TITLE,
+	characterSvg,
+} from '../lib/comic';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const CAMPO =
+	'w-full border border-line bg-bg p-2 text-sm outline-none focus-visible:border-accent';
+
+const LADOS = [
+	{ id: 0, label: 'Izquierda' },
+	{ id: 1, label: 'Derecha' },
+];
+---
+
+<section id="comics" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex flex-col gap-4">
+		<div class="flex justify-center border border-line bg-panel p-4">
+			<canvas
+				data-comic-lienzo
+				role="img"
+				aria-label="Vista previa de la tira"
+				class="block h-auto max-h-[70vh] w-auto max-w-full border border-line"></canvas>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-comic-descarga class={`${BOTON} border-accent text-accent`}>
+				<Icon name="download" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+			<button type="button" data-comic-copia class={BOTON}>
+				<Icon name="clipboard" class="size-4 shrink-0" />
+				Copiar imagen
+			</button>
+			<button type="button" data-comic-limpiar class={BOTON}>
+				<Icon name="refresh" class="size-4 shrink-0" />
+				Volver al ejemplo
+			</button>
+		</div>
+
+		<p data-comic-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Título (opcional)</span>
+			<input
+				type="text"
+				data-comic-titulo
+				maxlength={MAX_TITLE}
+				autocomplete="off"
+				spellcheck="false"
+				class={CAMPO}
+			/>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span id="comic-vinetas" class="text-sm text-muted">Viñetas</span>
+			<div role="group" aria-labelledby="comic-vinetas" class="flex flex-wrap">
+				{
+					LAYOUTS.map((layout, index) => (
+						<button
+							type="button"
+							data-comic-vinetas={layout.n}
+							aria-pressed="false"
+							class={`${BOTON} ${index ? '-ml-px' : ''}`}
+						>
+							{layout.n}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-4 border-t border-line pt-4">
+			<div class="flex flex-col gap-2">
+				<span id="comic-editando" class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="layout-grid" class="size-4 shrink-0 text-accent" />
+					Editando la viñeta
+				</span>
+				<div role="group" aria-labelledby="comic-editando" class="flex flex-wrap">
+					{
+						Array.from({ length: MAX_PANELS }, (_, i) => (
+							<button
+								type="button"
+								data-comic-panel={i}
+								aria-pressed="false"
+								class={`${BOTON} ${i ? '-ml-px' : ''}`}
+							>
+								{i + 1}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span id="comic-fondo" class="text-sm text-muted">Fondo</span>
+				<div role="group" aria-labelledby="comic-fondo" class="flex flex-wrap gap-2">
+					{
+						BACKGROUNDS.map((fondo) => (
+							<button type="button" data-comic-fondo={fondo.id} aria-pressed="false" class={BOTON}>
+								<Icon name={fondo.icon} class="size-4 shrink-0" />
+								{fondo.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Rótulo (opcional)</span>
+				<input
+					type="text"
+					data-comic-rotulo
+					maxlength={MAX_TEXT}
+					placeholder="Mientras tanto..."
+					autocomplete="off"
+					class={CAMPO}
+				/>
+			</label>
+
+			{
+				LADOS.map((lado) => (
+					<fieldset data-comic-lado={lado.id} class="flex flex-col gap-3 border border-line p-3">
+						<legend class="px-1 text-sm text-mark">{lado.label}</legend>
+
+						<div role="group" aria-label={`Personaje de la ${lado.label.toLowerCase()}`} class="flex flex-wrap gap-2">
+							<button type="button" data-comic-personaje="" aria-pressed="false" class={BOTON}>
+								<Icon name="user-off" class="size-4 shrink-0" />
+								Nadie
+							</button>
+							{CHARACTERS.map((personaje) => (
+								<button
+									type="button"
+									data-comic-personaje={personaje.id}
+									aria-pressed="false"
+									title={personaje.label}
+									class={`${BOTON} py-1`}
+								>
+									<Fragment set:html={characterSvg(personaje)} />
+									{personaje.label}
+								</button>
+							))}
+						</div>
+
+						<label class="flex flex-col gap-2">
+							<span class="text-sm text-muted">Bocadillo</span>
+							<textarea
+								data-comic-texto
+								rows="2"
+								maxlength={MAX_TEXT}
+								autocomplete="off"
+								class={`${CAMPO} resize-y`}
+							></textarea>
+						</label>
+
+						<div class="flex flex-wrap items-center gap-2">
+							{BUBBLES.map((bocadillo) => (
+								<button type="button" data-comic-tipo={bocadillo.id} aria-pressed="false" class={BOTON}>
+									<Icon name={bocadillo.icon} class="size-4 shrink-0" />
+									{bocadillo.label}
+								</button>
+							))}
+							<label class="inline-flex items-center gap-2 text-sm text-muted">
+								<input type="checkbox" data-comic-girar class="size-4 accent-accent" />
+								Girar
+							</label>
+						</div>
+					</fieldset>
+				))
+			}
+		</div>
+	</div>
+</section>
+
+<script>
+	import { FONT_SPECS, type Comic, type Slot, cleanComic, comicSize, defaultComic, drawComic } from '../lib/comic';
+
+	const CLAVE = 'tuweb:comic';
+
+	const lienzo = document.querySelector<HTMLCanvasElement>('[data-comic-lienzo]');
+	const ctx = lienzo?.getContext('2d') ?? null;
+	const nota = document.querySelector<HTMLElement>('[data-comic-nota]');
+	const titulo = document.querySelector<HTMLInputElement>('[data-comic-titulo]');
+	const rotulo = document.querySelector<HTMLInputElement>('[data-comic-rotulo]');
+	const lados = document.querySelectorAll<HTMLFieldSetElement>('[data-comic-lado]');
+
+	function leer(): Comic {
+		try {
+			const guardado = localStorage.getItem(CLAVE);
+			if (guardado) return cleanComic(JSON.parse(guardado));
+		} catch {
+			// Modo privado o un JSON roto: se empieza por el ejemplo.
+		}
+		return defaultComic();
+	}
+
+	let comic = leer();
+	/** La viñeta que se está editando. */
+	let actual = 0;
+
+	function avisar(texto: string) {
+		if (nota) nota.textContent = texto;
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(comic));
+		} catch {
+			// Sin sitio: la tira sigue funcionando, solo que no se recuerda.
+		}
+	}
+
+	function pintar() {
+		if (!lienzo || !ctx) return;
+		const { width, height } = comicSize(comic);
+		lienzo.width = width;
+		lienzo.height = height;
+		drawComic(ctx, comic);
+	}
+
+	function pulsado(selector: string, activo: (button: HTMLButtonElement) => boolean, raiz: ParentNode = document) {
+		raiz.querySelectorAll<HTMLButtonElement>(selector).forEach((button) => {
+			button.setAttribute('aria-pressed', String(activo(button)));
+		});
+	}
+
+	/** Pone los mandos como está la tira. Los campos de texto solo se tocan al cambiar de viñeta. */
+	function reflejar(campos: boolean) {
+		const panel = comic.paneles[actual];
+
+		pulsado('[data-comic-vinetas]', (b) => Number(b.dataset.comicVinetas) === comic.vinetas);
+		document.querySelectorAll<HTMLButtonElement>('[data-comic-panel]').forEach((button) => {
+			const i = Number(button.dataset.comicPanel);
+			button.hidden = i >= comic.vinetas;
+			button.setAttribute('aria-pressed', String(i === actual));
+		});
+		pulsado('[data-comic-fondo]', (b) => b.dataset.comicFondo === panel.fondo);
+
+		lados.forEach((fieldset) => {
+			const slot = panel.slots[Number(fieldset.dataset.comicLado)];
+			pulsado('[data-comic-personaje]', (b) => b.dataset.comicPersonaje === slot.personaje, fieldset);
+			pulsado('[data-comic-tipo]', (b) => b.dataset.comicTipo === slot.tipo, fieldset);
+			const girar = fieldset.querySelector<HTMLInputElement>('[data-comic-girar]');
+			if (girar) girar.checked = slot.girar;
+			if (campos) {
+				const texto = fieldset.querySelector<HTMLTextAreaElement>('[data-comic-texto]');
+				if (texto) texto.value = slot.texto;
+			}
+		});
+
+		if (campos) {
+			if (titulo) titulo.value = comic.titulo;
+			if (rotulo) rotulo.value = panel.rotulo;
+		}
+	}
+
+	function render(campos = false) {
+		reflejar(campos);
+		pintar();
+	}
+
+	function cambiar(hacer: () => void) {
+		hacer();
+		guardar();
+		render();
+	}
+
+	function cambiarSlot(lado: number, patch: Partial<Slot>) {
+		cambiar(() => {
+			const panel = comic.paneles[actual];
+			panel.slots[lado] = { ...panel.slots[lado], ...patch };
+		});
+	}
+
+	titulo?.addEventListener('input', () => cambiar(() => (comic.titulo = titulo.value)));
+	rotulo?.addEventListener('input', () => cambiar(() => (comic.paneles[actual].rotulo = rotulo.value)));
+
+	document.querySelectorAll<HTMLButtonElement>('[data-comic-vinetas]').forEach((button) => {
+		button.addEventListener('click', () => {
+			comic.vinetas = Number(button.dataset.comicVinetas);
+			if (actual >= comic.vinetas) actual = comic.vinetas - 1;
+			guardar();
+			render(true);
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-comic-panel]').forEach((button) => {
+		button.addEventListener('click', () => {
+			actual = Number(button.dataset.comicPanel);
+			render(true);
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-comic-fondo]').forEach((button) => {
+		button.addEventListener('click', () =>
+			cambiar(() => (comic.paneles[actual].fondo = button.dataset.comicFondo ?? 'liso')),
+		);
+	});
+
+	lados.forEach((fieldset) => {
+		const lado = Number(fieldset.dataset.comicLado);
+
+		fieldset.querySelectorAll<HTMLButtonElement>('[data-comic-personaje]').forEach((button) => {
+			button.addEventListener('click', () => cambiarSlot(lado, { personaje: button.dataset.comicPersonaje ?? '' }));
+		});
+
+		fieldset.querySelectorAll<HTMLButtonElement>('[data-comic-tipo]').forEach((button) => {
+			button.addEventListener('click', () => {
+				const tipo = button.dataset.comicTipo;
+				if (tipo === 'habla' || tipo === 'piensa' || tipo === 'grita') cambiarSlot(lado, { tipo });
+			});
+		});
+
+		const texto = fieldset.querySelector<HTMLTextAreaElement>('[data-comic-texto]');
+		texto?.addEventListener('input', () => cambiarSlot(lado, { texto: texto.value }));
+
+		const girar = fieldset.querySelector<HTMLInputElement>('[data-comic-girar]');
+		girar?.addEventListener('change', () => cambiarSlot(lado, { girar: girar.checked }));
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-comic-limpiar]')?.addEventListener('click', () => {
+		comic = defaultComic();
+		actual = 0;
+		guardar();
+		avisar('');
+		render(true);
+	});
+
+	/** La imagen se arma en el momento desde el lienzo; no pasa por ningún sitio. */
+	function conImagen(hacer: (blob: Blob) => void) {
+		lienzo?.toBlob((blob) => {
+			if (!blob) {
+				avisar('No se pudo generar la imagen.');
+				return;
+			}
+			hacer(blob);
+		}, 'image/png');
+	}
+
+	function nombre() {
+		const base = comic.titulo
+			.trim()
+			.toLowerCase()
+			.replace(/[^\p{L}\d]+/gu, '-')
+			.replace(/^-+|-+$/g, '');
+		return `${base || 'comic'}.png`;
+	}
+
+	document.querySelector<HTMLButtonElement>('[data-comic-descarga]')?.addEventListener('click', () => {
+		conImagen((blob) => {
+			const salida = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = salida;
+			enlace.download = nombre();
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(salida), 1000);
+		});
+	});
+
+	document.querySelector<HTMLButtonElement>('[data-comic-copia]')?.addEventListener('click', () => {
+		if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+			avisar('Tu navegador no copia imágenes: descárgala y listo.');
+			return;
+		}
+		conImagen(async (blob) => {
+			try {
+				await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+				avisar('Copiada al portapapeles.');
+			} catch {
+				avisar('No se pudo copiar. Descárgala y listo.');
+			}
+		});
+	});
+
+	render(true);
+
+	// Las fuentes son nuestras y el canvas no las espera solo: se repinta cuando llegan.
+	Promise.all(FONT_SPECS.map((spec) => document.fonts.load(spec)))
+		.catch(() => undefined)
+		.then(() => pintar());
+</script>

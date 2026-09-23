@@ -140,7 +140,7 @@ function chunks(ctx: CanvasRenderingContext2D, word: string, maxWidth: number) {
  * Reparte el texto en líneas que quepan. Los saltos que escribe la gente mandan;
  * dentro de cada uno se corta por palabras.
  */
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+export function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
 	const lines: string[] = [];
 
 	for (const paragraph of text.split('\n')) {
