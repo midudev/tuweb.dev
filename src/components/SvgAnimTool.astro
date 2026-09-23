@@ -1,0 +1,705 @@
+---
+/**
+ * Animaciones SVG: una figura que se mueve, gira, crece o cambia de color, con
+ * su duración, su retraso, sus repeticiones y su curva. La vista previa es el
+ * mismo SVG que te bajas: un <style> con @keyframes dentro, sin JavaScript, así
+ * que el fichero se anima solo donde lo abras. Todo pasa en el navegador y lo
+ * único que se guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50';
+const NUMERO =
+	'w-20 border border-line bg-panel px-2 py-1 text-right text-sm text-fg outline-none focus-visible:border-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const FORMAS = [
+	{ id: 'cuadrado', label: 'Cuadrado', icon: 'square' },
+	{ id: 'circulo', label: 'Círculo', icon: 'circle' },
+	{ id: 'triangulo', label: 'Triángulo', icon: 'triangle' },
+	{ id: 'estrella', label: 'Estrella', icon: 'star' },
+];
+
+const MEDIDAS = [
+	{ id: 'duracion', grupo: 'tiempo', label: 'Duración', min: 100, max: 10000, step: 50, unidad: 'ms' },
+	{ id: 'retraso', grupo: 'tiempo', label: 'Retraso', min: 0, max: 5000, step: 50, unidad: 'ms' },
+	{ id: 'dx', grupo: 'mover', label: 'Horizontal', min: -60, max: 60, step: 1, unidad: 'px' },
+	{ id: 'dy', grupo: 'mover', label: 'Vertical', min: -60, max: 60, step: 1, unidad: 'px' },
+	{ id: 'giro', grupo: 'girar', label: 'Giro', min: -720, max: 720, step: 1, unidad: 'deg' },
+	{ id: 'escala', grupo: 'escalar', label: 'Escala final', min: 10, max: 200, step: 1, unidad: '%' },
+];
+
+const EFECTOS = [
+	{ id: 'mover', label: 'Mover', icon: 'arrows-move' },
+	{ id: 'girar', label: 'Girar', icon: 'rotate-clockwise' },
+	{ id: 'escalar', label: 'Escalar', icon: 'arrows-maximize' },
+	{ id: 'color', label: 'Cambiar color', icon: 'color-swatch' },
+];
+
+const CURVAS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out', 'suave', 'rebote', 'retroceso', 'brusca'];
+---
+
+<div
+	role="tabpanel"
+	id="animaciones-svg"
+	aria-labelledby="tab-animaciones-svg"
+	data-panel="animaciones-svg"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span id="sa-forma" class="text-sm text-muted">Figura</span>
+				<div role="group" aria-labelledby="sa-forma" class="flex flex-wrap gap-2">
+					{
+						FORMAS.map((f) => (
+							<button type="button" data-sa-forma={f.id} aria-pressed="false" class={BOTON}>
+								<Icon name={f.icon} class="size-4 shrink-0" />
+								{f.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-4">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-sa-relleno aria-label="Color de la figura" class={COLOR} />
+					Figura
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-sa-fondo aria-label="Color del fondo" class={COLOR} />
+					Fondo
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-sa-transparente class="size-4 accent-accent" />
+					Sin fondo
+				</label>
+			</div>
+
+			{
+				MEDIDAS.filter((m) => m.grupo === 'tiempo').map((m) => (
+					<div class="flex flex-col gap-2">
+						<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`sa-${m.id}`}>
+							{m.label}
+							<span class="inline-flex items-center gap-1">
+								<input
+									type="number"
+									min={m.min}
+									max={m.max}
+									step={m.step}
+									data-sa-num={m.id}
+									aria-label={`${m.label} en ${m.unidad}`}
+									class={NUMERO}
+								/>
+								<span class="w-7">{m.unidad}</span>
+							</span>
+						</label>
+						<input
+							id={`sa-${m.id}`}
+							type="range"
+							min={m.min}
+							max={m.max}
+							step={m.step}
+							data-sa-rango={m.id}
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+
+			<div class="flex flex-col gap-2">
+				<span class="flex items-center justify-between gap-3 text-sm text-muted">
+					<label for="sa-veces">Repeticiones</label>
+					<output data-sa-veces-texto class="text-mark"></output>
+				</span>
+				<input id="sa-veces" type="range" min="1" max="10" step="1" data-sa-veces class="w-full accent-accent disabled:opacity-50" />
+				<div class="flex flex-wrap gap-4 pt-1">
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						<input type="checkbox" data-sa-sinfin class="size-4 accent-accent" />
+						Sin fin
+					</label>
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						<input type="checkbox" data-sa-vuelta class="size-4 accent-accent" />
+						Ida y vuelta
+					</label>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span id="sa-curva" class="text-sm text-muted">Easing</span>
+				<div role="group" aria-labelledby="sa-curva" class="flex flex-wrap gap-2">
+					{
+						CURVAS.map((curva) => (
+							<button
+								type="button"
+								data-sa-curva={curva}
+								aria-pressed="false"
+								class="border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent"
+							>
+								{curva}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<span class="text-sm text-muted">Qué hace la figura</span>
+
+			{
+				EFECTOS.map((e) => (
+					<fieldset data-sa-grupo={e.id} class="flex flex-col gap-3 border border-line p-3">
+						<legend class="px-1">
+							<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-fg">
+								<input type="checkbox" data-sa-efecto={e.id} class="size-4 accent-accent" />
+								<Icon name={e.icon} class="size-4 shrink-0 text-accent" />
+								{e.label}
+							</label>
+						</legend>
+						<div data-sa-cuerpo class="flex flex-col gap-3">
+							{e.id === 'color' ? (
+								<label class="inline-flex items-center gap-2 text-sm text-muted">
+									<input type="color" data-sa-final aria-label="Color final" class={COLOR} />
+									Color final
+								</label>
+							) : (
+								MEDIDAS.filter((m) => m.grupo === e.id).map((m) => (
+									<div class="flex flex-col gap-2">
+										<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`sa-${m.id}`}>
+											{m.label}
+											<span class="inline-flex items-center gap-1">
+												<input
+													type="number"
+													min={m.min}
+													max={m.max}
+													step={m.step}
+													data-sa-num={m.id}
+													aria-label={`${m.label} en ${m.unidad}`}
+													class={NUMERO}
+												/>
+												<span class="w-7">{m.unidad}</span>
+											</span>
+										</label>
+										<input
+											id={`sa-${m.id}`}
+											type="range"
+											min={m.min}
+											max={m.max}
+											step={m.step}
+											data-sa-rango={m.id}
+											class="w-full accent-accent"
+										/>
+									</div>
+								))
+							)}
+						</div>
+					</fieldset>
+				))
+			}
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Vista previa</span>
+				<div
+					data-sa-vista
+					role="img"
+					aria-label="Vista previa de la animación SVG"
+					class="mx-auto aspect-square w-full max-w-md border border-line bg-panel"
+				>
+				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-sa-play class={BOTON}>
+					<span data-sa-play-icono="play" hidden><Icon name="player-play" class="size-4 shrink-0" /></span>
+					<span data-sa-play-icono="pause"><Icon name="player-pause" class="size-4 shrink-0" /></span>
+					<span data-sa-play-texto>Pausar</span>
+				</button>
+				<button type="button" data-sa-otra class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Otra vez
+				</button>
+				<span data-sa-estado class="text-sm text-muted" aria-live="polite"></span>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="svg" class="size-4 shrink-0 text-accent" />
+					El SVG
+				</span>
+				<pre data-sa-codigo class="max-h-96 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-sa-bajar class={`${BOTON} border-accent text-accent`}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar SVG
+				</button>
+				<button type="button" data-sa-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-sa-copiar-texto aria-live="polite">Copiar SVG</span>
+				</button>
+				<button type="button" data-sa-reset class={BOTON}>
+					<Icon name="eraser" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+
+			<p class="text-xs text-muted">
+				El fichero lleva la animación en CSS, sin scripts, y se para solo para quien pide menos movimiento.
+			</p>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-panel='animaciones-svg'] input[type='color']::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='animaciones-svg'] input[type='color']::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='animaciones-svg'] input[type='color']::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El SVG se pinta desde el script, así que la regla tiene que ser global. */
+	[data-sa-vista] :global(svg) {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+	/* Efecto sin marcar: sus controles se quedan ahí, pero apagados. */
+	[data-sa-grupo]:disabled [data-sa-cuerpo] {
+		opacity: 0.4;
+	}
+	[data-sa-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-sa-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-sa-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-sa-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-sa-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Forma = 'cuadrado' | 'circulo' | 'triangulo' | 'estrella';
+	type Efecto = 'mover' | 'girar' | 'escalar' | 'color';
+	type Medida = 'duracion' | 'retraso' | 'dx' | 'dy' | 'giro' | 'escala' | 'veces';
+	type Estado = Record<Medida, number> & {
+		forma: Forma;
+		efectos: Record<Efecto, boolean>;
+		relleno: string;
+		final: string;
+		fondo: string;
+		transparente: boolean;
+		sinFin: boolean;
+		vuelta: boolean;
+		curva: string;
+	};
+
+	const CLAVE = 'tuweb:animaciones-svg';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const FORMAS: Forma[] = ['cuadrado', 'circulo', 'triangulo', 'estrella'];
+	const EFECTOS: Efecto[] = ['mover', 'girar', 'escalar', 'color'];
+	const RANGOS: Record<Medida, [number, number]> = {
+		duracion: [100, 10000],
+		retraso: [0, 5000],
+		dx: [-60, 60],
+		dy: [-60, 60],
+		giro: [-720, 720],
+		escala: [10, 200],
+		veces: [1, 10],
+	};
+	const MEDIDAS = Object.keys(RANGOS) as Medida[];
+
+	// Las cinco con nombre en CSS salen con su palabra; el resto, con sus números.
+	const CURVAS: Record<string, string> = {
+		linear: 'linear',
+		ease: 'ease',
+		'ease-in': 'ease-in',
+		'ease-out': 'ease-out',
+		'ease-in-out': 'ease-in-out',
+		suave: 'cubic-bezier(0.25, 1, 0.5, 1)',
+		rebote: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+		retroceso: 'cubic-bezier(0.36, 0, 0.66, -0.56)',
+		brusca: 'cubic-bezier(0.87, 0, 0.13, 1)',
+	};
+
+	const INICIAL: Estado = {
+		forma: 'cuadrado',
+		efectos: { mover: false, girar: true, escalar: true, color: true },
+		duracion: 1200,
+		retraso: 0,
+		dx: 40,
+		dy: 0,
+		giro: 180,
+		escala: 150,
+		veces: 3,
+		relleno: '#c2410c',
+		final: '#3b2d24',
+		fondo: '#fdf6ef',
+		transparente: false,
+		sinFin: true,
+		vuelta: true,
+		curva: 'ease-in-out',
+	};
+
+	// Todas las figuras miden unos 64 de lado y van en el centro de un lienzo de
+	// 200: así caben movidas y al doble sin salirse demasiado.
+	function estrella() {
+		const puntos: string[] = [];
+		for (let i = 0; i < 10; i++) {
+			const radio = i % 2 === 0 ? 36 : 15;
+			const angulo = (Math.PI / 5) * i - Math.PI / 2;
+			puntos.push(`${(100 + radio * Math.cos(angulo)).toFixed(1)},${(104 + radio * Math.sin(angulo)).toFixed(1)}`);
+		}
+		return puntos.join(' ');
+	}
+
+	const FIGURAS: Record<Forma, (atributos: string) => string> = {
+		cuadrado: (a) => `<rect x="68" y="68" width="64" height="64"${a}/>`,
+		circulo: (a) => `<circle cx="100" cy="100" r="34"${a}/>`,
+		triangulo: (a) => `<polygon points="100,64 137,128 63,128"${a}/>`,
+		estrella: (a) => `<polygon points="${estrella()}"${a}/>`,
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="animaciones-svg"]');
+	const vista = panel?.querySelector<HTMLElement>('[data-sa-vista]');
+	const codigo = panel?.querySelector<HTMLElement>('[data-sa-codigo]');
+	const estadoTexto = panel?.querySelector<HTMLElement>('[data-sa-estado]');
+	const playTexto = panel?.querySelector<HTMLElement>('[data-sa-play-texto]');
+	const relleno = panel?.querySelector<HTMLInputElement>('[data-sa-relleno]');
+	const final = panel?.querySelector<HTMLInputElement>('[data-sa-final]');
+	const fondo = panel?.querySelector<HTMLInputElement>('[data-sa-fondo]');
+	const transparente = panel?.querySelector<HTMLInputElement>('[data-sa-transparente]');
+	const veces = panel?.querySelector<HTMLInputElement>('[data-sa-veces]');
+	const vecesTexto = panel?.querySelector<HTMLElement>('[data-sa-veces-texto]');
+	const sinFin = panel?.querySelector<HTMLInputElement>('[data-sa-sinfin]');
+	const vuelta = panel?.querySelector<HTMLInputElement>('[data-sa-vuelta]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-sa-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-sa-copiar-texto]');
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const hexValido = (v: unknown, d: string) => (HEX.test(String(v)) ? String(v).toLowerCase() : d);
+	const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+	function cargar(): Estado {
+		const estado = structuredClone(INICIAL);
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			MEDIDAS.forEach((m) => {
+				estado[m] = limitar(num(guardado[m], INICIAL[m]), ...RANGOS[m]);
+			});
+			EFECTOS.forEach((e) => {
+				if (typeof guardado.efectos?.[e] === 'boolean') estado.efectos[e] = guardado.efectos[e];
+			});
+			if (FORMAS.includes(guardado.forma)) estado.forma = guardado.forma;
+			if (Object.hasOwn(CURVAS, String(guardado.curva))) estado.curva = String(guardado.curva);
+			estado.relleno = hexValido(guardado.relleno, INICIAL.relleno);
+			estado.final = hexValido(guardado.final, INICIAL.final);
+			estado.fondo = hexValido(guardado.fondo, INICIAL.fondo);
+			(['transparente', 'sinFin', 'vuelta'] as const).forEach((k) => {
+				if (typeof guardado[k] === 'boolean') estado[k] = guardado[k];
+			});
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+	let pausada = false;
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	function transformFinal() {
+		const partes: string[] = [];
+		if (estado.efectos.mover && (estado.dx !== 0 || estado.dy !== 0)) {
+			partes.push(`translate(${estado.dx}px, ${estado.dy}px)`);
+		}
+		if (estado.efectos.girar && estado.giro !== 0) partes.push(`rotate(${estado.giro}deg)`);
+		if (estado.efectos.escalar && estado.escala !== 100) partes.push(`scale(${estado.escala / 100})`);
+		return partes.join(' ');
+	}
+
+	function animacion(nombre: string) {
+		const partes = [nombre, `${estado.duracion}ms`, CURVAS[estado.curva] ?? 'ease'];
+		if (estado.retraso > 0) partes.push(`${estado.retraso}ms`);
+		partes.push(estado.sinFin ? 'infinite' : String(estado.veces));
+		if (estado.vuelta) partes.push('alternate');
+		partes.push('both');
+		return partes.join(' ');
+	}
+
+	/**
+	 * El SVG entero. La vista previa vive dentro de la página y su <style> se
+	 * aplica a todo el documento, por eso lleva un nombre que no choca con nada
+	 * y no se para con prefers-reduced-motion: eso ya lo decide el botón.
+	 */
+	function svg(nombre = 'animada', paraBajar = true) {
+		const t = transformFinal();
+		const desde: string[] = [];
+		const hasta: string[] = [];
+		if (t) {
+			desde.push('transform: none;');
+			hasta.push(`transform: ${t};`);
+		}
+		if (estado.efectos.color) {
+			desde.push(`fill: ${estado.relleno};`);
+			hasta.push(`fill: ${estado.final};`);
+		}
+
+		const estilo = [
+			`    .${nombre} {`,
+			'      transform-box: fill-box;',
+			'      transform-origin: center;',
+		];
+		if (hasta.length) {
+			estilo.push(
+				`      animation: ${animacion(nombre)};`,
+				'    }',
+				`    @keyframes ${nombre} {`,
+				`      from { ${desde.join(' ')} }`,
+				`      to { ${hasta.join(' ')} }`,
+				'    }',
+			);
+			if (paraBajar) {
+				estilo.push(
+					'    @media (prefers-reduced-motion: reduce) {',
+					`      .${nombre} { animation: none; }`,
+					'    }',
+				);
+			}
+		} else {
+			estilo.push('    }');
+		}
+
+		const lineas = [
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">',
+			'  <style>',
+			...estilo,
+			'  </style>',
+		];
+		if (!estado.transparente) lineas.push(`  <rect width="200" height="200" fill="${estado.fondo}"/>`);
+		lineas.push(`  ${FIGURAS[estado.forma](` class="${nombre}" fill="${estado.relleno}"`)}`, '</svg>');
+		return lineas.join('\n');
+	}
+
+	function figura() {
+		return vista?.querySelector<SVGElement>('.tw-sa-vista');
+	}
+
+	function pintarPlay() {
+		panel?.querySelectorAll<HTMLElement>('[data-sa-play-icono]').forEach((icono) => {
+			icono.hidden = (icono.dataset.saPlayIcono === 'play') !== pausada;
+		});
+		if (playTexto) playTexto.textContent = pausada ? 'Reproducir' : 'Pausar';
+	}
+
+	// Volver a pintar el SVG la arranca desde cero: así cada cambio se ve entero.
+	function lanzar() {
+		if (!vista) return;
+		// Todo lo que entra aquí está validado: números acotados, colores #rrggbb
+		// y nombres de listas cerradas. No hay texto libre del visitante.
+		vista.innerHTML = svg('tw-sa-vista', false);
+		const f = figura();
+		if (f) f.style.animationPlayState = pausada ? 'paused' : 'running';
+		const quieta = !transformFinal() && !estado.efectos.color;
+		if (estadoTexto) estadoTexto.textContent = quieta ? 'Marca algún efecto para que se mueva.' : '';
+		pintarPlay();
+	}
+
+	function pintarControles() {
+		MEDIDAS.forEach((m) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-sa-rango="${m}"]`);
+			const numero = panel?.querySelector<HTMLInputElement>(`[data-sa-num="${m}"]`);
+			if (rango) rango.value = String(estado[m]);
+			if (numero && document.activeElement !== numero) numero.value = String(estado[m]);
+		});
+		EFECTOS.forEach((e) => {
+			const casilla = panel?.querySelector<HTMLInputElement>(`[data-sa-efecto="${e}"]`);
+			const grupo = panel?.querySelector<HTMLFieldSetElement>(`[data-sa-grupo="${e}"]`);
+			if (casilla) casilla.checked = estado.efectos[e];
+			if (grupo) grupo.disabled = !estado.efectos[e];
+		});
+		panel?.querySelectorAll<HTMLButtonElement>('[data-sa-forma]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.saForma === estado.forma));
+		});
+		panel?.querySelectorAll<HTMLButtonElement>('[data-sa-curva]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.saCurva === estado.curva));
+		});
+		if (relleno) relleno.value = estado.relleno;
+		if (final) final.value = estado.final;
+		if (fondo) {
+			fondo.value = estado.fondo;
+			fondo.disabled = estado.transparente;
+		}
+		if (transparente) transparente.checked = estado.transparente;
+		if (veces) {
+			veces.value = String(estado.veces);
+			veces.disabled = estado.sinFin;
+		}
+		if (vecesTexto) {
+			vecesTexto.textContent = estado.sinFin ? 'sin fin' : `${estado.veces} ${estado.veces === 1 ? 'vez' : 'veces'}`;
+		}
+		if (sinFin) sinFin.checked = estado.sinFin;
+		if (vuelta) vuelta.checked = estado.vuelta;
+	}
+
+	function actualizar() {
+		pintarControles();
+		if (codigo) codigo.textContent = svg();
+		lanzar();
+		guardar();
+	}
+
+	function ponerMedida(m: Medida, valor: number) {
+		if (!Number.isFinite(valor)) return;
+		estado[m] = limitar(valor, ...RANGOS[m]);
+		actualizar();
+	}
+
+	MEDIDAS.forEach((m) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-sa-rango="${m}"]`);
+		const numero = panel?.querySelector<HTMLInputElement>(`[data-sa-num="${m}"]`);
+		rango?.addEventListener('input', () => ponerMedida(m, Number(rango.value)));
+		numero?.addEventListener('input', () => {
+			if (numero.value.trim() !== '') ponerMedida(m, Number(numero.value));
+		});
+		numero?.addEventListener('blur', () => {
+			numero.value = String(estado[m]);
+		});
+	});
+
+	veces?.addEventListener('input', () => ponerMedida('veces', Number(veces.value)));
+
+	EFECTOS.forEach((e) => {
+		const casilla = panel?.querySelector<HTMLInputElement>(`[data-sa-efecto="${e}"]`);
+		casilla?.addEventListener('change', () => {
+			estado.efectos[e] = casilla.checked;
+			actualizar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-sa-forma]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const forma = boton.dataset.saForma as Forma;
+			if (!FORMAS.includes(forma)) return;
+			estado.forma = forma;
+			actualizar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-sa-curva]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const curva = boton.dataset.saCurva ?? '';
+			if (!Object.hasOwn(CURVAS, curva)) return;
+			estado.curva = curva;
+			actualizar();
+		});
+	});
+
+	(
+		[
+			[relleno, 'relleno'],
+			[final, 'final'],
+			[fondo, 'fondo'],
+		] as const
+	).forEach(([campo, clave]) => {
+		campo?.addEventListener('input', () => {
+			estado[clave] = hexValido(campo.value, estado[clave]);
+			actualizar();
+		});
+	});
+
+	(
+		[
+			[transparente, 'transparente'],
+			[sinFin, 'sinFin'],
+			[vuelta, 'vuelta'],
+		] as const
+	).forEach(([casilla, clave]) => {
+		casilla?.addEventListener('change', () => {
+			estado[clave] = casilla.checked;
+			actualizar();
+		});
+	});
+
+	vista?.addEventListener('animationend', () => {
+		if (estadoTexto) estadoTexto.textContent = 'Terminada.';
+	});
+
+	panel?.querySelector('[data-sa-play]')?.addEventListener('click', () => {
+		pausada = !pausada;
+		const f = figura();
+		if (f) f.style.animationPlayState = pausada ? 'paused' : 'running';
+		if (estadoTexto && !pausada) estadoTexto.textContent = '';
+		pintarPlay();
+	});
+
+	panel?.querySelector('[data-sa-otra]')?.addEventListener('click', () => {
+		pausada = false;
+		lanzar();
+	});
+
+	panel?.querySelector('[data-sa-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		actualizar();
+	});
+
+	panel?.querySelector('[data-sa-bajar]')?.addEventListener('click', () => {
+		const fichero = new Blob([svg()], { type: 'image/svg+xml' });
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = `animacion-${estado.forma}.svg`;
+		enlace.click();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(svg());
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el SVG sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar SVG';
+		}, 2000);
+	});
+
+	// Quien pide menos movimiento no se come la figura moviéndose sola al entrar.
+	pausada = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	actualizar();
+	if (pausada && estadoTexto) estadoTexto.textContent = 'Pediste menos movimiento: dale a reproducir para verla.';
+</script>
