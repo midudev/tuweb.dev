@@ -12,6 +12,7 @@ import FunctionTool from './FunctionTool.astro';
 import GradientTool from './GradientTool.astro';
 import Icon from './Icon.astro';
 import ImageTool from './ImageTool.astro';
+import LayoutTool from './LayoutTool.astro';
 import ParallaxTool from './ParallaxTool.astro';
 import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
@@ -39,6 +40,7 @@ const tools = [
 	{ id: 'transiciones', label: 'Transiciones', icon: 'vector-bezier-2' },
 	{ id: 'animaciones-svg', label: 'Animaciones SVG', icon: 'svg' },
 	{ id: 'parallax', label: 'Parallax', icon: 'stack-2' },
+	{ id: 'maquetador', label: 'Maquetador', icon: 'layout-board' },
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
@@ -196,6 +198,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<SvgAnimTool />
 
 	<ParallaxTool />
+
+	<LayoutTool />
 
 	<ImageTool />
 

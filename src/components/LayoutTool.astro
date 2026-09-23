@@ -1,0 +1,910 @@
+---
+/**
+ * Maquetador: cajas, textos e imágenes sobre una cuadrícula CSS, que se
+ * arrastran y se estiran celda a celda. Hay plantillas para empezar, márgenes y
+ * colores a mano, y sale un .html con su CSS dentro. Todo pasa en el navegador:
+ * las imágenes van incrustadas en el archivo y no se guardan al recargar.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+const MINI =
+	'inline-flex items-center border border-line p-1 text-muted hover:border-accent hover:text-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const PLANTILLAS = [
+	{ id: 'portada', label: 'Portada' },
+	{ id: 'blog', label: 'Blog' },
+	{ id: 'galeria', label: 'Galería' },
+	{ id: 'tarjeta', label: 'Tarjeta' },
+	{ id: 'vacia', label: 'En blanco' },
+];
+
+const AJUSTES = [
+	{ id: 'columnas', label: 'Columnas', min: 2, max: 16, step: 1 },
+	{ id: 'filas', label: 'Filas', min: 2, max: 24, step: 1 },
+	{ id: 'altoFila', label: 'Alto de fila', min: 20, max: 120, step: 4 },
+	{ id: 'hueco', label: 'Hueco entre celdas', min: 0, max: 40, step: 2 },
+	{ id: 'margen', label: 'Margen', min: 0, max: 80, step: 4 },
+];
+---
+
+<div role="tabpanel" id="maquetador" aria-labelledby="tab-maquetador" data-panel="maquetador" hidden class="flex flex-col gap-6">
+	<div class="flex flex-col gap-2">
+		<span id="mq-plantillas" class="text-sm text-muted">Empieza con una plantilla</span>
+		<div role="group" aria-labelledby="mq-plantillas" class="flex flex-wrap gap-2">
+			{
+				PLANTILLAS.map((p) => (
+					<button type="button" data-mq-plantilla={p.id} class={BOTON}>
+						<Icon name="template" class="size-4 shrink-0" />
+						{p.label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,17rem)]">
+		<div class="flex min-w-0 flex-col gap-3">
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-mq-nueva="caja" class={BOTON}>
+					<Icon name="square-plus" class="size-4 shrink-0" />
+					Caja
+				</button>
+				<button type="button" data-mq-nueva="texto" class={BOTON}>
+					<Icon name="text-plus" class="size-4 shrink-0" />
+					Texto
+				</button>
+				<label class={`${BOTON} cursor-pointer focus-within:border-accent`}>
+					<Icon name="photo-plus" class="size-4 shrink-0" />
+					Imagen
+					<input type="file" accept="image/*" data-mq-subir class="sr-only" />
+				</label>
+			</div>
+			<p data-mq-aviso class="text-sm text-muted" aria-live="polite"></p>
+
+			<div class="overflow-x-auto border border-line">
+				<div data-mq-lienzo aria-label="Lienzo de la maqueta" class="relative grid min-w-[36rem] select-none"></div>
+			</div>
+
+			<p class="text-xs text-muted">
+				Arrastra una pieza para moverla y su esquina naranja para estirarla. Con el teclado: flechas para mover,
+				Mayús + flechas para estirar y Supr para quitarla.
+			</p>
+		</div>
+
+		<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-3 border border-line bg-panel p-3">
+				<span class="text-sm text-fg">Lienzo</span>
+				{
+					AJUSTES.map((a) => (
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between gap-2 text-sm text-muted">
+								{a.label}
+								<output data-mq-salida={a.id} class="text-mark" />
+							</span>
+							<input
+								type="range"
+								data-mq-ajuste={a.id}
+								min={a.min}
+								max={a.max}
+								step={a.step}
+								class="w-full accent-accent"
+							/>
+						</label>
+					))
+				}
+				<label class="flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-mq-ajuste="fondo" class={COLOR} />
+					Fondo de la página
+				</label>
+			</div>
+
+			<div data-mq-pieza class="flex flex-col gap-3 border border-line bg-panel p-3">
+				<div class="flex items-center justify-between gap-2">
+					<span data-mq-nombre class="truncate text-sm text-fg">Nada seleccionado</span>
+					<span data-mq-acciones class="flex shrink-0 gap-1">
+						<button type="button" data-mq-accion="frente" aria-label="Al frente" title="Al frente" class={MINI}>
+							<Icon name="arrow-bar-to-up" class="size-4" />
+						</button>
+						<button type="button" data-mq-accion="fondo" aria-label="Al fondo" title="Al fondo" class={MINI}>
+							<Icon name="arrow-bar-to-down" class="size-4" />
+						</button>
+						<button type="button" data-mq-accion="quitar" aria-label="Quitar pieza" title="Quitar pieza" class={MINI}>
+							<Icon name="trash" class="size-4" />
+						</button>
+					</span>
+				</div>
+				<p data-mq-vacio class="text-xs text-muted">Pulsa una pieza del lienzo para cambiar su texto y sus colores.</p>
+				<div data-mq-controles class="flex flex-col gap-3">
+					<label data-mq-solo="bloque" class="flex flex-col gap-1">
+						<span class="text-sm text-muted">Texto</span>
+						<textarea
+							data-mq-campo="texto"
+							rows="3"
+							maxlength="2000"
+							class="w-full resize-y border border-line bg-bg p-2 text-sm outline-none focus-visible:border-accent"
+						></textarea>
+					</label>
+					<label data-mq-solo="imagen" class="flex flex-col gap-1">
+						<span class="text-sm text-muted">Texto alternativo</span>
+						<input
+							type="text"
+							data-mq-campo="alt"
+							maxlength="200"
+							class="w-full border border-line bg-bg p-2 text-sm outline-none focus-visible:border-accent"
+						/>
+					</label>
+					<div data-mq-solo="bloque" class="flex flex-wrap items-center gap-4">
+						<label class="flex items-center gap-2 text-sm text-muted">
+							<input type="color" data-mq-campo="fondo" class={COLOR} />
+							Fondo
+						</label>
+						<label class="flex items-center gap-2 text-sm text-muted">
+							<input type="color" data-mq-campo="color" class={COLOR} />
+							Letra
+						</label>
+					</div>
+					<label data-mq-solo="bloque" class="flex items-center gap-2 text-sm text-muted">
+						<input type="checkbox" data-mq-campo="sinFondo" class="accent-accent" />
+						Sin fondo
+					</label>
+					<label data-mq-solo="bloque" class="flex flex-col gap-1">
+						<span class="flex justify-between gap-2 text-sm text-muted">
+							Tamaño de letra
+							<output data-mq-letra class="text-mark"></output>
+						</span>
+						<input type="range" data-mq-campo="letra" min="12" max="72" step="1" class="w-full accent-accent" />
+					</label>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-2">
+		<span class="flex flex-wrap items-center justify-between gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="file-type-html" class="size-4 shrink-0 text-accent" />
+				El HTML con su CSS
+			</span>
+			<span class="flex flex-wrap gap-2">
+				<button type="button" data-mq-copiar class={`${BOTON} px-2 py-1`}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-mq-copiar-texto aria-live="polite">Copiar</span>
+				</button>
+				<button type="button" data-mq-bajar class={`${BOTON} px-2 py-1`}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Bajar .html
+				</button>
+			</span>
+		</span>
+		<pre class="max-h-80 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre text-mark"><code data-mq-codigo /></pre>
+		<p class="text-xs text-muted">
+			Las imágenes van dentro del archivo, así que funciona suelto. En pantallas de menos de 640 px las piezas se
+			ponen una debajo de otra.
+		</p>
+	</div>
+</div>
+
+<style>
+	[data-panel='maquetador'] :global(input[type='color'])::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='maquetador'] :global(input[type='color'])::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='maquetador'] :global(input[type='color'])::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-mq-lienzo] :global([data-mq-celda]) {
+		pointer-events: none;
+		outline: 1px dashed color-mix(in oklab, currentColor 18%, transparent);
+	}
+	[data-mq-lienzo] :global([data-mq-id]) {
+		touch-action: none;
+		cursor: grab;
+	}
+	[data-mq-lienzo] :global([data-mq-id][data-hueco]) {
+		outline: 1px dashed color-mix(in oklab, currentColor 45%, transparent);
+	}
+	[data-mq-lienzo] :global([data-mq-id][aria-pressed='true']) {
+		outline: 2px solid var(--color-accent);
+	}
+	[data-mq-lienzo] :global([data-mq-id]:focus-visible) {
+		outline: 2px solid var(--color-fg);
+	}
+	[data-mq-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-mq-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-mq-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-mq-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-mq-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Tipo = 'caja' | 'texto' | 'imagen';
+	type Pieza = {
+		id: number;
+		tipo: Tipo;
+		col: number;
+		fila: number;
+		ancho: number;
+		alto: number;
+		fondo: string;
+		sinFondo: boolean;
+		color: string;
+		letra: number;
+		texto: string;
+		alt: string;
+	};
+	type Ajuste = 'columnas' | 'filas' | 'altoFila' | 'hueco' | 'margen';
+	type Estado = Record<Ajuste, number> & { fondo: string; piezas: Pieza[] };
+	type Molde = Omit<Pieza, 'id'>;
+
+	const CLAVE = 'tuweb:maquetador';
+	const MAX_PIEZAS = 40;
+	const MAX_BYTES = 2 * 1024 * 1024;
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const RANGOS: Record<Ajuste, [number, number]> = {
+		columnas: [2, 16],
+		filas: [2, 24],
+		altoFila: [20, 120],
+		hueco: [0, 40],
+		margen: [0, 80],
+	};
+	const AJUSTES = Object.keys(RANGOS) as Ajuste[];
+	const LETRA: [number, number] = [12, 72];
+	const NOMBRES: Record<Tipo, string> = { caja: 'Caja', texto: 'Texto', imagen: 'Imagen' };
+
+	const OSCURO = '#3b2d24';
+	const CLARO = '#fdf6ef';
+	const PAPEL = '#f7ece1';
+	const AMBAR = '#e8b04a';
+	const NARANJA = '#c2410c';
+	const SALVIA = '#7c8a6e';
+	const AZUL = '#5b6b8c';
+
+	const caja = (col: number, fila: number, ancho: number, alto: number, fondo: string, texto = '', color = CLARO, letra = 16): Molde => ({
+		tipo: 'caja', col, fila, ancho, alto, fondo, sinFondo: false, color, letra, texto, alt: '',
+	});
+	const texto = (col: number, fila: number, ancho: number, alto: number, texto: string, letra = 16, color = OSCURO): Molde => ({
+		tipo: 'texto', col, fila, ancho, alto, fondo: PAPEL, sinFondo: true, color, letra, texto, alt: '',
+	});
+
+	const PLANTILLAS: Record<string, Molde[]> = {
+		portada: [
+			caja(1, 1, 12, 1, OSCURO, 'Mi web'),
+			caja(1, 2, 7, 5, AMBAR),
+			texto(8, 2, 5, 5, 'Un titular que se lee de lejos', 32),
+			caja(1, 7, 4, 4, PAPEL, 'Uno', OSCURO),
+			caja(5, 7, 4, 4, PAPEL, 'Dos', OSCURO),
+			caja(9, 7, 4, 4, PAPEL, 'Tres', OSCURO),
+			caja(1, 12, 12, 1, NARANJA, 'Pie de página'),
+		],
+		blog: [
+			caja(1, 1, 12, 2, OSCURO, 'El blog', CLARO, 28),
+			texto(1, 3, 8, 9, 'Título de la entrada\n\nAquí va el texto del artículo. Escríbelo en el panel de la derecha.', 18),
+			caja(9, 3, 4, 5, PAPEL, 'Sobre mí', OSCURO),
+			caja(9, 8, 4, 4, SALVIA, 'Etiquetas'),
+			caja(1, 12, 12, 1, NARANJA, 'Pie de página'),
+		],
+		galeria: [
+			texto(1, 1, 12, 2, 'Galería', 32),
+			...[AMBAR, NARANJA, SALVIA, AZUL, OSCURO, AMBAR].map((fondo, i) =>
+				caja(1 + (i % 3) * 4, 3 + Math.floor(i / 3) * 4, 4, 4, fondo),
+			),
+			texto(1, 11, 12, 2, 'Pie de foto o créditos', 14),
+		],
+		tarjeta: [
+			caja(4, 2, 6, 10, PAPEL),
+			caja(4, 2, 6, 4, NARANJA),
+			texto(5, 7, 4, 2, 'Nombre Apellido', 24),
+			texto(5, 9, 4, 2, 'Lo que haces, en una línea.', 16, '#7a6152'),
+		],
+		vacia: [],
+	};
+
+	function desdePlantilla(id: string): Estado {
+		return {
+			columnas: 12,
+			filas: 12,
+			altoFila: 40,
+			hueco: 8,
+			margen: 24,
+			fondo: CLARO,
+			piezas: (PLANTILLAS[id] ?? []).map((m, i) => ({ ...m, id: i + 1 })),
+		};
+	}
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="maquetador"]');
+	const lienzo = panel?.querySelector<HTMLElement>('[data-mq-lienzo]');
+	const aviso = panel?.querySelector<HTMLElement>('[data-mq-aviso]');
+	const subir = panel?.querySelector<HTMLInputElement>('[data-mq-subir]');
+	const ficha = panel?.querySelector<HTMLElement>('[data-mq-pieza]');
+	const codigo = panel?.querySelector<HTMLElement>('[data-mq-codigo]');
+
+	/** Las imágenes solo viven en memoria: id de pieza → data: URL. */
+	const imagenes = new Map<number, string>();
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+	const escapar = (t: string) =>
+		t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+	/** Mete la pieza dentro de la cuadrícula: primero el tamaño, luego el sitio. */
+	function encajarPieza(p: Pieza) {
+		p.ancho = limitar(p.ancho, 1, estado.columnas);
+		p.alto = limitar(p.alto, 1, estado.filas);
+		p.col = limitar(p.col, 1, estado.columnas - p.ancho + 1);
+		p.fila = limitar(p.fila, 1, estado.filas - p.alto + 1);
+	}
+
+	function cargar(): Estado {
+		const base = desdePlantilla('portada');
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object' || !Array.isArray(guardado.piezas)) return base;
+			AJUSTES.forEach((a) => {
+				base[a] = limitar(num(guardado[a], base[a]), ...RANGOS[a]);
+			});
+			if (HEX.test(String(guardado.fondo))) base.fondo = String(guardado.fondo).toLowerCase();
+			// Las imágenes no se guardan: al volver solo quedan cajas y textos.
+			base.piezas = guardado.piezas
+				.filter((p: unknown) => p && typeof p === 'object' && ['caja', 'texto'].includes((p as Pieza).tipo))
+				.slice(0, MAX_PIEZAS)
+				.map((p: Partial<Pieza>, i: number) => ({
+					id: i + 1,
+					tipo: p.tipo as Tipo,
+					col: num(p.col, 1),
+					fila: num(p.fila, 1),
+					ancho: num(p.ancho, 2),
+					alto: num(p.alto, 2),
+					fondo: HEX.test(String(p.fondo)) ? String(p.fondo).toLowerCase() : PAPEL,
+					sinFondo: p.sinFondo === true,
+					color: HEX.test(String(p.color)) ? String(p.color).toLowerCase() : OSCURO,
+					letra: limitar(num(p.letra, 16), ...LETRA),
+					texto: typeof p.texto === 'string' ? p.texto.slice(0, 2000) : '',
+					alt: '',
+				}));
+		} catch {
+			// Si lo guardado está roto, se empieza por la portada.
+		}
+		return base;
+	}
+
+	let estado = cargar();
+	estado.piezas.forEach(encajarPieza);
+	let siguiente = estado.piezas.length + 1;
+	let seleccion: number | null = null;
+
+	function guardar() {
+		try {
+			localStorage.setItem(
+				CLAVE,
+				JSON.stringify({ ...estado, piezas: estado.piezas.filter((p) => p.tipo !== 'imagen') }),
+			);
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	function avisar(t: string) {
+		if (aviso) aviso.textContent = t;
+	}
+
+	const elegida = () => estado.piezas.find((p) => p.id === seleccion) ?? null;
+
+	// --- El archivo para llevarse ---
+
+	function exportar(corto: boolean) {
+		const e = estado;
+		const css = [
+			'* {',
+			'  box-sizing: border-box;',
+			'}',
+			'',
+			'body {',
+			'  margin: 0;',
+			`  background: ${e.fondo};`,
+			'  font-family: system-ui, sans-serif;',
+			'}',
+			'',
+			'.maqueta {',
+			'  display: grid;',
+			`  grid-template-columns: repeat(${e.columnas}, minmax(0, 1fr));`,
+			`  grid-template-rows: repeat(${e.filas}, ${e.altoFila}px);`,
+			`  gap: ${e.hueco}px;`,
+			`  padding: ${e.margen}px;`,
+			'  max-width: 1200px;',
+			'  margin: 0 auto;',
+			'}',
+			'',
+			'.pieza {',
+			'  overflow: hidden;',
+			'  padding: 12px;',
+			'  line-height: 1.3;',
+			'  white-space: pre-wrap;',
+			'}',
+			'',
+			'img.pieza {',
+			'  display: block;',
+			'  width: 100%;',
+			'  height: 100%;',
+			'  padding: 0;',
+			'  object-fit: cover;',
+			'}',
+		];
+		const cuerpo: string[] = [];
+		e.piezas.forEach((p, i) => {
+			const clase = `pieza pieza-${i + 1}`;
+			css.push('', `.pieza-${i + 1} {`, `  grid-column: ${p.col} / span ${p.ancho};`, `  grid-row: ${p.fila} / span ${p.alto};`);
+			if (p.tipo === 'imagen') {
+				const src = imagenes.get(p.id) ?? '';
+				const valido = src.startsWith('data:image/') ? src : '';
+				const mostrado = corto && valido ? `${valido.slice(0, 32)}…` : valido;
+				cuerpo.push(`    <img class="${clase}" src="${escapar(mostrado)}" alt="${escapar(p.alt)}">`);
+			} else {
+				if (!p.sinFondo) css.push(`  background: ${p.fondo};`);
+				css.push(`  color: ${p.color};`, `  font-size: ${p.letra}px;`);
+				cuerpo.push(`    <div class="${clase}">${escapar(p.texto)}</div>`);
+			}
+			css.push(`  z-index: ${i + 1};`, '}');
+		});
+		css.push(
+			'',
+			'/* En el móvil, las piezas una debajo de otra. */',
+			'@media (max-width: 640px) {',
+			'  .maqueta {',
+			'    grid-template-columns: 1fr;',
+			'    grid-template-rows: none;',
+			'  }',
+			'',
+			'  .pieza {',
+			'    grid-column: auto;',
+			'    grid-row: auto;',
+			'    min-height: 80px;',
+			'  }',
+			'',
+			'  img.pieza {',
+			'    height: auto;',
+			'  }',
+			'}',
+		);
+		return [
+			'<!doctype html>',
+			'<html lang="es">',
+			'<head>',
+			'  <meta charset="utf-8">',
+			'  <meta name="viewport" content="width=device-width, initial-scale=1">',
+			'  <title>Maqueta</title>',
+			'  <style>',
+			...css.map((l) => (l ? `    ${l}` : '')),
+			'  </style>',
+			'</head>',
+			'<body>',
+			'  <main class="maqueta">',
+			...cuerpo,
+			'  </main>',
+			'</body>',
+			'</html>',
+		].join('\n');
+	}
+
+	function pintarCodigo() {
+		if (codigo) codigo.textContent = exportar(true);
+	}
+
+	// --- Lienzo ---
+
+	function colocar(nodo: HTMLElement, p: Pieza) {
+		nodo.style.gridColumn = `${p.col} / span ${p.ancho}`;
+		nodo.style.gridRow = `${p.fila} / span ${p.alto}`;
+	}
+
+	function etiqueta(p: Pieza, i: number) {
+		return `${NOMBRES[p.tipo]} ${i + 1}: columna ${p.col}, fila ${p.fila}, ${p.ancho} × ${p.alto}`;
+	}
+
+	function nodoPieza(p: Pieza, i: number) {
+		const nodo = document.createElement('div');
+		nodo.dataset.mqId = String(p.id);
+		nodo.tabIndex = 0;
+		nodo.setAttribute('role', 'button');
+		nodo.setAttribute('aria-label', etiqueta(p, i));
+		nodo.className = 'relative overflow-hidden';
+		nodo.style.zIndex = String(i + 1);
+		colocar(nodo, p);
+		if (p.tipo === 'imagen') {
+			const img = document.createElement('img');
+			img.src = imagenes.get(p.id) ?? '';
+			img.alt = p.alt;
+			img.draggable = false;
+			img.className = 'block h-full w-full object-cover';
+			nodo.append(img);
+		} else {
+			nodo.style.background = p.sinFondo ? 'transparent' : p.fondo;
+			nodo.style.color = p.color;
+			nodo.style.fontSize = `${p.letra}px`;
+			nodo.style.padding = '12px';
+			nodo.style.lineHeight = '1.3';
+			nodo.style.whiteSpace = 'pre-wrap';
+			nodo.textContent = p.texto;
+			if (p.sinFondo) nodo.dataset.hueco = '';
+		}
+		const asa = document.createElement('span');
+		asa.dataset.mqAsa = '';
+		asa.className = 'absolute right-0 bottom-0 size-3 cursor-se-resize bg-accent';
+		nodo.append(asa);
+		return nodo;
+	}
+
+	function marcarSeleccion() {
+		lienzo?.querySelectorAll<HTMLElement>('[data-mq-id]').forEach((nodo) => {
+			const activa = nodo.dataset.mqId === String(seleccion);
+			nodo.setAttribute('aria-pressed', String(activa));
+			const asa = nodo.querySelector<HTMLElement>('[data-mq-asa]');
+			if (asa) asa.hidden = !activa;
+		});
+	}
+
+	function pintarLienzo() {
+		if (!lienzo) return;
+		const e = estado;
+		lienzo.style.gridTemplateColumns = `repeat(${e.columnas}, minmax(0, 1fr))`;
+		lienzo.style.gridTemplateRows = `repeat(${e.filas}, ${e.altoFila}px)`;
+		lienzo.style.gap = `${e.hueco}px`;
+		lienzo.style.padding = `${e.margen}px`;
+		lienzo.style.background = e.fondo;
+		lienzo.style.color = OSCURO;
+		lienzo.style.fontFamily = 'system-ui, sans-serif';
+		const celdas: HTMLElement[] = [];
+		for (let fila = 1; fila <= e.filas; fila++) {
+			for (let col = 1; col <= e.columnas; col++) {
+				const celda = document.createElement('div');
+				celda.dataset.mqCelda = '';
+				celda.style.gridColumn = String(col);
+				celda.style.gridRow = String(fila);
+				celdas.push(celda);
+			}
+		}
+		lienzo.replaceChildren(...celdas, ...e.piezas.map(nodoPieza));
+		marcarSeleccion();
+	}
+
+	// --- Panel de la pieza ---
+
+	function pintarFicha() {
+		if (!ficha) return;
+		const p = elegida();
+		const nombre = ficha.querySelector<HTMLElement>('[data-mq-nombre]');
+		if (nombre) nombre.textContent = p ? etiqueta(p, estado.piezas.indexOf(p)).split(':')[0] : 'Nada seleccionado';
+		const acciones = ficha.querySelector<HTMLElement>('[data-mq-acciones]');
+		const controles = ficha.querySelector<HTMLElement>('[data-mq-controles]');
+		const vacio = ficha.querySelector<HTMLElement>('[data-mq-vacio]');
+		if (acciones) acciones.hidden = !p;
+		if (controles) controles.hidden = !p;
+		if (vacio) vacio.hidden = !!p;
+		if (!p) return;
+		ficha.querySelectorAll<HTMLElement>('[data-mq-solo]').forEach((bloque) => {
+			bloque.hidden = (bloque.dataset.mqSolo === 'imagen') !== (p.tipo === 'imagen');
+		});
+		ficha.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-mq-campo]').forEach((campo) => {
+			const clave = campo.dataset.mqCampo;
+			if (campo instanceof HTMLInputElement && campo.type === 'checkbox') campo.checked = p.sinFondo;
+			else if (clave === 'texto') campo.value = p.texto;
+			else if (clave === 'alt') campo.value = p.alt;
+			else if (clave === 'fondo') campo.value = p.fondo;
+			else if (clave === 'color') campo.value = p.color;
+			else if (clave === 'letra') campo.value = String(p.letra);
+		});
+		const letra = ficha.querySelector<HTMLElement>('[data-mq-letra]');
+		if (letra) letra.textContent = `${p.letra} px`;
+	}
+
+	function pintarAjustes() {
+		panel?.querySelectorAll<HTMLInputElement>('[data-mq-ajuste]').forEach((campo) => {
+			const clave = campo.dataset.mqAjuste ?? '';
+			campo.value = clave === 'fondo' ? estado.fondo : String(estado[clave as Ajuste]);
+		});
+		panel?.querySelectorAll<HTMLOutputElement>('[data-mq-salida]').forEach((salida) => {
+			const clave = salida.dataset.mqSalida as Ajuste;
+			const valor = estado[clave];
+			salida.textContent = clave === 'columnas' || clave === 'filas' ? String(valor) : `${valor} px`;
+		});
+	}
+
+	function refrescar() {
+		pintarLienzo();
+		pintarCodigo();
+		guardar();
+	}
+
+	function todo() {
+		pintarAjustes();
+		pintarFicha();
+		refrescar();
+	}
+
+	function elegir(id: number | null) {
+		seleccion = id;
+		marcarSeleccion();
+		pintarFicha();
+	}
+
+	function enfocar(id: number) {
+		lienzo?.querySelector<HTMLElement>(`[data-mq-id="${id}"]`)?.focus({ preventScroll: true });
+	}
+
+	// --- Arrastrar y estirar ---
+
+	let arrastre: {
+		pieza: Pieza;
+		nodo: HTMLElement;
+		modo: 'mover' | 'estirar';
+		x: number;
+		y: number;
+		inicio: Pick<Pieza, 'col' | 'fila' | 'ancho' | 'alto'>;
+		pasoX: number;
+		pasoY: number;
+		movido: boolean;
+	} | null = null;
+
+	lienzo?.addEventListener('pointerdown', (evento) => {
+		if (evento.button !== 0) return;
+		const nodo = (evento.target as HTMLElement).closest<HTMLElement>('[data-mq-id]');
+		const p = nodo && estado.piezas.find((q) => String(q.id) === nodo.dataset.mqId);
+		if (!nodo || !p) {
+			elegir(null);
+			return;
+		}
+		evento.preventDefault();
+		elegir(p.id);
+		nodo.focus({ preventScroll: true });
+		const e = estado;
+		arrastre = {
+			pieza: p,
+			nodo,
+			modo: (evento.target as HTMLElement).closest('[data-mq-asa]') ? 'estirar' : 'mover',
+			x: evento.clientX,
+			y: evento.clientY,
+			inicio: { col: p.col, fila: p.fila, ancho: p.ancho, alto: p.alto },
+			pasoX: (lienzo.clientWidth - 2 * e.margen + e.hueco) / e.columnas,
+			pasoY: e.altoFila + e.hueco,
+			movido: false,
+		};
+		lienzo.setPointerCapture(evento.pointerId);
+	});
+
+	lienzo?.addEventListener('pointermove', (evento) => {
+		if (!arrastre) return;
+		const { pieza: p, inicio, modo } = arrastre;
+		const dc = Math.round((evento.clientX - arrastre.x) / arrastre.pasoX);
+		const df = Math.round((evento.clientY - arrastre.y) / arrastre.pasoY);
+		if (modo === 'mover') {
+			p.col = inicio.col + dc;
+			p.fila = inicio.fila + df;
+		} else {
+			p.ancho = limitar(inicio.ancho + dc, 1, estado.columnas - p.col + 1);
+			p.alto = limitar(inicio.alto + df, 1, estado.filas - p.fila + 1);
+		}
+		encajarPieza(p);
+		arrastre.movido = true;
+		colocar(arrastre.nodo, p);
+	});
+
+	function soltar() {
+		if (!arrastre) return;
+		const { pieza, movido } = arrastre;
+		arrastre = null;
+		if (!movido) return;
+		refrescar();
+		pintarFicha();
+		enfocar(pieza.id);
+	}
+
+	lienzo?.addEventListener('pointerup', soltar);
+	lienzo?.addEventListener('pointercancel', soltar);
+
+	// --- Teclado ---
+
+	const FLECHAS: Record<string, [number, number]> = {
+		ArrowLeft: [-1, 0],
+		ArrowRight: [1, 0],
+		ArrowUp: [0, -1],
+		ArrowDown: [0, 1],
+	};
+
+	lienzo?.addEventListener('focusin', (evento) => {
+		const nodo = (evento.target as HTMLElement).closest<HTMLElement>('[data-mq-id]');
+		if (nodo && nodo.dataset.mqId !== String(seleccion)) elegir(Number(nodo.dataset.mqId));
+	});
+
+	lienzo?.addEventListener('keydown', (evento) => {
+		const p = elegida();
+		if (!p || !(evento.target as HTMLElement).closest('[data-mq-id]')) return;
+		if (evento.key === 'Delete' || evento.key === 'Backspace') {
+			evento.preventDefault();
+			quitar(p);
+			return;
+		}
+		const flecha = FLECHAS[evento.key];
+		if (!flecha) return;
+		evento.preventDefault();
+		if (evento.shiftKey) {
+			p.ancho = limitar(p.ancho + flecha[0], 1, estado.columnas - p.col + 1);
+			p.alto = limitar(p.alto + flecha[1], 1, estado.filas - p.fila + 1);
+		} else {
+			p.col += flecha[0];
+			p.fila += flecha[1];
+		}
+		encajarPieza(p);
+		refrescar();
+		pintarFicha();
+		enfocar(p.id);
+	});
+
+	// --- Controles ---
+
+	function quitar(p: Pieza) {
+		imagenes.delete(p.id);
+		estado.piezas.splice(estado.piezas.indexOf(p), 1);
+		seleccion = null;
+		avisar('');
+		refrescar();
+		pintarFicha();
+	}
+
+	function anadir(molde: Molde, id = siguiente++) {
+		if (estado.piezas.length >= MAX_PIEZAS) {
+			avisar(`Caben ${MAX_PIEZAS} piezas como mucho.`);
+			return null;
+		}
+		const p: Pieza = { ...molde, id };
+		encajarPieza(p);
+		estado.piezas.push(p);
+		seleccion = p.id;
+		refrescar();
+		pintarFicha();
+		enfocar(p.id);
+		return p;
+	}
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-mq-nueva]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			avisar('');
+			anadir(
+				boton.dataset.mqNueva === 'texto'
+					? texto(1, 1, 4, 2, 'Escribe aquí', 18)
+					: caja(1, 1, 3, 3, [AMBAR, NARANJA, SALVIA, AZUL][estado.piezas.length % 4]),
+			);
+		});
+	});
+
+	subir?.addEventListener('change', () => {
+		const fichero = subir.files?.[0];
+		subir.value = '';
+		if (!fichero) return;
+		if (!fichero.type.startsWith('image/')) return avisar('Eso no es una imagen.');
+		if (fichero.size > MAX_BYTES) return avisar('La imagen pesa más de 2 MB: va dentro del archivo, mejor una ligera.');
+		if (estado.piezas.length >= MAX_PIEZAS) return avisar(`Caben ${MAX_PIEZAS} piezas como mucho.`);
+		const lector = new FileReader();
+		lector.addEventListener('load', () => {
+			const src = typeof lector.result === 'string' ? lector.result : '';
+			if (!src.startsWith('data:image/')) return avisar('No se pudo leer la imagen.');
+			const id = siguiente++;
+			imagenes.set(id, src);
+			const alt = fichero.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').slice(0, 200);
+			const p = anadir({ ...caja(1, 1, 4, 4, PAPEL), tipo: 'imagen', alt }, id);
+			if (!p) imagenes.delete(id);
+			else avisar('La imagen se queda en tu navegador y no se guarda al recargar.');
+		});
+		lector.addEventListener('error', () => avisar('No se pudo leer la imagen.'));
+		lector.readAsDataURL(fichero);
+	});
+
+	ficha?.addEventListener('input', (evento) => {
+		const campo = (evento.target as HTMLElement).closest<HTMLInputElement | HTMLTextAreaElement>('[data-mq-campo]');
+		const p = elegida();
+		if (!campo || !p) return;
+		const clave = campo.dataset.mqCampo;
+		if (clave === 'texto') p.texto = campo.value.slice(0, 2000);
+		else if (clave === 'alt') p.alt = campo.value.slice(0, 200);
+		else if (clave === 'sinFondo' && campo instanceof HTMLInputElement) p.sinFondo = campo.checked;
+		else if ((clave === 'fondo' || clave === 'color') && HEX.test(campo.value)) p[clave] = campo.value.toLowerCase();
+		else if (clave === 'letra') p.letra = limitar(Number(campo.value) || 16, ...LETRA);
+		else return;
+		const letra = ficha.querySelector<HTMLElement>('[data-mq-letra]');
+		if (letra) letra.textContent = `${p.letra} px`;
+		refrescar();
+	});
+
+	ficha?.addEventListener('click', (evento) => {
+		const boton = (evento.target as HTMLElement).closest<HTMLButtonElement>('[data-mq-accion]');
+		const p = elegida();
+		if (!boton || !p) return;
+		const accion = boton.dataset.mqAccion;
+		if (accion === 'quitar') return quitar(p);
+		const i = estado.piezas.indexOf(p);
+		estado.piezas.splice(i, 1);
+		if (accion === 'frente') estado.piezas.push(p);
+		else estado.piezas.unshift(p);
+		refrescar();
+		pintarFicha();
+	});
+
+	panel?.querySelectorAll<HTMLInputElement>('[data-mq-ajuste]').forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const clave = campo.dataset.mqAjuste ?? '';
+			if (clave === 'fondo') {
+				if (HEX.test(campo.value)) estado.fondo = campo.value.toLowerCase();
+			} else if (Object.hasOwn(RANGOS, clave)) {
+				const valor = Number(campo.value);
+				if (!Number.isFinite(valor)) return;
+				estado[clave as Ajuste] = limitar(valor, ...RANGOS[clave as Ajuste]);
+				estado.piezas.forEach(encajarPieza);
+			}
+			pintarAjustes();
+			pintarFicha();
+			refrescar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-mq-plantilla]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			imagenes.clear();
+			estado = desdePlantilla(boton.dataset.mqPlantilla ?? '');
+			siguiente = estado.piezas.length + 1;
+			seleccion = null;
+			avisar('');
+			todo();
+		});
+	});
+
+	panel?.querySelector('[data-mq-bajar]')?.addEventListener('click', () => {
+		const fichero = new Blob([exportar(false)], { type: 'text/html' });
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = 'maqueta.html';
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-mq-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-mq-copiar-texto]');
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(exportar(false));
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: siempre queda bajar el archivo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	todo();
+</script>
