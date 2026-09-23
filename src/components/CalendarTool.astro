@@ -1,0 +1,438 @@
+---
+/**
+ * Generador de calendarios: un mes o un año, con festivos, notas y colores,
+ * listo para bajar en SVG o PNG. Todo pasa en el navegador y se guarda solo
+ * en este navegador (localStorage).
+ */
+import { COLORES, MESES, NOTA_MAX, TITLE_MAX, YEAR_MAX, YEAR_MIN } from '../lib/calendar';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+---
+
+<div
+	role="tabpanel"
+	id="calendario"
+	aria-labelledby="tab-calendario"
+	data-panel="calendario"
+	hidden
+	class="grid gap-7 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+>
+	<div class="flex min-w-0 flex-col gap-6">
+		<div class="flex flex-col gap-3">
+			<h3 id="cal-vista" class="text-sm text-muted">Vista</h3>
+			<div role="group" aria-labelledby="cal-vista" class="flex flex-wrap gap-2">
+				<button type="button" data-cal-vista="mes" aria-pressed="false" class={OPCION}>
+					<Icon name="calendar-month" class="size-4 shrink-0" />
+					Mes
+				</button>
+				<button type="button" data-cal-vista="anio" aria-pressed="false" class={OPCION}>
+					<Icon name="calendar" class="size-4 shrink-0" />
+					Año
+				</button>
+			</div>
+		</div>
+
+		<div class="flex flex-wrap items-end gap-2">
+			<button type="button" data-cal-mueve="-1" aria-label="Anterior" title="Anterior" class={OPCION}>
+				<Icon name="chevron-left" class="size-4 shrink-0" />
+			</button>
+			<label data-cal-mes-caja class="flex flex-1 flex-col gap-1">
+				<span class="text-sm text-muted">Mes</span>
+				<select data-cal-mes class={CAMPO}>
+					{MESES.map((nombre, i) => <option value={i}>{nombre}</option>)}
+				</select>
+			</label>
+			<label class="flex w-28 flex-col gap-1">
+				<span class="text-sm text-muted">Año</span>
+				<input type="number" data-cal-year min={YEAR_MIN} max={YEAR_MAX} step="1" class={CAMPO} />
+			</label>
+			<button type="button" data-cal-mueve="1" aria-label="Siguiente" title="Siguiente" class={OPCION}>
+				<Icon name="chevron-right" class="size-4 shrink-0" />
+			</button>
+		</div>
+
+		<label class="flex flex-col gap-1">
+			<span class="text-sm text-muted">Título (opcional)</span>
+			<input type="text" data-cal-titulo maxlength={TITLE_MAX} placeholder="Vacaciones del equipo" class={CAMPO} />
+		</label>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Colores</h3>
+			<div class="flex flex-wrap gap-x-5 gap-y-3 text-sm text-muted">
+				{
+					COLORES.map((color) => (
+						<label class="inline-flex items-center gap-2">
+							<input
+								type="color"
+								data-cal-color={color.id}
+								class="h-8 w-9 shrink-0 cursor-pointer border border-line bg-panel p-0.5"
+							/>
+							{color.label}
+						</label>
+					))
+				}
+			</div>
+			<div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
+				<label class="inline-flex items-center gap-2">
+					<input type="checkbox" data-cal-finde class="size-4 accent-accent" />
+					Resaltar fines de semana
+				</label>
+				<label class="inline-flex items-center gap-2">
+					<input type="checkbox" data-cal-oscuro class="size-4 accent-accent" />
+					Fondo oscuro
+				</label>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3 border border-line p-4">
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Día (o tócalo en el calendario)</span>
+				<input type="date" data-cal-dia min={`${YEAR_MIN}-01-01`} max={`${YEAR_MAX}-12-31`} class={CAMPO} />
+			</label>
+			<label class="inline-flex items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-cal-festivo class="size-4 accent-accent" />
+				Festivo
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Nota</span>
+				<input type="text" data-cal-nota maxlength={NOTA_MAX} placeholder="Cumple de Ana" class={CAMPO} />
+			</label>
+		</div>
+
+		<div class="flex flex-wrap gap-2">
+			<button type="button" data-cal-espana class={OPCION}>
+				<Icon name="calendar-event" class="size-4 shrink-0" />
+				<span>Festivos nacionales de <span data-cal-espana-year></span></span>
+			</button>
+			<button type="button" data-cal-vacia class={OPCION}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				<span>Vaciar <span data-cal-vacia-year></span></span>
+			</button>
+		</div>
+		<p data-cal-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+	</div>
+
+	<div class="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+		<span class="text-sm text-muted">Así queda</span>
+		<div data-cal-previo class="border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-cal-baja="svg" class={OPCION}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-cal-baja="png" class={OPCION}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+		</div>
+		<p class="text-sm text-muted">
+			Semana de lunes a domingo. Los festivos nacionales se calculan solos (Viernes Santo incluido); los de tu
+			comunidad y tu pueblo, a mano. Todo se guarda solo en este navegador.
+		</p>
+	</div>
+</div>
+
+<script>
+	import {
+		COLORES_BASE,
+		type Calendario,
+		type ColorId,
+		type Tema,
+		YEAR_MAX,
+		YEAR_MIN,
+		buildCalendar,
+		clave,
+		festivosEspana,
+		nuevo,
+		sanea,
+	} from '../lib/calendar';
+
+	const CLAVE = 'tuweb:calendario';
+	const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector);
+
+	const previo = $<HTMLElement>('[data-cal-previo]');
+	const mesSel = $<HTMLSelectElement>('[data-cal-mes]');
+	const mesCaja = $<HTMLElement>('[data-cal-mes-caja]');
+	const yearIn = $<HTMLInputElement>('[data-cal-year]');
+	const titulo = $<HTMLInputElement>('[data-cal-titulo]');
+	const finde = $<HTMLInputElement>('[data-cal-finde]');
+	const oscuro = $<HTMLInputElement>('[data-cal-oscuro]');
+	const diaIn = $<HTMLInputElement>('[data-cal-dia]');
+	const festivoIn = $<HTMLInputElement>('[data-cal-festivo]');
+	const notaIn = $<HTMLInputElement>('[data-cal-nota]');
+	const aviso = $<HTMLElement>('[data-cal-aviso]');
+
+	// Arranca con el fondo de la web: quien la lee de noche, se lo encuentra oscuro.
+	const tema: Tema = document.documentElement.dataset.modo === 'oscuro' ? 'oscuro' : 'claro';
+	const hoy = new Date();
+	let cal: Calendario = nuevo(hoy, tema);
+	try {
+		const guardado = localStorage.getItem(CLAVE);
+		if (guardado) cal = sanea(JSON.parse(guardado), cal);
+	} catch {
+		// Sin localStorage o con basura dentro: se empieza de cero.
+	}
+	let seleccionado = clave(cal.year, cal.month, cal.year === hoy.getFullYear() && cal.month === hoy.getMonth() ? hoy.getDate() : 1);
+
+	function guarda() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(cal));
+		} catch {
+			// Modo privado o sin sitio: el calendario sigue funcionando, solo que no se recuerda.
+		}
+	}
+
+	function avisa(texto: string) {
+		if (aviso) aviso.textContent = texto;
+	}
+
+	function pinta() {
+		if (previo) previo.innerHTML = buildCalendar(cal, { editable: true, seleccionado }).svg;
+		guarda();
+	}
+
+	function pintaDia() {
+		if (diaIn) diaIn.value = seleccionado;
+		if (festivoIn) festivoIn.checked = cal.festivos.includes(seleccionado);
+		if (notaIn) notaIn.value = cal.notas[seleccionado] ?? '';
+	}
+
+	function pintaControles() {
+		document.querySelectorAll<HTMLButtonElement>('[data-cal-vista]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.calVista === cal.vista));
+		});
+		if (mesSel) mesSel.value = String(cal.month);
+		if (mesCaja) mesCaja.hidden = cal.vista === 'anio';
+		if (yearIn) yearIn.value = String(cal.year);
+		if (titulo) titulo.value = cal.title;
+		if (finde) finde.checked = cal.finde;
+		if (oscuro) oscuro.checked = cal.theme === 'oscuro';
+		document.querySelectorAll<HTMLInputElement>('[data-cal-color]').forEach((input) => {
+			input.value = cal.colores[input.dataset.calColor as ColorId];
+		});
+		document.querySelectorAll('[data-cal-espana-year], [data-cal-vacia-year]').forEach((span) => {
+			span.textContent = String(cal.year);
+		});
+		pintaDia();
+	}
+
+	function todo() {
+		pintaControles();
+		pinta();
+	}
+
+	/** Elegir un día de otro mes u otro año lleva el calendario hasta allí. */
+	function elige(dia: string) {
+		const [year, month] = dia.split('-').map(Number);
+		if (!year || !month || year < YEAR_MIN || year > YEAR_MAX) return;
+		seleccionado = dia;
+		cal.year = year;
+		if (cal.vista === 'mes') cal.month = month - 1;
+		avisa('');
+		todo();
+	}
+
+	/** Al mover el periodo, el día elegido se va con él para no editar algo que no se ve. */
+	function irA(year: number, month: number) {
+		cal.year = Math.min(YEAR_MAX, Math.max(YEAR_MIN, year));
+		cal.month = month;
+		seleccionado = clave(cal.year, cal.month, 1);
+		todo();
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-cal-vista]').forEach((button) => {
+		button.addEventListener('click', () => {
+			cal.vista = button.dataset.calVista === 'anio' ? 'anio' : 'mes';
+			if (cal.vista === 'mes') cal.month = Number(seleccionado.slice(5, 7)) - 1;
+			todo();
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-cal-mueve]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const paso = Number(button.dataset.calMueve);
+			if (cal.vista === 'anio') irA(cal.year + paso, 0);
+			else {
+				const total = cal.year * 12 + cal.month + paso;
+				irA(Math.floor(total / 12), ((total % 12) + 12) % 12);
+			}
+		});
+	});
+
+	mesSel?.addEventListener('change', () => irA(cal.year, Number(mesSel.value)));
+
+	yearIn?.addEventListener('change', () => {
+		const year = Math.round(Number(yearIn.value));
+		if (!Number.isFinite(year) || year < YEAR_MIN || year > YEAR_MAX) {
+			avisa(`El año tiene que estar entre ${YEAR_MIN} y ${YEAR_MAX}.`);
+			yearIn.value = String(cal.year);
+			return;
+		}
+		avisa('');
+		irA(year, cal.vista === 'anio' ? 0 : cal.month);
+	});
+
+	titulo?.addEventListener('input', () => {
+		cal.title = titulo.value;
+		pinta();
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-cal-color]').forEach((input) => {
+		input.addEventListener('input', () => {
+			cal.colores[input.dataset.calColor as ColorId] = input.value;
+			pinta();
+		});
+	});
+
+	finde?.addEventListener('change', () => {
+		cal.finde = finde.checked;
+		pinta();
+	});
+
+	oscuro?.addEventListener('change', () => {
+		const antes = cal.theme;
+		cal.theme = oscuro.checked ? 'oscuro' : 'claro';
+		// Los colores de serie cambian con el fondo; los elegidos a mano se quedan.
+		for (const id of Object.keys(cal.colores) as ColorId[]) {
+			if (cal.colores[id] === COLORES_BASE[antes][id]) cal.colores[id] = COLORES_BASE[cal.theme][id];
+		}
+		todo();
+	});
+
+	previo?.addEventListener('click', (event) => {
+		const dia = (event.target as Element).closest<SVGGElement>('[data-dia]')?.dataset.dia;
+		if (!dia) return;
+		seleccionado = dia;
+		pintaDia();
+		pinta();
+		notaIn?.focus({ preventScroll: true });
+	});
+
+	diaIn?.addEventListener('change', () => {
+		if (diaIn.value) elige(diaIn.value);
+	});
+
+	festivoIn?.addEventListener('change', () => {
+		cal.festivos = cal.festivos.filter((dia) => dia !== seleccionado);
+		if (festivoIn.checked) cal.festivos.push(seleccionado);
+		pinta();
+	});
+
+	notaIn?.addEventListener('input', () => {
+		if (notaIn.value.trim()) cal.notas[seleccionado] = notaIn.value;
+		else delete cal.notas[seleccionado];
+		pinta();
+	});
+
+	$<HTMLButtonElement>('[data-cal-espana]')?.addEventListener('click', () => {
+		let nuevos = 0;
+		for (const [dia, nombre] of festivosEspana(cal.year)) {
+			if (!cal.festivos.includes(dia)) {
+				cal.festivos.push(dia);
+				nuevos++;
+			}
+			// El nombre solo entra si el día no tenía ya una nota: lo tuyo no se pisa.
+			cal.notas[dia] ??= nombre;
+		}
+		avisa(nuevos ? `${nuevos} festivos nacionales marcados en ${cal.year}.` : `Los festivos de ${cal.year} ya estaban.`);
+		todo();
+	});
+
+	$<HTMLButtonElement>('[data-cal-vacia]')?.addEventListener('click', () => {
+		const prefijo = `${cal.year}-`;
+		const marcas = cal.festivos.filter((dia) => dia.startsWith(prefijo)).length + Object.keys(cal.notas).filter((dia) => dia.startsWith(prefijo)).length;
+		if (!marcas) {
+			avisa(`No hay nada marcado en ${cal.year}.`);
+			return;
+		}
+		if (!confirm(`¿Borrar los festivos y las notas de ${cal.year}?`)) return;
+		cal.festivos = cal.festivos.filter((dia) => !dia.startsWith(prefijo));
+		for (const dia of Object.keys(cal.notas)) if (dia.startsWith(prefijo)) delete cal.notas[dia];
+		avisa(`${cal.year} vacío.`);
+		todo();
+	});
+
+	function nombre(extension: string) {
+		const base = (cal.title.trim() || (cal.vista === 'anio' ? `calendario ${cal.year}` : `calendario ${cal.year} ${String(cal.month + 1).padStart(2, '0')}`))
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `${base || 'calendario'}.${extension}`;
+	}
+
+	function bajar(fichero: Blob, name: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = name;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	// Un SVG pintado como imagen no ve las fuentes de la página: para el PNG van dentro.
+	const FUENTES = [
+		['Geist Mono Variable', '/fonts/geist-mono-latin-wght-normal.woff2', '100 900'],
+		['Geist Pixel', '/fonts/geist-pixel-latin-400-normal.woff2', '400'],
+	];
+	let fuentesCss: Promise<string> | null = null;
+
+	function fuentes() {
+		fuentesCss ??= Promise.all(
+			FUENTES.map(async ([family, url, weight]) => {
+				const blob = await (await fetch(url)).blob();
+				const data = await new Promise<string>((resolve, reject) => {
+					const lector = new FileReader();
+					lector.onload = () => resolve(String(lector.result));
+					lector.onerror = () => reject(lector.error);
+					lector.readAsDataURL(blob);
+				});
+				return `@font-face{font-family:'${family}';font-weight:${weight};src:url(${data}) format('woff2');}`;
+			}),
+		)
+			.then((reglas) => reglas.join(''))
+			.catch(() => '');
+		return fuentesCss;
+	}
+
+	async function png() {
+		const { svg, width, height } = buildCalendar(cal, { fontCss: await fuentes() });
+		const imagen = new Image();
+		imagen.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+		await imagen.decode();
+		// Al doble, para que se vea nítido en pantallas densas y al imprimir.
+		const lienzo = document.createElement('canvas');
+		lienzo.width = width * 2;
+		lienzo.height = height * 2;
+		lienzo.getContext('2d')?.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+		const blob = await new Promise<Blob | null>((resolve) => lienzo.toBlob(resolve, 'image/png'));
+		if (!blob) throw new Error('sin PNG');
+		bajar(blob, nombre('png'));
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-cal-baja]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (button.dataset.calBaja === 'svg') {
+				bajar(new Blob([buildCalendar(cal).svg], { type: 'image/svg+xml' }), nombre('svg'));
+				return;
+			}
+			button.disabled = true;
+			try {
+				await png();
+				avisa('');
+			} catch {
+				avisa('No se pudo sacar el PNG. Prueba con el SVG.');
+			} finally {
+				button.disabled = false;
+			}
+		});
+	});
+
+	todo();
+</script>
