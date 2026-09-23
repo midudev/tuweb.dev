@@ -1,0 +1,702 @@
+---
+/**
+ * Simulador de parallax: varias capas —formas o imágenes tuyas— que se mueven
+ * a su propia velocidad cuando bajas por la página. La vista previa es un
+ * marco de móvil, tablet o escritorio con su propio scroll, y debajo sale el
+ * HTML, el CSS y el JS para llevártelo. Todo pasa en el navegador: las
+ * imágenes no salen de él y solo las formas se guardan en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+const MINI =
+	'inline-flex items-center border border-line p-1 text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const DISPOSITIVOS = [
+	{ id: 'movil', label: 'Móvil', icon: 'device-mobile' },
+	{ id: 'tablet', label: 'Tablet', icon: 'device-tablet' },
+	{ id: 'escritorio', label: 'Escritorio', icon: 'device-desktop' },
+];
+
+const FORMAS = [
+	{ id: 'cuadrado', label: 'Cuadrado', icon: 'square' },
+	{ id: 'circulo', label: 'Círculo', icon: 'circle' },
+	{ id: 'triangulo', label: 'Triángulo', icon: 'triangle' },
+];
+
+const MEDIDAS = [
+	{ id: 'velocidad', label: 'Velocidad', min: -100, max: 200, step: 5 },
+	{ id: 'x', label: 'Horizontal', min: 0, max: 100, step: 1 },
+	{ id: 'y', label: 'Vertical', min: 0, max: 100, step: 1 },
+	{ id: 'tamano', label: 'Tamaño', min: 10, max: 600, step: 5 },
+];
+
+const BLOQUES = [
+	{ id: 'html', label: 'El HTML', icon: 'code' },
+	{ id: 'css', label: 'El CSS', icon: 'braces' },
+	{ id: 'js', label: 'El JS', icon: 'brand-javascript' },
+];
+---
+
+<div role="tabpanel" id="parallax" aria-labelledby="tab-parallax" data-panel="parallax" hidden class="flex flex-col gap-6">
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-4">
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-px-nueva class={BOTON}>
+					<Icon name="plus" class="size-4 shrink-0" />
+					Forma
+				</button>
+				<label class={`${BOTON} cursor-pointer focus-within:border-accent`}>
+					<Icon name="upload" class="size-4 shrink-0" />
+					Imagen
+					<input type="file" accept="image/*" data-px-subir class="sr-only" />
+				</label>
+				<button type="button" data-px-reset class={BOTON}>
+					<Icon name="eraser" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+			<p data-px-aviso class="text-sm text-muted" aria-live="polite"></p>
+
+			<ol data-px-lista class="flex flex-col gap-3"></ol>
+
+			<p class="text-xs text-muted">
+				La primera capa queda al fondo. Velocidad 1× va con la página, 0× se queda quieta, por encima de 1× corre
+				más que ella y en negativo va al revés.
+			</p>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="flex flex-col gap-2">
+				<span id="px-dispositivo" class="text-sm text-muted">Vista previa: baja dentro del marco</span>
+				<div role="group" aria-labelledby="px-dispositivo" class="flex flex-wrap gap-2">
+					{
+						DISPOSITIVOS.map((d) => (
+							<button type="button" data-px-dispositivo={d.id} aria-pressed="false" class={BOTON}>
+								<Icon name={d.icon} class="size-4 shrink-0" />
+								{d.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div data-px-hueco class="relative w-full overflow-hidden">
+				<div data-px-marco class="absolute top-0 left-0 w-max origin-top-left border border-line bg-panel">
+					<div class="flex h-6 items-center justify-between gap-2 border-b border-line px-2 text-xs text-muted">
+						<span class="flex gap-1" aria-hidden="true">
+							<span class="size-2 bg-line"></span>
+							<span class="size-2 bg-line"></span>
+							<span class="size-2 bg-line"></span>
+						</span>
+						<span data-px-medida></span>
+					</div>
+					<div data-px-pantalla tabindex="0" aria-label="Vista previa del parallax, con scroll" class="overflow-y-auto bg-bg outline-none focus-visible:outline-1 focus-visible:outline-accent">
+						<div data-px-escena class="relative overflow-hidden">
+							<div data-px-capas class="absolute inset-0"></div>
+							{
+								[1, 2, 3].map((n) => (
+									<div
+										class="absolute left-0 w-full border-t border-dashed border-line px-3 py-2 font-pixel text-sm text-muted"
+										style={`top: ${((n - 1) * 100) / 3}%; z-index: 50`}
+									>
+										Pantalla {n}
+									</div>
+								))
+							}
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{
+				BLOQUES.map((b) => (
+					<div class="flex flex-col gap-2">
+						<span class="flex items-center justify-between gap-2">
+							<span class="flex items-center gap-2 text-sm text-muted">
+								<Icon name={b.icon} class="size-4 shrink-0 text-accent" />
+								{b.label}
+							</span>
+							<button type="button" data-px-copiar={b.id} class={`${BOTON} px-2 py-1`}>
+								<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+								<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+								<span data-px-copiar-texto aria-live="polite">Copiar</span>
+							</button>
+						</span>
+						<pre class="max-h-72 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre text-mark"><code data-px-codigo={b.id} /></pre>
+					</div>
+				))
+			}
+
+			<p class="text-xs text-muted">
+				El JS respeta a quien pide menos movimiento: con prefers-reduced-motion las capas se quedan quietas.
+			</p>
+		</div>
+	</div>
+
+	<template data-px-plantilla>
+		<li data-px-capa class="flex flex-col gap-3 border border-line bg-panel p-3">
+			<div class="flex items-center justify-between gap-2">
+				<span data-px-nombre class="truncate text-sm text-fg"></span>
+				<span class="flex shrink-0 gap-1">
+					<button type="button" data-px-accion="subir" aria-label="Más al fondo" title="Más al fondo" class={MINI}>
+						<Icon name="arrow-up" class="size-4" />
+					</button>
+					<button type="button" data-px-accion="bajar" aria-label="Más al frente" title="Más al frente" class={MINI}>
+						<Icon name="arrow-down" class="size-4" />
+					</button>
+					<button type="button" data-px-accion="quitar" aria-label="Quitar capa" title="Quitar capa" class={MINI}>
+						<Icon name="trash" class="size-4" />
+					</button>
+				</span>
+			</div>
+			<div data-px-solo-forma class="flex flex-wrap items-center gap-2">
+				<input type="color" data-px-campo="color" aria-label="Color de la capa" class={COLOR} />
+				{
+					FORMAS.map((f) => (
+						<button
+							type="button"
+							data-px-forma={f.id}
+							aria-pressed="false"
+							aria-label={f.label}
+							title={f.label}
+							class={`${BOTON} px-2`}
+						>
+							<Icon name={f.icon} class="size-4 shrink-0" />
+						</button>
+					))
+				}
+			</div>
+			{
+				MEDIDAS.map((m) => (
+					<label class="flex flex-col gap-1">
+						<span class="flex justify-between gap-2 text-sm text-muted">
+							{m.label}
+							<output data-px-salida={m.id} class="text-mark" />
+						</span>
+						<input
+							type="range"
+							data-px-campo={m.id}
+							min={m.min}
+							max={m.max}
+							step={m.step}
+							class="w-full accent-accent"
+						/>
+					</label>
+				))
+			}
+		</li>
+	</template>
+</div>
+
+<style>
+	[data-panel='parallax'] :global(input[type='color'])::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='parallax'] :global(input[type='color'])::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='parallax'] :global(input[type='color'])::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-px-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-px-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-px-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-px-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-px-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Forma = 'cuadrado' | 'circulo' | 'triangulo';
+	type Dispositivo = 'movil' | 'tablet' | 'escritorio';
+	type Medida = 'velocidad' | 'x' | 'y' | 'tamano';
+	type Capa = Record<Medida, number> & {
+		id: number;
+		tipo: 'forma' | 'imagen';
+		forma: Forma;
+		color: string;
+		nombre: string;
+	};
+	type Estado = { dispositivo: Dispositivo; capas: Capa[] };
+
+	const CLAVE = 'tuweb:parallax';
+	const MAX_CAPAS = 8;
+	const MAX_BYTES = 8 * 1024 * 1024;
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const FORMAS: Forma[] = ['cuadrado', 'circulo', 'triangulo'];
+	const NOMBRES: Record<Forma, string> = { cuadrado: 'cuadrado', circulo: 'círculo', triangulo: 'triángulo' };
+	const RECORTES: Record<Forma, string> = {
+		cuadrado: '',
+		circulo: 'circle(50%)',
+		triangulo: 'polygon(50% 0, 100% 100%, 0 100%)',
+	};
+	const RANGOS: Record<Medida, [number, number]> = {
+		velocidad: [-100, 200],
+		x: [0, 100],
+		y: [0, 100],
+		tamano: [10, 600],
+	};
+	const MEDIDAS = Object.keys(RANGOS) as Medida[];
+	const DISPOSITIVOS: Record<Dispositivo, { ancho: number; alto: number }> = {
+		movil: { ancho: 360, alto: 640 },
+		tablet: { ancho: 768, alto: 1024 },
+		escritorio: { ancho: 1280, alto: 800 },
+	};
+	const COLORES = ['#3b2d24', '#e8b04a', '#c2410c', '#7c8a6e', '#5b6b8c'];
+
+	const INICIAL: Estado = {
+		dispositivo: 'movil',
+		capas: [
+			{ id: 1, tipo: 'forma', forma: 'cuadrado', color: '#3b2d24', nombre: '', velocidad: 20, x: 10, y: 5, tamano: 260 },
+			{ id: 2, tipo: 'forma', forma: 'circulo', color: '#e8b04a', nombre: '', velocidad: 50, x: 55, y: 12, tamano: 140 },
+			{ id: 3, tipo: 'forma', forma: 'triangulo', color: '#c2410c', nombre: '', velocidad: 130, x: 25, y: 30, tamano: 110 },
+		],
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="parallax"]');
+	const lista = panel?.querySelector<HTMLElement>('[data-px-lista]');
+	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-px-plantilla]');
+	const aviso = panel?.querySelector<HTMLElement>('[data-px-aviso]');
+	const nueva = panel?.querySelector<HTMLButtonElement>('[data-px-nueva]');
+	const subir = panel?.querySelector<HTMLInputElement>('[data-px-subir]');
+	const hueco = panel?.querySelector<HTMLElement>('[data-px-hueco]');
+	const marco = panel?.querySelector<HTMLElement>('[data-px-marco]');
+	const medida = panel?.querySelector<HTMLElement>('[data-px-medida]');
+	const pantalla = panel?.querySelector<HTMLElement>('[data-px-pantalla]');
+	const escena = panel?.querySelector<HTMLElement>('[data-px-escena]');
+	const capasVista = panel?.querySelector<HTMLElement>('[data-px-capas]');
+
+	/** Las imágenes solo viven en memoria: id de capa → URL blob: local. */
+	const imagenes = new Map<number, string>();
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+	const factor = (c: Capa) => String(c.velocidad / 100);
+
+	function cargar(): Estado {
+		const estado = structuredClone(INICIAL);
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			if (Object.hasOwn(DISPOSITIVOS, String(guardado.dispositivo))) estado.dispositivo = guardado.dispositivo;
+			if (!Array.isArray(guardado.capas)) return estado;
+			// Las imágenes no se guardan: al volver solo quedan las formas.
+			estado.capas = guardado.capas
+				.filter((c: unknown) => c && typeof c === 'object' && (c as Capa).tipo === 'forma')
+				.slice(0, MAX_CAPAS)
+				.map((c: Partial<Capa>, i: number) => {
+					const capa: Capa = {
+						id: i + 1,
+						tipo: 'forma',
+						forma: FORMAS.includes(c.forma as Forma) ? (c.forma as Forma) : 'cuadrado',
+						color: HEX.test(String(c.color)) ? String(c.color).toLowerCase() : COLORES[i % COLORES.length],
+						nombre: '',
+						velocidad: 100,
+						x: 0,
+						y: 0,
+						tamano: 100,
+					};
+					MEDIDAS.forEach((m) => {
+						capa[m] = limitar(num(c[m], capa[m]), ...RANGOS[m]);
+					});
+					return capa;
+				});
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+	let siguiente = Math.max(0, ...estado.capas.map((c) => c.id)) + 1;
+
+	function guardar() {
+		try {
+			localStorage.setItem(
+				CLAVE,
+				JSON.stringify({ ...estado, capas: estado.capas.filter((c) => c.tipo === 'forma') }),
+			);
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	function avisar(texto: string) {
+		if (aviso) aviso.textContent = texto;
+	}
+
+	// --- Código para llevarse ---
+
+	function html() {
+		const lineas = ['<div class="parallax">'];
+		estado.capas.forEach((c, i) => {
+			const clase = `capa capa-${i + 1}`;
+			lineas.push(
+				c.tipo === 'imagen'
+					? `  <img class="${clase}" src="${c.nombre}" alt="" data-velocidad="${factor(c)}">`
+					: `  <div class="${clase}" data-velocidad="${factor(c)}"></div>`,
+			);
+		});
+		lineas.push('  <!-- Tu contenido va aquí, por encima de las capas -->', '</div>');
+		return lineas.join('\n');
+	}
+
+	function css() {
+		const lineas = [
+			'.parallax {',
+			'  position: relative;',
+			'  height: 300vh;',
+			'  overflow: hidden;',
+			'}',
+			'',
+			'.capa {',
+			'  position: absolute;',
+			'  will-change: transform;',
+			'  pointer-events: none;',
+			'}',
+		];
+		estado.capas.forEach((c, i) => {
+			lineas.push('', `.capa-${i + 1} {`, `  left: ${c.x}%;`, `  top: ${c.y}%;`, `  width: ${c.tamano}px;`);
+			if (c.tipo === 'imagen') {
+				lineas.push('  height: auto;');
+			} else {
+				lineas.push(`  height: ${c.tamano}px;`, `  background: ${c.color};`);
+				if (RECORTES[c.forma]) lineas.push(`  clip-path: ${RECORTES[c.forma]};`);
+			}
+			lineas.push(`  z-index: ${i + 1};`, '}');
+		});
+		return lineas.join('\n');
+	}
+
+	function js() {
+		return [
+			"const escena = document.querySelector('.parallax');",
+			"const capas = escena.querySelectorAll('[data-velocidad]');",
+			'let pendiente = false;',
+			'',
+			'// 1 va con la página, 0 se queda quieta, más de 1 corre más que ella.',
+			'function mover() {',
+			'  pendiente = false;',
+			'  const y = -escena.getBoundingClientRect().top;',
+			'  capas.forEach((capa) => {',
+			'    const v = Number(capa.dataset.velocidad);',
+			'    capa.style.transform = `translate3d(0, ${(y * (1 - v)).toFixed(1)}px, 0)`;',
+			'  });',
+			'}',
+			'',
+			"if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {",
+			"  addEventListener('scroll', () => {",
+			'    if (pendiente) return;',
+			'    pendiente = true;',
+			'    requestAnimationFrame(mover);',
+			'  }, { passive: true });',
+			'  mover();',
+			'}',
+		].join('\n');
+	}
+
+	const GENERADORES: Record<string, () => string> = { html, css, js };
+
+	function pintarCodigo() {
+		panel?.querySelectorAll<HTMLElement>('[data-px-codigo]').forEach((bloque) => {
+			bloque.textContent = GENERADORES[bloque.dataset.pxCodigo ?? '']?.() ?? '';
+		});
+	}
+
+	// --- Vista previa ---
+
+	function mover() {
+		if (!pantalla || !capasVista) return;
+		const y = pantalla.scrollTop;
+		capasVista.querySelectorAll<HTMLElement>('[data-velocidad]').forEach((capa) => {
+			const v = Number(capa.dataset.velocidad);
+			capa.style.transform = `translate3d(0, ${(y * (1 - v)).toFixed(1)}px, 0)`;
+		});
+	}
+
+	function pintarEscena() {
+		if (!capasVista) return;
+		const nodos = estado.capas.map((c, i) => {
+			const src = imagenes.get(c.id);
+			const nodo = document.createElement(c.tipo === 'imagen' && src ? 'img' : 'div');
+			if (nodo instanceof HTMLImageElement && src) {
+				nodo.src = src;
+				nodo.alt = '';
+				nodo.style.height = 'auto';
+			} else {
+				nodo.style.height = `${c.tamano}px`;
+				nodo.style.background = c.color;
+				nodo.style.clipPath = RECORTES[c.forma];
+			}
+			nodo.dataset.velocidad = factor(c);
+			nodo.style.position = 'absolute';
+			nodo.style.left = `${c.x}%`;
+			nodo.style.top = `${c.y}%`;
+			nodo.style.width = `${c.tamano}px`;
+			nodo.style.maxWidth = 'none';
+			nodo.style.zIndex = String(i + 1);
+			nodo.style.willChange = 'transform';
+			return nodo;
+		});
+		capasVista.replaceChildren(...nodos);
+		mover();
+	}
+
+	/** El marco se pinta a tamaño real y se encoge con scale para que quepa. */
+	function encajar() {
+		if (!hueco || !marco || !pantalla || !escena) return;
+		const d = DISPOSITIVOS[estado.dispositivo];
+		pantalla.style.width = `${d.ancho}px`;
+		pantalla.style.height = `${d.alto}px`;
+		escena.style.height = `${d.alto * 3}px`;
+		if (medida) medida.textContent = `${d.ancho} × ${d.alto}`;
+		const ancho = marco.offsetWidth;
+		const alto = marco.offsetHeight;
+		// Con la pestaña oculta todo mide 0: ya se reajustará al verse.
+		if (!ancho || !alto || !hueco.clientWidth) return;
+		const escala = Math.min(1, hueco.clientWidth / ancho, 560 / alto);
+		marco.style.transform = `scale(${escala})`;
+		marco.style.left = `${Math.max(0, (hueco.clientWidth - ancho * escala) / 2)}px`;
+		hueco.style.height = `${Math.ceil(alto * escala)}px`;
+		mover();
+	}
+
+	// --- Controles ---
+
+	function pintarSalidas(nodo: HTMLElement, c: Capa) {
+		const textos: Record<Medida, string> = {
+			velocidad: `${factor(c)}×`,
+			x: `${c.x}%`,
+			y: `${c.y}%`,
+			tamano: `${c.tamano} px`,
+		};
+		nodo.querySelectorAll<HTMLOutputElement>('[data-px-salida]').forEach((salida) => {
+			salida.textContent = textos[salida.dataset.pxSalida as Medida] ?? '';
+		});
+	}
+
+	function pintarLista() {
+		if (!lista || !plantilla) return;
+		const total = estado.capas.length;
+		const nodos = estado.capas.map((c, i) => {
+			const nodo = plantilla.content.firstElementChild?.cloneNode(true) as HTMLElement;
+			nodo.dataset.id = String(c.id);
+			const nombre = nodo.querySelector<HTMLElement>('[data-px-nombre]');
+			if (nombre) nombre.textContent = `Capa ${i + 1} · ${c.tipo === 'imagen' ? c.nombre : NOMBRES[c.forma]}`;
+			const soloForma = nodo.querySelector<HTMLElement>('[data-px-solo-forma]');
+			if (soloForma) soloForma.hidden = c.tipo === 'imagen';
+			nodo.querySelectorAll<HTMLButtonElement>('[data-px-forma]').forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.pxForma === c.forma));
+			});
+			nodo.querySelectorAll<HTMLInputElement>('[data-px-campo]').forEach((campo) => {
+				const clave = campo.dataset.pxCampo ?? '';
+				campo.value = clave === 'color' ? c.color : String(c[clave as Medida]);
+			});
+			const subirBoton = nodo.querySelector<HTMLButtonElement>('[data-px-accion="subir"]');
+			const bajarBoton = nodo.querySelector<HTMLButtonElement>('[data-px-accion="bajar"]');
+			if (subirBoton) subirBoton.disabled = i === 0;
+			if (bajarBoton) bajarBoton.disabled = i === total - 1;
+			pintarSalidas(nodo, c);
+			return nodo;
+		});
+		lista.replaceChildren(...nodos);
+		if (nueva) nueva.disabled = total >= MAX_CAPAS;
+		if (subir) subir.disabled = total >= MAX_CAPAS;
+		if (total === 0) avisar('Sin capas. Añade una forma o sube una imagen.');
+	}
+
+	function refrescar() {
+		pintarEscena();
+		pintarCodigo();
+		guardar();
+	}
+
+	function todo() {
+		panel?.querySelectorAll<HTMLButtonElement>('[data-px-dispositivo]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.pxDispositivo === estado.dispositivo));
+		});
+		pintarLista();
+		encajar();
+		refrescar();
+	}
+
+	function capaDe(elemento: Element) {
+		const nodo = elemento.closest<HTMLElement>('[data-px-capa]');
+		const capa = estado.capas.find((c) => String(c.id) === nodo?.dataset.id);
+		return nodo && capa ? { nodo, capa } : null;
+	}
+
+	function soltarImagen(id: number) {
+		const src = imagenes.get(id);
+		if (src) URL.revokeObjectURL(src);
+		imagenes.delete(id);
+	}
+
+	lista?.addEventListener('input', (evento) => {
+		const campo = (evento.target as HTMLElement).closest<HTMLInputElement>('[data-px-campo]');
+		const encontrada = campo && capaDe(campo);
+		if (!campo || !encontrada) return;
+		const { nodo, capa } = encontrada;
+		const clave = campo.dataset.pxCampo ?? '';
+		if (clave === 'color') {
+			if (HEX.test(campo.value)) capa.color = campo.value.toLowerCase();
+		} else if (MEDIDAS.includes(clave as Medida)) {
+			const valor = Number(campo.value);
+			if (!Number.isFinite(valor)) return;
+			capa[clave as Medida] = limitar(valor, ...RANGOS[clave as Medida]);
+		}
+		pintarSalidas(nodo, capa);
+		refrescar();
+	});
+
+	lista?.addEventListener('click', (evento) => {
+		const boton = (evento.target as HTMLElement).closest<HTMLButtonElement>('button');
+		const encontrada = boton && capaDe(boton);
+		if (!boton || !encontrada) return;
+		const { capa } = encontrada;
+		const i = estado.capas.indexOf(capa);
+		const forma = boton.dataset.pxForma as Forma | undefined;
+		const accion = boton.dataset.pxAccion;
+		if (forma && FORMAS.includes(forma)) {
+			capa.forma = forma;
+		} else if (accion === 'quitar') {
+			soltarImagen(capa.id);
+			estado.capas.splice(i, 1);
+			avisar('');
+		} else if (accion === 'subir' && i > 0) {
+			estado.capas.splice(i - 1, 2, capa, estado.capas[i - 1]);
+		} else if (accion === 'bajar' && i < estado.capas.length - 1) {
+			estado.capas.splice(i, 2, estado.capas[i + 1], capa);
+		} else {
+			return;
+		}
+		pintarLista();
+		refrescar();
+		// Tras rehacer la lista, el foco vuelve al mismo botón de la misma capa.
+		const selector = forma ? `[data-px-forma="${forma}"]` : `[data-px-accion="${accion}"]`;
+		lista?.querySelector<HTMLButtonElement>(`[data-id="${capa.id}"] ${selector}`)?.focus();
+	});
+
+	nueva?.addEventListener('click', () => {
+		if (estado.capas.length >= MAX_CAPAS) return;
+		const n = estado.capas.length;
+		estado.capas.push({
+			id: siguiente++,
+			tipo: 'forma',
+			forma: FORMAS[n % FORMAS.length],
+			color: COLORES[n % COLORES.length],
+			nombre: '',
+			velocidad: 80,
+			x: 40,
+			y: 20,
+			tamano: 120,
+		});
+		avisar('');
+		pintarLista();
+		refrescar();
+	});
+
+	subir?.addEventListener('change', () => {
+		const fichero = subir.files?.[0];
+		subir.value = '';
+		if (!fichero) return;
+		if (!fichero.type.startsWith('image/')) return avisar('Eso no es una imagen.');
+		if (fichero.size > MAX_BYTES) return avisar('La imagen pesa más de 8 MB.');
+		if (estado.capas.length >= MAX_CAPAS) return avisar(`Caben ${MAX_CAPAS} capas como mucho.`);
+		const id = siguiente++;
+		imagenes.set(id, URL.createObjectURL(fichero));
+		// El nombre solo sale en el código: letras, números, punto, guion y guion bajo.
+		const nombre = fichero.name.replace(/[^\w.-]+/g, '-').slice(0, 60) || 'imagen.png';
+		estado.capas.push({
+			id,
+			tipo: 'imagen',
+			forma: 'cuadrado',
+			color: '#000000',
+			nombre,
+			velocidad: 60,
+			x: 20,
+			y: 10,
+			tamano: 220,
+		});
+		avisar('La imagen se queda en tu navegador y no se guarda al recargar.');
+		pintarLista();
+		refrescar();
+	});
+
+	panel?.querySelector('[data-px-reset]')?.addEventListener('click', () => {
+		imagenes.forEach((_, id) => soltarImagen(id));
+		estado = structuredClone(INICIAL);
+		siguiente = INICIAL.capas.length + 1;
+		avisar('');
+		if (pantalla) pantalla.scrollTop = 0;
+		todo();
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-px-dispositivo]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const d = boton.dataset.pxDispositivo ?? '';
+			if (!Object.hasOwn(DISPOSITIVOS, d)) return;
+			estado.dispositivo = d as Dispositivo;
+			todo();
+		});
+	});
+
+	let pendiente = false;
+	pantalla?.addEventListener(
+		'scroll',
+		() => {
+			if (pendiente) return;
+			pendiente = true;
+			requestAnimationFrame(() => {
+				pendiente = false;
+				mover();
+			});
+		},
+		{ passive: true },
+	);
+
+	// La pestaña empieza oculta: al hacerse visible (o cambiar el ancho) se reajusta.
+	if (hueco) new ResizeObserver(() => encajar()).observe(hueco);
+
+	const relojes = new Map<HTMLElement, number>();
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-px-copiar]').forEach((boton) => {
+		const texto = boton.querySelector<HTMLElement>('[data-px-copiar-texto]');
+		boton.addEventListener('click', async () => {
+			let hecho = false;
+			try {
+				await navigator.clipboard.writeText(GENERADORES[boton.dataset.pxCopiar ?? '']?.() ?? '');
+				hecho = true;
+			} catch {
+				// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+			}
+			boton.dataset.state = hecho ? 'done' : 'error';
+			if (texto) texto.textContent = hecho ? 'Copiado' : 'No se pudo';
+			clearTimeout(relojes.get(boton));
+			relojes.set(
+				boton,
+				window.setTimeout(() => {
+					boton.removeAttribute('data-state');
+					if (texto) texto.textContent = 'Copiar';
+				}, 2000),
+			);
+		});
+	});
+
+	todo();
+</script>
