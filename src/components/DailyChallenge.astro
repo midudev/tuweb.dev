@@ -1,0 +1,409 @@
+---
+/**
+ * El reto diario de JavaScript: uno al día, del catálogo de src/lib/diario.ts.
+ * Aquí no se ejecuta código: se elige la salida o se escribe, y se compara con
+ * la respuesta escrita a mano. El reto que toca depende de tu fecha, así que lo
+ * pinta el script; la racha, el nivel y las insignias se quedan en tu navegador.
+ */
+import { INSIGNIAS, TRIES } from '../lib/diario';
+import Icon from './Icon.astro';
+
+const MARCADOR = [
+	{ id: 'nivel', label: 'nivel', icon: 'stairs-up' },
+	{ id: 'xp', label: 'puntos', icon: 'coin' },
+	{ id: 'racha', label: 'racha', icon: 'flame' },
+	{ id: 'mejor', label: 'mejor racha', icon: 'trophy' },
+	{ id: 'resueltos', label: 'resueltos', icon: 'circle-check' },
+];
+
+const FILA = 'flex items-baseline justify-between gap-3 border-t border-line pt-1.5';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+---
+
+<section id="diario" class="flex flex-col gap-7">
+	<div class="flex flex-col gap-6 md:flex-row-reverse md:items-start">
+		<aside class="flex w-full shrink-0 flex-col gap-4 md:max-w-56">
+			<dl class="flex flex-col gap-1.5 text-sm">
+				{
+					MARCADOR.map((dato) => (
+						<div class={FILA}>
+							<dt class="flex items-baseline gap-2 text-muted">
+								<Icon name={dato.icon} class="size-3.5 shrink-0 self-center" />
+								{dato.label}
+							</dt>
+							<dd data-dato={dato.id} class="font-pixel tabular-nums">
+								0
+							</dd>
+						</div>
+					))
+				}
+			</dl>
+
+			<div class="flex flex-col gap-1.5">
+				<span data-nivel-texto class="text-sm text-muted"></span>
+				<div class="h-px w-full bg-line">
+					<div data-nivel-barra class="h-px bg-accent" style="width: 0%"></div>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Últimos 14 días</span>
+				<ol data-tira class="grid grid-cols-7 gap-1"></ol>
+			</div>
+		</aside>
+
+		<div class="flex min-w-0 grow flex-col gap-4">
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+				<span class="inline-flex items-center gap-2 text-muted">
+					<Icon name="brand-javascript" class="size-4 shrink-0 text-accent" />
+					<span data-titulo>Reto del día</span>
+				</span>
+				<span data-dificultad class="tabular-nums text-mark"></span>
+			</div>
+
+			<ol data-codigo class="flex flex-col border border-line bg-panel p-4 text-sm"></ol>
+
+			<p data-pregunta class="text-sm"></p>
+
+			<div data-opciones class="grid gap-2 sm:grid-cols-2" hidden></div>
+
+			<form data-escribir class="flex flex-wrap gap-2" hidden>
+				<label class="sr-only" for="diario-respuesta">Tu respuesta</label>
+				<input
+					id="diario-respuesta"
+					type="text"
+					autocomplete="off"
+					spellcheck="false"
+					maxlength="80"
+					placeholder="Lo que sale por consola"
+					class="min-w-0 grow border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-accent"
+				/>
+				<button type="submit" class={`${BOTON} border-accent text-accent`}>
+					<Icon name="send" class="size-4 shrink-0" />
+					Comprobar
+				</button>
+			</form>
+
+			<p data-intentos class="text-sm text-muted"></p>
+
+			<div data-resultado hidden>
+				<div class="flex flex-col gap-2 border border-line bg-panel p-4">
+					<p data-resultado-titulo class="text-sm"></p>
+					<p data-porque class="max-w-[62ch] text-sm text-muted"></p>
+				</div>
+			</div>
+
+			<p class="text-sm text-muted">
+				<span data-cuenta>El siguiente reto sale a medianoche.</span>
+				Tienes {TRIES} intentos al día y el segundo vale la mitad. Aquí no se ejecuta nada: la
+				respuesta está escrita a mano y se compara en tu navegador.
+			</p>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+			<h2 class="font-pixel text-lg">Insignias</h2>
+			<span data-insignias-cuenta class="text-sm tabular-nums text-muted"></span>
+		</div>
+		<ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+			{
+				INSIGNIAS.map((insignia) => (
+					<li
+						data-insignia={insignia.key}
+						data-hecha="false"
+						class="flex items-start gap-3 border border-line p-3 text-sm"
+					>
+						<Icon name={insignia.icon} class="mt-0.5 size-5 shrink-0" />
+						<span class="flex min-w-0 grow flex-col gap-0.5">
+							<span class="font-pixel">{insignia.title}</span>
+							<span class="text-muted">{insignia.detail}</span>
+						</span>
+						<span data-avance class="tabular-nums text-muted" />
+					</li>
+				))
+			}
+		</ul>
+		<p class="text-sm text-muted">
+			Las insignias son de este navegador. Los <a href="/logros" class="text-accent hover:underline"
+				>logros de la web</a
+			> se ganan con ideas.
+		</p>
+	</div>
+</section>
+
+<style is:global>
+	/* El código, las opciones y la tira los pinta el script: van colgados de #diario. */
+	#diario [data-codigo] > li {
+		display: flex;
+		gap: 0.75rem;
+		white-space: pre-wrap;
+	}
+	#diario [data-codigo] .numero {
+		color: var(--color-muted);
+		user-select: none;
+		min-width: 1.5rem;
+		text-align: end;
+	}
+	#diario [data-opciones] > button {
+		border: 1px solid var(--color-line);
+		padding: 0.5rem 0.75rem;
+		text-align: start;
+		white-space: pre-wrap;
+	}
+	#diario [data-opciones] > button:hover:not(:disabled) {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	#diario [data-marcado='bien'] {
+		border-color: var(--color-ok);
+		color: var(--color-ok);
+	}
+	#diario [data-marcado='mal'] {
+		border-color: var(--color-heart);
+		color: var(--color-heart);
+	}
+	#diario [data-tira] > li {
+		aspect-ratio: 1;
+		border: 1px solid var(--color-line);
+	}
+	#diario [data-tira] > li[data-dia='ok'] {
+		background: var(--color-accent);
+		border-color: var(--color-accent);
+	}
+	#diario [data-tira] > li[data-dia='mal'] {
+		border-color: var(--color-heart);
+	}
+	#diario [data-tira] > li[data-hoy] {
+		outline: 1px solid var(--color-mark);
+		outline-offset: 1px;
+	}
+	#diario [data-insignia][data-hecha='true'] {
+		border-color: var(--color-accent);
+	}
+	#diario [data-insignia][data-hecha='true'] svg {
+		color: var(--color-accent);
+	}
+	#diario [data-insignia][data-hecha='false'] svg {
+		color: var(--color-muted);
+		opacity: 0.5;
+	}
+	#diario [hidden] {
+		display: none;
+	}
+</style>
+
+<script>
+	import {
+		DIFICULTADES,
+		INSIGNIAS,
+		TRIES,
+		dayKey,
+		isClosed,
+		isRight,
+		lastDays,
+		levelOf,
+		readProgress,
+		retoDelDia,
+		saveProgress,
+		solution,
+		statsOf,
+		type Progress,
+	} from '../lib/diario';
+
+	const raiz = document.querySelector<HTMLElement>('#diario');
+
+	if (raiz) {
+		function $(selector: string) {
+			return raiz!.querySelector(selector) as HTMLElement;
+		}
+
+		const opciones = $('[data-opciones]');
+		const escribir = $('[data-escribir]') as HTMLFormElement;
+		const entrada = escribir.querySelector('input')!;
+		const resultado = $('[data-resultado]');
+
+		let hoy = dayKey(new Date());
+		let reto = retoDelDia(hoy);
+		let progreso: Progress = readProgress();
+
+		const fecha = (key: string) =>
+			new Date(`${key}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+
+		function dato(id: string, valor: string | number) {
+			$(`[data-dato="${id}"]`).textContent = String(valor);
+		}
+
+		function pintarMarcador() {
+			const stats = statsOf(progreso, hoy);
+			const { current, next } = levelOf(stats.xp);
+
+			dato('nivel', stats.level);
+			dato('xp', stats.xp);
+			dato('racha', stats.streak);
+			dato('mejor', stats.best);
+			dato('resueltos', stats.solved);
+
+			$('[data-nivel-texto]').textContent = next
+				? `${current.title}: ${next.xp - stats.xp} para ${next.title}`
+				: `${current.title}: no hay más arriba`;
+			$('[data-nivel-barra]').style.width = next
+				? `${((stats.xp - current.xp) / (next.xp - current.xp)) * 100}%`
+				: '100%';
+
+			$('[data-tira]').replaceChildren(
+				...lastDays(hoy, 14).map((key) => {
+					const dia = progreso[key];
+					const celda = document.createElement('li');
+					celda.dataset.dia = dia?.ok ? 'ok' : isClosed(dia) ? 'mal' : 'nada';
+					if (key === hoy) celda.dataset.hoy = '';
+					celda.title = `${fecha(key)}: ${dia?.ok ? 'resuelto' : isClosed(dia) ? 'fallado' : 'sin jugar'}`;
+					return celda;
+				}),
+			);
+
+			let hechas = 0;
+			INSIGNIAS.forEach((insignia) => {
+				const fila = $(`[data-insignia="${insignia.key}"]`);
+				const lleva = Math.min(insignia.count(stats), insignia.goal);
+				const hecha = lleva >= insignia.goal;
+				if (hecha) hechas += 1;
+				fila.dataset.hecha = String(hecha);
+				fila.querySelector('[data-avance]')!.textContent = hecha ? 'hecha' : `${lleva}/${insignia.goal}`;
+			});
+			$('[data-insignias-cuenta]').textContent = `${hechas} de ${INSIGNIAS.length}`;
+		}
+
+		function pintarResultado() {
+			const dia = progreso[hoy];
+			const gastados = dia?.tries ?? 0;
+			const cerrado = isClosed(dia);
+
+			$('[data-intentos]').textContent = cerrado
+				? ''
+				: gastados > 0
+					? `No era eso. Te queda ${TRIES - gastados} intento y vale la mitad.`
+					: `${TRIES} intentos.`;
+
+			opciones.querySelectorAll('button').forEach((boton) => (boton.disabled = cerrado || boton.disabled));
+			entrada.disabled = cerrado;
+			escribir.querySelector('button')!.disabled = cerrado;
+
+			if (!cerrado || !dia) {
+				resultado.hidden = true;
+				return;
+			}
+
+			const titulo = $('[data-resultado-titulo]');
+			titulo.textContent = dia.ok
+				? `Bien${dia.tries > 1 ? ', al segundo' : ''}. +${dia.xp}`
+				: `Hoy no. Era: ${solution(reto)}`;
+			titulo.style.color = dia.ok ? 'var(--color-ok)' : 'var(--color-heart)';
+			$('[data-porque]').textContent = reto.why;
+			resultado.hidden = false;
+
+			// La buena se marca igual: se aprende viéndola.
+			if (reto.kind === 'salida') {
+				const buena = opciones.querySelector<HTMLElement>(`[data-indice="${reto.answer ?? 0}"]`);
+				if (buena) buena.dataset.marcado = 'bien';
+			}
+		}
+
+		function responder(valor: string | number, boton?: HTMLButtonElement) {
+			if (isClosed(progreso[hoy])) return;
+
+			const tries = (progreso[hoy]?.tries ?? 0) + 1;
+			const ok = isRight(reto, valor);
+			const base = DIFICULTADES[reto.dificultad].xp;
+			progreso[hoy] = {
+				reto: reto.id,
+				ok,
+				tries,
+				xp: ok ? (tries === 1 ? base : Math.floor(base / 2)) : 0,
+				dificultad: reto.dificultad,
+			};
+			saveProgress(progreso);
+
+			if (boton) {
+				boton.dataset.marcado = ok ? 'bien' : 'mal';
+				if (!ok) boton.disabled = true;
+			}
+			pintarResultado();
+			pintarMarcador();
+		}
+
+		function pintarReto() {
+			const dificultad = DIFICULTADES[reto.dificultad];
+			$('[data-titulo]').textContent = `Reto del ${fecha(hoy)}`;
+			$('[data-dificultad]').textContent = `${dificultad.label} · ${dificultad.xp} puntos`;
+			$('[data-pregunta]').textContent =
+				reto.kind === 'salida' ? '¿Qué sale por consola?' : 'Escribe lo que sale por consola, tal cual.';
+
+			$('[data-codigo]').replaceChildren(
+				...reto.code.map((linea, i) => {
+					const numero = document.createElement('span');
+					numero.className = 'numero';
+					numero.textContent = String(i + 1);
+					const texto = document.createElement('code');
+					texto.textContent = linea || ' ';
+					const fila = document.createElement('li');
+					fila.append(numero, texto);
+					return fila;
+				}),
+			);
+
+			opciones.hidden = reto.kind !== 'salida';
+			escribir.hidden = reto.kind !== 'respuesta';
+			entrada.value = '';
+
+			// Las opciones se barajan con el día, para que la buena no sea siempre la primera.
+			const orden = (reto.options ?? []).map((_, i) => i);
+			const semilla = Number(hoy.replaceAll('-', ''));
+			orden.sort((a, b) => ((a * 7 + semilla) % 11) - ((b * 7 + semilla) % 11));
+			opciones.replaceChildren(
+				...orden.map((i) => {
+					const boton = document.createElement('button');
+					boton.type = 'button';
+					boton.textContent = reto.options![i];
+					// Su índice en el catálogo, para marcar la buena al final.
+					boton.dataset.indice = String(i);
+					boton.addEventListener('click', () => responder(i, boton));
+					return boton;
+				}),
+			);
+
+			pintarResultado();
+			pintarMarcador();
+		}
+
+		escribir.addEventListener('submit', (event) => {
+			event.preventDefault();
+			if (!entrada.value.trim()) return;
+			responder(entrada.value);
+			if (!progreso[hoy]?.ok) entrada.select();
+		});
+
+		/** La cuenta atrás hasta medianoche. Si cambia el día con la página abierta, sale el nuevo. */
+		function reloj() {
+			const ahora = new Date();
+			if (dayKey(ahora) !== hoy) {
+				hoy = dayKey(ahora);
+				reto = retoDelDia(hoy);
+				progreso = readProgress();
+				pintarReto();
+			}
+			const manana = new Date(ahora);
+			manana.setHours(24, 0, 0, 0);
+			const falta = Math.max(0, Math.floor((manana.getTime() - ahora.getTime()) / 1000));
+			const h = Math.floor(falta / 3600);
+			const m = String(Math.floor((falta % 3600) / 60)).padStart(2, '0');
+			const s = String(falta % 60).padStart(2, '0');
+			$('[data-cuenta]').textContent = `El siguiente reto sale en ${h}:${m}:${s}.`;
+		}
+
+		pintarReto();
+		reloj();
+		setInterval(reloj, 1000);
+	}
+</script>
