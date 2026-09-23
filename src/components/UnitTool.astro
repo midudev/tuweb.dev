@@ -1,0 +1,407 @@
+---
+/**
+ * Conversor de unidades: longitud, peso, temperatura, volumen y velocidad.
+ * Cada unidad se pasa a una base común (metro, kilo, kelvin, litro, m/s) con
+ * base = valor × factor + desplazamiento, y de la base a la de destino con la
+ * cuenta al revés. El desplazamiento solo lo usan las temperaturas. Todo pasa en
+ * el navegador: no se envía ni se guarda nada.
+ */
+import Icon from './Icon.astro';
+
+type Unidad = { id: string; nombre: string; simbolo: string; factor: number; offset?: number };
+type Magnitud = { id: string; label: string; icon: string; de: string; a: string; unidades: Unidad[] };
+
+const MAGNITUDES: Magnitud[] = [
+	{
+		id: 'longitud',
+		label: 'Longitud',
+		icon: 'ruler-2',
+		de: 'm',
+		a: 'ft',
+		unidades: [
+			{ id: 'mm', nombre: 'Milímetro', simbolo: 'mm', factor: 0.001 },
+			{ id: 'cm', nombre: 'Centímetro', simbolo: 'cm', factor: 0.01 },
+			{ id: 'm', nombre: 'Metro', simbolo: 'm', factor: 1 },
+			{ id: 'km', nombre: 'Kilómetro', simbolo: 'km', factor: 1000 },
+			{ id: 'in', nombre: 'Pulgada', simbolo: 'in', factor: 0.0254 },
+			{ id: 'ft', nombre: 'Pie', simbolo: 'ft', factor: 0.3048 },
+			{ id: 'yd', nombre: 'Yarda', simbolo: 'yd', factor: 0.9144 },
+			{ id: 'mi', nombre: 'Milla', simbolo: 'mi', factor: 1609.344 },
+			{ id: 'nmi', nombre: 'Milla náutica', simbolo: 'nmi', factor: 1852 },
+		],
+	},
+	{
+		id: 'peso',
+		label: 'Peso',
+		icon: 'weight',
+		de: 'kg',
+		a: 'lb',
+		unidades: [
+			{ id: 'mg', nombre: 'Miligramo', simbolo: 'mg', factor: 1e-6 },
+			{ id: 'g', nombre: 'Gramo', simbolo: 'g', factor: 0.001 },
+			{ id: 'kg', nombre: 'Kilogramo', simbolo: 'kg', factor: 1 },
+			{ id: 't', nombre: 'Tonelada', simbolo: 't', factor: 1000 },
+			{ id: 'oz', nombre: 'Onza', simbolo: 'oz', factor: 0.028349523125 },
+			{ id: 'lb', nombre: 'Libra', simbolo: 'lb', factor: 0.45359237 },
+			{ id: 'st', nombre: 'Stone', simbolo: 'st', factor: 6.35029318 },
+		],
+	},
+	{
+		id: 'temperatura',
+		label: 'Temperatura',
+		icon: 'temperature',
+		de: 'c',
+		a: 'f',
+		unidades: [
+			{ id: 'c', nombre: 'Celsius', simbolo: '°C', factor: 1, offset: 273.15 },
+			{ id: 'f', nombre: 'Fahrenheit', simbolo: '°F', factor: 5 / 9, offset: 273.15 - (32 * 5) / 9 },
+			{ id: 'k', nombre: 'Kelvin', simbolo: 'K', factor: 1 },
+		],
+	},
+	{
+		id: 'volumen',
+		label: 'Volumen',
+		icon: 'bucket',
+		de: 'l',
+		a: 'gal',
+		unidades: [
+			{ id: 'ml', nombre: 'Mililitro', simbolo: 'ml', factor: 0.001 },
+			{ id: 'cl', nombre: 'Centilitro', simbolo: 'cl', factor: 0.01 },
+			{ id: 'l', nombre: 'Litro', simbolo: 'l', factor: 1 },
+			{ id: 'm3', nombre: 'Metro cúbico', simbolo: 'm³', factor: 1000 },
+			{ id: 'tsp', nombre: 'Cucharadita (EE. UU.)', simbolo: 'tsp', factor: 0.00492892159375 },
+			{ id: 'floz', nombre: 'Onza líquida (EE. UU.)', simbolo: 'fl oz', factor: 0.0295735295625 },
+			{ id: 'cup', nombre: 'Taza (EE. UU.)', simbolo: 'cup', factor: 0.2365882365 },
+			{ id: 'pt', nombre: 'Pinta (R. U.)', simbolo: 'pt', factor: 0.56826125 },
+			{ id: 'gal', nombre: 'Galón (EE. UU.)', simbolo: 'gal', factor: 3.785411784 },
+			{ id: 'galuk', nombre: 'Galón (R. U.)', simbolo: 'gal UK', factor: 4.54609 },
+		],
+	},
+	{
+		id: 'velocidad',
+		label: 'Velocidad',
+		icon: 'gauge',
+		de: 'kmh',
+		a: 'mph',
+		unidades: [
+			{ id: 'ms', nombre: 'Metros por segundo', simbolo: 'm/s', factor: 1 },
+			{ id: 'kmh', nombre: 'Kilómetros por hora', simbolo: 'km/h', factor: 1 / 3.6 },
+			{ id: 'mph', nombre: 'Millas por hora', simbolo: 'mph', factor: 0.44704 },
+			{ id: 'kn', nombre: 'Nudo', simbolo: 'kn', factor: 1852 / 3600 },
+			{ id: 'fts', nombre: 'Pies por segundo', simbolo: 'ft/s', factor: 0.3048 },
+		],
+	},
+];
+
+const inicial = MAGNITUDES[0];
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-3 text-sm outline-none focus-visible:border-accent';
+---
+
+<div
+	role="tabpanel"
+	id="unidades"
+	aria-labelledby="tab-unidades"
+	data-panel="unidades"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<script type="application/json" data-uni-datos set:html={JSON.stringify(MAGNITUDES)} />
+
+	<div class="flex flex-wrap gap-2" role="group" aria-label="Magnitud">
+		{
+			MAGNITUDES.map((magnitud, index) => (
+				<button
+					type="button"
+					data-uni-magnitud={magnitud.id}
+					aria-pressed={index === 0 ? 'true' : 'false'}
+					class={OPCION}
+				>
+					<Icon name={magnitud.icon} class="size-4 shrink-0" />
+					{magnitud.label}
+				</button>
+			))
+		}
+	</div>
+
+	<div class="grid items-end gap-4 md:grid-cols-[1fr_auto_1fr]">
+		<div class="flex flex-col gap-2">
+			<label for="uni-valor" class="text-sm text-muted">Valor</label>
+			<div class="flex">
+				<input
+					id="uni-valor"
+					type="text"
+					inputmode="decimal"
+					autocomplete="off"
+					spellcheck="false"
+					value="1"
+					data-uni-valor
+					class="w-full min-w-0 border border-line bg-panel p-4 text-lg outline-none focus-visible:border-accent"
+				/>
+				<select data-uni-de aria-label="Unidad de origen" class={`${CAMPO} -ml-px max-w-44`}>
+					{
+						inicial.unidades.map((unidad) => (
+							<option value={unidad.id} selected={unidad.id === inicial.de}>
+								{unidad.nombre} ({unidad.simbolo})
+							</option>
+						))
+					}
+				</select>
+			</div>
+		</div>
+
+		<button
+			type="button"
+			data-uni-cambia
+			aria-label="Intercambiar unidades"
+			title="Intercambiar unidades"
+			class="inline-flex items-center justify-center self-end border border-line p-4 text-muted hover:border-accent hover:text-accent"
+		>
+			<Icon name="switch-horizontal" class="size-5 shrink-0" />
+		</button>
+
+		<div class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Resultado</span>
+			<div class="flex">
+				<output
+					data-uni-resultado
+					for="uni-valor"
+					aria-live="polite"
+					class="block min-h-15 w-full min-w-0 truncate border border-line bg-panel p-4 text-lg text-mark"
+				></output>
+				<select data-uni-a aria-label="Unidad de destino" class={`${CAMPO} -ml-px max-w-44`}>
+					{
+						inicial.unidades.map((unidad) => (
+							<option value={unidad.id} selected={unidad.id === inicial.a}>
+								{unidad.nombre} ({unidad.simbolo})
+							</option>
+						))
+					}
+				</select>
+			</div>
+		</div>
+	</div>
+
+	<p class="flex flex-wrap items-center gap-3 text-sm">
+		<span data-uni-frase class="text-fg"></span>
+		<button type="button" data-uni-copia class="inline-flex items-center gap-2 text-accent hover:underline">
+			<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-uni-copia-texto aria-live="polite">Copiar</span>
+		</button>
+	</p>
+
+	<p data-uni-aviso class="text-sm text-heart empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-col gap-2">
+		<span class="text-sm text-muted">Lo mismo en todas las unidades (pulsa una para usarla de destino)</span>
+		<ul data-uni-tabla class="grid border-t border-l border-line sm:grid-cols-2 lg:grid-cols-3"></ul>
+	</div>
+
+	<p class="text-sm text-muted">
+		Admite coma o punto decimal. Las medidas de volumen de cocina son las de EE. UU.
+	</p>
+</div>
+
+<style>
+	[data-uni-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-uni-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-uni-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-uni-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Unidad = { id: string; nombre: string; simbolo: string; factor: number; offset?: number };
+	type Magnitud = { id: string; label: string; de: string; a: string; unidades: Unidad[] };
+
+	const datos = document.querySelector<HTMLScriptElement>('[data-uni-datos]');
+	const valor = document.querySelector<HTMLInputElement>('[data-uni-valor]');
+	const de = document.querySelector<HTMLSelectElement>('[data-uni-de]');
+	const a = document.querySelector<HTMLSelectElement>('[data-uni-a]');
+	const resultado = document.querySelector<HTMLOutputElement>('[data-uni-resultado]');
+	const frase = document.querySelector<HTMLElement>('[data-uni-frase]');
+	const aviso = document.querySelector<HTMLElement>('[data-uni-aviso]');
+	const tabla = document.querySelector<HTMLUListElement>('[data-uni-tabla]');
+	const botones = document.querySelectorAll<HTMLButtonElement>('[data-uni-magnitud]');
+
+	if (datos && valor && de && a && resultado && tabla) {
+		const magnitudes: Magnitud[] = JSON.parse(datos.textContent ?? '[]');
+		let magnitud = magnitudes[0];
+		// Cada magnitud recuerda su pareja de unidades: volver a Peso deja kg → lb
+		// o lo que hubieras elegido, no lo de fábrica.
+		const parejas = new Map(magnitudes.map((m) => [m.id, { de: m.de, a: m.a }]));
+
+		const unidad = (id: string) => magnitud.unidades.find((u) => u.id === id) ?? magnitud.unidades[0];
+		const aBase = (n: number, u: Unidad) => n * u.factor + (u.offset ?? 0);
+		const deBase = (n: number, u: Unidad) => (n - (u.offset ?? 0)) / u.factor;
+
+		const numero = new Intl.NumberFormat('es-ES', { maximumSignificantDigits: 10 });
+
+		function formato(n: number) {
+			// Los decimales de coma flotante (0,30000000000000004) se van con el
+			// redondeo a diez cifras; lo muy grande o muy pequeño, en notación científica.
+			const abs = Math.abs(n);
+			if (abs !== 0 && (abs >= 1e15 || abs < 1e-6)) {
+				return n.toExponential(6).replace(/\.?0+e/, 'e').replace('.', ',');
+			}
+			return numero.format(n);
+		}
+
+		function leer() {
+			const limpio = valor!.value.trim().replace(/\s/g, '').replace(',', '.');
+			if (!limpio) return null;
+			if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(limpio)) return NaN;
+			return Number(limpio);
+		}
+
+		function opciones(select: HTMLSelectElement, elegida: string) {
+			select.replaceChildren(
+				...magnitud.unidades.map((u) => {
+					const opcion = document.createElement('option');
+					opcion.value = u.id;
+					opcion.textContent = `${u.nombre} (${u.simbolo})`;
+					opcion.selected = u.id === elegida;
+					return opcion;
+				}),
+			);
+		}
+
+		function pintar() {
+			const n = leer();
+			const origen = unidad(de!.value);
+			const destino = unidad(a!.value);
+			parejas.set(magnitud.id, { de: origen.id, a: destino.id });
+
+			if (n === null || Number.isNaN(n)) {
+				resultado!.textContent = '';
+				if (frase) frase.textContent = '';
+				if (aviso) aviso.textContent = n === null ? '' : 'Eso no es un número.';
+				tabla!.replaceChildren();
+				return;
+			}
+
+			const base = aBase(n, origen);
+			// Por debajo del cero absoluto no hay nada que medir.
+			if (magnitud.id === 'temperatura' && base < -1e-9) {
+				if (aviso) aviso.textContent = 'Eso está por debajo del cero absoluto (−273,15 °C).';
+			} else if (aviso) {
+				aviso.textContent = '';
+			}
+
+			const convertido = deBase(base, destino);
+			resultado!.textContent = formato(convertido);
+			resultado!.title = String(convertido);
+			if (frase) {
+				frase.textContent = `${formato(n)} ${origen.simbolo} = ${formato(convertido)} ${destino.simbolo}`;
+			}
+
+			tabla!.replaceChildren(
+				...magnitud.unidades.map((u) => {
+					const fila = document.createElement('li');
+					const boton = document.createElement('button');
+					boton.type = 'button';
+					boton.className =
+						'flex w-full items-baseline justify-between gap-3 border-r border-b border-line px-4 py-3 text-left text-sm hover:text-accent';
+					if (u.id === destino.id) boton.classList.add('text-accent');
+					boton.setAttribute('aria-pressed', String(u.id === destino.id));
+
+					const nombre = document.createElement('span');
+					nombre.className = 'text-muted';
+					nombre.textContent = u.nombre;
+					const cifra = document.createElement('span');
+					cifra.className = 'truncate text-mark';
+					cifra.textContent = `${formato(deBase(base, u))} ${u.simbolo}`;
+
+					boton.append(nombre, cifra);
+					boton.addEventListener('click', () => {
+						a!.value = u.id;
+						pintar();
+					});
+					fila.append(boton);
+					return fila;
+				}),
+			);
+		}
+
+		function elegir(id: string) {
+			const nueva = magnitudes.find((m) => m.id === id);
+			if (!nueva) return;
+			magnitud = nueva;
+			botones.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.uniMagnitud === id)));
+			const pareja = parejas.get(id) ?? { de: nueva.de, a: nueva.a };
+			opciones(de!, pareja.de);
+			opciones(a!, pareja.a);
+			pintar();
+		}
+
+		botones.forEach((b) => b.addEventListener('click', () => elegir(b.dataset.uniMagnitud ?? '')));
+		valor.addEventListener('input', pintar);
+		de.addEventListener('change', pintar);
+		a.addEventListener('change', pintar);
+
+		// Intercambiar también se lleva el resultado al campo de valor: así 1 m → 3,28 ft
+		// pasa a 3,28 ft → 1 m, que es lo que uno espera al darle la vuelta.
+		document.querySelector<HTMLButtonElement>('[data-uni-cambia]')?.addEventListener('click', () => {
+			const n = leer();
+			const antes = de.value;
+			de.value = a.value;
+			a.value = antes;
+			if (n !== null && !Number.isNaN(n)) {
+				valor.value = formato(deBase(aBase(n, unidad(antes)), unidad(de.value))).replace(/\./g, '');
+			}
+			pintar();
+		});
+
+		const copia = document.querySelector<HTMLButtonElement>('[data-uni-copia]');
+		const copiaTexto = copia?.querySelector('[data-uni-copia-texto]');
+		let reloj: number | undefined;
+
+		async function copiar(texto: string) {
+			try {
+				await navigator.clipboard.writeText(texto);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					const campo = document.createElement('textarea');
+					campo.value = texto;
+					campo.readOnly = true;
+					campo.style.position = 'fixed';
+					campo.style.opacity = '0';
+					document.body.append(campo);
+					campo.select();
+					const hecho = document.execCommand('copy');
+					campo.remove();
+					return hecho;
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		copia?.addEventListener('click', async () => {
+			const texto = frase?.textContent ?? '';
+			if (!texto) return;
+			const hecho = await copiar(texto);
+			copia.dataset.state = hecho ? 'done' : 'error';
+			if (copiaTexto) copiaTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				copia.removeAttribute('data-state');
+				if (copiaTexto) copiaTexto.textContent = 'Copiar';
+			}, 2000);
+		});
+
+		pintar();
+	}
+</script>

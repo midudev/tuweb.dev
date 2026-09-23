@@ -13,6 +13,7 @@ import ImageTool from './ImageTool.astro';
 import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
 import ThemeTool from './ThemeTool.astro';
+import UnitTool from './UnitTool.astro';
 
 // El id de cada herramienta es también su sitio en la URL:
 // tuweb.dev/herramientas#cron abre esa pestaña directamente. Por eso el panel
@@ -32,6 +33,7 @@ const tools = [
 	{ id: 'diagramas', label: 'Diagramas', icon: 'sitemap' },
 	{ id: 'ascii', label: 'ASCII art', icon: 'typography' },
 	{ id: 'calendario', label: 'Calendario', icon: 'calendar-month' },
+	{ id: 'unidades', label: 'Unidades', icon: 'ruler-measure' },
 	{ id: 'tema', label: 'Tema', icon: 'brush' },
 	{ id: 'config', label: 'Config', icon: 'adjustments' },
 ];
@@ -182,6 +184,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<AsciiTool />
 
 	<CalendarTool />
+
+	<UnitTool />
 
 	<ThemeTool />
 
