@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -140,6 +140,15 @@ export const SECTIONS: Section[] = [
 		card: 'Eventos con fecha, título y descripción, ordenados sobre una línea.',
 		intro:
 			'Apunta lo que pasó y cuándo: cada evento lleva su fecha, un título y una descripción, y sale en su sitio de la línea, ordenado solo. Tumbada o de pie, a paso fijo o separada según el tiempo que pasa entre uno y otro, con los colores y la fuente que elijas. Te la llevas en SVG o en PNG. Se dibuja en tu navegador y lo que apuntas se queda en él para seguir otro día.',
+	},
+	{
+		href: '/venn',
+		title: 'Diagramas de Venn',
+		icon: 'circles-relation',
+		group: 'herramientas',
+		card: 'Dos o tres conjuntos, lo que va en cada uno y lo que comparten.',
+		intro:
+			'Cruza dos o tres conjuntos y apunta lo que va en cada zona: lo que es solo de uno, lo que comparten dos y lo que tienen los tres. Ponle nombre y color a cada círculo, elige el fondo, la fuente y cuánto se rellenan, y te lo llevas en SVG o en PNG. Se dibuja en tu navegador y lo que apuntas se queda en él para seguir otro día.',
 	},
 	{
 		href: '/animaciones',

@@ -1,0 +1,449 @@
+---
+/**
+ * Los diagramas de Venn. Dos o tres conjuntos, sus nombres y colores, y lo que
+ * va en cada zona y en cada cruce. Te lo llevas en SVG o en PNG.
+ *
+ * Todo pasa en tu navegador: el diagrama se guarda en el localStorage y el
+ * dibujo es un SVG que se arma aquí mismo. El cálculo está en src/lib/venn.ts;
+ * aquí solo están los mandos.
+ */
+import { FONTS } from '../lib/wordcloud';
+import { ALL_ZONES, COUNTS, FILL, ITEM_MAX, LABEL_MAX, SET_IDS, THEMES, TITLE_MAX } from '../lib/venn';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const CAMPO = 'w-full border border-line bg-bg p-3 text-sm outline-none focus-visible:border-accent';
+
+const GRUPOS = [
+	{ id: 'count', label: 'Conjuntos', items: COUNTS },
+	{ id: 'font', label: 'Fuente', items: FONTS.map((f) => ({ id: f.id, label: f.label, icon: 'typography' })) },
+];
+---
+
+<section id="venn" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<div
+			data-venn-vista
+			role="img"
+			aria-label="Vista previa del diagrama de Venn"
+			class="border border-line bg-panel p-4 [&>svg]:mx-auto [&>svg]:block [&>svg]:h-auto [&>svg]:max-w-full"
+		>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-venn-descarga="svg" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-venn-descarga="png" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+		</div>
+
+		<p data-venn-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+		<div class="flex flex-col gap-3">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="circles-relation" class="size-4 shrink-0 text-accent" />
+				<span>Qué va en cada zona</span>
+				<span data-venn-cuenta class="text-mark"></span>
+			</span>
+			<div class="grid gap-3 sm:grid-cols-2">
+				{
+					ALL_ZONES.map((zona) => (
+						<label data-venn-zona={zona} class="flex flex-col gap-1">
+							<span data-venn-zona-nombre={zona} class="truncate text-sm text-muted" />
+							<textarea
+								data-venn-elementos={zona}
+								rows="3"
+								spellcheck="false"
+								placeholder="Un elemento por línea"
+								class={`${CAMPO} resize-y`}
+							></textarea>
+						</label>
+					))
+				}
+			</div>
+			<p class="text-xs text-muted">Un elemento por línea, de {ITEM_MAX} letras como mucho. Lo que no cabe en el dibujo sale como «+N más».</p>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-1">
+			<span class="flex items-center justify-between gap-2">
+				<label for="venn-titulo" class="text-sm text-muted">Título</label>
+				<span class="flex gap-2">
+					<button type="button" data-venn-ejemplo class={`${BOTON} px-2 py-1`}>
+						<Icon name="file-text" class="size-4 shrink-0" />
+						Ejemplo
+					</button>
+					<button type="button" data-venn-vaciar class={`${BOTON} px-2 py-1`}>
+						<Icon name="eraser" class="size-4 shrink-0" />
+						Vaciar
+					</button>
+				</span>
+			</span>
+			<input
+				type="text"
+				id="venn-titulo"
+				data-venn-titulo
+				maxlength={TITLE_MAX}
+				placeholder="Lo que comparas"
+				autocomplete="off"
+				class={CAMPO}
+			/>
+		</div>
+
+		{
+			GRUPOS.map((grupo) => (
+				<div class="flex flex-col gap-2">
+					<span id={`venn-${grupo.id}`} class="text-sm text-muted">
+						{grupo.label}
+					</span>
+					<div role="group" aria-labelledby={`venn-${grupo.id}`} class="flex flex-wrap gap-2">
+						{grupo.items.map((item) => (
+							<button type="button" data-venn-opcion={grupo.id} data-valor={item.id} aria-pressed="false" class={BOTON}>
+								<Icon name={item.icon} class="size-4 shrink-0" />
+								{item.label}
+							</button>
+						))}
+					</div>
+				</div>
+			))
+		}
+
+		<div class="flex flex-col gap-3">
+			{
+				SET_IDS.map((id) => (
+					<div data-venn-conjunto={id} class="flex items-end gap-2">
+						<label class="flex min-w-0 flex-1 flex-col gap-1">
+							<span class="text-sm text-muted">Conjunto {id.toUpperCase()}</span>
+							<input
+								type="text"
+								data-venn-nombre={id}
+								maxlength={LABEL_MAX}
+								placeholder={id.toUpperCase()}
+								autocomplete="off"
+								class={CAMPO}
+							/>
+						</label>
+						<input
+							type="color"
+							data-venn-color={id}
+							aria-label={`Color del conjunto ${id.toUpperCase()}`}
+							class="h-[46px] w-14 shrink-0 cursor-pointer border border-line bg-bg p-1"
+						/>
+					</div>
+				))
+			}
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span id="venn-theme" class="text-sm text-muted">Fondo</span>
+			<div role="group" aria-labelledby="venn-theme" class="flex flex-wrap gap-2">
+				{
+					THEMES.map((tema) => (
+						<button type="button" data-venn-opcion="theme" data-valor={tema.id} aria-pressed="false" class={BOTON}>
+							<span class="flex" aria-hidden="true">
+								{[tema.bg, tema.fg].map((color) => (
+									<span class="size-3 border border-line" style={`background:${color}`} />
+								))}
+							</span>
+							{tema.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<label class="flex flex-col gap-1">
+			<span class="flex justify-between text-sm text-muted">
+				<span>Relleno</span>
+				<span data-venn-relleno-valor class="text-mark"></span>
+			</span>
+			<input
+				type="range"
+				data-venn-relleno
+				min={FILL.min}
+				max={FILL.max}
+				step={FILL.step}
+				class="w-full accent-accent"
+			/>
+		</label>
+
+		<p class="text-xs text-muted">Se guarda solo en tu navegador. No se envía a ninguna parte.</p>
+	</div>
+</section>
+
+<script>
+	import {
+		ALL_ZONES,
+		type Count,
+		SAMPLE,
+		SET_IDS,
+		type Venn,
+		type VennOptions,
+		ZONES,
+		countItems,
+		emptyItems,
+		loadVenn,
+		parseItems,
+		saveVenn,
+		vennSvg,
+		zoneName,
+	} from '../lib/venn';
+	import { fontOf } from '../lib/timeline';
+	import { FONTS, fontSpec, safeColor } from '../lib/wordcloud';
+
+	const vista = document.querySelector<HTMLElement>('[data-venn-vista]');
+	const nota = document.querySelector<HTMLElement>('[data-venn-nota]');
+	const cuenta = document.querySelector<HTMLElement>('[data-venn-cuenta]');
+	const titulo = document.querySelector<HTMLInputElement>('[data-venn-titulo]');
+	const relleno = document.querySelector<HTMLInputElement>('[data-venn-relleno]');
+	const rellenoValor = document.querySelector<HTMLElement>('[data-venn-relleno-valor]');
+
+	let venn: Venn = loadVenn() ?? structuredClone(SAMPLE);
+
+	function avisar(mensaje: string) {
+		if (nota) nota.textContent = mensaje;
+	}
+
+	function nombre(id: string) {
+		return document.querySelector<HTMLInputElement>(`[data-venn-nombre="${id}"]`);
+	}
+
+	function color(id: string) {
+		return document.querySelector<HTMLInputElement>(`[data-venn-color="${id}"]`);
+	}
+
+	function elementos(zona: string) {
+		return document.querySelector<HTMLTextAreaElement>(`[data-venn-elementos="${zona}"]`);
+	}
+
+	/**
+	 * Los campos de texto se rellenan solo al cargar o al cambiar de golpe: si se
+	 * tocaran en cada tecla, se comerían el salto de línea que se está escribiendo.
+	 */
+	function rellenarCampos() {
+		if (titulo) titulo.value = venn.title;
+		for (const id of SET_IDS) {
+			const campo = nombre(id);
+			if (campo) campo.value = venn.sets[id].label;
+			const muestra = color(id);
+			if (muestra) muestra.value = venn.sets[id].color;
+		}
+		for (const zona of ALL_ZONES) {
+			const campo = elementos(zona);
+			if (campo) campo.value = venn.items[zona].join('\n');
+		}
+		if (relleno) relleno.value = String(venn.options.fill);
+	}
+
+	function pintarMandos() {
+		const opciones: Record<string, string> = { ...venn.options, fill: '', count: String(venn.count) };
+		document.querySelectorAll<HTMLButtonElement>('[data-venn-opcion]').forEach((button) => {
+			const grupo = button.dataset.vennOpcion ?? '';
+			button.setAttribute('aria-pressed', String(opciones[grupo] === button.dataset.valor));
+		});
+		const visibles: readonly string[] = ZONES[venn.count];
+		document.querySelectorAll<HTMLElement>('[data-venn-zona]').forEach((zona) => {
+			zona.hidden = !visibles.includes(zona.dataset.vennZona ?? '');
+		});
+		document.querySelectorAll<HTMLElement>('[data-venn-zona-nombre]').forEach((span) => {
+			span.textContent = zoneName(venn, span.dataset.vennZonaNombre as (typeof ALL_ZONES)[number]);
+		});
+		const tercero = document.querySelector<HTMLElement>('[data-venn-conjunto="c"]');
+		if (tercero) tercero.hidden = venn.count === 2;
+		if (rellenoValor) rellenoValor.textContent = `${venn.options.fill}%`;
+	}
+
+	function pintarVista() {
+		if (!vista) return;
+		const doc = new DOMParser().parseFromString(vennSvg(venn), 'image/svg+xml');
+		const svg = doc.documentElement;
+		if (svg.nodeName !== 'svg') return;
+		vista.replaceChildren(document.importNode(svg, true));
+
+		const { total, hidden } = countItems(venn);
+		if (cuenta) cuenta.textContent = total ? String(total) : '';
+		if (hidden) avisar(`${hidden} no caben en el dibujo: acórtalos o quita alguno.`);
+		else if (nota?.textContent?.includes('no caben')) avisar('');
+	}
+
+	function render() {
+		pintarMandos();
+		pintarVista();
+	}
+
+	function cambiar() {
+		if (!saveVenn(venn)) avisar('No se pudo guardar en tu navegador: lo que cambies se pierde al salir.');
+		render();
+	}
+
+	/** Al escribir se espera un pelo, para no rehacer el dibujo en cada tecla. */
+	let espera = 0;
+	function pronto() {
+		clearTimeout(espera);
+		espera = window.setTimeout(cambiar, 150);
+	}
+
+	titulo?.addEventListener('input', () => {
+		venn.title = titulo.value.replace(/\s+/g, ' ').trim();
+		pronto();
+	});
+
+	for (const id of SET_IDS) {
+		nombre(id)?.addEventListener('input', (event) => {
+			venn.sets[id].label = (event.target as HTMLInputElement).value.replace(/\s+/g, ' ').trim();
+			pronto();
+		});
+		color(id)?.addEventListener('input', (event) => {
+			venn.sets[id].color = safeColor((event.target as HTMLInputElement).value, venn.sets[id].color);
+			cambiar();
+		});
+	}
+
+	for (const zona of ALL_ZONES) {
+		elementos(zona)?.addEventListener('input', (event) => {
+			venn.items[zona] = parseItems((event.target as HTMLTextAreaElement).value);
+			pronto();
+		});
+	}
+
+	relleno?.addEventListener('input', () => {
+		venn.options = { ...venn.options, fill: Number(relleno.value) };
+		cambiar();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-venn-opcion]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const grupo = button.dataset.vennOpcion ?? '';
+			const valor = button.dataset.valor ?? '';
+			if (grupo === 'count') venn.count = (valor === '2' ? 2 : 3) as Count;
+			else venn.options = { ...venn.options, [grupo as keyof VennOptions]: valor };
+			cambiar();
+		});
+	});
+
+	document.querySelector('[data-venn-ejemplo]')?.addEventListener('click', () => {
+		const hay = Object.values(venn.items).some((lista) => lista.length);
+		if (hay && !confirm('¿Cambiar tu diagrama por el de ejemplo? Se pierde lo que tienes.')) return;
+		venn = structuredClone(SAMPLE);
+		avisar('');
+		rellenarCampos();
+		cambiar();
+	});
+
+	document.querySelector('[data-venn-vaciar]')?.addEventListener('click', () => {
+		const hay = Object.values(venn.items).some((lista) => lista.length);
+		if (hay && !confirm('¿Borrar todos los elementos, los nombres y el título?')) return;
+		venn = {
+			...venn,
+			title: '',
+			sets: {
+				a: { ...venn.sets.a, label: '' },
+				b: { ...venn.sets.b, label: '' },
+				c: { ...venn.sets.c, label: '' },
+			},
+			items: emptyItems(),
+		};
+		avisar('');
+		rellenarCampos();
+		cambiar();
+	});
+
+	function nombreFichero(ext: string) {
+		const base = venn.title
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `${base || 'diagrama-de-venn'}.${ext}`;
+	}
+
+	function bajar(blob: Blob, ext: string) {
+		const url = URL.createObjectURL(blob);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = nombreFichero(ext);
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/** La fuente va dentro del SVG; sale de esta misma web. Si falla, va sin ella. */
+	async function fuenteEnBase64(file: string) {
+		try {
+			const respuesta = await fetch(file);
+			if (!respuesta.ok) return undefined;
+			const bytes = new Uint8Array(await respuesta.arrayBuffer());
+			let binario = '';
+			for (let i = 0; i < bytes.length; i += 0x8000) {
+				binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+			}
+			return btoa(binario);
+		} catch {
+			return undefined;
+		}
+	}
+
+	/** El PNG sale del mismo SVG, pintado en un lienzo al doble para que no se vea borroso. */
+	function svgAPng(svg: string) {
+		return new Promise<Blob | null>((resolve) => {
+			const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+			const imagen = new Image();
+			imagen.onload = () => {
+				const lienzo = document.createElement('canvas');
+				lienzo.width = imagen.naturalWidth * 2;
+				lienzo.height = imagen.naturalHeight * 2;
+				const pincel = lienzo.getContext('2d');
+				if (!pincel) {
+					URL.revokeObjectURL(url);
+					resolve(null);
+					return;
+				}
+				pincel.scale(2, 2);
+				pincel.drawImage(imagen, 0, 0);
+				URL.revokeObjectURL(url);
+				try {
+					lienzo.toBlob(resolve, 'image/png');
+				} catch {
+					resolve(null);
+				}
+			};
+			imagen.onerror = () => {
+				URL.revokeObjectURL(url);
+				resolve(null);
+			};
+			imagen.src = url;
+		});
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-venn-descarga]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			button.disabled = true;
+			const svg = vennSvg(venn, await fuenteEnBase64(fontOf(venn.options.font).file));
+			if (button.dataset.vennDescarga === 'svg') {
+				bajar(new Blob([svg], { type: 'image/svg+xml' }), 'svg');
+			} else {
+				const png = await svgAPng(svg);
+				if (png) bajar(png, 'png');
+				else avisar('No se pudo generar la imagen.');
+			}
+			button.disabled = false;
+		});
+	});
+
+	rellenarCampos();
+	render();
+
+	// Las fuentes son nuestras, pero la vista previa se repinta cuando están.
+	Promise.all(FONTS.map((font) => document.fonts.load(fontSpec(font, 16))))
+		.catch(() => undefined)
+		.then(() => pintarVista());
+</script>
