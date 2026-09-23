@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
 	},
 	{
 		id: 'juegos',
@@ -131,6 +131,15 @@ export const SECTIONS: Section[] = [
 		card: 'Pegas un texto y salen sus palabras, más grandes cuanto más se repiten.',
 		intro:
 			'Pega un texto y sale su nube al momento: cada palabra, más grande cuanto más se repite, sin las palabras vacías que no dicen nada. Elige la forma, los colores, la fuente y si van tumbadas o de pie, quita las que sobren y te la llevas en SVG o en PNG. Se cuenta y se pinta en tu navegador: el texto no se envía ni se guarda.',
+	},
+	{
+		href: '/lineas',
+		title: 'Líneas de tiempo',
+		icon: 'timeline-event',
+		group: 'herramientas',
+		card: 'Eventos con fecha, título y descripción, ordenados sobre una línea.',
+		intro:
+			'Apunta lo que pasó y cuándo: cada evento lleva su fecha, un título y una descripción, y sale en su sitio de la línea, ordenado solo. Tumbada o de pie, a paso fijo o separada según el tiempo que pasa entre uno y otro, con los colores y la fuente que elijas. Te la llevas en SVG o en PNG. Se dibuja en tu navegador y lo que apuntas se queda en él para seguir otro día.',
 	},
 	{
 		href: '/comparador',

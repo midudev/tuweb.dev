@@ -1,0 +1,509 @@
+---
+/**
+ * Las líneas de tiempo. Apuntas eventos —fecha, título y descripción—, salen
+ * ordenados sobre una línea y te la llevas en SVG o en PNG.
+ *
+ * Todo pasa en tu navegador: la línea se guarda en el localStorage y el dibujo
+ * es un SVG que se arma aquí mismo. El cálculo está en src/lib/timeline.ts;
+ * aquí solo están los mandos.
+ */
+import {
+	DESCRIPTION_MAX,
+	EVENT_TITLE_MAX,
+	FORMATS,
+	LAYOUTS,
+	SPACINGS,
+	THEMES,
+	TITLE_MAX,
+} from '../lib/timeline';
+import { FONTS } from '../lib/wordcloud';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const CAMPO = 'w-full border border-line bg-bg p-3 text-sm outline-none focus-visible:border-accent';
+
+const GRUPOS = [
+	{ id: 'layout', label: 'Línea', items: LAYOUTS },
+	{ id: 'spacing', label: 'Separación', items: SPACINGS },
+	{ id: 'format', label: 'Fecha', items: FORMATS },
+	{ id: 'font', label: 'Fuente', items: FONTS.map((f) => ({ id: f.id, label: f.label, icon: 'typography' })) },
+];
+---
+
+<section id="lineas" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<div
+			data-linea-vista
+			role="img"
+			aria-label="Vista previa de la línea de tiempo"
+			class="overflow-auto border border-line bg-panel p-4 [&>svg]:block [&>svg]:h-auto [&>svg]:max-w-none"
+		>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-linea-descarga="svg" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-linea-descarga="png" class={`${BOTON} border-accent text-accent`}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+		</div>
+
+		<p data-linea-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="timeline-event" class="size-4 shrink-0 text-accent" />
+				<span>Eventos, por fecha</span>
+				<span data-linea-cuenta class="text-mark"></span>
+			</span>
+			<ol data-linea-lista class="flex flex-col"></ol>
+			<template data-linea-icono="pencil"><Icon name="pencil" class="size-4" /></template>
+			<template data-linea-icono="trash"><Icon name="trash" class="size-4" /></template>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-1">
+			<span class="flex items-center justify-between gap-2">
+				<label for="linea-titulo" class="text-sm text-muted">Título de la línea</label>
+				<span class="flex gap-2">
+					<button type="button" data-linea-ejemplo class={`${BOTON} px-2 py-1`}>
+						<Icon name="file-text" class="size-4 shrink-0" />
+						Ejemplo
+					</button>
+					<button type="button" data-linea-vaciar class={`${BOTON} px-2 py-1`}>
+						<Icon name="eraser" class="size-4 shrink-0" />
+						Vaciar
+					</button>
+				</span>
+			</span>
+			<input
+				type="text"
+				id="linea-titulo"
+				data-linea-titulo
+				maxlength={TITLE_MAX}
+				placeholder="Mi proyecto, mi carrera, la historia de algo"
+				autocomplete="off"
+				class={CAMPO}
+			/>
+		</div>
+
+		<form data-linea-form class="flex flex-col gap-3 border border-line bg-bg p-4" novalidate>
+			<span data-linea-modo class="flex items-center gap-2 text-sm text-fg">
+				<Icon name="timeline-event-plus" class="size-4 shrink-0 text-accent" />
+				<span data-linea-modo-texto>Nuevo evento</span>
+			</span>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Fecha</span>
+				<input type="date" name="date" required class={CAMPO} />
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Título</span>
+				<input type="text" name="title" required maxlength={EVENT_TITLE_MAX} autocomplete="off" class={CAMPO} />
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Descripción</span>
+				<textarea name="description" rows="3" maxlength={DESCRIPTION_MAX} class={`${CAMPO} resize-y`}></textarea>
+			</label>
+			<p data-linea-error class="text-sm text-heart empty:hidden" aria-live="polite"></p>
+			<div class="flex flex-wrap gap-2">
+				<button type="submit" data-linea-guardar class={`${BOTON} border-accent text-accent`}>
+					<Icon name="plus" class="size-4 shrink-0" />
+					<span>Añadir</span>
+				</button>
+				<button type="button" data-linea-cancelar hidden class={BOTON}>
+					<Icon name="x" class="size-4 shrink-0" />
+					Cancelar
+				</button>
+			</div>
+		</form>
+
+		{
+			GRUPOS.map((grupo) => (
+				<div class="flex flex-col gap-2">
+					<span id={`linea-${grupo.id}`} class="text-sm text-muted">
+						{grupo.label}
+					</span>
+					<div role="group" aria-labelledby={`linea-${grupo.id}`} class="flex flex-wrap gap-2">
+						{grupo.items.map((item) => (
+							<button
+								type="button"
+								data-linea-opcion={grupo.id}
+								data-valor={item.id}
+								aria-pressed="false"
+								class={BOTON}
+							>
+								<Icon name={item.icon} class="size-4 shrink-0" />
+								{item.label}
+							</button>
+						))}
+					</div>
+				</div>
+			))
+		}
+
+		<div class="flex flex-col gap-2">
+			<span id="linea-theme" class="text-sm text-muted">Colores</span>
+			<div role="group" aria-labelledby="linea-theme" class="flex flex-wrap gap-2">
+				{
+					THEMES.map((tema) => (
+						<button type="button" data-linea-opcion="theme" data-valor={tema.id} aria-pressed="false" class={BOTON}>
+							<span class="flex" aria-hidden="true">
+								{[tema.bg, tema.fg, tema.accent].map((color) => (
+									<span class="size-3 border border-line" style={`background:${color}`} />
+								))}
+							</span>
+							{tema.label}
+						</button>
+					))
+				}
+			</div>
+			<div class="flex flex-wrap items-center gap-4 pt-1">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Acento
+					<input type="color" data-linea-acento class="h-9 w-14 cursor-pointer border border-line bg-bg p-1" />
+				</label>
+				<button type="button" data-linea-acento-quitar class={`${BOTON} px-2 py-1`}>
+					<Icon name="x" class="size-4 shrink-0" />
+					El del tema
+				</button>
+			</div>
+		</div>
+
+		<p class="text-xs text-muted">Se guarda sola en tu navegador. No se envía a ninguna parte.</p>
+	</div>
+</section>
+
+<script>
+	import {
+		DEFAULT_OPTIONS,
+		MAX_EVENTS,
+		SAMPLE,
+		type Timeline,
+		type TimelineOptions,
+		fontOf,
+		formatDate,
+		loadTimeline,
+		nextId,
+		saveTimeline,
+		sortEvents,
+		themeOf,
+		timelineSvg,
+		toEvent,
+	} from '../lib/timeline';
+	import { FONTS, fontSpec } from '../lib/wordcloud';
+
+	const vista = document.querySelector<HTMLElement>('[data-linea-vista]');
+	const nota = document.querySelector<HTMLElement>('[data-linea-nota]');
+	const lista = document.querySelector<HTMLElement>('[data-linea-lista]');
+	const cuenta = document.querySelector<HTMLElement>('[data-linea-cuenta]');
+	const titulo = document.querySelector<HTMLInputElement>('[data-linea-titulo]');
+	const form = document.querySelector<HTMLFormElement>('[data-linea-form]');
+	const modo = document.querySelector<HTMLElement>('[data-linea-modo-texto]');
+	const error = document.querySelector<HTMLElement>('[data-linea-error]');
+	const guardar = document.querySelector<HTMLElement>('[data-linea-guardar] span');
+	const cancelar = document.querySelector<HTMLButtonElement>('[data-linea-cancelar]');
+	const acento = document.querySelector<HTMLInputElement>('[data-linea-acento]');
+
+	let linea: Timeline = loadTimeline() ?? structuredClone(SAMPLE);
+	/** El evento que se está editando, o nada si el formulario es para uno nuevo. */
+	let editando: string | null = null;
+
+	function avisar(mensaje: string) {
+		if (nota) nota.textContent = mensaje;
+	}
+
+	function campo(nombre: string) {
+		return form?.elements.namedItem(nombre) as HTMLInputElement | HTMLTextAreaElement | null;
+	}
+
+	function guardarTodo() {
+		if (!saveTimeline(linea)) avisar('No se pudo guardar en tu navegador: lo que cambies se pierde al salir.');
+	}
+
+	function pintarMandos() {
+		const opciones = linea.options as unknown as Record<string, string>;
+		document.querySelectorAll<HTMLButtonElement>('[data-linea-opcion]').forEach((button) => {
+			const grupo = button.dataset.lineaOpcion ?? '';
+			button.setAttribute('aria-pressed', String(opciones[grupo] === button.dataset.valor));
+		});
+		if (acento) acento.value = linea.options.accent || themeOf(linea.options.theme).accent;
+		if (titulo && document.activeElement !== titulo) titulo.value = linea.title;
+	}
+
+	function boton(icono: 'pencil' | 'trash', etiqueta: string, accion: () => void) {
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className =
+			'inline-flex size-8 shrink-0 items-center justify-center border border-line text-muted hover:border-accent hover:text-accent';
+		button.setAttribute('aria-label', etiqueta);
+		button.title = etiqueta;
+		const plantilla = document.querySelector<HTMLTemplateElement>(`[data-linea-icono="${icono}"]`);
+		if (plantilla) button.append(plantilla.content.cloneNode(true));
+		button.addEventListener('click', accion);
+		return button;
+	}
+
+	function pintarLista() {
+		if (cuenta) cuenta.textContent = `${linea.events.length}/${MAX_EVENTS}`;
+		if (!lista) return;
+		if (!linea.events.length) {
+			const vacio = document.createElement('li');
+			vacio.className = 'border-b border-line py-2 text-sm text-muted';
+			vacio.textContent = 'Todavía no hay eventos. Apunta el primero en el formulario.';
+			lista.replaceChildren(vacio);
+			return;
+		}
+		lista.replaceChildren(
+			...linea.events.map((evento) => {
+				const item = document.createElement('li');
+				item.className = `flex items-start gap-3 border-b border-line py-2 text-sm ${editando === evento.id ? 'text-accent' : ''}`;
+				const fecha = document.createElement('span');
+				fecha.className = 'w-28 shrink-0 text-mark';
+				fecha.textContent = formatDate(evento.date, 'dia');
+				const texto = document.createElement('span');
+				texto.className = 'min-w-0 flex-1';
+				const nombre = document.createElement('span');
+				nombre.className = 'block';
+				nombre.textContent = evento.title;
+				texto.append(nombre);
+				if (evento.description) {
+					const detalle = document.createElement('span');
+					detalle.className = 'block truncate text-xs text-muted';
+					detalle.textContent = evento.description;
+					texto.append(detalle);
+				}
+				item.append(
+					fecha,
+					texto,
+					boton('pencil', `Editar «${evento.title}»`, () => editar(evento.id)),
+					boton('trash', `Borrar «${evento.title}»`, () => borrar(evento.id)),
+				);
+				return item;
+			}),
+		);
+	}
+
+	function pintarVista() {
+		if (!vista) return;
+		const doc = new DOMParser().parseFromString(timelineSvg(linea), 'image/svg+xml');
+		const svg = doc.documentElement;
+		if (svg.nodeName !== 'svg') return;
+		vista.replaceChildren(document.importNode(svg, true));
+	}
+
+	function render() {
+		pintarMandos();
+		pintarLista();
+		pintarVista();
+	}
+
+	function cambiar() {
+		guardarTodo();
+		render();
+	}
+
+	function limpiarForm() {
+		editando = null;
+		form?.reset();
+		if (error) error.textContent = '';
+		if (guardar) guardar.textContent = 'Añadir';
+		if (modo) modo.textContent = 'Nuevo evento';
+		if (cancelar) cancelar.hidden = true;
+	}
+
+	function editar(id: string) {
+		const evento = linea.events.find((item) => item.id === id);
+		if (!evento) return;
+		editando = id;
+		const fecha = campo('date');
+		const nombre = campo('title');
+		const detalle = campo('description');
+		if (fecha) fecha.value = evento.date;
+		if (nombre) nombre.value = evento.title;
+		if (detalle) detalle.value = evento.description;
+		if (error) error.textContent = '';
+		if (guardar) guardar.textContent = 'Guardar cambios';
+		if (modo) modo.textContent = 'Editando evento';
+		if (cancelar) cancelar.hidden = false;
+		render();
+		nombre?.focus();
+	}
+
+	function borrar(id: string) {
+		linea.events = linea.events.filter((item) => item.id !== id);
+		if (editando === id) limpiarForm();
+		cambiar();
+	}
+
+	form?.addEventListener('submit', (event) => {
+		event.preventDefault();
+		if (!editando && linea.events.length >= MAX_EVENTS) {
+			if (error) error.textContent = `Caben ${MAX_EVENTS} eventos como mucho.`;
+			return;
+		}
+		const resultado = toEvent({
+			id: editando ?? nextId(),
+			date: campo('date')?.value,
+			title: campo('title')?.value,
+			description: campo('description')?.value,
+		});
+		if (typeof resultado === 'string') {
+			if (error) error.textContent = resultado;
+			return;
+		}
+		const resto = linea.events.filter((item) => item.id !== resultado.id);
+		linea.events = sortEvents([...resto, resultado]);
+		avisar(editando ? 'Evento cambiado.' : 'Evento añadido.');
+		limpiarForm();
+		cambiar();
+		campo('date')?.focus();
+	});
+
+	cancelar?.addEventListener('click', () => {
+		limpiarForm();
+		render();
+	});
+
+	titulo?.addEventListener('input', () => {
+		linea.title = titulo.value.replace(/\s+/g, ' ').trimStart();
+		cambiar();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-linea-opcion]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const grupo = button.dataset.lineaOpcion as keyof TimelineOptions;
+			const opciones: TimelineOptions = { ...linea.options, [grupo]: button.dataset.valor ?? '' };
+			// Cada tema trae su acento; luego se cambia si se quiere.
+			if (grupo === 'theme') opciones.accent = '';
+			linea.options = opciones;
+			cambiar();
+		});
+	});
+
+	acento?.addEventListener('input', () => {
+		linea.options = { ...linea.options, accent: acento.value };
+		cambiar();
+	});
+
+	document.querySelector('[data-linea-acento-quitar]')?.addEventListener('click', () => {
+		linea.options = { ...linea.options, accent: '' };
+		cambiar();
+	});
+
+	document.querySelector('[data-linea-ejemplo]')?.addEventListener('click', () => {
+		if (linea.events.length && !confirm('¿Cambiar tu línea por la de ejemplo? Se pierde lo que tienes.')) return;
+		linea = structuredClone(SAMPLE);
+		limpiarForm();
+		avisar('');
+		cambiar();
+	});
+
+	document.querySelector('[data-linea-vaciar]')?.addEventListener('click', () => {
+		if (linea.events.length && !confirm('¿Borrar todos los eventos?')) return;
+		linea = { title: '', events: [], options: { ...DEFAULT_OPTIONS, ...linea.options } };
+		limpiarForm();
+		avisar('');
+		cambiar();
+	});
+
+	function nombreFichero(ext: string) {
+		const base = linea.title
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `${base || 'linea-de-tiempo'}.${ext}`;
+	}
+
+	function bajar(blob: Blob, ext: string) {
+		const url = URL.createObjectURL(blob);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = nombreFichero(ext);
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/** La fuente va dentro del SVG; sale de esta misma web. Si falla, va sin ella. */
+	async function fuenteEnBase64(file: string) {
+		try {
+			const respuesta = await fetch(file);
+			if (!respuesta.ok) return undefined;
+			const bytes = new Uint8Array(await respuesta.arrayBuffer());
+			let binario = '';
+			for (let i = 0; i < bytes.length; i += 0x8000) {
+				binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+			}
+			return btoa(binario);
+		} catch {
+			return undefined;
+		}
+	}
+
+	/** El PNG sale del mismo SVG, pintado en un lienzo al doble para que no se vea borroso. */
+	function svgAPng(svg: string) {
+		return new Promise<Blob | null>((resolve) => {
+			const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+			const imagen = new Image();
+			imagen.onload = () => {
+				const lienzo = document.createElement('canvas');
+				lienzo.width = imagen.naturalWidth * 2;
+				lienzo.height = imagen.naturalHeight * 2;
+				const pincel = lienzo.getContext('2d');
+				if (!pincel) {
+					URL.revokeObjectURL(url);
+					resolve(null);
+					return;
+				}
+				pincel.scale(2, 2);
+				pincel.drawImage(imagen, 0, 0);
+				URL.revokeObjectURL(url);
+				try {
+					lienzo.toBlob(resolve, 'image/png');
+				} catch {
+					resolve(null);
+				}
+			};
+			imagen.onerror = () => {
+				URL.revokeObjectURL(url);
+				resolve(null);
+			};
+			imagen.src = url;
+		});
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-linea-descarga]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (!linea.events.length) {
+				avisar('No hay eventos que descargar todavía.');
+				return;
+			}
+			button.disabled = true;
+			const svg = timelineSvg(linea, await fuenteEnBase64(fontOf(linea.options.font).file));
+			if (button.dataset.lineaDescarga === 'svg') {
+				bajar(new Blob([svg], { type: 'image/svg+xml' }), 'svg');
+			} else {
+				const png = await svgAPng(svg);
+				if (png) bajar(png, 'png');
+				else avisar('No se pudo generar la imagen.');
+			}
+			button.disabled = false;
+		});
+	});
+
+	render();
+
+	// Las fuentes son nuestras, pero la vista previa se repinta cuando están.
+	Promise.all(FONTS.map((font) => document.fonts.load(fontSpec(font, 16))))
+		.catch(() => undefined)
+		.then(() => pintarVista());
+</script>
