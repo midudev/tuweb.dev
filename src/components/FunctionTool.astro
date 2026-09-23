@@ -1,0 +1,738 @@
+---
+/**
+ * Gráficas de funciones: se escriben una o varias y = f(x) y se pintan al
+ * momento en un SVG, con su rango de ejes, su cuadrícula y un color por curva.
+ *
+ * El analizador es de la casa: un lector de símbolos y un descenso recursivo
+ * que convierte la expresión en funciones de JavaScript ya compiladas. Nada de
+ * eval ni de new Function: lo que no entiende la gramática, no corre. Todo pasa
+ * en el navegador y lo único que se guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+
+const EJEMPLOS = ['sin(x)', 'x^2 - 3', '1/x', 'sqrt(abs(x))', 'exp(-x^2)', 'tan(x)', 'log(x)', '2cos(3x)'];
+
+const RANGOS = [
+	{ id: 'xmin', label: 'X mín.' },
+	{ id: 'xmax', label: 'X máx.' },
+	{ id: 'ymin', label: 'Y mín.' },
+	{ id: 'ymax', label: 'Y máx.' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="funciones"
+	aria-labelledby="tab-funciones"
+	data-panel="funciones"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-3">
+				<span class="text-sm text-muted">Funciones</span>
+				<div data-fn-lista class="flex flex-col gap-3"></div>
+				<button type="button" data-fn-nueva class={`${BOTON} self-start`}>
+					<Icon name="plus" class="size-4 shrink-0" />
+					Otra función
+				</button>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Ejemplos</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						EJEMPLOS.map((ejemplo) => (
+							<button
+								type="button"
+								data-fn-ejemplo={ejemplo}
+								class="border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								{ejemplo}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Ejes</span>
+				<div class="grid grid-cols-2 gap-3">
+					{
+						RANGOS.map((rango) => (
+							<label class="flex flex-col gap-1">
+								<span class="text-xs text-muted">{rango.label}</span>
+								<input
+									type="number"
+									step="any"
+									inputmode="decimal"
+									data-fn-rango={rango.id}
+									class={CAMPO}
+								/>
+							</label>
+						))
+					}
+				</div>
+				<p data-fn-rango-error class="text-xs text-heart" hidden></p>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<label class="mr-2 inline-flex items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-fn-cuadricula checked class="size-4 accent-accent" />
+					Cuadrícula
+				</label>
+				<button type="button" data-fn-zoom="0.5" class={BOTON} aria-label="Acercar">
+					<Icon name="zoom-in" class="size-4 shrink-0" />
+				</button>
+				<button type="button" data-fn-zoom="2" class={BOTON} aria-label="Alejar">
+					<Icon name="zoom-out" class="size-4 shrink-0" />
+				</button>
+				<button type="button" data-fn-encajar class={BOTON}>
+					<Icon name="arrows-vertical" class="size-4 shrink-0" />
+					Encajar Y
+				</button>
+				<button type="button" data-fn-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+
+			<details class="text-xs text-muted">
+				<summary class="cursor-pointer hover:text-fg">Qué se puede escribir</summary>
+				<ul class="mt-2 flex flex-col gap-1">
+					<li><code class="text-mark">+ - * / ^</code> y paréntesis. <code class="text-mark">2x</code> vale como <code class="text-mark">2*x</code>.</li>
+					<li><code class="text-mark">sin cos tan sqrt abs log exp</code>. <code class="text-mark">log</code> es el neperiano (también <code class="text-mark">ln</code>).</li>
+					<li>Constantes <code class="text-mark">pi</code> y <code class="text-mark">e</code>. Decimales con punto o coma.</li>
+				</ul>
+			</details>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-2">
+			<svg
+				data-fn-lienzo
+				viewBox="0 0 800 560"
+				class="block h-auto w-full border border-line bg-panel font-mono select-none"
+				role="img"
+				aria-label="Gráfica de las funciones"
+			>
+				<g data-fn-rejilla></g>
+				<g data-fn-curvas fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></g>
+				<g data-fn-cursor></g>
+			</svg>
+			<p data-fn-lectura class="min-h-[1.5em] text-xs text-muted">Pasa el ratón por la gráfica para leer los valores.</p>
+		</div>
+	</div>
+
+	<template data-fn-plantilla>
+		<div data-fn-fila class="flex flex-col gap-1">
+			<div class="flex items-center gap-2">
+				<input
+					type="color"
+					data-fn-color
+					aria-label="Color de la curva"
+					class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+				/>
+				<label class="flex min-w-0 flex-1 items-center border border-line bg-panel focus-within:border-accent">
+					<span class="pl-3 text-sm whitespace-nowrap text-muted">y =</span>
+					<input
+						type="text"
+						data-fn-expr
+						spellcheck="false"
+						autocomplete="off"
+						aria-label="Función de x"
+						class="w-full min-w-0 bg-transparent px-2 py-2 text-sm outline-none"
+					/>
+				</label>
+				<label class="inline-flex shrink-0 items-center" title="Mostrar u ocultar">
+					<input type="checkbox" data-fn-visible checked aria-label="Mostrar la curva" class="size-4 accent-accent" />
+				</label>
+				<button
+					type="button"
+					data-fn-quitar
+					aria-label="Quitar la función"
+					class="shrink-0 border border-line p-2 text-muted hover:border-accent hover:text-accent"
+				>
+					<Icon name="trash" class="size-4 shrink-0" />
+				</button>
+			</div>
+			<p data-fn-error class="text-xs text-heart" hidden></p>
+		</div>
+	</template>
+</div>
+
+<style>
+	[data-fn-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-fn-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-fn-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+</style>
+
+<script>
+	// ——— El analizador ———
+	// Gramática, de menos a más prioridad:
+	//   suma     = término (('+' | '-') término)*
+	//   término  = unario (('*' | '/') unario | unario implícito)*
+	//   unario   = ('-' | '+') unario | potencia
+	//   potencia = primario ('^' unario)?        (a la derecha: 2^3^2 = 2^9)
+	//   primario = número | x | constante | función arg | '(' suma ')'
+	type Fn = (x: number) => number;
+	type Token = { t: 'num'; v: number } | { t: 'id'; v: string } | { t: 'op'; v: string };
+
+	const FUNCIONES: Record<string, (v: number) => number> = {
+		sqrt: Math.sqrt,
+		sin: Math.sin,
+		cos: Math.cos,
+		tan: Math.tan,
+		abs: Math.abs,
+		log: Math.log,
+		ln: Math.log,
+		exp: Math.exp,
+	};
+	const CONSTANTES: Record<string, number> = { pi: Math.PI, 'π': Math.PI, e: Math.E };
+	// De la más larga a la más corta, para que «exp» no se lea como e·x·p.
+	const NOMBRES = [...Object.keys(FUNCIONES), ...Object.keys(CONSTANTES), 'x'].sort((a, b) => b.length - a.length);
+
+	function trocear(palabra: string): string[] {
+		const salida: string[] = [];
+		let i = 0;
+		while (i < palabra.length) {
+			const nombre = NOMBRES.find((n) => palabra.startsWith(n, i));
+			if (!nombre) throw new Error(`No conozco «${palabra}».`);
+			salida.push(nombre);
+			i += nombre.length;
+		}
+		return salida;
+	}
+
+	function leerSimbolos(texto: string): Token[] {
+		const fuente = texto
+			.toLowerCase()
+			.replace(/\*\*/g, '^')
+			.replace(/[×·]/g, '*')
+			.replace(/÷/g, '/')
+			.replace(/−/g, '-');
+		const tokens: Token[] = [];
+		let i = 0;
+		while (i < fuente.length) {
+			const c = fuente[i];
+			if (/\s/.test(c)) {
+				i++;
+				continue;
+			}
+			const numero = /^(\d+(?:[.,]\d+)?|[.,]\d+)/.exec(fuente.slice(i));
+			if (numero) {
+				tokens.push({ t: 'num', v: Number(numero[1].replace(',', '.')) });
+				i += numero[1].length;
+				continue;
+			}
+			const palabra = /^[a-zπ]+/.exec(fuente.slice(i));
+			if (palabra) {
+				trocear(palabra[0]).forEach((v) => tokens.push({ t: 'id', v }));
+				i += palabra[0].length;
+				continue;
+			}
+			if ('+-*/^()'.includes(c)) {
+				tokens.push({ t: 'op', v: c });
+				i++;
+				continue;
+			}
+			throw new Error(`No entiendo «${c}».`);
+		}
+		return tokens;
+	}
+
+	function compilar(texto: string): Fn {
+		const tokens = leerSimbolos(texto.replace(/^\s*y\s*=/i, ''));
+		if (tokens.length === 0) throw new Error('Escribe una función de x.');
+		let pos = 0;
+
+		const mirar = () => tokens[pos];
+		const esOp = (v: string) => mirar()?.t === 'op' && mirar()?.v === v;
+		const empiezaPrimario = () => {
+			const tk = mirar();
+			return !!tk && (tk.t === 'num' || tk.t === 'id' || (tk.t === 'op' && tk.v === '('));
+		};
+
+		function suma(): Fn {
+			let izq = termino();
+			while (esOp('+') || esOp('-')) {
+				const op = (tokens[pos++] as { v: string }).v;
+				const a = izq;
+				const b = termino();
+				izq = op === '+' ? (x) => a(x) + b(x) : (x) => a(x) - b(x);
+			}
+			return izq;
+		}
+
+		function termino(): Fn {
+			let izq = unario();
+			for (;;) {
+				const a = izq;
+				if (esOp('*') || esOp('/')) {
+					const op = (tokens[pos++] as { v: string }).v;
+					const b = unario();
+					izq = op === '*' ? (x) => a(x) * b(x) : (x) => a(x) / b(x);
+				} else if (empiezaPrimario()) {
+					const b = unario();
+					izq = (x) => a(x) * b(x);
+				} else return izq;
+			}
+		}
+
+		function unario(): Fn {
+			if (esOp('-')) {
+				pos++;
+				const a = unario();
+				return (x) => -a(x);
+			}
+			if (esOp('+')) {
+				pos++;
+				return unario();
+			}
+			return potencia();
+		}
+
+		function potencia(): Fn {
+			const base = primario();
+			if (!esOp('^')) return base;
+			pos++;
+			const exponente = unario();
+			return (x) => Math.pow(base(x), exponente(x));
+		}
+
+		function primario(): Fn {
+			const tk = tokens[pos];
+			if (!tk) throw new Error('La expresión se queda a medias.');
+			pos++;
+			if (tk.t === 'num') {
+				const v = tk.v;
+				return () => v;
+			}
+			if (tk.t === 'id') {
+				if (tk.v === 'x') return (x) => x;
+				if (tk.v in CONSTANTES) {
+					const v = CONSTANTES[tk.v];
+					return () => v;
+				}
+				const f = FUNCIONES[tk.v];
+				// sin(x) con paréntesis, o sin x a pelo: entonces se come una potencia.
+				const arg = esOp('(') ? primario() : potencia();
+				return (x) => f(arg(x));
+			}
+			if (tk.v === '(') {
+				const dentro = suma();
+				if (!esOp(')')) throw new Error('Falta cerrar un paréntesis.');
+				pos++;
+				return dentro;
+			}
+			if (tk.v === ')') throw new Error('Sobra un paréntesis de cierre.');
+			throw new Error(`Falta algo antes de «${tk.v}».`);
+		}
+
+		const resultado = suma();
+		if (pos < tokens.length) {
+			const tk = tokens[pos];
+			throw new Error(tk.t === 'op' && tk.v === ')' ? 'Sobra un paréntesis de cierre.' : `Sobra «${tk.v}».`);
+		}
+		return resultado;
+	}
+
+	// ——— La herramienta ———
+	type Curva = { expr: string; color: string; visible: boolean };
+	type Estado = { curvas: Curva[]; xmin: number; xmax: number; ymin: number; ymax: number; cuadricula: boolean };
+
+	const CLAVE = 'tuweb:funciones';
+	const PALETA = ['#c2410c', '#2563eb', '#2f7a3b', '#9333ea', '#b91c3c', '#0e7490', '#8a5a00'];
+	const INICIAL: Estado = {
+		curvas: [
+			{ expr: 'sin(x)', color: PALETA[0], visible: true },
+			{ expr: 'x^2/4 - 2', color: PALETA[1], visible: true },
+		],
+		xmin: -10,
+		xmax: 10,
+		ymin: -6,
+		ymax: 6,
+		cuadricula: true,
+	};
+	const ANCHO = 800;
+	const ALTO = 560;
+	const NS = 'http://www.w3.org/2000/svg';
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="funciones"]');
+	const lista = panel?.querySelector<HTMLElement>('[data-fn-lista]');
+	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-fn-plantilla]');
+	const lienzo = panel?.querySelector<SVGSVGElement>('[data-fn-lienzo]');
+	const rejilla = panel?.querySelector<SVGGElement>('[data-fn-rejilla]');
+	const capaCurvas = panel?.querySelector<SVGGElement>('[data-fn-curvas]');
+	const capaCursor = panel?.querySelector<SVGGElement>('[data-fn-cursor]');
+	const lectura = panel?.querySelector<HTMLElement>('[data-fn-lectura]');
+	const rangoError = panel?.querySelector<HTMLElement>('[data-fn-rango-error]');
+	const cuadricula = panel?.querySelector<HTMLInputElement>('[data-fn-cuadricula]');
+	const rangos = new Map(
+		[...(panel?.querySelectorAll<HTMLInputElement>('[data-fn-rango]') ?? [])].map((el) => [el.dataset.fnRango ?? '', el]),
+	);
+
+	function cargar(): Estado {
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (guardado && Array.isArray(guardado.curvas)) {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				return {
+					curvas: guardado.curvas.slice(0, 12).map((c: Partial<Curva>, i: number) => ({
+						expr: String(c.expr ?? '').slice(0, 200),
+						color: /^#[0-9a-f]{6}$/i.test(String(c.color)) ? String(c.color) : PALETA[i % PALETA.length],
+						visible: c.visible !== false,
+					})),
+					xmin: num(guardado.xmin, INICIAL.xmin),
+					xmax: num(guardado.xmax, INICIAL.xmax),
+					ymin: num(guardado.ymin, INICIAL.ymin),
+					ymax: num(guardado.ymax, INICIAL.ymax),
+					cuadricula: guardado.cuadricula !== false,
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return structuredClone(INICIAL);
+	}
+
+	let estado = cargar();
+	let compiladas: (Fn | null)[] = [];
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	function formato(v: number) {
+		if (!Number.isFinite(v)) return '—';
+		const abs = Math.abs(v);
+		if (abs !== 0 && (abs >= 1e6 || abs < 1e-3)) return v.toExponential(2);
+		return String(Number(v.toFixed(4)));
+	}
+
+	function pasoBonito(tramo: number) {
+		const bruto = tramo / 10;
+		const potencia10 = 10 ** Math.floor(Math.log10(bruto));
+		const f = bruto / potencia10;
+		return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * potencia10;
+	}
+
+	const aPx = (x: number) => ((x - estado.xmin) / (estado.xmax - estado.xmin)) * ANCHO;
+	const aPy = (y: number) => ALTO - ((y - estado.ymin) / (estado.ymax - estado.ymin)) * ALTO;
+	const r2 = (v: number) => Math.round(v * 100) / 100;
+
+	function elemento(nombre: string, atributos: Record<string, string | number>) {
+		const el = document.createElementNS(NS, nombre);
+		Object.entries(atributos).forEach(([k, v]) => el.setAttribute(k, String(v)));
+		return el;
+	}
+
+	function rangoValido() {
+		return (
+			estado.xmin < estado.xmax &&
+			estado.ymin < estado.ymax &&
+			estado.xmax - estado.xmin > 1e-9 &&
+			estado.ymax - estado.ymin > 1e-9
+		);
+	}
+
+	function pintarRejilla() {
+		if (!rejilla) return;
+		rejilla.replaceChildren();
+		const { xmin, xmax, ymin, ymax } = estado;
+		const pasoX = pasoBonito(xmax - xmin);
+		const pasoY = pasoBonito(ymax - ymin);
+		const decimales = (paso: number) => Math.max(0, -Math.floor(Math.log10(paso)));
+		// Las etiquetas van pegadas a los ejes, pero sin salirse del lienzo.
+		const ejeX = Math.min(Math.max(aPy(0), 14), ALTO - 6);
+		const ejeY = Math.min(Math.max(aPx(0), 6), ANCHO - 40);
+
+		// El tope de 60 vueltas es por si los números se van de madre.
+		const desdeX = Math.ceil(xmin / pasoX);
+		for (let i = desdeX; i * pasoX <= xmax && i - desdeX < 60; i++) {
+			const x = i * pasoX;
+			const px = r2(aPx(x));
+			if (estado.cuadricula && i !== 0) {
+				rejilla.append(elemento('line', { x1: px, y1: 0, x2: px, y2: ALTO, stroke: 'var(--color-line)' }));
+			}
+			if (i !== 0) {
+				const etiqueta = elemento('text', {
+					x: px + 3,
+					y: ejeX > ALTO - 20 ? ejeX - 4 : ejeX + 14,
+					fill: 'var(--color-muted)',
+					'font-size': 12,
+				});
+				etiqueta.textContent = x.toFixed(decimales(pasoX));
+				rejilla.append(etiqueta);
+			}
+		}
+		const desdeY = Math.ceil(ymin / pasoY);
+		for (let i = desdeY; i * pasoY <= ymax && i - desdeY < 60; i++) {
+			const y = i * pasoY;
+			const py = r2(aPy(y));
+			if (estado.cuadricula && i !== 0) {
+				rejilla.append(elemento('line', { x1: 0, y1: py, x2: ANCHO, y2: py, stroke: 'var(--color-line)' }));
+			}
+			if (i !== 0) {
+				const etiqueta = elemento('text', { x: ejeY + 4, y: py - 3, fill: 'var(--color-muted)', 'font-size': 12 });
+				etiqueta.textContent = y.toFixed(decimales(pasoY));
+				rejilla.append(etiqueta);
+			}
+		}
+		// Los ejes, solo si el cero cae dentro.
+		if (xmin <= 0 && xmax >= 0) {
+			rejilla.append(elemento('line', { x1: r2(aPx(0)), y1: 0, x2: r2(aPx(0)), y2: ALTO, stroke: 'var(--color-muted)' }));
+		}
+		if (ymin <= 0 && ymax >= 0) {
+			rejilla.append(elemento('line', { x1: 0, y1: r2(aPy(0)), x2: ANCHO, y2: r2(aPy(0)), stroke: 'var(--color-muted)' }));
+		}
+	}
+
+	function trazado(f: Fn) {
+		const { xmin, xmax, ymin, ymax } = estado;
+		const tramo = ymax - ymin;
+		const tope = (y: number) => Math.min(Math.max(y, ymin - tramo * 20), ymax + tramo * 20);
+		const muestras = ANCHO;
+		let d = '';
+		let anterior: { x: number; y: number } | null = null;
+		for (let i = 0; i <= muestras; i++) {
+			const x = xmin + ((xmax - xmin) * i) / muestras;
+			const y = f(x);
+			if (!Number.isFinite(y)) {
+				anterior = null;
+				continue;
+			}
+			let corta = anterior === null;
+			// Un salto de arriba abajo del todo suele ser una asíntota (tan, 1/x):
+			// se mira el punto de en medio y, si no cae entre los dos, se corta.
+			if (anterior && ((anterior.y > ymax && y < ymin) || (anterior.y < ymin && y > ymax))) {
+				const medio = f((anterior.x + x) / 2);
+				if (!(Number.isFinite(medio) && medio >= Math.min(anterior.y, y) && medio <= Math.max(anterior.y, y))) corta = true;
+			}
+			d += `${corta ? 'M' : 'L'}${r2(aPx(x))} ${r2(aPy(tope(y)))}`;
+			anterior = { x, y };
+		}
+		return d;
+	}
+
+	function pintarCurvas() {
+		if (!capaCurvas) return;
+		capaCurvas.replaceChildren();
+		estado.curvas.forEach((curva, i) => {
+			const f = compiladas[i];
+			if (!f || !curva.visible) return;
+			const d = trazado(f);
+			if (d) capaCurvas.append(elemento('path', { d, stroke: curva.color }));
+		});
+	}
+
+	function pintar() {
+		const valido = rangoValido();
+		if (rangoError) {
+			rangoError.hidden = valido;
+			rangoError.textContent = valido ? '' : 'El mínimo de cada eje tiene que ser menor que el máximo.';
+		}
+		capaCursor?.replaceChildren();
+		if (!valido) return;
+		pintarRejilla();
+		pintarCurvas();
+	}
+
+	function recompilar() {
+		const filas = lista?.querySelectorAll<HTMLElement>('[data-fn-fila]') ?? [];
+		compiladas = estado.curvas.map((curva, i) => {
+			const error = filas[i]?.querySelector<HTMLElement>('[data-fn-error]');
+			let f: Fn | null = null;
+			let mensaje = '';
+			if (curva.expr.trim()) {
+				try {
+					f = compilar(curva.expr);
+				} catch (e) {
+					mensaje = (e as Error).message;
+				}
+			}
+			if (error) {
+				error.hidden = !mensaje;
+				error.textContent = mensaje;
+			}
+			return f;
+		});
+	}
+
+	function actualizar() {
+		recompilar();
+		pintar();
+		guardar();
+	}
+
+	function pintarFilas() {
+		if (!lista || !plantilla) return;
+		lista.replaceChildren();
+		estado.curvas.forEach((curva, i) => {
+			const fila = plantilla.content.firstElementChild?.cloneNode(true) as HTMLElement;
+			const expr = fila.querySelector<HTMLInputElement>('[data-fn-expr]')!;
+			const color = fila.querySelector<HTMLInputElement>('[data-fn-color]')!;
+			const visible = fila.querySelector<HTMLInputElement>('[data-fn-visible]')!;
+			expr.value = curva.expr;
+			expr.placeholder = 'x^2 + 1';
+			color.value = curva.color;
+			visible.checked = curva.visible;
+			expr.addEventListener('input', () => {
+				curva.expr = expr.value;
+				actualizar();
+			});
+			color.addEventListener('input', () => {
+				curva.color = color.value;
+				pintar();
+				guardar();
+			});
+			visible.addEventListener('change', () => {
+				curva.visible = visible.checked;
+				pintar();
+				guardar();
+			});
+			fila.querySelector('[data-fn-quitar]')?.addEventListener('click', () => {
+				estado.curvas.splice(i, 1);
+				pintarFilas();
+				actualizar();
+			});
+			lista.append(fila);
+		});
+	}
+
+	function pintarControles() {
+		rangos.forEach((el, id) => {
+			el.value = String(estado[id as 'xmin' | 'xmax' | 'ymin' | 'ymax']);
+		});
+		if (cuadricula) cuadricula.checked = estado.cuadricula;
+	}
+
+	function anadir(expr = '') {
+		if (estado.curvas.length >= 12) return;
+		const usados = new Set(estado.curvas.map((c) => c.color));
+		const color = PALETA.find((c) => !usados.has(c)) ?? PALETA[estado.curvas.length % PALETA.length];
+		estado.curvas.push({ expr, color, visible: true });
+		pintarFilas();
+		actualizar();
+		const campos = lista?.querySelectorAll<HTMLInputElement>('[data-fn-expr]');
+		if (!expr) campos?.[campos.length - 1]?.focus();
+	}
+
+	function encajarY() {
+		const valores: number[] = [];
+		estado.curvas.forEach((curva, i) => {
+			const f = compiladas[i];
+			if (!f || !curva.visible) return;
+			for (let k = 0; k <= 400; k++) {
+				const y = f(estado.xmin + ((estado.xmax - estado.xmin) * k) / 400);
+				if (Number.isFinite(y)) valores.push(y);
+			}
+		});
+		if (valores.length === 0) return;
+		valores.sort((a, b) => a - b);
+		// Se descartan las puntas para que una asíntota no aplaste lo demás.
+		const bajo = valores[Math.floor(valores.length * 0.02)];
+		const alto = valores[Math.ceil(valores.length * 0.98) - 1];
+		const margen = alto - bajo > 1e-9 ? (alto - bajo) * 0.1 : 1;
+		estado.ymin = Number((bajo - margen).toPrecision(3));
+		estado.ymax = Number((alto + margen).toPrecision(3));
+		pintarControles();
+		pintar();
+		guardar();
+	}
+
+	function mover(evento: PointerEvent) {
+		if (!lienzo || !capaCursor || !lectura || !rangoValido()) return;
+		const caja = lienzo.getBoundingClientRect();
+		const px = ((evento.clientX - caja.left) / caja.width) * ANCHO;
+		const x = estado.xmin + (px / ANCHO) * (estado.xmax - estado.xmin);
+		capaCursor.replaceChildren(
+			elemento('line', { x1: r2(px), y1: 0, x2: r2(px), y2: ALTO, stroke: 'var(--color-muted)', 'stroke-dasharray': '4 4' }),
+		);
+		const partes = [`x = ${formato(x)}`];
+		estado.curvas.forEach((curva, i) => {
+			const f = compiladas[i];
+			if (!f || !curva.visible) return;
+			const y = f(x);
+			partes.push(`y${i + 1} = ${formato(y)}`);
+			if (Number.isFinite(y) && y >= estado.ymin && y <= estado.ymax) {
+				capaCursor.append(elemento('circle', { cx: r2(px), cy: r2(aPy(y)), r: 4, fill: curva.color }));
+			}
+		});
+		lectura.textContent = partes.join(' · ');
+	}
+
+	rangos.forEach((el, id) => {
+		el.addEventListener('input', () => {
+			const v = Number(el.value);
+			if (el.value.trim() === '' || !Number.isFinite(v)) return;
+			estado[id as 'xmin' | 'xmax' | 'ymin' | 'ymax'] = v;
+			pintar();
+			guardar();
+		});
+	});
+
+	cuadricula?.addEventListener('change', () => {
+		estado.cuadricula = cuadricula.checked;
+		pintar();
+		guardar();
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-fn-zoom]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			if (!rangoValido()) return;
+			const factor = Number(boton.dataset.fnZoom);
+			const cx = (estado.xmin + estado.xmax) / 2;
+			const cy = (estado.ymin + estado.ymax) / 2;
+			const mx = ((estado.xmax - estado.xmin) / 2) * factor;
+			const my = ((estado.ymax - estado.ymin) / 2) * factor;
+			if (mx < 1e-6 || my < 1e-6 || mx > 1e8 || my > 1e8) return;
+			const redondo = (v: number) => Number(v.toPrecision(6));
+			estado.xmin = redondo(cx - mx);
+			estado.xmax = redondo(cx + mx);
+			estado.ymin = redondo(cy - my);
+			estado.ymax = redondo(cy + my);
+			pintarControles();
+			pintar();
+			guardar();
+		});
+	});
+
+	panel?.querySelector('[data-fn-encajar]')?.addEventListener('click', encajarY);
+
+	panel?.querySelector('[data-fn-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		pintarControles();
+		pintarFilas();
+		actualizar();
+	});
+
+	panel?.querySelector('[data-fn-nueva]')?.addEventListener('click', () => anadir());
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-fn-ejemplo]').forEach((boton) => {
+		boton.addEventListener('click', () => anadir(boton.dataset.fnEjemplo ?? ''));
+	});
+
+	lienzo?.addEventListener('pointermove', mover);
+	lienzo?.addEventListener('pointerleave', () => capaCursor?.replaceChildren());
+
+	pintarControles();
+	pintarFilas();
+	actualizar();
+</script>
