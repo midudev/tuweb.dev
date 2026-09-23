@@ -1,6 +1,10 @@
-import { DatabaseSync } from 'node:sqlite';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { DatabaseSync, type StatementSync } from 'node:sqlite';
 import { getDatabaseUrl } from '../env';
+import { startMaintenance } from './maintenance';
 import { INDEXES, TABLES } from './schema';
+import { SESSION_TTL_MS } from './session-ttl';
 
 type Value = null | number | string | bigint | Uint8Array;
 
@@ -23,6 +27,13 @@ function open() {
 	sqlite.exec('PRAGMA busy_timeout = 5000');
 	sqlite.exec('PRAGMA synchronous = NORMAL');
 	sqlite.exec('PRAGMA foreign_keys = ON');
+	// El WAL se trunca a 4 MB como mucho tras cada checkpoint: antes crecía y no
+	// volvía a encoger (llegó a pesar seis veces la base).
+	sqlite.exec('PRAGMA journal_size_limit = 4194304');
+	sqlite.exec('PRAGMA temp_store = MEMORY');
+	sqlite.exec('PRAGMA cache_size = -8000');
+	sqlite.exec('PRAGMA mmap_size = 67108864');
+	enableIncrementalVacuum(sqlite);
 
 	for (const statement of TABLES) {
 		sqlite.exec(statement);
@@ -43,7 +54,54 @@ function open() {
 	}
 
 	seed(sqlite);
+	importFileSessions(sqlite);
+	// Estadísticas frescas para el planificador sin recorrer tablas enteras.
+	sqlite.exec('PRAGMA optimize = 0x10002');
+	startMaintenance(sqlite);
 	return sqlite;
+}
+
+/**
+ * Sin auto_vacuum, lo que se borra deja páginas libres dentro del fichero y
+ * este no encoge nunca. El modo incremental deja devolverlas poco a poco
+ * (maintenance.ts). Cambiarlo exige un VACUUM, una sola vez.
+ */
+function enableIncrementalVacuum(sqlite: DatabaseSync) {
+	const { auto_vacuum: mode } = sqlite.prepare('PRAGMA auto_vacuum').get() as { auto_vacuum: number };
+	if (mode === 2) return;
+	sqlite.exec('PRAGMA auto_vacuum = INCREMENTAL');
+	sqlite.exec('VACUUM');
+}
+
+/**
+ * Las sesiones vivían como ficheros en node_modules/.astro/sessions. Se pasan a
+ * la tabla una vez, para que nadie tenga que volver a entrar con GitHub.
+ */
+function importFileSessions(sqlite: DatabaseSync) {
+	const dir = join(process.cwd(), 'node_modules', '.astro', 'sessions');
+	if (!existsSync(dir)) return;
+
+	const { n } = sqlite.prepare('SELECT count(*) AS n FROM sessions').get() as { n: number };
+	if (n > 0) return;
+
+	const insert = sqlite.prepare('INSERT OR IGNORE INTO sessions (id, value, expires_at) VALUES (?, ?, ?)');
+	sqlite.exec('BEGIN');
+	try {
+		for (const name of readdirSync(dir)) {
+			const path = join(dir, name);
+			const stats = statSync(path);
+			if (!stats.isFile() || stats.size > 4096) continue;
+			// Caducan contando desde la última vez que se tocaron, como si
+			// siempre hubieran tenido caducidad.
+			const expiresAt = stats.mtimeMs + SESSION_TTL_MS;
+			if (expiresAt <= Date.now()) continue;
+			insert.run(name, readFileSync(path, 'utf8'), Math.round(expiresAt));
+		}
+		sqlite.exec('COMMIT');
+	} catch (error) {
+		sqlite.exec('ROLLBACK');
+		console.error('[db] no se pudieron importar las sesiones:', error);
+	}
 }
 
 /**
@@ -102,16 +160,46 @@ export function getDb() {
 	return db;
 }
 
+/**
+ * Las consultas son siempre las mismas cadenas: se preparan una vez y se
+ * reutilizan. Compilar el SQL en cada petición era trabajo tirado, y el chat
+ * pregunta cada pocos segundos.
+ */
+const statements = new Map<string, StatementSync>();
+
+function prepared(sql: string) {
+	let statement = statements.get(sql);
+	if (!statement) {
+		statement = getDb().prepare(sql);
+		statements.set(sql, statement);
+	}
+	return statement;
+}
+
 export function all<T>(sql: string, ...params: unknown[]): T[] {
-	return getDb().prepare(sql).all(...params.map(toValue)) as T[];
+	return prepared(sql).all(...params.map(toValue)) as T[];
 }
 
 export function get<T>(sql: string, ...params: unknown[]): T | null {
-	return (getDb().prepare(sql).get(...params.map(toValue)) as T | undefined) ?? null;
+	return (prepared(sql).get(...params.map(toValue)) as T | undefined) ?? null;
 }
 
 export function run(sql: string, ...params: unknown[]) {
-	return getDb().prepare(sql).run(...params.map(toValue));
+	return prepared(sql).run(...params.map(toValue));
+}
+
+/** Varias escrituras como una sola: o entran todas o ninguna. */
+export function transaction<T>(work: () => T): T {
+	const db = getDb();
+	db.exec('BEGIN IMMEDIATE');
+	try {
+		const result = work();
+		db.exec('COMMIT');
+		return result;
+	} catch (error) {
+		db.exec('ROLLBACK');
+		throw error;
+	}
 }
 
 export function nowIso() {

@@ -1,15 +1,11 @@
 ---
 /**
  * Chat anónimo. Al lado del canal de IRC, que tiene nicks y memoria, este es lo
- * contrario: no se pide nombre, el alias es un número que cambia cuando quieras
- * y nada se guarda en ningún sitio. Los mensajes viven en la memoria de la
- * pestaña, viajan por BroadcastChannel a las demás pestañas abiertas y se
- * borran solos a los diez minutos. Al cerrar, no queda rastro.
+ * contrario: no se pide nombre ni cuenta, el alias es un número que cambia
+ * cuando quieras y solo vive en la memoria de la pestaña. Los mensajes pasan
+ * por el servidor, que los borra solos a los diez minutos.
  */
 import Icon from './Icon.astro';
-
-const BOTON =
-	'inline-flex shrink-0 items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
 ---
 
 <section id="anonimo" class="flex flex-col gap-7">
@@ -59,27 +55,24 @@ const BOTON =
 				id="anonimo-input"
 				data-input
 				type="text"
-				maxlength="300"
+				maxlength="400"
 				autocomplete="off"
 				spellcheck="false"
 				aria-label="Mensaje anónimo"
 				placeholder="Di lo que quieras, nadie sabe quién eres"
 				class="min-w-0 grow bg-transparent text-sm"
 			/>
-			<button type="submit" class={BOTON}>
+			<button
+				type="submit"
+				class="inline-flex shrink-0 items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+			>
 				<Icon name="send" class="size-4 shrink-0" />
 				Enviar
 			</button>
 		</form>
 	</div>
 
-	<div class="flex flex-wrap items-center justify-between gap-4">
-		<p data-nota class="text-sm text-muted" role="status"></p>
-		<button type="button" data-quemar class={BOTON}>
-			<Icon name="flame" class="size-4 shrink-0" />
-			Borrar lo mío
-		</button>
-	</div>
+	<p data-nota class="text-sm text-muted" role="status"></p>
 </section>
 
 <style is:global>
@@ -118,25 +111,18 @@ const BOTON =
 	const aqui = section?.querySelector<HTMLElement>('[data-aqui]');
 	const nota = section?.querySelector<HTMLElement>('[data-nota]');
 	const rotar = section?.querySelector<HTMLButtonElement>('[data-rotar]');
-	const quemar = section?.querySelector<HTMLButtonElement>('[data-quemar]');
 
-	if (section && log && vacio && form && input && aliasEl && aqui && nota && rotar && quemar) {
+	if (section && log && vacio && form && input && aliasEl && aqui && nota && rotar) {
+		const API = '/api/chat/anon';
 		const VIDA_MS = 10 * 60_000;
 		const MAX_LINEAS = 80;
-		const MAX_TEXTO = 300;
-		const LATIDO_MS = 8_000;
-		const OLVIDO_MS = 25_000;
+		const MAX_TEXTO = 400;
 		const REPASO_MS = 15_000;
 		const ESPERA_MS = 900;
+		const SONDEO_MS = 3_000;
+		const SONDEO_MAX_MS = 30_000;
 
-		type Entrada = { id: string; at: number; text: string; alias: string; mio: boolean };
-		// Por el canal solo viaja lo justo: un mensaje sin firma y un identificador
-		// de pestaña para contar cuánta gente hay. El alias no va en los avisos de
-		// presencia, así que cambiarlo no deja ninguna pista de quién eras antes.
-		type Aviso =
-			| { t: 'msg'; id: string; at: number; text: string; alias: string }
-			| { t: 'hola' | 'eco' | 'latido' | 'adios'; de: string }
-			| { t: 'borrar'; ids: string[] };
+		type Mensaje = { id: number; author: string; body: string; at: number };
 
 		function azar(largo: number) {
 			const bytes = new Uint8Array(largo);
@@ -147,19 +133,13 @@ const BOTON =
 				.slice(0, largo);
 		}
 
-		// La pestaña es la persona: dos pestañas son dos anónimos distintos.
-		const yo = azar(12);
-		const vecinos = new Map<string, number>();
-		const vivos = new Map<string, { at: number; fila: HTMLElement; queda: HTMLElement }>();
-		const mios = new Set<string>();
+		const vivos = new Map<number, { at: number; fila: HTMLElement; queda: HTMLElement; tuyo: HTMLElement }>();
+		// El servidor no sabe quién es quién aquí: lo tuyo se recuerda en la
+		// pestaña con los ids que devuelve cada envío.
+		const mios = new Set<number>();
 		let alias = `anónimo#${azar(4)}`;
 		let ultimo = 0;
-
-		const bus = 'BroadcastChannel' in window ? new BroadcastChannel('tuweb:anon') : null;
-
-		function emitir(aviso: Aviso) {
-			bus?.postMessage(aviso);
-		}
+		let visto = 0;
 
 		function color(quien: string) {
 			let suma = 0;
@@ -186,16 +166,25 @@ const BOTON =
 			return log.scrollHeight - log.scrollTop - log.clientHeight < 40;
 		}
 
-		function olvidar(id: string) {
+		function olvidar(id: number) {
 			const entrada = vivos.get(id);
 			if (!entrada) return;
 			entrada.fila.remove();
 			vivos.delete(id);
-			mios.delete(id);
 		}
 
-		function pintar(entrada: Entrada) {
-			if (vivos.has(entrada.id)) return;
+		function marcarMio(id: number) {
+			mios.add(id);
+			const entrada = vivos.get(id);
+			if (entrada) entrada.tuyo.hidden = false;
+		}
+
+		function pintar(mensaje: Mensaje) {
+			if (vivos.has(mensaje.id)) return;
+			// Un reloj adelantado en el servidor no puede alargar la vida del
+			// mensaje más allá de lo que dura aquí.
+			const at = Math.min(Number(mensaje.at) || Date.now(), Date.now());
+			if (Date.now() - at >= VIDA_MS) return;
 			const seguir = abajo();
 
 			const fila = document.createElement('li');
@@ -205,30 +194,28 @@ const BOTON =
 			cabecera.className = 'flex items-baseline justify-between gap-3 text-xs';
 
 			const quien = document.createElement('span');
-			quien.dataset.c = color(entrada.alias);
-			quien.textContent = entrada.alias;
-			cabecera.append(quien);
+			quien.dataset.c = color(mensaje.author);
+			quien.textContent = mensaje.author;
 
-			if (entrada.mio) {
-				const tuyo = document.createElement('span');
-				tuyo.className = 'grow text-muted';
-				tuyo.textContent = ' (tú)';
-				cabecera.append(tuyo);
-			}
+			// Va siempre y se enseña si el id es tuyo: el envío puede volver
+			// después de que el sondeo ya lo haya pintado.
+			const tuyo = document.createElement('span');
+			tuyo.className = 'grow text-muted';
+			tuyo.textContent = ' (tú)';
+			tuyo.hidden = !mios.has(mensaje.id);
 
 			const queda = document.createElement('span');
 			queda.className = 'shrink-0 tabular-nums text-muted';
-			queda.textContent = restante(entrada.at);
-			cabecera.append(queda);
+			queda.textContent = restante(at);
+			cabecera.append(quien, tuyo, queda);
 
 			const cuerpo = document.createElement('p');
 			cuerpo.className = 'min-w-0 text-sm';
-			cuerpo.textContent = entrada.text;
+			cuerpo.textContent = mensaje.body;
 
 			fila.append(cabecera, cuerpo);
 			log.append(fila);
-			vivos.set(entrada.id, { at: entrada.at, fila, queda });
-			if (entrada.mio) mios.add(entrada.id);
+			vivos.set(mensaje.id, { at, fila, queda, tuyo });
 
 			// El tope es de la lista entera: lo más viejo se cae aunque no haya
 			// cumplido sus diez minutos.
@@ -242,77 +229,109 @@ const BOTON =
 			if (seguir) log.scrollTop = log.scrollHeight;
 		}
 
-		function contar() {
-			aqui.textContent = `${vecinos.size + 1} aquí`;
+		function contar(online: number) {
+			aqui.textContent = `${Math.max(1, online)} aquí`;
 		}
 
-		// --- Lo que llega de otras pestañas ---
+		// --- Sondeo: se pregunta por lo posterior al último id visto ---
 
-		function recibir(aviso: Aviso) {
-			if (aviso.t === 'msg') {
-				const id = String(aviso.id ?? '').slice(0, 32);
-				const texto = String(aviso.text ?? '').slice(0, MAX_TEXTO);
-				// Un reloj adelantado en otra pestaña no puede alargar la vida del
-				// mensaje más allá de lo que dura aquí; uno atrasado lo trae ya muerto.
-				const at = Math.min(Number(aviso.at) || Date.now(), Date.now());
-				if (!id || !texto || Date.now() - at >= VIDA_MS) return;
-				pintar({
-					id,
-					at,
-					text: texto,
-					alias: String(aviso.alias ?? 'anónimo').slice(0, 24),
-					mio: false,
-				});
+		let temporizador = 0;
+		let enCurso = false;
+		let otraVez = false;
+		let fallos = 0;
+
+		function programar() {
+			clearTimeout(temporizador);
+			if (document.visibilityState !== 'visible') return;
+			// Ante errores se espera cada vez más, hasta medio minuto.
+			const espera = fallos ? Math.min(SONDEO_MAX_MS, SONDEO_MS * 2 ** fallos) : SONDEO_MS;
+			temporizador = window.setTimeout(sondear, espera);
+		}
+
+		async function sondear() {
+			clearTimeout(temporizador);
+			if (enCurso) {
+				// No se solapan: la que está en marcha pedirá otra al terminar.
+				otraVez = true;
 				return;
 			}
+			if (document.visibilityState !== 'visible') return;
+			enCurso = true;
+			try {
+				const respuesta = await fetch(`${API}?since=${ultimo}`);
+				if (!respuesta.ok) throw new Error(String(respuesta.status));
+				const datos = (await respuesta.json()) as { messages: Mensaje[]; online: number };
 
-			if (aviso.t === 'borrar') {
-				if (!Array.isArray(aviso.ids)) return;
-				for (const id of aviso.ids) olvidar(String(id));
+				if (fallos) avisar('De vuelta. Ya llegan los mensajes.');
+				fallos = 0;
+				contar(datos.online);
+
+				for (const mensaje of datos.messages) {
+					if (mensaje.id <= ultimo) continue;
+					ultimo = mensaje.id;
+					pintar(mensaje);
+				}
 				repintarVacio();
-				return;
+			} catch {
+				if (!fallos) avisar('Sin conexión con el servidor. Reintentando…');
+				fallos += 1;
+			} finally {
+				enCurso = false;
+				if (otraVez) {
+					otraVez = false;
+					void sondear();
+				} else {
+					programar();
+				}
 			}
-
-			if (aviso.de === yo) return;
-
-			if (aviso.t === 'adios') {
-				vecinos.delete(aviso.de);
-				contar();
-				return;
-			}
-
-			const conocido = vecinos.has(aviso.de);
-			vecinos.set(aviso.de, Date.now());
-			contar();
-
-			// A quien acaba de llegar hay que contestarle para que sepa que estamos.
-			if (aviso.t === 'hola') emitir({ t: 'eco', de: yo });
-			if (conocido) return;
-			if (aviso.t === 'hola') avisar('Ha entrado alguien más.');
-			if (aviso.t === 'eco') avisar('Ya hay alguien más aquí.');
 		}
 
-		bus?.addEventListener('message', (evento) => recibir(evento.data as Aviso));
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible') void sondear();
+			else clearTimeout(temporizador);
+		});
 
 		// --- Lo que se hace desde aquí ---
 
-		form.addEventListener('submit', (evento) => {
+		const ERRORES: Record<number, string> = {
+			400: 'Mensaje vacío o demasiado largo.',
+			403: 'Ese envío no viene de esta web.',
+			422: 'Eso parece spam. No se ha enviado.',
+			429: 'Vas muy rápido. Espera un momento.',
+		};
+
+		form.addEventListener('submit', async (evento) => {
 			evento.preventDefault();
 			const texto = input.value.trim().slice(0, MAX_TEXTO);
 			if (!texto) return;
 
 			const ahora = Date.now();
-			if (ahora - ultimo < ESPERA_MS) {
+			if (ahora - visto < ESPERA_MS) {
 				avisar('Vas muy rápido. Espera un momento.');
 				return;
 			}
-			ultimo = ahora;
+			visto = ahora;
 			input.value = '';
 
-			const id = azar(16);
-			pintar({ id, at: ahora, text: texto, alias, mio: true });
-			emitir({ t: 'msg', id, at: ahora, text: texto, alias });
-			avisar('Enviado. Se borra en diez minutos.');
+			try {
+				const respuesta = await fetch(API, {
+					headers: { 'Content-Type': 'application/json' },
+					method: 'POST',
+					body: JSON.stringify({ body: texto, alias }),
+				});
+				if (!respuesta.ok) {
+					avisar(ERRORES[respuesta.status] ?? 'No se ha podido enviar. Prueba otra vez.');
+					if (!input.value) input.value = texto;
+					return;
+				}
+				const datos = (await respuesta.json()) as { message: Mensaje };
+				marcarMio(datos.message.id);
+				avisar('Enviado. Se borra en diez minutos.');
+				void sondear();
+			} catch {
+				avisar('No se ha podido enviar: sin conexión. Prueba otra vez.');
+				if (!input.value) input.value = texto;
+			}
 		});
 
 		rotar.addEventListener('click', () => {
@@ -323,37 +342,18 @@ const BOTON =
 			avisar(`Ahora eres ${alias}. Lo de antes sigue con el alias anterior.`);
 		});
 
-		quemar.addEventListener('click', () => {
-			if (!mios.size) {
-				avisar('No has dicho nada todavía.');
-				return;
-			}
-			const ids = [...mios];
-			for (const id of ids) olvidar(id);
-			repintarVacio();
-			emitir({ t: 'borrar', ids });
-			avisar('Borrado en todas las pestañas.');
-		});
-
 		// --- Arranque ---
 
 		aliasEl.textContent = alias;
 		aliasEl.dataset.c = color(alias);
-		contar();
+		contar(1);
 		repintarVacio();
-
-		if (bus) {
-			emitir({ t: 'hola', de: yo });
-			avisar('Sin servidor: esto se queda entre tus pestañas y no se guarda.');
-		} else {
-			avisar('Tu navegador no pasa mensajes entre pestañas: aquí solo te ves tú.');
-		}
+		avisar('Sin nombre y sin cuenta. Lo que escribas lo ve quien esté aquí y se borra a los diez minutos.');
 
 		// Un repaso cada poco: lo que ha cumplido se va y al resto se le actualiza
-		// lo que le queda. De paso se da por ido a quien lleva rato sin señal.
+		// lo que le queda.
 		setInterval(() => {
 			const ahora = Date.now();
-
 			for (const [id, entrada] of vivos) {
 				if (ahora - entrada.at >= VIDA_MS) {
 					olvidar(id);
@@ -362,15 +362,8 @@ const BOTON =
 				entrada.queda.textContent = restante(entrada.at);
 			}
 			repintarVacio();
-
-			for (const [id, visto] of vecinos) {
-				if (ahora - visto > OLVIDO_MS) vecinos.delete(id);
-			}
-			contar();
 		}, REPASO_MS);
 
-		setInterval(() => emitir({ t: 'latido', de: yo }), LATIDO_MS);
-
-		window.addEventListener('pagehide', () => emitir({ t: 'adios', de: yo }));
+		void sondear();
 	}
 </script>

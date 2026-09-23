@@ -4,14 +4,15 @@
  * las que ganaron su ventana y acabaron publicadas, así que salen de lo que ya
  * está guardado, cada una con su versión y su fecha.
  *
- * Encima se vota y se comenta sin entrar y sin dar el nombre: se te pone un
- * alias de números que tiras cuando quieras. No hay servidor detrás ni se guarda
- * nada, tampoco en el navegador: lo que votas y lo que dices se comparte con las
- * pestañas que tengas abiertas y se va con la última.
+ * Encima se vota y se comenta, y eso sí se guarda en el servidor y lo ve todo
+ * el mundo. Leer no pide nada; votar y comentar piden entrar con GitHub, pero
+ * lo que se enseña no es tu nombre: se te pone un alias de números que tiras
+ * cuando quieras.
  *
  * La lista viene pintada del servidor: sin JavaScript se lee igual, solo que sin
  * botones.
  */
+import GitHubLogin from './GitHubLogin.astro';
 import Hora from './Hora.astro';
 import Icon from './Icon.astro';
 import { COMMENT_MAX, type Destacada } from '../lib/destacadas';
@@ -82,6 +83,10 @@ const FIELD =
 		</div>
 
 		<p data-nota role="status" class="text-sm text-muted"></p>
+
+		<p data-entrar hidden class="text-sm">
+			<GitHubLogin label="Entra con GitHub para votar y comentar" />
+		</p>
 	</div>
 
 	<ul data-list class="flex flex-col gap-4">
@@ -132,7 +137,13 @@ const FIELD =
 							Nadie ha dicho nada de esta idea. Empieza tú.
 						</p>
 
-						<form data-form class="flex flex-wrap items-end gap-3">
+						<p data-hilo-nota role="status" hidden class="text-sm text-muted" />
+
+						<p data-entrar hidden class="text-sm">
+							<GitHubLogin label="Entra con GitHub para comentar" />
+						</p>
+
+						<form data-form hidden class="flex flex-wrap items-end gap-3">
 							<label class="flex min-w-0 grow flex-col gap-2">
 								<span class="text-sm text-muted">Tu comentario</span>
 								<input
@@ -172,16 +183,22 @@ const FIELD =
 		<li data-comentario class="flex flex-col gap-1 border-l border-line pl-3">
 			<p class="flex flex-wrap items-baseline justify-between gap-x-3 text-xs text-muted">
 				<span data-quien class="text-fg"></span>
-				<span data-cuando class="tabular-nums"></span>
+				<span class="inline-flex items-baseline gap-3">
+					<span data-cuando class="tabular-nums"></span>
+					<button type="button" data-borrar hidden class="inline-flex items-center gap-1 hover:text-accent">
+						<Icon name="trash" class="size-3.5 shrink-0 self-center" />
+						Borrar
+					</button>
+				</span>
 			</p>
 			<p data-texto class="min-w-0 text-sm"></p>
 		</li>
 	</template>
 
 	<p data-solo-js class="text-sm text-muted">
-		Aquí no hay cuentas ni base de datos: los votos y los comentarios se quedan entre tus pestañas y
-		se van al cerrarlas. Si lo que dices merece quedarse, proponlo como idea en la portada, que es
-		como se cambia esta web.
+		Los votos y los comentarios se guardan y los ve cualquiera que pase por aquí; tu nombre de
+		GitHub no, solo el alias. Los tuyos los puedes borrar cuando quieras. Si lo que dices merece
+		construirse, proponlo como idea en la portada, que es como se cambia esta web.
 	</p>
 </section>
 
@@ -224,19 +241,14 @@ const FIELD =
 	import {
 		type Comentario,
 		type Orden,
-		ESPERA_MS,
-		TOPE_COMENTARIOS,
-		azar,
 		coincide,
 		cuandoTexto,
+		errorTexto,
 		isOrden,
 		limpiar,
-		notaTexto,
 		nuevoAlias,
 		ordenarFilas,
 		resumenTexto,
-		saneaComentario,
-		saneaVotos,
 	} from '../lib/destacadas';
 
 	const section = document.querySelector<HTMLElement>('#destacadas');
@@ -248,18 +260,10 @@ const FIELD =
 	const buscador = section?.querySelector<HTMLInputElement>('[data-busca]');
 
 	if (section && list && plantilla && aliasOut && notaOut && vacio && buscador) {
-		const LATIDO_MS = 8_000;
-		const OLVIDO_MS = 25_000;
-		const REPASO_MS = 15_000;
-
-		// Por el canal viaja lo justo: quién manda —una pestaña, no una persona—,
-		// qué ha votado y lo que se ha escrito. El alias va solo en los comentarios,
-		// así que cambiarlo no deja rastro de quién eras antes.
-		type Aviso =
-			| { t: 'hola'; de: string }
-			| { t: 'estado'; de: string; votos: number[]; hilo?: Comentario[] }
-			| { t: 'comentario'; de: string; c: Comentario }
-			| { t: 'adios'; de: string };
+		const REPASO_MS = 30_000;
+		const REINTENTO_MS = 5_000;
+		const REINTENTO_MAX_MS = 60_000;
+		const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 		interface Fila {
 			id: number;
@@ -273,9 +277,16 @@ const FIELD =
 			panel: HTMLElement;
 			hilo: HTMLElement;
 			hiloVacio: HTMLElement;
+			hiloNota: HTMLElement;
+			entrar: HTMLElement;
+			form: HTMLFormElement;
 			input: HTMLInputElement;
 			votos: number;
 			comentarios: number;
+			/** El hilo tal como lo dio la API, o null si todavía no se ha pedido. */
+			hiloDatos: Comentario[] | null;
+			pidiendo: boolean;
+			espera: number;
 		}
 
 		const rows: Fila[] = [...list.querySelectorAll<HTMLElement>('[data-idea]')].map((node) => ({
@@ -290,75 +301,92 @@ const FIELD =
 			panel: node.querySelector<HTMLElement>('[data-panel]')!,
 			hilo: node.querySelector<HTMLElement>('[data-hilo]')!,
 			hiloVacio: node.querySelector<HTMLElement>('[data-hilo-vacio]')!,
+			hiloNota: node.querySelector<HTMLElement>('[data-hilo-nota]')!,
+			entrar: node.querySelector<HTMLElement>('[data-entrar]')!,
+			form: node.querySelector<HTMLFormElement>('[data-form]')!,
 			input: node.querySelector<HTMLInputElement>('[data-input]')!,
 			votos: 0,
 			comentarios: 0,
+			hiloDatos: null,
+			pidiendo: false,
+			espera: REINTENTO_MS,
 		}));
 
-		const ids = rows.map((row) => row.id);
 		const porId = new Map(rows.map((row) => [row.id, row]));
+		const entrarArriba = section.querySelector<HTMLElement>(':scope > div [data-entrar]');
 
-		// La pestaña es quien vota: dos pestañas son dos visitantes distintos.
-		const yo = azar(12);
+		// Lo compartido llega de la API; aquí solo se guarda lo que ha dicho.
 		const misVotos = new Set<number>();
-		const vecinos = new Map<string, { visto: number; votos: Set<number> }>();
-		const comentarios = new Map<string, Comentario>();
-		const mios = new Set<string>();
+		// Quién eres, solo para saber si enseñar los botones o el enlace de entrar.
+		// Lo que se enseña a los demás sigue siendo el alias.
+		let login: string | null = null;
+		let cargado = false;
 
 		let alias = nuevoAlias();
 		let orden: Orden = 'votos';
-		let ultimo = 0;
-
-		const bus = 'BroadcastChannel' in window ? new BroadcastChannel('tuweb:destacadas') : null;
-
-		function emitir(aviso: Aviso) {
-			bus?.postMessage(aviso);
-		}
 
 		function avisar(texto: string) {
 			notaOut!.textContent = texto;
 		}
 
-		/** Un comentario más. Al pasarse del tope se cae el más viejo que haya. */
-		function guardar(comentario: Comentario) {
-			if (comentarios.has(comentario.id)) return;
-			comentarios.set(comentario.id, comentario);
+		/** Lo que devuelve la API, o el error con su estado para contarlo en corto. */
+		type Respuesta<T> = { ok: true; data: T } | { ok: false; status: number; error?: string };
 
-			while (comentarios.size > TOPE_COMENTARIOS) {
-				const viejo = comentarios.keys().next();
-				if (viejo.done) break;
-				comentarios.delete(viejo.value);
-				mios.delete(viejo.value);
+		async function pedir<T>(url: string, init?: RequestInit): Promise<Respuesta<T>> {
+			try {
+				const res = await fetch(url, init);
+				const data = await res.json().catch(() => null);
+				if (!res.ok) return { ok: false, status: res.status, error: data?.error };
+				return { ok: true, data: data as T };
+			} catch {
+				return { ok: false, status: 0 };
 			}
 		}
 
-		function delHilo(idea: number) {
-			return [...comentarios.values()]
-				.filter((comentario) => comentario.idea === idea)
-				.sort((a, b) => a.at - b.at);
+		function numero(raw: unknown) {
+			const n = Number(raw);
+			return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 		}
 
 		// --- Lo que se pinta ---
 
+		function pintarEntrar() {
+			// Mientras no ha llegado la primera respuesta no se sabe si hay sesión:
+			// ni formulario ni enlace, para no enseñar lo que no toca.
+			const dentro = login !== null;
+			if (entrarArriba) entrarArriba.hidden = !cargado || dentro;
+			for (const row of rows) {
+				row.entrar.hidden = !cargado || dentro;
+				row.form.hidden = !cargado || !dentro;
+			}
+		}
+
 		function pintarHilo(row: Fila) {
-			const hilo = delHilo(row.id);
 			const ahora = Date.now();
-
 			row.hilo.replaceChildren();
-			row.hiloVacio.hidden = hilo.length > 0;
 
-			for (const comentario of hilo) {
+			if (row.hiloDatos === null) {
+				row.hiloVacio.hidden = true;
+				return;
+			}
+
+			row.hiloVacio.hidden = row.hiloDatos.length > 0;
+
+			// La API los da los últimos primero; aquí se leen como una conversación.
+			for (const comentario of [...row.hiloDatos].reverse()) {
 				const nodo = plantilla!.content.firstElementChild!.cloneNode(true) as HTMLElement;
 				const quien = nodo.querySelector<HTMLElement>('[data-quien]')!;
 
-				quien.textContent = mios.has(comentario.id)
-					? `${comentario.alias} (tú)`
-					: comentario.alias;
-				nodo.querySelector<HTMLElement>('[data-cuando]')!.textContent = cuandoTexto(
-					comentario.at,
-					ahora,
-				);
+				quien.textContent = comentario.mine ? `${comentario.alias} (tú)` : comentario.alias;
+				nodo.querySelector<HTMLElement>('[data-cuando]')!.textContent = cuandoTexto(comentario.at, ahora);
 				nodo.querySelector<HTMLElement>('[data-texto]')!.textContent = comentario.text;
+
+				if (comentario.mine) {
+					const borrar = nodo.querySelector<HTMLButtonElement>('[data-borrar]')!;
+					borrar.hidden = false;
+					borrar.setAttribute('aria-label', `Borrar tu comentario: ${comentario.text}`);
+					borrar.addEventListener('click', () => borrarComentario(row, comentario, borrar));
+				}
 
 				row.hilo.append(nodo);
 			}
@@ -383,18 +411,6 @@ const FIELD =
 		}
 
 		function pintar() {
-			for (const row of rows) {
-				let votos = misVotos.has(row.id) ? 1 : 0;
-				for (const vecino of vecinos.values()) if (vecino.votos.has(row.id)) votos += 1;
-				row.votos = votos;
-				row.comentarios = 0;
-			}
-
-			for (const comentario of comentarios.values()) {
-				const row = porId.get(comentario.idea);
-				if (row) row.comentarios += 1;
-			}
-
 			const busca = buscador!.value;
 			let visibles = 0;
 
@@ -405,7 +421,6 @@ const FIELD =
 				row.votosOut.textContent = String(row.votos);
 				row.comentariosOut.textContent = String(row.comentarios);
 				row.resumen.textContent = resumenTexto(row.votos, row.comentarios);
-				if (!row.panel.hidden) pintarHilo(row);
 
 				const cabe = coincide(row.busqueda, busca);
 				row.node.hidden = !cabe;
@@ -420,36 +435,167 @@ const FIELD =
 			}
 		}
 
-		// --- Lo que se hace desde aquí ---
+		// --- Lo que se pide a la API ---
 
-		function votar(row: Fila) {
-			if (misVotos.has(row.id)) misVotos.delete(row.id);
-			else misVotos.add(row.id);
+		let esperaCarga = REINTENTO_MS;
 
-			emitir({ t: 'estado', de: yo, votos: [...misVotos] });
-			pintar();
-		}
+		/** Los contadores de todas y cuáles has votado tú. Si falla, se reintenta. */
+		async function cargar() {
+			const res = await pedir<{
+				votes: Record<string, number>;
+				comments: Record<string, number>;
+				mine: number[];
+				login: string | null;
+			}>('/api/destacadas');
 
-		function comentar(row: Fila) {
-			const texto = limpiar(row.input.value);
-			if (!texto) return;
-
-			const ahora = Date.now();
-			if (ahora - ultimo < ESPERA_MS) {
-				avisar('Vas muy rápido. Espera un momento.');
+			if (!res.ok) {
+				avisar('No llegan los votos ni los comentarios. Se vuelve a probar en un momento.');
+				setTimeout(cargar, esperaCarga);
+				esperaCarga = Math.min(esperaCarga * 2, REINTENTO_MAX_MS);
 				return;
 			}
 
-			ultimo = ahora;
-			row.input.value = '';
+			esperaCarga = REINTENTO_MS;
+			const { votes, comments, mine } = res.data;
 
-			const comentario: Comentario = { id: azar(16), idea: row.id, alias, at: ahora, text: texto };
-			guardar(comentario);
-			mios.add(comentario.id);
-			emitir({ t: 'comentario', de: yo, c: comentario });
+			for (const row of rows) {
+				row.votos = numero(votes?.[row.id]);
+				// Un hilo ya abierto sabe mejor que nadie cuántos lleva.
+				if (row.hiloDatos === null) row.comentarios = numero(comments?.[row.id]);
+			}
 
+			misVotos.clear();
+			for (const id of Array.isArray(mine) ? mine : []) if (porId.has(Number(id))) misVotos.add(Number(id));
+
+			login = typeof res.data.login === 'string' ? res.data.login : null;
+			const primera = !cargado;
+			cargado = true;
+
+			pintarEntrar();
 			pintar();
-			avisar('Dicho. Se queda entre tus pestañas y no se guarda en ningún sitio.');
+			if (primera || notaOut!.textContent?.startsWith('No llegan')) {
+				avisar(login ? '' : 'Puedes leerlo todo. Para votar o comentar, entra con GitHub.');
+			}
+		}
+
+		/** El hilo de una idea, cuando se abre. Si falla, se reintenta mientras siga abierto. */
+		async function cargarHilo(row: Fila) {
+			if (row.pidiendo) return;
+			row.pidiendo = true;
+			if (row.hiloDatos === null) {
+				row.hiloNota.hidden = false;
+				row.hiloNota.textContent = 'Cargando comentarios…';
+			}
+
+			const res = await pedir<{ comments: Comentario[] }>(`/api/destacadas/${row.id}`);
+			row.pidiendo = false;
+
+			if (!res.ok) {
+				row.hiloNota.hidden = false;
+				row.hiloNota.textContent =
+					res.status === 404
+						? errorTexto(404, res.error)
+						: 'No llegan los comentarios. Se vuelve a probar en un momento.';
+				if (res.status === 404) return;
+
+				setTimeout(() => {
+					if (!row.panel.hidden) cargarHilo(row);
+				}, row.espera);
+				row.espera = Math.min(row.espera * 2, REINTENTO_MAX_MS);
+				return;
+			}
+
+			row.espera = REINTENTO_MS;
+			row.hiloNota.hidden = true;
+			row.hiloDatos = Array.isArray(res.data.comments) ? res.data.comments : [];
+			row.comentarios = row.hiloDatos.length;
+			pintarHilo(row);
+			pintar();
+		}
+
+		// --- Lo que se hace desde aquí ---
+
+		function sinSesion() {
+			login = null;
+			pintarEntrar();
+		}
+
+		async function votar(row: Fila) {
+			if (!cargado) return;
+			if (!login) {
+				avisar(errorTexto(401));
+				return;
+			}
+
+			row.vote.disabled = true;
+			const res = await pedir<{ voted: boolean; votes: number }>('/api/destacadas', {
+				method: 'POST',
+				headers: JSON_HEADERS,
+				body: JSON.stringify({ idea: row.id }),
+			});
+			row.vote.disabled = false;
+
+			if (!res.ok) {
+				if (res.status === 401) sinSesion();
+				avisar(errorTexto(res.status, res.error));
+				return;
+			}
+
+			if (res.data.voted) misVotos.add(row.id);
+			else misVotos.delete(row.id);
+			row.votos = numero(res.data.votes);
+			pintar();
+			avisar('');
+		}
+
+		async function comentar(row: Fila) {
+			const texto = limpiar(row.input.value);
+			if (!texto) return;
+
+			const boton = row.form.querySelector<HTMLButtonElement>('[type="submit"]');
+			if (boton) boton.disabled = true;
+
+			const res = await pedir<{ comment: Comentario }>(`/api/destacadas/${row.id}`, {
+				method: 'POST',
+				headers: JSON_HEADERS,
+				body: JSON.stringify({ alias, text: texto }),
+			});
+			if (boton) boton.disabled = false;
+
+			if (!res.ok) {
+				if (res.status === 401) sinSesion();
+				avisar(errorTexto(res.status, res.error));
+				return;
+			}
+
+			row.input.value = '';
+			row.hiloDatos = [res.data.comment, ...(row.hiloDatos ?? [])];
+			row.comentarios += 1;
+			pintarHilo(row);
+			pintar();
+			avisar(`Dicho como ${alias}. Lo ve todo el mundo; si te arrepientes, bórralo.`);
+		}
+
+		async function borrarComentario(row: Fila, comentario: Comentario, boton: HTMLButtonElement) {
+			boton.disabled = true;
+			const res = await pedir<{ ok: boolean }>(`/api/destacadas/comentario/${comentario.id}`, {
+				method: 'DELETE',
+				headers: JSON_HEADERS,
+			});
+			boton.disabled = false;
+
+			// Si ya no estaba, da igual: el resultado es el mismo, se quita de aquí.
+			if (!res.ok && res.status !== 404) {
+				if (res.status === 401) sinSesion();
+				avisar(errorTexto(res.status, res.error));
+				return;
+			}
+
+			row.hiloDatos = (row.hiloDatos ?? []).filter((otro) => otro.id !== comentario.id);
+			row.comentarios = Math.max(0, row.comentarios - 1);
+			pintarHilo(row);
+			pintar();
+			avisar('Comentario borrado.');
 		}
 
 		for (const row of rows) {
@@ -461,12 +607,13 @@ const FIELD =
 				row.abrir.setAttribute('aria-expanded', String(!abierto));
 				if (abierto) return;
 
+				// Cada vez que se abre se pide de nuevo: así se ve lo último que haya.
 				pintarHilo(row);
-				row.input.focus();
+				cargarHilo(row);
+				if (!row.form.hidden) row.input.focus();
 			});
 
-			const form = row.panel.querySelector<HTMLFormElement>('[data-form]')!;
-			form.addEventListener('submit', (evento) => {
+			row.form.addEventListener('submit', (evento) => {
 				evento.preventDefault();
 				comentar(row);
 			});
@@ -491,88 +638,24 @@ const FIELD =
 			avisar(`Ahora eres ${alias}. Lo de antes sigue con el alias anterior.`);
 		});
 
-		// --- Lo que llega de otras pestañas ---
-
-		function recibir(aviso: Aviso) {
-			if (!aviso || typeof aviso.de !== 'string' || aviso.de === yo) return;
-
-			if (aviso.t === 'adios') {
-				vecinos.delete(aviso.de);
-				pintar();
-				avisar(notaTexto(vecinos.size));
-				return;
-			}
-
-			if (aviso.t === 'comentario') {
-				const comentario = saneaComentario(aviso.c, ids, Date.now());
-				if (!comentario) return;
-
-				guardar(comentario);
-				pintar();
-				return;
-			}
-
-			if (aviso.t === 'hola') {
-				// A quien acaba de llegar se le cuenta todo lo que hay aquí.
-				vecinos.set(aviso.de, { visto: Date.now(), votos: new Set() });
-				emitir({ t: 'estado', de: yo, votos: [...misVotos], hilo: [...comentarios.values()] });
-				pintar();
-				avisar(notaTexto(vecinos.size));
-				return;
-			}
-
-			if (aviso.t !== 'estado') return;
-
-			const nuevo = !vecinos.has(aviso.de);
-			vecinos.set(aviso.de, { visto: Date.now(), votos: saneaVotos(aviso.votos, ids) });
-
-			if (Array.isArray(aviso.hilo)) {
-				const ahora = Date.now();
-				for (const crudo of aviso.hilo.slice(0, TOPE_COMENTARIOS)) {
-					const comentario = saneaComentario(crudo, ids, ahora);
-					if (comentario) guardar(comentario);
-				}
-			}
-
-			pintar();
-			if (nuevo) avisar(notaTexto(vecinos.size));
-		}
-
-		bus?.addEventListener('message', (evento) => recibir(evento.data as Aviso));
-
 		// --- Arranque ---
 
 		aliasOut.textContent = alias;
 		buscador.value = '';
 		delete section.dataset.sinjs;
 		pintar();
+		avisar('Cargando votos y comentarios…');
+		cargar();
 
-		if (bus) {
-			emitir({ t: 'hola', de: yo });
-			avisar(notaTexto(0));
-		} else {
-			avisar('Tu navegador no pasa nada entre pestañas: aquí votas y comentas para ti.');
-		}
-
-		// Un repaso cada poco: se refresca lo de «hace un rato» y se da por ida la
-		// pestaña que lleva tiempo sin decir nada, para que no deje votos de nadie.
+		// Un repaso cada poco, sin pedir nada: se refresca lo de «hace un rato» en
+		// los hilos abiertos y se pone en orden lo que se quedó quieto al escribir.
 		setInterval(() => {
-			const ahora = Date.now();
-			let ido = false;
-
-			for (const [de, vecino] of vecinos) {
-				if (ahora - vecino.visto > OLVIDO_MS) {
-					vecinos.delete(de);
-					ido = true;
-				}
+			// El hilo en el que está el foco se deja, que rehacerlo se lo quitaría.
+			const foco = document.activeElement;
+			for (const row of rows) {
+				if (!row.panel.hidden && !row.hilo.contains(foco)) pintarHilo(row);
 			}
-
 			pintar();
-			if (ido) avisar(notaTexto(vecinos.size));
 		}, REPASO_MS);
-
-		setInterval(() => emitir({ t: 'estado', de: yo, votos: [...misVotos] }), LATIDO_MS);
-
-		window.addEventListener('pagehide', () => emitir({ t: 'adios', de: yo }));
 	}
 </script>

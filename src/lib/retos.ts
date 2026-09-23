@@ -1,8 +1,8 @@
 /*
  * Los retos semanales. Cada lunes el tablero se renueva: tres los pone la casa
- * —del catálogo de aquí abajo, rotando— y los demás los propone quien entra. Lo
- * hecho se guarda por semana, así que los tuyos siguen ahí pero vuelven a estar
- * por hacer. Como el escaparate, no hay servidor: todo vive en tu navegador.
+ * —del catálogo de aquí abajo, rotando— y los demás los propone la gente desde
+ * /api/retos, que es quien dice en qué semana estamos. Lo hecho, los puntos y la
+ * racha son de cada uno: eso sí se queda en tu navegador, semana a semana.
  */
 
 /** De qué va el reto. */
@@ -40,18 +40,25 @@ export interface Reto {
 	tema: Tema;
 	nivel: Nivel;
 	at: number;
-	/** Los de la casa no se quitan ni se copian: solo se hacen. */
+	/** Los de la casa no se quitan: solo se hacen. */
 	house: boolean;
+	/** El login de quien lo propuso. Los de la casa no llevan. */
+	author?: string;
+	/** Propuesto por ti: es el único que puedes quitar. */
+	mine?: boolean;
+	/** El id del servidor, para borrarlo. */
+	apiId?: number;
 }
 
 export const TITLE_MAX = 70;
 export const DETAIL_MAX = 140;
-/** Un tablero de la semana, no una lista infinita. */
+/** Un tablero de la semana, no una lista infinita: la casa y la gente, juntos. */
 export const MAX_RETOS = 24;
+/** Los que puede proponer cada persona en una semana. Lo vigila el servidor. */
+export const PER_PERSON = 3;
 /** Cuántos pone la casa cada semana. */
 export const HOUSE_COUNT = 3;
 
-const KEY = 'tuweb:retos';
 const DONE_KEY = 'tuweb:retos-hechos';
 
 const MINUTE = 60_000;
@@ -233,8 +240,7 @@ export function houseRetos(week: number): Reto[] {
 
 /**
  * Un reto a partir de lo escrito en el formulario, o el motivo por el que no
- * vale. Lo mismo sirve para lo que se teclea ahora y para lo que se lee del
- * localStorage, que podría venir tocado a mano.
+ * vale. Es la primera criba: la que manda es la del servidor.
  */
 export function toReto(draft: Partial<Record<keyof Reto, unknown>>): Reto | string {
 	const title = oneLine(String(draft.title ?? ''), TITLE_MAX);
@@ -248,35 +254,35 @@ export function toReto(draft: Partial<Record<keyof Reto, unknown>>): Reto | stri
 	const at = typeof draft.at === 'number' && Number.isFinite(draft.at) ? draft.at : Date.now();
 	const id = typeof draft.id === 'string' && draft.id ? draft.id.slice(0, 32) : nextId();
 
-	// Lo de la casa lo pone el catálogo, no el localStorage: aquí nunca entra.
+	// Lo de la casa lo pone el catálogo, no el formulario: aquí nunca entra.
 	return { id, title, detail, tema, nivel, at, house: false };
 }
 
-export function readRetos(): Reto[] {
-	try {
-		const saved = localStorage.getItem(KEY);
-		if (!saved) return [];
+/**
+ * Un reto tal como llega de /api/retos, o null si viene raro. El id se prefija
+ * con «gente-» para que lo hecho no choque con los de la casa, que van con
+ * «casa-».
+ */
+export function fromApi(raw: unknown): Reto | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const item = raw as Record<string, unknown>;
 
-		const parsed = JSON.parse(saved) as unknown;
-		if (!Array.isArray(parsed)) return [];
+	if (typeof item.id !== 'number' || !Number.isInteger(item.id)) return null;
+	if (typeof item.title !== 'string' || !item.title) return null;
+	if (!isTema(item.tema) || !isNivel(item.nivel)) return null;
 
-		return parsed
-			.map((item) => (item && typeof item === 'object' ? toReto(item as Partial<Reto>) : ''))
-			.filter((item): item is Reto => typeof item !== 'string')
-			.slice(0, MAX_RETOS);
-	} catch {
-		// Sin almacenamiento, o con basura dentro: tablero limpio y a seguir.
-		return [];
-	}
-}
-
-export function saveRetos(retos: Reto[]) {
-	try {
-		if (retos.length === 0) localStorage.removeItem(KEY);
-		else localStorage.setItem(KEY, JSON.stringify(retos));
-	} catch {
-		// Si no deja guardar, el tablero dura lo que dure la visita.
-	}
+	return {
+		id: `gente-${item.id}`,
+		apiId: item.id,
+		title: item.title,
+		detail: typeof item.detail === 'string' ? item.detail : '',
+		tema: item.tema,
+		nivel: item.nivel,
+		at: typeof item.at === 'number' ? item.at : 0,
+		house: false,
+		author: typeof item.author === 'string' ? item.author : '',
+		mine: item.mine === true,
+	};
 }
 
 /** Lo hecho, semana a semana: la clave es el número de semana. */
@@ -347,14 +353,4 @@ export function streakOf(done: Done, week: number) {
 		cursor -= 1;
 	}
 	return racha;
-}
-
-/** El mismo reto escrito para pegarlo en el formulario de ideas de la portada. */
-export function ideaOf(reto: Reto) {
-	const tema = temaOf(reto.tema).label.toLowerCase();
-	const nivel = nivelOf(reto.nivel).label.toLowerCase();
-	return `Poned en los retos semanales «${reto.title}» (${tema}, nivel ${nivel}): ${reto.detail}`.slice(
-		0,
-		280,
-	);
 }

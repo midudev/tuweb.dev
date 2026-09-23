@@ -1,16 +1,14 @@
 ---
 /**
  * Un minijuego para la espera entre ventanas: la serpiente de toda la vida.
- * Todo pasa en el navegador y nada se guarda en el servidor; el récord y el
- * ranking viven en el localStorage de quien juega.
+ * La partida pasa en el navegador y el récord propio vive en su localStorage;
+ * el ranking es de todos y va al servidor con la sesión de GitHub.
  */
+import GitHubLogin from './GitHubLogin.astro';
 import Icon from './Icon.astro';
 
 const COLS = 20;
 const ROWS = 14;
-
-/** Lo que cabe en una línea del ranking sin romperla. */
-const NOMBRE_MAX = 14;
 
 const PAD = [
 	{ id: 'up', label: 'Arriba', icon: 'chevron-up', class: 'col-start-2' },
@@ -36,9 +34,6 @@ const RITMOS = [
 
 const OPCION =
 	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
-
-const BOTON =
-	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
 ---
 
 <section id="minijuego" class="flex flex-col gap-7">
@@ -80,31 +75,6 @@ const BOTON =
 					<dd data-best class="tabular-nums">0</dd>
 				</div>
 			</dl>
-
-			<form data-firma hidden class="flex flex-col gap-3 border border-accent bg-panel p-4">
-				<label class="flex flex-col gap-2">
-					<span class="text-sm">
-						Se acabó con <span data-firma-puntos class="font-pixel text-accent">0</span> puntos.
-						Firma la marca.
-					</span>
-					<input
-						type="text"
-						data-firma-nombre
-						maxlength={NOMBRE_MAX}
-						autocomplete="off"
-						spellcheck="false"
-						placeholder="Tu nombre"
-						class="w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent"
-					/>
-				</label>
-				<div class="flex flex-wrap items-center gap-3">
-					<button type="submit" class={BOTON}>
-						<Icon name="writing-sign" class="size-4 shrink-0" />
-						Firmar
-					</button>
-					<button type="button" data-firma-pasar class={BOTON}>Paso</button>
-				</div>
-			</form>
 
 			<div class="flex flex-wrap gap-2 text-sm">
 				<button
@@ -171,8 +141,8 @@ const BOTON =
 					}
 				</div>
 				<p class="text-sm text-muted">
-					Cada ajuste lleva su récord y su ranking, y se guardan en este navegador. Tocarlos deja el
-					tablero a cero.
+					Cada ajuste lleva su récord, que se guarda en este navegador, y su ranking, que es de
+					todos. Tocarlos deja el tablero a cero.
 				</p>
 			</div>
 
@@ -188,18 +158,16 @@ const BOTON =
 
 		<ol data-ranking class="flex flex-col gap-1.5 text-sm"></ol>
 
-		<p data-ranking-vacio class="text-sm text-muted">
-			Aquí no ha firmado nadie. Pierde una partida y pon tu nombre.
+		<p data-ranking-vacio hidden class="text-sm text-muted">
+			Aquí no hay nadie todavía. Juega con la sesión abierta y estrena la lista.
 		</p>
 
 		<p data-ranking-aviso hidden class="text-sm text-muted"></p>
 
-		<div>
-			<button type="button" data-ranking-vaciar hidden class={BOTON}>
-				<Icon name="trash" class="size-4 shrink-0" />
-				Vaciar este ranking
-			</button>
-		</div>
+		<p data-entrar hidden class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-muted">
+			Sin sesión se juega igual, pero no se sale en el ranking.
+			<GitHubLogin label="Entra con GitHub" />
+		</p>
 
 		<template data-fila>
 			<li class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
@@ -253,18 +221,19 @@ const BOTON =
 		const CLAVE_RECORD = 'tuweb:serpiente:record';
 		const CLAVE_RECORDS = 'tuweb:serpiente:records';
 		const CLAVE_AJUSTES = 'tuweb:serpiente:ajustes';
-		// El ranking va por ajuste, como el récord, y recuerda el último nombre.
-		const CLAVE_RANKING = 'tuweb:serpiente:ranking';
-		const CLAVE_NOMBRE = 'tuweb:serpiente:nombre';
-		const NOMBRE_MAX = 14;
-		const TOPE = 10;
+		// El ranking y el nombre de antes vivían aquí; ahora son del servidor.
+		const CLAVES_VIEJAS = ['tuweb:serpiente:ranking', 'tuweb:serpiente:nombre'];
+		// Si el servidor no contesta se vuelve a pedir, cada vez con más calma.
+		const ESPERA_MIN = 3000;
+		const ESPERA_MAX = 30000;
 
 		type Giro = { x: number; y: number };
 		type Estado = 'listo' | 'jugando' | 'pausa' | 'fin';
 		type Modo = 'paredes' | 'tunel';
 		type Ritmo = 'calma' | 'normal' | 'nervio';
 		type Ajustes = { modo: Modo; ritmo: Ritmo };
-		type Marca = { nombre: string; puntos: number; fecha: number };
+		type Marca = { name: string; points: number; at: number; mine: boolean };
+		type Respuesta = { top?: unknown; login?: unknown; improved?: unknown; error?: unknown };
 
 		const RITMOS: Record<Ritmo, { inicial: number; minimo: number; label: string }> = {
 			calma: { inicial: 200, minimo: 110, label: 'calmada' },
@@ -282,14 +251,11 @@ const BOTON =
 		const botonJugar = section.querySelector<HTMLButtonElement>('[data-play]');
 		const etiquetaJugar = section.querySelector<HTMLElement>('[data-play-label]');
 		const aviso = section.querySelector<HTMLElement>('[data-status]');
-		const firma = section.querySelector<HTMLFormElement>('[data-firma]');
-		const firmaNombre = section.querySelector<HTMLInputElement>('[data-firma-nombre]');
-		const firmaPuntos = section.querySelector<HTMLElement>('[data-firma-puntos]');
 		const listaRanking = section.querySelector<HTMLElement>('[data-ranking]');
 		const rankingVacio = section.querySelector<HTMLElement>('[data-ranking-vacio]');
 		const etiquetaRanking = section.querySelector<HTMLElement>('[data-ranking-tag]');
 		const avisoRanking = section.querySelector<HTMLElement>('[data-ranking-aviso]');
-		const botonVaciar = section.querySelector<HTMLButtonElement>('[data-ranking-vaciar]');
+		const entrar = section.querySelector<HTMLElement>('[data-entrar]');
 		const plantillaFila = section.querySelector<HTMLTemplateElement>('[data-fila]');
 
 		const GIROS: Record<string, Giro> = {
@@ -347,47 +313,25 @@ const BOTON =
 			}
 		}
 
-		/** Del almacén solo sale lo que tiene forma de marca; lo demás se tira. */
-		function leerRanking(): Record<string, Marca[]> {
-			try {
-				const crudo = JSON.parse(localStorage.getItem(CLAVE_RANKING) ?? 'null');
-				const limpio: Record<string, Marca[]> = {};
-				for (const [clave, marcas] of Object.entries(crudo ?? {})) {
-					if (!Array.isArray(marcas)) continue;
-					const buenas = marcas
-						.filter(
-							(marca) => typeof marca?.nombre === 'string' && Number.isFinite(marca?.puntos),
-						)
-						.map((marca) => ({
-							nombre: limpiarNombre(marca.nombre) || 'anónimo',
-							puntos: Math.max(0, Math.floor(marca.puntos)),
-							fecha: Number.isFinite(marca.fecha) ? Number(marca.fecha) : 0,
-						}));
-					if (buenas.length > 0) limpio[clave] = ordenar(buenas).slice(0, TOPE);
-				}
-				return limpio;
-			} catch {
-				return {};
-			}
+		/** Del servidor solo se pinta lo que tiene forma de marca; lo demás se tira. */
+		function leerTop(crudo: unknown): Marca[] {
+			if (!Array.isArray(crudo)) return [];
+			return crudo
+				.filter((marca) => typeof marca?.name === 'string' && Number.isFinite(marca?.points))
+				.map((marca) => ({
+					name: marca.name,
+					points: Math.max(0, Math.floor(marca.points)),
+					at: Number.isFinite(marca.at) ? Number(marca.at) : 0,
+					mine: marca.mine === true,
+				}));
 		}
 
-		function leerNombre(): string {
-			try {
-				const guardado = JSON.parse(localStorage.getItem(CLAVE_NOMBRE) ?? 'null');
-				return typeof guardado === 'string' ? limpiarNombre(guardado) : '';
-			} catch {
-				return '';
-			}
-		}
-
-		/** Un nombre es una línea corta: sin saltos, sin dobles espacios y sin sobras. */
-		function limpiarNombre(valor: string) {
-			return valor.replace(/\s+/g, ' ').trim().slice(0, NOMBRE_MAX).trim();
-		}
-
-		/** Más puntos arriba y, en empate, primero quien llegó antes. */
-		function ordenar(marcas: Marca[]) {
-			return [...marcas].sort((a, b) => b.puntos - a.puntos || a.fecha - b.fecha);
+		/** Lo que dice la API cuando algo no cuela, en corto y en español. */
+		function motivo(status: number) {
+			if (status === 400) return 'Esa marca no vale.';
+			if (status === 403) return 'La petición no sale de esta web.';
+			if (status === 429) return 'Vas muy rápido. Prueba en un momento.';
+			return 'El ranking no contesta.';
 		}
 
 		function guardar(clave: string, valor: unknown) {
@@ -398,13 +342,24 @@ const BOTON =
 			}
 		}
 
+		try {
+			for (const clave of CLAVES_VIEJAS) localStorage.removeItem(clave);
+		} catch {
+			// Sin almacenamiento no hay nada que barrer.
+		}
+
 		let ajustes = leerAjustes();
 		let records = leerRecords();
-		let ranking = leerRanking();
-		// La última marca firmada, para poder señalarla en la lista.
-		let mia: Marca | null = null;
-		// Los puntos con los que se abrió la firma; la partida puede seguir sin ella.
-		let puntosFirma = 0;
+		// El top del ajuste puesto, tal cual lo devuelve el servidor.
+		let ranking: Marca[] = [];
+		// Mientras llega no se dice que está vacío: aún no se sabe.
+		let cargado = false;
+		// undefined: aún no se sabe; null: sin sesión.
+		let login: string | null | undefined;
+		// Cada petición lleva su número: si llega una vieja tarde, se ignora.
+		let pedido = 0;
+		let reintento = 0;
+		let espera = ESPERA_MIN;
 		let velocidad = RITMOS[ajustes.ritmo].inicial;
 
 		function claveRecord() {
@@ -413,10 +368,6 @@ const BOTON =
 
 		function record() {
 			return records[claveRecord()] ?? 0;
-		}
-
-		function marcasAhora() {
-			return ranking[claveRecord()] ?? [];
 		}
 
 		function etiquetaAjuste() {
@@ -478,9 +429,9 @@ const BOTON =
 		function pintarRanking() {
 			if (etiquetaRanking) etiquetaRanking.textContent = etiquetaAjuste();
 
-			const marcas = marcasAhora();
-			if (rankingVacio) rankingVacio.hidden = marcas.length > 0;
-			if (botonVaciar) botonVaciar.hidden = marcas.length === 0;
+			const marcas = ranking;
+			if (rankingVacio) rankingVacio.hidden = !cargado || marcas.length > 0;
+			if (entrar) entrar.hidden = login !== null;
 			const molde = plantillaFila?.content.firstElementChild;
 			if (!listaRanking || !molde) return;
 
@@ -491,13 +442,13 @@ const BOTON =
 				if (puesto) puesto.textContent = String(n + 1);
 
 				const nombre = fila.querySelector<HTMLElement>('[data-nombre]');
-				if (nombre) nombre.textContent = marca.nombre;
+				if (nombre) nombre.textContent = marca.name;
 
 				const tanteo = fila.querySelector<HTMLElement>('[data-puntos]');
-				if (tanteo) tanteo.textContent = String(marca.puntos);
+				if (tanteo) tanteo.textContent = String(marca.points);
 
-				// La marca recién firmada se distingue sin salirse de la lista.
-				if (marca === mia) {
+				// La tuya se distingue sin salirse de la lista.
+				if (marca.mine) {
 					nombre?.classList.add('text-accent');
 					tanteo?.classList.add('text-accent');
 				}
@@ -508,27 +459,108 @@ const BOTON =
 			listaRanking.replaceChildren(...filas);
 		}
 
-		/** Lo que pasó con la última firma, a la vista y también para el lector. */
-		function contarRanking(texto: string) {
+		/** Lo que pasó con la última marca, a la vista y también para el lector. */
+		function contarRanking(texto: string, fallo = false) {
 			if (avisoRanking) {
 				avisoRanking.textContent = texto;
 				avisoRanking.hidden = texto === '';
+				// Un aviso de fallo lo borra la siguiente carga buena; los demás se quedan.
+				if (fallo) avisoRanking.dataset.fallo = '1';
+				else delete avisoRanking.dataset.fallo;
 			}
 			if (texto) decir(texto);
 		}
 
-		/** Al perder se pide nombre; con cero puntos no hay nada que firmar. */
-		function pedirFirma() {
-			if (!firma) return;
-			puntosFirma = puntos;
-			firma.hidden = puntos <= 0;
-			if (firma.hidden) return;
-			if (firmaPuntos) firmaPuntos.textContent = String(puntos);
-			if (firmaNombre) firmaNombre.value = leerNombre();
+		function tomarLogin(valor: unknown) {
+			if (valor === undefined) return;
+			login = typeof valor === 'string' && valor !== '' ? valor : null;
 		}
 
-		function cerrarFirma() {
-			if (firma) firma.hidden = true;
+		/** Pide el top del ajuste puesto; si falla, avisa y lo vuelve a intentar. */
+		async function cargarRanking() {
+			clearTimeout(reintento);
+			const n = ++pedido;
+			const modo = claveRecord();
+			try {
+				const res = await fetch(`/api/serpiente?mode=${encodeURIComponent(modo)}`);
+				const datos: Respuesta = await res.json().catch(() => ({}));
+				if (n !== pedido) return;
+				if (!res.ok) throw new Error(motivo(res.status));
+				ranking = leerTop(datos.top);
+				cargado = true;
+				tomarLogin(datos.login);
+				espera = ESPERA_MIN;
+				if (avisoRanking?.dataset.fallo) contarRanking('');
+				pintarRanking();
+			} catch (error) {
+				if (n !== pedido) return;
+				const texto =
+					error instanceof Error && error.message ? error.message : 'El ranking no contesta.';
+				contarRanking(`${texto} Reintentando.`, true);
+				reintento = window.setTimeout(cargarRanking, espera);
+				espera = Math.min(espera * 2, ESPERA_MAX);
+			}
+		}
+
+		/*
+		 * Al acabar, la marca va al servidor si hay sesión. Solo se guarda si
+		 * mejora la tuya en ese ajuste, y la respuesta trae el top ya puesto.
+		 */
+		async function mandarMarca(modo: string, marca: number, intento = 0) {
+			if (marca <= 0) return;
+			if (login === null) {
+				contarRanking(`${marca} puntos. Sin sesión no entran en el ranking.`);
+				pintarRanking();
+				return;
+			}
+			try {
+				const res = await fetch('/api/serpiente', {
+					headers: { 'Content-Type': 'application/json' },
+					method: 'POST',
+					body: JSON.stringify({ mode: modo, points: marca }),
+				});
+				const datos: Respuesta = await res.json().catch(() => ({}));
+				if (res.status === 401) {
+					login = null;
+					contarRanking(`${marca} puntos. Sin sesión no entran en el ranking.`);
+					pintarRanking();
+					return;
+				}
+				if (!res.ok) {
+					// Un 4xx no se arregla insistiendo; lo demás sí puede.
+					if (res.status < 500) {
+						contarRanking(motivo(res.status));
+						return;
+					}
+					throw new Error(motivo(res.status));
+				}
+				// Si entretanto se cambió de ajuste, el top que llega es de otro.
+				if (modo !== claveRecord()) return;
+				// Y si había una carga en vuelo, esta respuesta es más nueva.
+				pedido += 1;
+				clearTimeout(reintento);
+				ranking = leerTop(datos.top);
+				cargado = true;
+				const puesto = ranking.findIndex((otra) => otra.mine);
+				pintarRanking();
+				contarRanking(
+					datos.improved !== true
+						? `${marca} puntos: no mejora tu marca en el ranking.`
+						: puesto >= 0
+							? `${marca} puntos: puesto ${puesto + 1}.`
+							: `${marca} puntos: no entra en los diez primeros.`,
+				);
+			} catch {
+				if (intento >= 3) {
+					contarRanking('El ranking no contesta. La marca no se guardó.');
+					return;
+				}
+				contarRanking('El ranking no contesta. Reintentando.', true);
+				window.setTimeout(
+					() => void mandarMarca(modo, marca, intento + 1),
+					ESPERA_MIN * 2 ** intento,
+				);
+			}
 		}
 
 		function libre() {
@@ -566,8 +598,8 @@ const BOTON =
 			marcar();
 			capaVisible(titulo, texto);
 			refrescarBoton();
-			pedirFirma();
 			decir(`${titulo} ${puntos} puntos. Récord ${record()}.`);
+			void mandarMarca(claveRecord(), puntos);
 		}
 
 		function paso() {
@@ -583,7 +615,7 @@ const BOTON =
 				x = (x + COLS) % COLS;
 				y = (y + ROWS) % ROWS;
 			} else if (x < 0 || x >= COLS || y < 0 || y >= ROWS) {
-				terminar('Contra la pared.', `${puntos} puntos. Firma y otra vez.`);
+				terminar('Contra la pared.', `${puntos} puntos. Dale a otra vez.`);
 				return;
 			}
 
@@ -592,7 +624,7 @@ const BOTON =
 			const cuerpo = crece ? serpiente : serpiente.slice(0, -1);
 
 			if (cuerpo.includes(destino)) {
-				terminar('Te has mordido.', `${puntos} puntos. Firma y otra vez.`);
+				terminar('Te has mordido.', `${puntos} puntos. Dale a otra vez.`);
 				return;
 			}
 
@@ -623,7 +655,6 @@ const BOTON =
 			puntos = 0;
 			velocidad = RITMOS[ajustes.ritmo].inicial;
 			estado = 'jugando';
-			cerrarFirma();
 			nuevaComida();
 			marcar();
 			pintar();
@@ -640,7 +671,6 @@ const BOTON =
 			serpiente = [];
 			comida = -1;
 			puntos = 0;
-			cerrarFirma();
 			pintar();
 			marcar();
 			capaVisible(
@@ -757,54 +787,6 @@ const BOTON =
 			});
 		});
 
-		/*
-		 * Firmar una marca: entra en el ranking del ajuste con el que se jugó, se
-		 * ordena por puntos y solo se quedan las diez primeras. El nombre se
-		 * recuerda para la próxima, que nadie quiere teclearlo cada vez.
-		 */
-		firma?.addEventListener('submit', (event) => {
-			event.preventDefault();
-			const nombre = limpiarNombre(firmaNombre?.value ?? '') || 'anónimo';
-			guardar(CLAVE_NOMBRE, nombre);
-
-			const marca: Marca = { nombre, puntos: puntosFirma, fecha: Date.now() };
-			const clave = claveRecord();
-			const marcas = ordenar([...(ranking[clave] ?? []), marca]).slice(0, TOPE);
-			ranking = { ...ranking, [clave]: marcas };
-			guardar(CLAVE_RANKING, ranking);
-
-			const puesto = marcas.indexOf(marca);
-			mia = puesto >= 0 ? marca : null;
-			// El formulario se va, así que el foco no puede quedarse dentro.
-			const dentro = firma?.contains(document.activeElement) === true;
-			cerrarFirma();
-			pintarRanking();
-			contarRanking(
-				puesto >= 0
-					? `${nombre}, ${marca.puntos} puntos: puesto ${puesto + 1}.`
-					: `${nombre}, ${marca.puntos} puntos: no entra en los diez primeros.`,
-			);
-			if (dentro) board.focus({ preventScroll: true });
-		});
-
-		section
-			.querySelector<HTMLButtonElement>('[data-firma-pasar]')
-			?.addEventListener('click', (event) => {
-				cerrarFirma();
-				contarRanking('Marca sin firmar.');
-				devolverFoco(event);
-			});
-
-		botonVaciar?.addEventListener('click', () => {
-			const { [claveRecord()]: fuera, ...resto } = ranking;
-			if (!fuera) return;
-			ranking = resto;
-			mia = null;
-			guardar(CLAVE_RANKING, ranking);
-			pintarRanking();
-			contarRanking('Ranking vacío.');
-		});
-
 		function marcarOpciones() {
 			section.querySelectorAll<HTMLButtonElement>('[data-juego-modo]').forEach((boton) => {
 				boton.setAttribute('aria-pressed', String(boton.dataset.juegoModo === ajustes.modo));
@@ -824,7 +806,10 @@ const BOTON =
 			marcarOpciones();
 			reposar();
 			contarRanking('');
+			ranking = [];
+			cargado = false;
 			pintarRanking();
+			void cargarRanking();
 			decir('Ajuste cambiado. Tablero a cero.');
 		}
 
@@ -862,5 +847,6 @@ const BOTON =
 		marcarOpciones();
 		reposar();
 		pintarRanking();
+		void cargarRanking();
 	}
 </script>

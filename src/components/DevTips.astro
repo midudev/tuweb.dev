@@ -1,14 +1,14 @@
 ---
 /**
  * Los consejos de desarrollo: los de la casa, uno destacado arriba, y los que
- * escribe quien pasa por aquí.
- *
- * Como el escaparate, no hay servidor detrás: lo que guardas y lo que escribes
- * se queda en tu navegador, y desde ahí se copia para proponerlo como idea, que
- * es la única forma de que entre en esta web. Los consejos y lo que se guarda
- * están en src/lib/consejos.ts; aquí solo están los mandos.
+ * escribe la gente con su cuenta de GitHub, que salen de /api/consejos y los lee
+ * todo el mundo. Lo que guardas y el filtro se quedan en tu navegador. Los
+ * consejos y lo que se guarda están en src/lib/consejos.ts; aquí solo están los
+ * mandos.
  */
+import GitHubLogin from './GitHubLogin.astro';
 import Icon from './Icon.astro';
+import { getSessionUser } from '../lib/auth';
 import {
 	ALL,
 	CATEGORIES,
@@ -36,6 +36,8 @@ const FILTROS = [
 
 // Uno al azar en cada visita: entras y ya hay consejo, sin dar a nada.
 const inicial = pickTip(TIPS, []);
+// Con sesión sale el formulario; sin ella, el enlace para entrar.
+const user = await getSessionUser(Astro);
 ---
 
 <section id="consejos" class="flex flex-col gap-7">
@@ -132,6 +134,7 @@ const inicial = pickTip(TIPS, []);
 			</ul>
 
 			<p data-count class="text-sm text-muted" aria-live="polite"></p>
+			<p data-status role="status" hidden class="text-sm text-heart"></p>
 		</div>
 
 		<div class="flex flex-col gap-5 border border-line bg-panel p-5">
@@ -140,7 +143,11 @@ const inicial = pickTip(TIPS, []);
 				El tuyo
 			</span>
 
-			<form data-form class="flex flex-col gap-4">
+			<p data-login hidden={Boolean(user)} class="text-sm text-muted">
+				Para apuntar el tuyo, <GitHubLogin label="entra con GitHub" />.
+			</p>
+
+			<form data-form hidden={!user} class="flex flex-col gap-4">
 				<label class="flex flex-col gap-2">
 					<span class="text-sm text-muted">El consejo, en una línea</span>
 					<input
@@ -180,14 +187,14 @@ const inicial = pickTip(TIPS, []);
 			</form>
 
 			<p class="text-sm text-muted">
-				Lo que apuntes se queda en este navegador y sale el primero de la lista. Para que lo lea
-				todo el mundo, cópialo como idea y proponlo en la portada.
+				Lo que apuntes lo lee todo el mundo, con tu nombre de GitHub, y sale el primero de la
+				lista. Lo que guardas y el filtro solo están en tu navegador.
 			</p>
 		</div>
 	</div>
 
-	<template data-mio>
-		<li data-tip data-mine class="flex flex-col gap-2 border border-line bg-panel p-4">
+	<template data-gente>
+		<li data-tip data-shared class="flex flex-col gap-2 border border-line bg-panel p-4">
 			<div class="flex items-start justify-between gap-3">
 				<p data-title class="font-pixel text-sm text-pretty"></p>
 				<span data-cat class="shrink-0 border border-accent px-2 py-1 text-xs text-accent"></span>
@@ -201,9 +208,9 @@ const inicial = pickTip(TIPS, []);
 				<button type="button" data-copy class={ENLACE}>
 					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
 					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
-					<span data-copy-label>Copiar como idea</span>
+					<span data-copy-label>Copiar</span>
 				</button>
-				<button type="button" data-remove class={ENLACE}>
+				<button type="button" data-remove hidden class={ENLACE}>
 					<Icon name="trash" class="size-4 shrink-0" />
 					Quitar
 				</button>
@@ -213,7 +220,7 @@ const inicial = pickTip(TIPS, []);
 </section>
 
 <style is:global>
-	/* Global porque los consejos tuyos los pinta el script y no llevan la marca
+	/* Global porque los consejos de la gente los pinta el script y no llevan la marca
 	   del componente; por eso todo cuelga de #consejos. */
 
 	/* El check solo sale cuando la copia ha ido bien. */
@@ -248,10 +255,10 @@ const inicial = pickTip(TIPS, []);
 		TIPS,
 		type Tip,
 		filterTips,
+		fromApi,
 		fullText,
 		labelOf,
 		pickTip,
-		pitchOf,
 		readStore,
 		saveStore,
 		toTip,
@@ -261,24 +268,87 @@ const inicial = pickTip(TIPS, []);
 	const section = document.querySelector<HTMLElement>('#consejos');
 	const destacado = section?.querySelector<HTMLElement>('[data-destacado]');
 	const lista = section?.querySelector<HTMLUListElement>('[data-list]');
-	const plantilla = section?.querySelector<HTMLTemplateElement>('[data-mio]');
+	const plantilla = section?.querySelector<HTMLTemplateElement>('[data-gente]');
 	const form = section?.querySelector<HTMLFormElement>('[data-form]');
 	const buscador = section?.querySelector<HTMLInputElement>('[data-buscador]');
 	const contador = section?.querySelector<HTMLElement>('[data-count]');
 	const error = section?.querySelector<HTMLElement>('[data-error]');
+	const estado = section?.querySelector<HTMLElement>('[data-status]');
+	const entrar = section?.querySelector<HTMLElement>('[data-login]');
+
+	interface Respuesta {
+		ok: boolean;
+		status: number;
+		code: string;
+		data: Record<string, unknown> | null;
+	}
+
+	/** Una llamada a la API que nunca revienta: si falla la red, status 0. */
+	async function pedir(url: string, method = 'GET', body?: unknown): Promise<Respuesta> {
+		try {
+			const res = await fetch(url, {
+				method,
+				headers: method === 'GET' ? undefined : { 'Content-Type': 'application/json' },
+				body: body === undefined ? undefined : JSON.stringify(body),
+			});
+			const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+			const code = typeof data?.error === 'string' ? data.error : '';
+			return { ok: res.ok, status: res.status, code, data };
+		} catch {
+			return { ok: false, status: 0, code: '', data: null };
+		}
+	}
+
+	/** Lo que dice el servidor, dicho en corto. */
+	function mensaje(status: number) {
+		if (status === 400) return 'Al consejo le falta algo o algo no vale. Revísalo.';
+		if (status === 401) return 'Entra con GitHub para apuntar consejos.';
+		if (status === 403) return 'La petición no salió de esta web. Recarga la página.';
+		if (status === 404) return 'Ese consejo ya no está.';
+		if (status === 409) return `Ya tienes ${MAX_MINE} apuntados. Quita alguno.`;
+		if (status === 422) return 'Eso parece spam: sin enlaces ni letras repetidas.';
+		if (status === 429) return 'Más despacio: espera un minuto y vuelve a probar.';
+		return 'No se pudo hablar con el servidor. Prueba otra vez.';
+	}
 
 	if (section && destacado && lista && plantilla && form && buscador && contador) {
 		let store: Store = readStore();
+		/** Los que escribe la gente, tal como vinieron la última vez. */
+		let gente: Tip[] = [];
 		/** Lo visto en esta visita, para no repetir hasta agotar la lista. */
 		let vistos: string[] = [destacado.dataset.id ?? ''];
+		let loading = false;
+		/** Si alguien pidió cargar mientras ya se cargaba, se repite al acabar. */
+		let again = false;
+		let retry = 0;
+		let retryTimer = 0;
+		let sending = false;
 
-		/** Los tuyos delante y los de la casa detrás: siempre en ese orden. */
+		/** Los de la gente delante y los de la casa detrás: siempre en ese orden. */
 		function todos(): Tip[] {
-			return [...store.mine, ...TIPS];
+			return [...gente, ...TIPS];
 		}
 
 		function buscar(id: string) {
 			return todos().find((tip) => tip.id === id);
+		}
+
+		function campo(name: string) {
+			return form!.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+				`[data-field="${name}"]`,
+			);
+		}
+
+		function aviso(message: string) {
+			if (!estado) return;
+			estado.textContent = message;
+			estado.hidden = !message;
+		}
+
+		/** Con sesión, el formulario; sin ella, el enlace para entrar. */
+		function setLogin(login: string | null) {
+			form!.hidden = !login;
+			if (entrar) entrar.hidden = Boolean(login);
 		}
 
 		async function copiar(text: string) {
@@ -330,26 +400,47 @@ const inicial = pickTip(TIPS, []);
 			pintar();
 		}
 
-		/** Los tuyos se repintan enteros: son pocos y así no se descuadra el orden. */
-		function pintarMios() {
-			for (const viejo of lista!.querySelectorAll('[data-mine]')) viejo.remove();
+		async function quitar(tip: Tip, boton: HTMLButtonElement) {
+			if (tip.apiId === undefined) return;
+			boton.disabled = true;
+			aviso('');
 
-			for (const tip of [...store.mine].reverse()) {
+			const res = await pedir(`/api/consejos/${tip.apiId}`, 'DELETE');
+			// Si ya no estaba, el resultado es el mismo: fuera de la lista.
+			if (res.ok || res.status === 404) {
+				gente = gente.filter((otro) => otro.id !== tip.id);
+				store.saved = store.saved.filter((otro) => otro !== tip.id);
+				saveStore(store);
+				pintarGente();
+				// Si el destacado era ese, entra otro en su lugar.
+				if (destacado!.dataset.id === tip.id) siguiente();
+				else pintar();
+				return;
+			}
+
+			boton.disabled = false;
+			if (res.status === 401) setLogin(null);
+			aviso(mensaje(res.status));
+		}
+
+		/** Los de la gente se repintan enteros: así no se descuadra el orden. */
+		function pintarGente() {
+			for (const viejo of lista!.querySelectorAll('[data-shared]')) viejo.remove();
+
+			for (const tip of [...gente].reverse()) {
 				const nodo = plantilla!.content.firstElementChild!.cloneNode(true) as HTMLElement;
 				nodo.dataset.id = tip.id;
 				nodo.querySelector<HTMLElement>('[data-title]')!.textContent = tip.title;
 				nodo.querySelector<HTMLElement>('[data-detail]')!.textContent = tip.detail;
-				nodo.querySelector<HTMLElement>('[data-cat]')!.textContent = `${labelOf(tip)} · tuyo`;
+				nodo.querySelector<HTMLElement>('[data-cat]')!.textContent =
+					`${labelOf(tip)} · ${tip.mine ? 'tuyo' : `de ${tip.author || 'alguien'}`}`;
 
-				nodo.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
-					store.mine = store.mine.filter((otro) => otro.id !== tip.id);
-					store.saved = store.saved.filter((otro) => otro !== tip.id);
-					saveStore(store);
-					pintarMios();
-					// Si el destacado era ese, entra otro en su lugar.
-					if (destacado!.dataset.id === tip.id) siguiente();
-					else pintar();
-				});
+				// Solo se quita lo que escribiste tú.
+				if (tip.mine) {
+					const boton = nodo.querySelector<HTMLButtonElement>('[data-remove]')!;
+					boton.hidden = false;
+					boton.addEventListener('click', () => void quitar(tip, boton));
+				}
 
 				lista!.prepend(nodo);
 			}
@@ -390,12 +481,14 @@ const inicial = pickTip(TIPS, []);
 			const etiquetaDestacado = botonDestacado?.querySelector<HTMLElement>('[data-save-label]');
 			if (etiquetaDestacado) etiquetaDestacado.textContent = marcado ? 'Guardado' : 'Guardar';
 
-			const tuyos = store.mine.length;
+			// Solo cuenta lo guardado que sigue en la lista: uno borrado no suma.
+			const guardados = store.saved.filter((id) => buscar(id)).length;
+			const tuyos = gente.filter((tip) => tip.mine).length;
 			contador!.textContent =
 				visibles.length === 0
 					? 'Aquí no hay nada con eso. Prueba con otra palabra o quita el filtro.'
 					: `${visibles.length} ${visibles.length === 1 ? 'consejo' : 'consejos'} a la vista · ` +
-						`${store.saved.length} guardados · ` +
+						`${guardados} guardados · ` +
 						(tuyos === 0
 							? 'ninguno tuyo todavía'
 							: `${tuyos} ${tuyos === 1 ? 'tuyo' : 'tuyos'}, quedan ${MAX_MINE - tuyos} huecos`);
@@ -410,6 +503,43 @@ const inicial = pickTip(TIPS, []);
 			if (vistos.includes(tip.id)) vistos = [];
 			pintarDestacado(tip);
 			pintar();
+		}
+
+		/** Los consejos de la gente. Si falla, se avisa y se vuelve a probar cada vez más tarde. */
+		async function cargar() {
+			if (loading) {
+				again = true;
+				return;
+			}
+			loading = true;
+			clearTimeout(retryTimer);
+
+			const res = await pedir('/api/consejos');
+			const data = res.data;
+			loading = false;
+
+			if (!res.ok || !data || !Array.isArray(data.tips)) {
+				retry = Math.min(retry ? retry * 2 : 5_000, 60_000);
+				aviso(`No llegan los consejos de la gente. Se vuelve a probar en ${Math.round(retry / 1000)} s.`);
+				retryTimer = window.setTimeout(() => void cargar(), retry);
+				return;
+			}
+
+			retry = 0;
+			aviso('');
+			const filas: unknown[] = data.tips;
+			gente = filas.map((item) => fromApi(item)).filter((tip): tip is Tip => tip !== null);
+			setLogin(typeof data.login === 'string' ? data.login : null);
+			pintarGente();
+
+			// Si el destacado era uno que ya no está, entra otro.
+			if (!buscar(destacado!.dataset.id ?? '')) siguiente();
+			else pintar();
+
+			if (again) {
+				again = false;
+				void cargar();
+			}
 		}
 
 		section.addEventListener('click', async (event) => {
@@ -443,9 +573,7 @@ const inicial = pickTip(TIPS, []);
 			}
 
 			if (boton.hasAttribute('data-copy')) {
-				// En la ficha tuya se copia listo para proponerlo; en el resto, tal cual.
-				const idea = fila?.hasAttribute('data-mine') ?? false;
-				avisar(boton, await copiar(idea ? pitchOf(tip) : fullText(tip)));
+				avisar(boton, await copiar(fullText(tip)));
 			}
 		});
 
@@ -456,19 +584,14 @@ const inicial = pickTip(TIPS, []);
 			pintar();
 		});
 
-		form.addEventListener('submit', (event) => {
+		form.addEventListener('submit', async (event) => {
 			event.preventDefault();
 			if (error) error.textContent = '';
+			if (sending) return;
 
-			if (store.mine.length >= MAX_MINE) {
+			if (gente.filter((tip) => tip.mine).length >= MAX_MINE) {
 				if (error) error.textContent = `Ya tienes ${MAX_MINE} apuntados. Quita alguno.`;
 				return;
-			}
-
-			function campo(name: string) {
-				return form!.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-					`[data-field="${name}"]`,
-				);
 			}
 
 			const tip = toTip({
@@ -482,26 +605,47 @@ const inicial = pickTip(TIPS, []);
 				return;
 			}
 
-			if (store.mine.some((otro) => otro.title.toLowerCase() === tip.title.toLowerCase())) {
-				if (error) error.textContent = 'Ese ya lo tienes apuntado.';
+			if (todos().some((otro) => otro.title.toLowerCase() === tip.title.toLowerCase())) {
+				if (error) error.textContent = 'Ese ya está en la lista.';
 				return;
 			}
 
-			store.mine = [tip, ...store.mine];
+			const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+			sending = true;
+			if (submit) submit.disabled = true;
+
+			const res = await pedir('/api/consejos', 'POST', {
+				category: tip.category,
+				title: tip.title,
+				detail: tip.detail,
+			});
+
+			sending = false;
+			if (submit) submit.disabled = false;
+
+			if (!res.ok) {
+				if (res.status === 401) setLogin(null);
+				if (error) error.textContent = mensaje(res.status);
+				return;
+			}
+
 			// Se enseña lo que acabas de escribir, aunque hubiera un filtro puesto.
 			store.category = ALL;
 			saveStore(store);
-
 			buscador.value = '';
-			pintarMios();
-			pintarDestacado(tip);
-			pintar();
-
 			form.reset();
 			campo('title')?.focus();
+
+			await cargar();
+			const nuevoId = res.data?.id;
+			const nuevo = typeof nuevoId === 'number' ? buscar(`gente-${nuevoId}`) : undefined;
+			if (nuevo) {
+				pintarDestacado(nuevo);
+				pintar();
+			}
 		});
 
-		pintarMios();
 		pintar();
+		void cargar();
 	}
 </script>

@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Todo corre en tu navegador.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio, apuntar lo que toca hoy o ponerte un reto para la semana. Casi todo corre en tu navegador; los consejos y los retos que publicas los ve todo el mundo.',
 	},
 	{
 		id: 'juegos',
@@ -184,7 +184,7 @@ export const SECTIONS: Section[] = [
 		group: 'herramientas',
 		card: 'Lo que se aprende a base de golpes: código, git, bugs, tests, rendimiento y equipo.',
 		intro:
-			'Consejos de oficio, de los que se aprenden a base de golpes: código, git, depuración, pruebas, rendimiento y equipo. Arriba sale uno al azar; debajo están todos, con buscador, filtro por tema y una estrella para quedarte con los que te sirvan. Y apunta el tuyo: se queda en tu navegador, así que cópialo y proponlo para que lo lea todo el mundo.',
+			'Consejos de oficio, de los que se aprenden a base de golpes: código, git, depuración, pruebas, rendimiento y equipo. Arriba sale uno al azar; debajo están todos, con buscador, filtro por tema y una estrella para quedarte con los que te sirvan. Y apunta el tuyo con tu cuenta de GitHub: lo lee todo el mundo. Lo que guardas se queda en tu navegador.',
 	},
 	{
 		href: '/tareas',
@@ -200,9 +200,9 @@ export const SECTIONS: Section[] = [
 		title: 'Retos semanales',
 		icon: 'target-arrow',
 		group: 'herramientas',
-		card: 'Tres retos de la casa cada lunes, más los que propongas tú.',
+		card: 'Tres retos de la casa cada lunes, más los que propone la gente.',
 		intro:
-			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propones tú: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas. Los tuyos se quedan de una semana para otra, pero el lunes vuelven a estar por hacer. No hay servidor: todo se queda en tu navegador, así que copia el reto y proponlo en la portada para que sea el de todo el mundo.',
+			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propone la gente con su cuenta de GitHub: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas. Lo que marcas se queda en tu navegador, y el lunes el tablero vuelve a empezar.',
 	},
 	{
 		href: '/minijuego',
@@ -292,16 +292,16 @@ export const SECTIONS: Section[] = [
 		group: 'curiosidades',
 		card: 'Tu SaaS, tu app, ese proyecto que ya está en pie.',
 		intro:
-			'Lo que ya está terminado y en pie: tu SaaS, tu app, esa herramienta que usa medio mundo. Aquí no hay servidor: la ficha se queda en tu navegador. Cuando la tengas, cópiala y proponla como idea; así entra para todos.',
+			'Lo que ya está terminado y en pie: tu SaaS, tu app, esa herramienta que usa medio mundo. Entra con GitHub y publica la ficha: la ve todo el mundo, con tu nombre. Hasta tres por persona.',
 	},
 	{
 		href: '/chat',
 		title: 'Chat',
 		icon: 'message-2',
 		group: 'canales',
-		card: 'Un canal como los de antes, con claude dentro. Sin servidor.',
+		card: 'Un canal como los de antes. Se lee sin cuenta; para hablar, entra con GitHub.',
 		intro:
-			'Un canal como los de antes. Sin servidor: lo que escribes se queda en tu navegador y se ve al momento en el resto de pestañas que tengas abiertas. En el canal está claude, que es quien escribe el código; pregúntale lo que quieras. Escribe /help para los comandos.',
+			'Un canal como los de antes. Cualquiera puede leerlo; para escribir, entra con GitHub y tu nick será el tuyo. Lo que se dice lo ve todo el canal y se guarda un día. Escribe /help para los comandos.',
 	},
 	{
 		href: '/anonimo',
@@ -310,7 +310,7 @@ export const SECTIONS: Section[] = [
 		group: 'canales',
 		card: 'El mismo canal sin nombre. Cada mensaje se borra solo a los diez minutos.',
 		intro:
-			'Sin nombre y sin memoria. Tu alias es un número que puedes cambiar cuando quieras, cada mensaje se borra solo a los diez minutos y nada se guarda: ni en un servidor, ni en tu navegador. Lo que escribes se ve al momento en el resto de pestañas que tengas abiertas.',
+			'Sin nombre y sin memoria. Tu alias es un número que puedes cambiar cuando quieras y no se guarda en tu navegador. Lo que escribes lo ve quien esté aquí y el servidor lo borra solo a los diez minutos.',
 	},
 	{
 		href: '/ideas',
@@ -328,7 +328,7 @@ export const SECTIONS: Section[] = [
 		group: 'proceso',
 		card: 'Las ideas que ganaron y se construyeron: vótalas y coméntalas.',
 		intro:
-			'Las mejores ideas de la comunidad no las elige nadie: son las que ganaron su ventana y acabaron publicadas, una por versión. Aquí están todas, con buscador y tres órdenes. Vota las que te gusten y di lo que te parecen sin entrar y sin dar tu nombre: se te pone un alias y lo cambias cuando quieras. No hay servidor ni nada guardado: los votos y los comentarios se comparten con las pestañas que tengas abiertas y se van con la última.',
+			'Las mejores ideas de la comunidad no las elige nadie: son las que ganaron su ventana y acabaron publicadas, una por versión. Aquí están todas, con buscador y tres órdenes. Vota las que te gusten y di lo que te parecen: para escribir entras con GitHub, pero lo que se enseña es un alias que cambias cuando quieras. Los votos y los comentarios se guardan y los ve todo el mundo.',
 	},
 	{
 		href: '/mi-idea',

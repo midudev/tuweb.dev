@@ -1,12 +1,18 @@
 ---
 /**
  * Los retos semanales: un tablero que se renueva cada lunes. Tres los pone la
- * casa, rotando el catálogo, y los demás los propone quien entra. Sin servidor,
- * como el escaparate: lo que propones y lo que marcas se queda en tu navegador,
- * y el lunes vuelve a estar todo por hacer y la cuenta empieza de cero.
+ * casa, rotando el catálogo, y los demás los propone la gente con su cuenta de
+ * GitHub y los ve todo el mundo. Lo que marcas como hecho es tuyo y se queda en
+ * tu navegador; el lunes vuelve a estar todo por hacer.
  */
+import GitHubLogin from './GitHubLogin.astro';
 import Icon from './Icon.astro';
+import { getSessionUser } from '../lib/auth';
 import { DETAIL_MAX, NIVELES, TEMAS, TITLE_MAX } from '../lib/retos';
+
+// Con sesión sale el formulario; sin ella, el enlace para entrar. El script lo
+// corrige si la sesión cambia mientras la página está abierta.
+const user = await getSessionUser(Astro);
 
 const FIELD =
 	'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
@@ -42,7 +48,11 @@ const DATO = 'inline-flex items-center gap-2';
 		</p>
 	</div>
 
-	<form data-form class="grid gap-4 border border-line bg-panel p-4 md:grid-cols-2">
+	<p data-login hidden={Boolean(user)} class="border border-line bg-panel p-4 text-sm text-muted">
+		Los retos los ve todo el mundo; para proponer uno, <GitHubLogin label="entra con GitHub" />.
+	</p>
+
+	<form data-form hidden={!user} class="grid gap-4 border border-line bg-panel p-4 md:grid-cols-2">
 		<label class="flex flex-col gap-2 md:col-span-2">
 			<span class="text-sm text-muted">Tu reto</span>
 			<input
@@ -96,6 +106,8 @@ const DATO = 'inline-flex items-center gap-2';
 		</div>
 	</form>
 
+	<p data-status role="status" hidden class="text-sm text-heart"></p>
+
 	<ul data-list class="grid gap-4 md:grid-cols-2"></ul>
 
 	<p data-count class="text-sm text-muted"></p>
@@ -122,11 +134,6 @@ const DATO = 'inline-flex items-center gap-2';
 			</p>
 
 			<div data-tools class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
-				<button type="button" data-copy class={ENLACE}>
-					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
-					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
-					<span data-copy-label>Copiar como idea</span>
-				</button>
 				<button type="button" data-remove class={ENLACE}>
 					<Icon name="trash" class="size-4 shrink-0" />
 					Quitar
@@ -136,9 +143,8 @@ const DATO = 'inline-flex items-center gap-2';
 	</template>
 
 	<p class="text-sm text-muted">
-		Los tres retos de la casa cambian cada lunes; los tuyos se quedan y vuelven a empezar. Todo esto
-		solo está en tu navegador: para que un reto sea el de todo el mundo, cópialo y proponlo en la
-		portada.
+		Los tres retos de la casa cambian cada lunes, y los que propone la gente duran lo que dura la
+		semana. Lo que marcas como hecho, los puntos y la racha solo están en tu navegador.
 	</p>
 </section>
 
@@ -166,44 +172,27 @@ const DATO = 'inline-flex items-center gap-2';
 		text-decoration: line-through;
 	}
 
-	/* Los de la casa no se quitan ni se copian: no son tuyos. */
-	#retos [data-item][data-casa='si'] [data-tools] {
+	/* Solo se quita lo que propusiste tú: lo de la casa y lo de otros, no. */
+	#retos [data-item]:not([data-mio='si']) [data-tools] {
 		display: none;
-	}
-
-	/* El check solo sale cuando la copia ha ido bien. */
-	#retos [data-copy] [data-icon='check'] {
-		display: none;
-	}
-	#retos [data-copy][data-state='done'] {
-		color: var(--color-accent);
-	}
-	#retos [data-copy][data-state='done'] [data-icon='copy'] {
-		display: none;
-	}
-	#retos [data-copy][data-state='done'] [data-icon='check'] {
-		display: inline-flex;
-	}
-	#retos [data-copy][data-state='error'] {
-		color: var(--color-heart);
 	}
 </style>
 
 <script>
 	import {
+		HOUSE_COUNT,
 		MAX_RETOS,
+		PER_PERSON,
 		type Done,
 		type Reto,
+		fromApi,
 		houseRetos,
-		ideaOf,
 		isDone,
 		nextWeekStart,
 		nivelOf,
 		pointsOf,
 		readDone,
-		readRetos,
 		saveDone,
-		saveRetos,
 		spanText,
 		streakOf,
 		temaOf,
@@ -219,6 +208,8 @@ const DATO = 'inline-flex items-center gap-2';
 	const list = section?.querySelector<HTMLElement>('[data-list]');
 	const template = section?.querySelector<HTMLTemplateElement>('[data-card]');
 	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const statusOut = section?.querySelector<HTMLElement>('[data-status]');
+	const loginOut = section?.querySelector<HTMLElement>('[data-login]');
 	const weekOut = section?.querySelector<HTMLElement>('[data-week]');
 	const leftOut = section?.querySelector<HTMLElement>('[data-left]');
 	const doneOut = section?.querySelector<HTMLElement>('[data-done-count]');
@@ -226,11 +217,61 @@ const DATO = 'inline-flex items-center gap-2';
 	const streakOut = section?.querySelector<HTMLElement>('[data-streak]');
 	const countOut = section?.querySelector<HTMLElement>('[data-count]');
 
+	/** Lo que la gente puede proponer: lo que dejan libre los de la casa. */
+	const SHARED_MAX = MAX_RETOS - HOUSE_COUNT;
+
+	interface Respuesta {
+		ok: boolean;
+		status: number;
+		code: string;
+		data: Record<string, unknown> | null;
+	}
+
+	/** Una llamada a la API que nunca revienta: si falla la red, status 0. */
+	async function pedir(url: string, method = 'GET', body?: unknown): Promise<Respuesta> {
+		try {
+			const res = await fetch(url, {
+				method,
+				headers: method === 'GET' ? undefined : { 'Content-Type': 'application/json' },
+				body: body === undefined ? undefined : JSON.stringify(body),
+			});
+			const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+			const code = typeof data?.error === 'string' ? data.error : '';
+			return { ok: res.ok, status: res.status, code, data };
+		} catch {
+			return { ok: false, status: 0, code: '', data: null };
+		}
+	}
+
+	/** Lo que dice el servidor, dicho en corto. */
+	function mensaje(status: number, code: string) {
+		if (status === 400) return 'Al reto le falta algo o algo no vale. Revísalo.';
+		if (status === 401) return 'Entra con GitHub para proponer retos.';
+		if (status === 403) return 'La petición no salió de esta web. Recarga la página.';
+		if (status === 404) return 'Ese reto ya no está.';
+		if (status === 409 && code === 'lleno')
+			return `El tablero de esta semana está lleno: ${SHARED_MAX} retos de la gente como mucho.`;
+		if (status === 409) return `Ya has propuesto ${PER_PERSON} esta semana. Quita alguno.`;
+		if (status === 422) return 'Eso parece spam: sin enlaces ni letras repetidas.';
+		if (status === 429) return 'Más despacio: espera un minuto y vuelve a probar.';
+		return 'No se pudo hablar con el servidor. Prueba otra vez.';
+	}
+
 	if (section && form && list && template && countOut) {
-		let retos = readRetos();
+		/** Los que propone la gente, tal como vinieron la última vez. */
+		let retos: Reto[] = [];
 		let done: Done = readDone();
+		// Hasta que conteste el servidor, la semana es la de este reloj.
 		let start = weekStart(Date.now());
+		let end = nextWeekStart(start);
 		let week = weekIndex(start);
+		let loaded = false;
+		let loading = false;
+		/** Si alguien pidió cargar mientras ya se cargaba, se repite al acabar. */
+		let again = false;
+		let retry = 0;
+		let retryTimer = 0;
+		let sending = false;
 
 		function field(name: string) {
 			return form!.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`);
@@ -240,7 +281,19 @@ const DATO = 'inline-flex items-center gap-2';
 			if (errorOut) errorOut.textContent = message;
 		}
 
-		/** El tablero: los de la casa y los tuyos, con lo que falta por hacer arriba. */
+		function aviso(message: string) {
+			if (!statusOut) return;
+			statusOut.textContent = message;
+			statusOut.hidden = !message;
+		}
+
+		/** Con sesión, el formulario; sin ella, el enlace para entrar. */
+		function setLogin(login: string | null) {
+			form!.hidden = !login;
+			if (loginOut) loginOut.hidden = Boolean(login);
+		}
+
+		/** El tablero: los de la casa y los de la gente, con lo que falta por hacer arriba. */
 		function board() {
 			return [...houseRetos(week), ...retos].sort((a, b) => {
 				const hechoA = isDone(done, week, a.id);
@@ -251,27 +304,33 @@ const DATO = 'inline-flex items-center gap-2';
 			});
 		}
 
-		async function copy(text: string) {
-			try {
-				await navigator.clipboard.writeText(text);
-				return true;
-			} catch {
-				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
-				try {
-					const helper = document.createElement('textarea');
-					helper.value = text;
-					helper.readOnly = true;
-					helper.style.position = 'fixed';
-					helper.style.opacity = '0';
-					document.body.append(helper);
-					helper.select();
-					const hecho = document.execCommand('copy');
-					helper.remove();
-					return hecho;
-				} catch {
-					return false;
-				}
+		function origen(reto: Reto) {
+			if (reto.house) return 'De la casa';
+			if (reto.mine) return 'Tuyo';
+			return `De ${reto.author || 'alguien'}`;
+		}
+
+		async function quitar(reto: Reto, boton: HTMLButtonElement) {
+			if (reto.apiId === undefined) return;
+			boton.disabled = true;
+			aviso('');
+
+			const res = await pedir(`/api/retos/${reto.apiId}`, 'DELETE');
+			// Si ya no estaba, el resultado es el mismo: fuera del tablero.
+			if (res.ok || res.status === 404) {
+				retos = retos.filter((item) => item.id !== reto.id);
+				render();
+				void cargar();
+				return;
 			}
+
+			boton.disabled = false;
+			if (res.status === 401) setLogin(null);
+			aviso(
+				res.status === 401
+					? 'Tu sesión ha caducado: entra otra vez para quitarlo.'
+					: mensaje(res.status, res.code),
+			);
 		}
 
 		function card(reto: Reto) {
@@ -283,13 +342,14 @@ const DATO = 'inline-flex items-center gap-2';
 			node.style.setProperty('--tema', tema.color);
 			node.dataset.hecho = hecho ? 'si' : 'no';
 			node.dataset.casa = reto.house ? 'si' : 'no';
+			node.dataset.mio = reto.mine ? 'si' : 'no';
 
 			node.querySelector('[data-title]')!.textContent = reto.title;
 			node.querySelector('[data-detail]')!.textContent = reto.detail;
 			node.querySelector('[data-badge]')!.textContent = tema.label;
 			node.querySelector('[data-nivel]')!.textContent =
 				`${nivel.label} · ${nivel.points} ${nivel.points === 1 ? 'punto' : 'puntos'}`;
-			node.querySelector('[data-origen]')!.textContent = reto.house ? 'De la casa' : 'Tuyo';
+			node.querySelector('[data-origen]')!.textContent = origen(reto);
 
 			const check = node.querySelector<HTMLInputElement>('[data-done]')!;
 			check.checked = hecho;
@@ -300,28 +360,10 @@ const DATO = 'inline-flex items-center gap-2';
 				render();
 			});
 
-			if (reto.house) return node;
+			if (!reto.mine) return node;
 
-			const copyButton = node.querySelector<HTMLButtonElement>('[data-copy]')!;
-			const copyLabel = node.querySelector<HTMLElement>('[data-copy-label]')!;
-			let timer = 0;
-
-			copyButton.addEventListener('click', async () => {
-				const hecha = await copy(ideaOf(reto));
-
-				copyButton.dataset.state = hecha ? 'done' : 'error';
-				copyLabel.textContent = hecha ? 'Copiado' : 'No se pudo copiar';
-
-				clearTimeout(timer);
-				timer = window.setTimeout(() => {
-					copyButton.removeAttribute('data-state');
-					copyLabel.textContent = 'Copiar como idea';
-				}, 2000);
-			});
-
-			node.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
-				commit(retos.filter((item) => item.id !== reto.id));
-			});
+			const remove = node.querySelector<HTMLButtonElement>('[data-remove]')!;
+			remove.addEventListener('click', () => void quitar(reto, remove));
 
 			return node;
 		}
@@ -337,10 +379,13 @@ const DATO = 'inline-flex items-center gap-2';
 			if (pointsOut) pointsOut.textContent = String(pointsOf(tablero, done, week));
 			if (streakOut) streakOut.textContent = racha === 1 ? '1 semana' : `${racha} semanas`;
 
-			countOut!.textContent =
-				retos.length === 0
-					? 'Los tres de arriba los pone la casa. Propón el tuyo y se queda en el tablero cada semana.'
-					: `${retos.length} ${retos.length === 1 ? 'reto tuyo' : 'retos tuyos'} · quedan ${MAX_RETOS - retos.length} huecos.`;
+			const mios = retos.filter((reto) => reto.mine).length;
+			countOut!.textContent = !loaded
+				? 'Trayendo los retos de la gente…'
+				: retos.length === 0
+					? 'Los tres de arriba los pone la casa. Nadie ha propuesto nada esta semana: estrénala tú.'
+					: `${retos.length} ${retos.length === 1 ? 'propuesto' : 'propuestos'} por la gente · ` +
+						`${mios} de ${PER_PERSON} tuyos · quedan ${Math.max(0, SHARED_MAX - retos.length)} huecos.`;
 
 			tick();
 		}
@@ -348,21 +393,57 @@ const DATO = 'inline-flex items-center gap-2';
 		/** Lo único que corre solo: cuánto le queda a la semana. */
 		function tick() {
 			if (weekOut) weekOut.textContent = weekLabel(start);
-			if (leftOut) leftOut.textContent = `Quedan ${spanText(nextWeekStart(start) - Date.now())}`;
+			if (leftOut) leftOut.textContent = `Quedan ${spanText(end - Date.now())}`;
 		}
 
-		function commit(next: Reto[]) {
-			retos = next;
-			saveRetos(retos);
+		/**
+		 * Los retos de la gente y la semana en la que estamos, que la marca el
+		 * servidor. Si falla, se avisa y se vuelve a probar cada vez más tarde.
+		 */
+		async function cargar() {
+			if (loading) {
+				again = true;
+				return;
+			}
+			loading = true;
+			clearTimeout(retryTimer);
+
+			const res = await pedir('/api/retos');
+			const data = res.data;
+			loading = false;
+
+			if (!res.ok || !data || typeof data.week !== 'number' || !Array.isArray(data.retos)) {
+				retry = Math.min(retry ? retry * 2 : 5_000, 60_000);
+				aviso(`No llegan los retos de la gente. Se vuelve a probar en ${Math.round(retry / 1000)} s.`);
+				retryTimer = window.setTimeout(() => void cargar(), retry);
+				render();
+				return;
+			}
+
+			retry = 0;
+			aviso('');
+			const lista: unknown[] = data.retos;
+			week = data.week as number;
+			if (typeof data.start === 'number') start = data.start;
+			end = typeof data.end === 'number' ? data.end : nextWeekStart(start);
+			retos = lista.map((item) => fromApi(item)).filter((reto): reto is Reto => reto !== null);
+			loaded = true;
+			setLogin(typeof data.login === 'string' ? data.login : null);
 			render();
+
+			if (again) {
+				again = false;
+				void cargar();
+			}
 		}
 
-		form.addEventListener('submit', (event) => {
+		form.addEventListener('submit', async (event) => {
 			event.preventDefault();
 			fail('');
+			if (sending) return;
 
-			if (retos.length >= MAX_RETOS) {
-				fail(`El tablero está lleno: ${MAX_RETOS} retos tuyos como mucho. Quita alguno.`);
+			if (retos.filter((item) => item.mine).length >= PER_PERSON) {
+				fail(`Ya has propuesto ${PER_PERSON} esta semana. Quita alguno.`);
 				return;
 			}
 
@@ -378,34 +459,58 @@ const DATO = 'inline-flex items-center gap-2';
 				return;
 			}
 
-			if (retos.some((item) => item.title === reto.title)) {
-				fail('Ese reto ya está en tu tablero.');
+			const titulo = reto.title.toLowerCase();
+			if (board().some((item) => item.title.toLowerCase() === titulo)) {
+				fail('Ese reto ya está en el tablero.');
 				return;
 			}
 
-			commit([reto, ...retos]);
+			const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+			sending = true;
+			if (submit) submit.disabled = true;
+
+			const res = await pedir('/api/retos', 'POST', {
+				title: reto.title,
+				detail: reto.detail,
+				tema: reto.tema,
+				nivel: reto.nivel,
+			});
+
+			sending = false;
+			if (submit) submit.disabled = false;
+
+			if (!res.ok) {
+				if (res.status === 401) setLogin(null);
+				fail(mensaje(res.status, res.code));
+				return;
+			}
 
 			form.reset();
 			field('title')?.focus();
+			await cargar();
 		});
 
 		/*
 		 * Cada medio minuto se repinta la cuenta atrás, y si el lunes ha llegado
-		 * con la pestaña abierta, el tablero se rehace entero: retos nuevos de la
-		 * casa y todo por hacer otra vez.
+		 * con la pestaña abierta, se le pide al servidor la semana nueva: retos
+		 * nuevos de la casa, los de la gente a cero y todo por hacer otra vez.
 		 */
 		setInterval(() => {
-			const ahora = weekStart(Date.now());
-			if (ahora === start) {
+			if (Date.now() < end) {
 				tick();
 				return;
 			}
-
-			start = ahora;
+			if (loading || retry) return;
+			// Mientras llega, la casa ya cambia con el reloj de aquí.
+			start = weekStart(Date.now());
+			end = nextWeekStart(start);
 			week = weekIndex(start);
+			retos = [];
 			render();
+			void cargar();
 		}, 30_000);
 
 		render();
+		void cargar();
 	}
 </script>

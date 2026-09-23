@@ -1,15 +1,13 @@
 /*
  * Los consejos de desarrollo: los de la casa, que van escritos aquí abajo, y
- * los que escribe cada uno desde la propia sección.
+ * los que escribe la gente desde la propia sección, que viven en /api/consejos
+ * y los lee todo el mundo con el nombre de quien los firmó.
  *
- * No hay servidor detrás. Lo que se guarda —el filtro, los favoritos y los
- * consejos propios— vive en el navegador de quien los escribe, como el
- * escaparate o la mascota. Para que un consejo lo lea todo el mundo hay que
- * copiarlo y proponerlo como idea, que es como se cambia esta web.
+ * Lo que es de cada uno —el filtro y los guardados— se queda en el navegador.
  */
 
 export interface Tip {
-	/** Categoría e índice: `git-2`. Los escritos aquí empiezan por `mio-`. */
+	/** Categoría e índice: `git-2`. Los de la gente empiezan por `gente-`. */
 	id: string;
 	/** El consejo en una línea, que es lo que se lee primero. */
 	title: string;
@@ -17,8 +15,12 @@ export interface Tip {
 	detail: string;
 	/** El id de la categoría en la que vive. */
 	category: string;
-	/** Los escritos en este navegador: se marcan y se pueden quitar. */
+	/** Los escritos por ti: se marcan y se pueden quitar. */
 	mine?: boolean;
+	/** El login de quien lo escribió. Los de la casa no llevan. */
+	author?: string;
+	/** El id del servidor, para borrarlo. */
+	apiId?: number;
 }
 
 interface RawCategory {
@@ -123,7 +125,7 @@ export const CATEGORIES: Category[] = RAW.map((category) => ({
 	})),
 }));
 
-/** Los de la casa, todos seguidos. Los tuyos se juntan con estos al pintar. */
+/** Los de la casa, todos seguidos. Los de la gente se juntan con estos al pintar. */
 export const TIPS: Tip[] = CATEGORIES.flatMap((category) => category.tips);
 
 /** El filtro de «todas las categorías» y el de «solo los guardados». */
@@ -174,7 +176,7 @@ export function filterTips(pool: Tip[], category: string, query: string, saved: 
 
 export const TITLE_MAX = 70;
 export const DETAIL_MAX = 200;
-/** Un cajón de consejos, no un cuaderno entero. */
+/** Un cajón de consejos por persona, no un cuaderno entero. Lo vigila el servidor. */
 export const MAX_MINE = 20;
 
 const KEY = 'tuweb:consejos';
@@ -190,8 +192,7 @@ function nextId() {
 
 /**
  * Un consejo propio a partir de lo escrito en el formulario, o el motivo por el
- * que no vale. Lo mismo sirve para lo que se teclea ahora y para lo que se lee
- * del navegador, que podría venir tocado a mano.
+ * que no vale. Es la primera criba: la que manda es la del servidor.
  */
 export function toTip(draft: Partial<Record<keyof Tip, unknown>>): Tip | string {
 	const title = oneLine(String(draft.title ?? ''), TITLE_MAX);
@@ -207,17 +208,44 @@ export function toTip(draft: Partial<Record<keyof Tip, unknown>>): Tip | string 
 	return { id, title, detail, category, mine: true };
 }
 
+/**
+ * Un consejo tal como llega de /api/consejos, o null si viene raro. El id se
+ * prefija con «gente-» para que no choque con los de la casa en los guardados.
+ */
+export function fromApi(raw: unknown): Tip | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const item = raw as Record<string, unknown>;
+
+	if (typeof item.id !== 'number' || !Number.isInteger(item.id)) return null;
+	if (typeof item.title !== 'string' || !item.title) return null;
+	if (typeof item.category !== 'string' || !getCategory(item.category)) return null;
+
+	return {
+		id: `gente-${item.id}`,
+		apiId: item.id,
+		title: item.title,
+		detail: typeof item.detail === 'string' ? item.detail : '',
+		category: item.category,
+		author: typeof item.author === 'string' ? item.author : '',
+		mine: item.mine === true,
+	};
+}
+
 export interface Store {
 	/** La categoría elegida, «todas» o «guardados». */
 	category: string;
 	/** Los ids guardados, del último al primero. */
 	saved: string[];
-	/** Los consejos escritos en este navegador, del último al primero. */
-	mine: Tip[];
 }
 
 function vacio(): Store {
-	return { category: ALL, saved: [], mine: [] };
+	return { category: ALL, saved: [] };
+}
+
+/** Un id que puede existir: uno de la casa o uno de la gente. */
+const HOUSE_IDS = new Set(TIPS.map((tip) => tip.id));
+function conocido(id: unknown): id is string {
+	return typeof id === 'string' && (HOUSE_IDS.has(id) || /^gente-\d+$/.test(id));
 }
 
 export function readStore(): Store {
@@ -228,20 +256,12 @@ export function readStore(): Store {
 		const parsed = JSON.parse(raw) as Partial<Record<keyof Store, unknown>>;
 		if (!parsed || typeof parsed !== 'object') return vacio();
 
-		const mine = (Array.isArray(parsed.mine) ? parsed.mine : [])
-			.map((item) => (item && typeof item === 'object' ? toTip(item as Partial<Tip>) : ''))
-			.filter((item): item is Tip => typeof item !== 'string')
-			.slice(0, MAX_MINE);
-
-		// Un guardado que ya no existe —porque lo quitaste— no vuelve a la lista.
-		const known = new Set([...TIPS, ...mine].map((tip) => tip.id));
-		const saved = (Array.isArray(parsed.saved) ? parsed.saved : []).filter(
-			(id): id is string => typeof id === 'string' && known.has(id),
-		);
-
+		// Lo guardado de un consejo de la gente que ya no está se ve al pintar: aquí
+		// solo se tira lo que no puede ser de nadie.
+		const saved = (Array.isArray(parsed.saved) ? parsed.saved : []).filter(conocido);
 		const category = String(parsed.category ?? ALL);
 
-		return { category: category === SAVED || getCategory(category) ? category : ALL, saved, mine };
+		return { category: category === SAVED || getCategory(category) ? category : ALL, saved };
 	} catch {
 		// Sin almacenamiento, o con basura dentro: se empieza de cero.
 		return vacio();
@@ -250,21 +270,13 @@ export function readStore(): Store {
 
 export function saveStore(store: Store) {
 	try {
-		localStorage.setItem(KEY, JSON.stringify({ ...store, mine: store.mine.slice(0, MAX_MINE) }));
+		localStorage.setItem(KEY, JSON.stringify({ category: store.category, saved: store.saved }));
 	} catch {
-		// Si no deja guardar, lo escrito dura lo que dure la pestaña.
+		// Si no deja guardar, el filtro y los guardados duran lo que dure la pestaña.
 	}
 }
 
 /** El consejo tal cual se copia. */
 export function fullText(tip: Tip) {
 	return `${tip.title}\n${tip.detail}`;
-}
-
-/** El mismo consejo escrito para pegarlo en el formulario de ideas. */
-export function pitchOf(tip: Tip) {
-	return `Añadid a los consejos de desarrollo, en ${labelOf(tip).toLowerCase()}: ${tip.title}. ${tip.detail}`.slice(
-		0,
-		280,
-	);
 }

@@ -1,29 +1,34 @@
 /*
- * El escaparate: los proyectos terminados de quien pasa por aquí. No hay
- * servidor detrás, así que cada ficha vive en el navegador de quien la publica,
- * igual que el chat o la config. Para que lo vea todo el mundo hay que copiar
- * la ficha y proponerla como idea, que es como se cambia esta web.
+ * El escaparate: los proyectos terminados de quien pasa por aquí. Las fichas
+ * viven en /api/escaparate y las ve todo el mundo, con el nombre de GitHub de
+ * quien las publicó. Aquí están las cribas, que también usa el servidor.
  */
 
 export interface Project {
-	id: string;
+	/** El id del servidor, que es también con el que se borra. */
+	id: number;
 	name: string;
-	/** Siempre http o https, ya normalizada. */
+	/** Siempre http o https, ya normalizada. Vacía si el servidor mandó otra cosa. */
 	url: string;
 	/** De qué va, en una línea. */
 	pitch: string;
 	tag: string;
 	at: number;
+	/** El login de quien la publicó. */
+	author: string;
+	/** Publicada por ti: es la única que puedes quitar. */
+	mine: boolean;
 }
+
+/** Lo que sale del formulario, antes de que el servidor le ponga id y firma. */
+export type ProjectDraft = Pick<Project, 'name' | 'url' | 'pitch' | 'tag'>;
 
 export const TAGS = ['SaaS', 'App', 'Herramienta', 'Librería', 'Juego', 'Otro'] as const;
 
 export const NAME_MAX = 32;
 export const PITCH_MAX = 120;
-/** Un escaparate, no un vertedero. */
-export const MAX_PROJECTS = 24;
-
-const KEY = 'tuweb:escaparate';
+/** Las fichas que puede tener cada persona. Lo vigila el servidor. */
+export const PER_PERSON = 3;
 
 /** Espacios de más fuera y nada de saltos de línea: cada campo es una línea. */
 function oneLine(text: string, max: number) {
@@ -63,61 +68,44 @@ export function isTag(value: unknown): value is (typeof TAGS)[number] {
 
 /**
  * Una ficha a partir de lo escrito en el formulario, o el motivo por el que no
- * vale. Lo mismo sirve para lo que se teclea ahora y para lo que se lee del
- * localStorage, que podría venir tocado a mano.
+ * vale. Es la primera criba: la que manda es la del servidor.
  */
-export function toProject(draft: Partial<Record<keyof Project, unknown>>): Project | string {
+export function toProject(draft: Partial<Record<keyof ProjectDraft, unknown>>): ProjectDraft | string {
 	const name = oneLine(String(draft.name ?? ''), NAME_MAX);
 	if (!name) return 'Ponle nombre al proyecto.';
 
 	const url = cleanUrl(String(draft.url ?? ''));
 	if (!url) return 'El enlace tiene que ser una dirección web (https://…).';
+	// El mismo tope que pone el servidor.
+	if (url.length > 200) return 'El enlace es demasiado largo.';
 
 	const pitch = oneLine(String(draft.pitch ?? ''), PITCH_MAX);
 	if (!pitch) return 'Cuenta en una línea de qué va.';
 
 	const tag = isTag(draft.tag) ? draft.tag : 'Otro';
-	const at = typeof draft.at === 'number' && Number.isFinite(draft.at) ? draft.at : Date.now();
-	const id = typeof draft.id === 'string' && draft.id ? draft.id.slice(0, 32) : nextId();
 
-	return { id, name, url, pitch, tag, at };
+	return { name, url, pitch, tag };
 }
 
-export function nextId() {
-	return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
+/**
+ * Una ficha tal como llega de /api/escaparate, o null si viene rara. El enlace
+ * se vuelve a cribar aquí: de él sale un href, y solo vale http o https.
+ */
+export function fromApi(raw: unknown): Project | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const item = raw as Record<string, unknown>;
 
-export function readProjects(): Project[] {
-	try {
-		const saved = localStorage.getItem(KEY);
-		if (!saved) return [];
+	if (typeof item.id !== 'number' || !Number.isInteger(item.id)) return null;
+	if (typeof item.name !== 'string' || !item.name) return null;
 
-		const parsed = JSON.parse(saved) as unknown;
-		if (!Array.isArray(parsed)) return [];
-
-		return parsed
-			.map((item) => (item && typeof item === 'object' ? toProject(item as Partial<Project>) : ''))
-			.filter((item): item is Project => typeof item !== 'string')
-			.slice(0, MAX_PROJECTS);
-	} catch {
-		// Sin almacenamiento, o con basura dentro: escaparate vacío y a seguir.
-		return [];
-	}
-}
-
-export function saveProjects(projects: Project[]) {
-	try {
-		if (projects.length === 0) localStorage.removeItem(KEY);
-		else localStorage.setItem(KEY, JSON.stringify(projects));
-	} catch {
-		// Si no deja guardar, las fichas duran lo que dure la visita.
-	}
-}
-
-/** La misma ficha escrita para pegarla en el formulario de ideas. */
-export function pitchOf(project: Project) {
-	return `Publicad en el escaparate ${project.name} (${project.url}), ${project.tag.toLowerCase()}: ${project.pitch}`.slice(
-		0,
-		280,
-	);
+	return {
+		id: item.id,
+		name: item.name,
+		url: typeof item.url === 'string' && /^https?:\/\//i.test(item.url) ? cleanUrl(item.url) : '',
+		pitch: typeof item.pitch === 'string' ? item.pitch : '',
+		tag: isTag(item.tag) ? item.tag : 'Otro',
+		at: typeof item.at === 'number' ? item.at : 0,
+		author: typeof item.author === 'string' ? item.author : '',
+		mine: item.mine === true,
+	};
 }

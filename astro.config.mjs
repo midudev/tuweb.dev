@@ -6,6 +6,13 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
 	output: 'server',
 	adapter: node({ mode: 'standalone' }),
+	// Las sesiones van a la misma SQLite que todo lo demás, con caducidad: el
+	// driver por defecto dejaba un fichero por sesión que no se borraba nunca.
+	session: {
+		driver: { entrypoint: new URL('./src/lib/db/session-driver.ts', import.meta.url) },
+		// 30 días, igual que SESSION_TTL_MS en src/lib/db/session-ttl.ts.
+		ttl: 30 * 24 * 60 * 60,
+	},
 	security: {
 		// Detrás de nginx, el servidor solo ve http://localhost:4321. Sin esta
 		// lista, Astro ignora Host y X-Forwarded-Proto, y el POST del formulario

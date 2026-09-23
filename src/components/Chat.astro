@@ -1,35 +1,21 @@
 ---
 /**
- * Un canal de chat a la vieja usanza, con pinta de IRC. No hay servidor detrás:
- * los mensajes viven en el navegador de quien escribe y viajan en tiempo real
- * entre las pestañas abiertas del mismo equipo. En el canal está claude, que es
- * quien escribe el código de la web y responde con lo que sabe de la ventana.
+ * Un canal de chat a la vieja usanza, con pinta de IRC. Los mensajes pasan por
+ * el servidor y se guardan un día: la página pregunta cada pocos segundos por
+ * lo nuevo. Leer es libre; para escribir hay que entrar con GitHub y el nick es
+ * el de GitHub, que el servidor impone.
  */
-import type { Feature } from '../lib/db/schema';
 import Icon from './Icon.astro';
 
 interface Props {
 	login: string | null;
 	version: number;
-	ideaCount: number;
-	endsAt: string;
-	next: Feature | null;
-	lastShipped: Feature | null;
 }
 
-const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
+const { login, version } = Astro.props;
 ---
 
-<section
-	id="chat"
-	class="flex flex-col gap-7"
-	data-nick={login}
-	data-version={version}
-	data-ideas={ideaCount}
-	data-ends-at={endsAt}
-	data-next={next?.title ?? ''}
-	data-last={lastShipped?.title ?? ''}
->
+<section id="chat" class="flex flex-col gap-7" data-nick={login} data-version={version}>
 	<div class="flex flex-col border border-line bg-panel">
 		<div
 			class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-4 py-3"
@@ -61,13 +47,13 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 			</ul>
 		</div>
 
-		<form data-form class="flex items-center gap-3 border-t border-line px-4 py-3">
-			<span data-nick-label aria-hidden="true" class="shrink-0 text-sm text-mark">&lt;tú&gt;</span>
+		<form data-form hidden={!login} class="flex items-center gap-3 border-t border-line px-4 py-3">
+			<span data-nick-label aria-hidden="true" class="shrink-0 text-sm text-mark">&lt;{login ?? 'tú'}&gt;</span>
 			<input
 				id="chat-input"
 				data-input
 				type="text"
-				maxlength="300"
+				maxlength="400"
 				autocomplete="off"
 				spellcheck="false"
 				aria-label="Mensaje para el canal #tuweb"
@@ -82,6 +68,18 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 				Enviar
 			</button>
 		</form>
+
+		<p
+			data-entrar
+			hidden={Boolean(login)}
+			class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-4 py-3 text-sm text-muted"
+		>
+			Leer es libre; para escribir, entra con GitHub y tu nick será el tuyo.
+			<a href="/api/auth/github" class="inline-flex items-center gap-2 text-accent hover:underline">
+				<Icon name="brand-github" class="size-4 shrink-0" />
+				Entrar con GitHub
+			</a>
+		</p>
 	</div>
 </section>
 
@@ -112,88 +110,31 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 </style>
 
 <script>
-	import { formatCountdown } from '../lib/window';
-
 	const section = document.querySelector<HTMLElement>('#chat');
 	const log = section?.querySelector<HTMLElement>('[data-log]');
 	const lista = section?.querySelector<HTMLElement>('[data-users]');
 	const form = section?.querySelector<HTMLFormElement>('[data-form]');
 	const input = section?.querySelector<HTMLInputElement>('[data-input]');
 	const etiqueta = section?.querySelector<HTMLElement>('[data-nick-label]');
+	const entrar = section?.querySelector<HTMLElement>('[data-entrar]');
 
-	if (section && log && lista && form && input && etiqueta) {
+	if (section && log && lista && form && input && etiqueta && entrar) {
 		const CANAL = '#tuweb';
-		const BOT = 'claude';
-		const CLAVE_LOG = 'tuweb:irc:log';
-		const CLAVE_NICK = 'tuweb:irc:nick';
-		const CLAVE_BUS = 'tuweb:irc:bus';
+		const API = '/api/chat/irc';
 		const MAX_LINEAS = 200;
-		const LATIDO_MS = 10_000;
-		const OLVIDO_MS = 35_000;
+		const MAX_TEXTO = 400;
+		const SONDEO_MS = 3_000;
+		const SONDEO_MAX_MS = 30_000;
+		// Quien ha hablado hace poco sale en la lista, como si siguiera dentro.
+		const RECIENTE_MS = 15 * 60_000;
 
-		type Linea = { id: string; at: number; nick: string; text: string; kind: 'msg' | 'me' };
-		type Aviso =
-			| { t: 'linea'; linea: Linea }
-			| { t: 'hola' | 'eco' | 'latido' | 'adios'; id: string; nick: string }
-			| { t: 'nick'; id: string; nick: string; antes: string };
+		type Mensaje = { id: number; author: string; body: string; at: number; mine?: boolean };
 
-		// La sesión es la pestaña: dos pestañas del mismo navegador son dos personas
-		// distintas en el canal, como dos clientes de IRC en la misma máquina.
-		const yo = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-		const vecinos = new Map<string, { nick: string; visto: number }>();
-		let historial: Linea[] = [];
-		let dentro = true;
-		let contador = 0;
-
-		function guardado(clave: string) {
-			try {
-				return localStorage.getItem(clave);
-			} catch {
-				// Sin almacenamiento (modo privado): se chatea igual, sin memoria.
-				return null;
-			}
-		}
-
-		function guardar(clave: string, valor: string) {
-			try {
-				localStorage.setItem(clave, valor);
-			} catch {
-				// Da igual: el historial es un extra, no el chat.
-			}
-		}
-
-		function limpiarNick(texto: string) {
-			// Los nicks de IRC no llevan espacios y son cortos.
-			const limpio = texto
-				.trim()
-				.replace(/\s+/g, '_')
-				.replace(/[^\w[\]{}\\^`|-]/g, '')
-				.slice(0, 16);
-			return limpio.toLowerCase() === BOT ? '' : limpio;
-		}
-
-		// Con sesión de GitHub el nick es el de siempre; si no, el que se haya
-		// puesto en este navegador, y en el peor caso uno de invitado.
-		const deGitHub = limpiarNick(section.dataset.nick ?? '');
-		let nick =
-			deGitHub ||
-			limpiarNick(guardado(CLAVE_NICK) ?? '') ||
-			`invitado${Math.floor(Math.random() * 900 + 100)}`;
-		if (!deGitHub) guardar(CLAVE_NICK, nick);
-
-		const bus = 'BroadcastChannel' in window ? new BroadcastChannel('tuweb:irc') : null;
-
-		function emitir(aviso: Aviso) {
-			if (bus) {
-				bus.postMessage(aviso);
-				return;
-			}
-			// Sin BroadcastChannel el aviso viaja por el almacenamiento: las otras
-			// pestañas lo reciben en el evento storage. El contador evita que dos
-			// avisos iguales seguidos pasen desapercibidos.
-			contador += 1;
-			guardar(CLAVE_BUS, JSON.stringify({ ...aviso, n: contador }));
-		}
+		// El nick lo pone el servidor: el login de GitHub, o nada si no hay sesión.
+		let nick: string | null = section.dataset.nick || null;
+		let ultimo = 0;
+		let online = 1;
+		const hablaron = new Map<string, number>();
 
 		function color(quien: string) {
 			let suma = 0;
@@ -243,47 +184,38 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 			pintar(at, [span]);
 		}
 
-		function pintarLinea(linea: Linea) {
-			if (linea.kind === 'me') {
+		function pintarMensaje(mensaje: Mensaje) {
+			// /me viaja como texto normal y aquí se pinta como acción.
+			if (mensaje.body.startsWith('/me ')) {
 				const span = document.createElement('span');
 				span.className = 'text-mark';
-				span.textContent = `* ${linea.nick} ${linea.text}`;
-				pintar(linea.at, [span]);
+				span.textContent = `* ${mensaje.author} ${mensaje.body.slice(4)}`;
+				pintar(mensaje.at, [span]);
 				return;
 			}
-			pintar(linea.at, [nickEl(linea.nick), ' ', linea.text]);
+			pintar(mensaje.at, [nickEl(mensaje.author), ' ', mensaje.body]);
 		}
 
-		function recordar(linea: Linea) {
-			historial = [...historial, linea].slice(-MAX_LINEAS);
-			guardar(CLAVE_LOG, JSON.stringify(historial));
-		}
-
-		function decir(quien: string, texto: string, kind: Linea['kind'] = 'msg') {
-			const linea: Linea = {
-				id: `${yo}-${(contador += 1)}`,
-				at: Date.now(),
-				nick: quien,
-				text: texto,
-				kind,
-			};
-			recordar(linea);
-			pintarLinea(linea);
-			emitir({ t: 'linea', linea });
+		function presentes() {
+			const ahora = Date.now();
+			return [...hablaron]
+				.filter(([quien, at]) => quien !== nick && ahora - at <= RECIENTE_MS)
+				.sort((a, b) => b[1] - a[1])
+				.map(([quien]) => quien);
 		}
 
 		function pintarUsuarios() {
-			const nicks = [
-				`@${BOT}`,
-				dentro ? nick : null,
-				...[...vecinos.values()].map((vecino) => vecino.nick),
-			].filter((quien): quien is string => Boolean(quien));
+			const cuantos = document.createElement('li');
+			cuantos.className = 'text-muted';
+			cuantos.textContent = `${online} mirando`;
 
+			const nicks = [nick, ...presentes()].filter((quien): quien is string => Boolean(quien));
 			lista.replaceChildren(
+				cuantos,
 				...nicks.map((quien) => {
 					const item = document.createElement('li');
 					const span = document.createElement('span');
-					span.dataset.c = color(quien.replace(/^@/, ''));
+					span.dataset.c = color(quien);
 					span.textContent = quien;
 					item.append(span);
 					if (quien === nick) {
@@ -297,82 +229,118 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 			);
 		}
 
-		// --- El bot: responde con lo que la página ya sabe de la ventana ---
-
-		const version = section.dataset.version ?? '0';
-		const ideas = Number(section.dataset.ideas ?? '0');
-		const siguiente = section.dataset.next ?? '';
-		const ultima = section.dataset.last ?? '';
-
-		function cuantoQueda() {
-			const fin = new Date(section.dataset.endsAt ?? '').getTime();
-			if (!Number.isFinite(fin)) return 'poco';
-			const resto = fin - Date.now();
-			return resto <= 0 ? 'nada, está a punto de cerrarse' : formatCountdown(resto);
+		function sesion(login: string | null) {
+			nick = login;
+			form.hidden = !login;
+			entrar.hidden = Boolean(login);
+			if (login) etiqueta.textContent = `<${login}>`;
 		}
 
-		function respuesta(texto: string) {
-			const t = texto.toLowerCase();
-			const preguntan = (...palabras: string[]) => palabras.some((palabra) => t.includes(palabra));
+		// --- Sondeo: se pregunta por lo posterior al último id visto ---
 
-			if (preguntan('hola', 'buenas', 'hey', 'qué tal', 'que tal')) {
-				return 'Buenas. Pregunta lo que quieras del proceso o de la web.';
-			}
-			if (preguntan('gracias', 'grasias')) return 'A mandar.';
-			if (preguntan('quién eres', 'quien eres', 'quién es', 'quien es', 'eres humano')) {
-				return 'Soy claude, quien escribe el código de esta web. Las ideas las ponéis vosotros.';
-			}
-			if (preguntan('ventana', 'queda', 'cuánto', 'cuanto tiempo', 'cierra', 'reloj')) {
-				return `La ventana cierra en ${cuantoQueda()}. Ahora mismo hay ${ideas} ${ideas === 1 ? 'idea' : 'ideas'} compitiendo.`;
-			}
-			if (preguntan('idea', 'proponer', 'propongo', 'propuesta', 'sugerencia')) {
-				return `Hay ${ideas} ${ideas === 1 ? 'idea' : 'ideas'} en esta ventana. Escribe la tuya en la portada: al cerrarse se elige una y la implemento. Puedes cambiarla hasta tres veces.`;
-			}
-			if (preguntan('versión', 'version', 'changelog', 'último cambio', 'ultimo cambio')) {
-				return ultima ? `Vamos por la v${version}. Lo último: ${ultima}.` : `Vamos por la v${version}.`;
-			}
-			if (preguntan('siguiente', 'próxim', 'proxim', 'construy', 'haciendo', 'ahora mismo')) {
-				return siguiente
-					? `Estoy con esto: ${siguiente}.`
-					: 'Ahora mismo no hay nada en marcha. A por la siguiente ventana.';
-			}
-			if (preguntan('servidor', 'tiempo real', 'guarda', 'privacidad', 'quién lee', 'quien lee')) {
-				return 'Este canal no tiene servidor: los mensajes se quedan en tu navegador y solo se ven entre tus pestañas. Para que os lea alguien de verdad, proponedlo como idea.';
-			}
-			if (preguntan('irc', 'mirc', 'old school', 'noventa')) {
-				return 'Como en los noventa, pero sin servidor. Solo falta el ruido del módem.';
-			}
-			if (preguntan('bug', 'error', 'roto', 'falla', 'no funciona')) {
-				return 'Si algo falla, cuéntalo como idea y lo arreglo en la siguiente ventana.';
-			}
-			if (preguntan('código', 'codigo', 'github', 'fuente', 'repo')) {
-				return 'Cada cambio se despliega solo y queda en el changelog, con su versión y su commit.';
-			}
-			return 'De eso no sé. Prueba /help, o mejor: proponlo como idea y lo construyo.';
+		let temporizador = 0;
+		let enCurso = false;
+		let otraVez = false;
+		let fallos = 0;
+
+		function programar() {
+			clearTimeout(temporizador);
+			if (document.visibilityState !== 'visible') return;
+			// Ante errores se espera cada vez más, hasta medio minuto.
+			const espera = fallos ? Math.min(SONDEO_MAX_MS, SONDEO_MS * 2 ** fallos) : SONDEO_MS;
+			temporizador = window.setTimeout(sondear, espera);
 		}
 
-		let pensando = 0;
+		async function sondear() {
+			clearTimeout(temporizador);
+			if (enCurso) {
+				// No se solapan: la que está en marcha pedirá otra al terminar.
+				otraVez = true;
+				return;
+			}
+			if (document.visibilityState !== 'visible') return;
+			enCurso = true;
+			try {
+				const respuesta = await fetch(`${API}?since=${ultimo}`);
+				if (!respuesta.ok) throw new Error(String(respuesta.status));
+				const datos = (await respuesta.json()) as {
+					messages: Mensaje[];
+					online: number;
+					login: string | null;
+				};
 
-		function quizaResponder(texto: string) {
-			const t = texto.toLowerCase();
-			const llamado = new RegExp(`(^|[^\\w])${BOT}([^\\w]|$)`).test(t);
-			if (!llamado && !texto.includes('?')) return;
+				if (fallos) sistema('De vuelta en el canal.');
+				fallos = 0;
+				if (datos.login !== nick) sesion(datos.login);
+				online = datos.online;
 
-			// Una pausa corta para que no conteste antes de que se lea la pregunta.
-			clearTimeout(pensando);
-			pensando = window.setTimeout(() => decir(BOT, respuesta(texto)), 600);
+				for (const mensaje of datos.messages) {
+					if (mensaje.id <= ultimo) continue;
+					ultimo = mensaje.id;
+					hablaron.set(mensaje.author, Math.max(hablaron.get(mensaje.author) ?? 0, mensaje.at));
+					pintarMensaje(mensaje);
+				}
+				pintarUsuarios();
+			} catch {
+				if (!fallos) sistema('Sin conexión con el servidor. Reintentando…');
+				fallos += 1;
+			} finally {
+				enCurso = false;
+				if (otraVez) {
+					otraVez = false;
+					void sondear();
+				} else {
+					programar();
+				}
+			}
+		}
+
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible') void sondear();
+			else clearTimeout(temporizador);
+		});
+
+		// --- Enviar ---
+
+		const ERRORES: Record<number, string> = {
+			400: 'Mensaje vacío o demasiado largo.',
+			403: 'Ese envío no viene de esta web.',
+			422: 'Eso parece spam. No se ha enviado.',
+			429: 'Vas muy rápido. Espera un momento.',
+		};
+
+		async function enviar(texto: string) {
+			try {
+				const respuesta = await fetch(API, {
+					headers: { 'Content-Type': 'application/json' },
+					method: 'POST',
+					body: JSON.stringify({ body: texto }),
+				});
+				if (respuesta.status === 401) {
+					sesion(null);
+					sistema('Tu sesión ha caducado. Entra con GitHub para escribir.');
+					return;
+				}
+				if (!respuesta.ok) {
+					sistema(ERRORES[respuesta.status] ?? 'No se ha podido enviar. Prueba otra vez.');
+					if (!input.value) input.value = texto;
+					return;
+				}
+				void sondear();
+			} catch {
+				sistema('No se ha podido enviar: sin conexión. Prueba otra vez.');
+				if (!input.value) input.value = texto;
+			}
 		}
 
 		// --- Comandos ---
 
 		const AYUDA = [
 			'/help — esta lista',
-			'/nick <nombre> — cambiar de nombre',
 			'/me <acción> — hablar en tercera persona',
 			'/names — quién hay en el canal',
 			'/topic — el tema del canal',
-			'/clear — limpiar el historial de este navegador',
-			'/quit — salir del canal · /join — volver',
+			'/clear — limpiar la pantalla',
 		];
 
 		function comando(linea: string) {
@@ -385,126 +353,40 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 					for (const fila of AYUDA) sistema(fila);
 					return;
 
-				case 'nick': {
-					if (deGitHub) {
-						sistema('Con sesión de GitHub el nick es el tuyo.');
-						return;
-					}
-					const nuevo = limpiarNick(argumento);
-					if (!nuevo) {
-						sistema('Uso: /nick <nombre>. Letras, números, guiones; claude está pillado.');
-						return;
-					}
-					const antes = nick;
-					nick = nuevo;
-					guardar(CLAVE_NICK, nick);
-					etiqueta.textContent = `<${nick}>`;
-					sistema(`${antes} ahora se llama ${nick}`);
-					pintarUsuarios();
-					emitir({ t: 'nick', id: yo, nick, antes });
+				case 'nick':
+					sistema('Tu nick es el de GitHub y no se cambia.');
 					return;
-				}
 
 				case 'me':
 					if (!argumento) {
 						sistema('Uso: /me <acción>.');
 						return;
 					}
-					decir(nick, argumento, 'me');
+					void enviar(`/me ${argumento}`.slice(0, MAX_TEXTO));
 					return;
 
 				case 'names':
-				case 'users':
+				case 'users': {
+					const nombres = [nick, ...presentes()].filter(Boolean).join(', ');
 					sistema(
-						`En ${CANAL}: @${BOT}, ${[dentro ? nick : null, ...[...vecinos.values()].map((v) => v.nick)].filter(Boolean).join(', ') || 'nadie más'}`,
+						`En ${CANAL}: ${online} mirando${nombres ? `; han hablado hace poco ${nombres}` : ''}.`,
 					);
 					return;
+				}
 
 				case 'topic':
-					sistema(`Tema de ${CANAL}: esta web la cambias tú. Vamos por la v${version}.`);
+					sistema(`Tema de ${CANAL}: esta web la cambias tú. Vamos por la v${section.dataset.version ?? '0'}.`);
 					return;
 
 				case 'clear':
-					historial = [];
-					guardar(CLAVE_LOG, '[]');
 					log.replaceChildren();
-					sistema('Historial limpiado en este navegador.');
-					return;
-
-				case 'quit':
-				case 'part':
-					if (!dentro) {
-						sistema(`No estás en ${CANAL}.`);
-						return;
-					}
-					dentro = false;
-					emitir({ t: 'adios', id: yo, nick });
-					sistema(`Has salido de ${CANAL}${argumento ? ` (${argumento})` : ''}. Escribe /join para volver.`);
-					pintarUsuarios();
-					return;
-
-				case 'join':
-					if (dentro) {
-						sistema(`Ya estás en ${CANAL}.`);
-						return;
-					}
-					dentro = true;
-					emitir({ t: 'hola', id: yo, nick });
-					sistema(`Has entrado en ${CANAL}.`);
-					pintarUsuarios();
+					sistema('Pantalla limpia. El canal sigue igual para los demás.');
 					return;
 
 				default:
 					sistema(`No conozco /${orden}. Prueba /help.`);
 			}
 		}
-
-		// --- Lo que llega de otras pestañas ---
-
-		function recibir(aviso: Aviso) {
-			if (aviso.t === 'linea') {
-				if (historial.some((linea) => linea.id === aviso.linea.id)) return;
-				historial = [...historial, aviso.linea].slice(-MAX_LINEAS);
-				if (dentro) pintarLinea(aviso.linea);
-				return;
-			}
-
-			if (aviso.id === yo) return;
-
-			if (aviso.t === 'adios') {
-				if (vecinos.delete(aviso.id) && dentro) sistema(`${aviso.nick} ha salido de ${CANAL}`);
-				pintarUsuarios();
-				return;
-			}
-
-			if (aviso.t === 'nick') {
-				vecinos.set(aviso.id, { nick: aviso.nick, visto: Date.now() });
-				if (dentro) sistema(`${aviso.antes} ahora se llama ${aviso.nick}`);
-				pintarUsuarios();
-				return;
-			}
-
-			const conocido = vecinos.has(aviso.id);
-			vecinos.set(aviso.id, { nick: aviso.nick, visto: Date.now() });
-			if (!conocido && dentro) sistema(`${aviso.nick} ha entrado en ${CANAL}`);
-			pintarUsuarios();
-
-			// A quien acaba de llegar hay que contestarle para que sepa que estamos.
-			if (aviso.t === 'hola' && dentro) emitir({ t: 'eco', id: yo, nick });
-		}
-
-		bus?.addEventListener('message', (evento) => recibir(evento.data as Aviso));
-
-		window.addEventListener('storage', (evento) => {
-			if (evento.key !== CLAVE_BUS || !evento.newValue) return;
-			try {
-				recibir(JSON.parse(evento.newValue) as Aviso);
-			} catch {
-				// Un aviso ilegible se ignora; el siguiente llegará bien.
-			}
-		});
-
-		// --- Arranque ---
 
 		// Lo escrito se recuerda para poder repetirlo con las flechas, como en
 		// cualquier cliente de IRC.
@@ -523,7 +405,7 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 
 		form.addEventListener('submit', (evento) => {
 			evento.preventDefault();
-			const texto = input.value.trim().slice(0, 300);
+			const texto = input.value.trim().slice(0, MAX_TEXTO);
 			if (!texto) return;
 			input.value = '';
 
@@ -534,50 +416,20 @@ const { login, version, ideaCount, endsAt, next, lastShipped } = Astro.props;
 				comando(texto);
 				return;
 			}
-			if (!dentro) {
-				sistema(`No estás en ${CANAL}. Escribe /join para volver.`);
-				return;
-			}
-
-			decir(nick, texto);
-			quizaResponder(texto);
+			void enviar(texto);
 		});
 
-		try {
-			const previo = JSON.parse(guardado(CLAVE_LOG) ?? '[]');
-			if (Array.isArray(previo)) historial = previo.slice(-MAX_LINEAS);
-		} catch {
-			historial = [];
-		}
+		// --- Arranque ---
 
-		etiqueta.textContent = `<${nick}>`;
-		for (const linea of historial) pintarLinea(linea);
-		log.scrollTop = log.scrollHeight;
-
-		sistema(`Bienvenido a ${CANAL}, ${nick}`);
-		sistema(`Tema: esta web la cambias tú · v${version}`);
-		sistema(`${BOT} tiene el canal. Escribe /help para ver los comandos.`);
-		if (!historial.length) sistema('Aquí no hay servidor: esto se queda en tu navegador.');
+		sistema(nick ? `Bienvenido a ${CANAL}, ${nick}` : `Bienvenido a ${CANAL}`);
+		sistema(`Tema: esta web la cambias tú · v${section.dataset.version ?? '0'}`);
+		sistema(
+			nick
+				? 'Escribe /help para ver los comandos. Lo que digas lo lee todo el canal y dura un día.'
+				: 'Puedes leer sin entrar. Para escribir, entra con GitHub.',
+		);
 
 		pintarUsuarios();
-		emitir({ t: 'hola', id: yo, nick });
-
-		// Cada pestaña avisa de que sigue viva; a quien lleva rato callado se le da
-		// por desconectado, como un ping timeout de toda la vida.
-		setInterval(() => {
-			if (dentro) emitir({ t: 'latido', id: yo, nick });
-
-			const ahora = Date.now();
-			for (const [id, vecino] of vecinos) {
-				if (ahora - vecino.visto <= OLVIDO_MS) continue;
-				vecinos.delete(id);
-				if (dentro) sistema(`${vecino.nick} ha salido de ${CANAL} (sin señal)`);
-				pintarUsuarios();
-			}
-		}, LATIDO_MS);
-
-		window.addEventListener('pagehide', () => {
-			if (dentro) emitir({ t: 'adios', id: yo, nick });
-		});
+		void sondear();
 	}
 </script>

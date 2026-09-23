@@ -1,12 +1,17 @@
 ---
 /**
  * El escaparate: una sección para publicar los SaaS y los proyectos ya
- * terminados. Como el chat, no tiene servidor detrás: cada ficha se guarda en
- * el navegador de quien la publica y desde ahí se copia para proponerla como
- * idea, que es la única forma de que entre en esta web.
+ * terminados. Las fichas salen de /api/escaparate y las ve todo el mundo; para
+ * publicar hace falta entrar con GitHub, y cada uno solo quita las suyas.
  */
+import GitHubLogin from './GitHubLogin.astro';
 import Icon from './Icon.astro';
+import { getSessionUser } from '../lib/auth';
 import { NAME_MAX, PITCH_MAX, TAGS } from '../lib/showcase';
+
+// Con sesión sale el formulario; sin ella, el enlace para entrar. El script lo
+// corrige si la sesión cambia mientras la página está abierta.
+const user = await getSessionUser(Astro);
 
 const FIELD =
 	'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
@@ -16,7 +21,11 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 ---
 
 <section id="escaparate" class="flex flex-col gap-7">
-	<form data-form class="grid gap-4 border border-line bg-panel p-4 md:grid-cols-2">
+	<p data-login hidden={Boolean(user)} class="border border-line bg-panel p-4 text-sm text-muted">
+		El escaparate lo ve todo el mundo; para publicar lo tuyo, <GitHubLogin label="entra con GitHub" />.
+	</p>
+
+	<form data-form hidden={!user} class="grid gap-4 border border-line bg-panel p-4 md:grid-cols-2">
 		<label class="flex flex-col gap-2">
 			<span class="text-sm text-muted">Nombre</span>
 			<input
@@ -35,6 +44,7 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 			<input
 				type="text"
 				data-field="url"
+				maxlength="200"
 				inputmode="url"
 				autocomplete="off"
 				spellcheck="false"
@@ -93,13 +103,9 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 		</li>
 	</ul>
 
-	<div class="flex flex-wrap items-center justify-between gap-4">
-		<p data-count class="text-sm text-muted" aria-live="polite"></p>
-		<button type="button" data-clear class={BOTON} hidden>
-			<Icon name="trash" class="size-4 shrink-0" />
-			Vaciar el escaparate
-		</button>
-	</div>
+	<p data-status role="status" hidden class="text-sm text-heart"></p>
+
+	<p data-count class="text-sm text-muted" aria-live="polite"></p>
 
 	<template data-card>
 		<li class="flex flex-col gap-3 border border-line bg-panel p-4">
@@ -107,7 +113,7 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 				<a
 					data-link
 					target="_blank"
-					rel="noopener noreferrer nofollow"
+					rel="noopener noreferrer nofollow ugc"
 					class="inline-flex items-center gap-2 font-pixel text-accent hover:underline"
 				>
 					<span data-name></span>
@@ -116,13 +122,10 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 				<span data-tag-label class="shrink-0 border border-line px-2 py-1 text-xs text-muted"></span>
 			</div>
 			<p data-pitch class="text-sm"></p>
-			<p class="text-xs text-muted"><code data-host></code> · <span data-at></span></p>
-			<div class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
-				<button type="button" data-copy class={ENLACE}>
-					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
-					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
-					<span data-copy-label>Copiar la ficha</span>
-				</button>
+			<p class="text-xs text-muted">
+				<code data-host></code> · <span data-author></span> · <span data-at></span>
+			</p>
+			<div data-tools hidden class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
 				<button type="button" data-remove class={ENLACE}>
 					<Icon name="trash" class="size-4 shrink-0" />
 					Quitar
@@ -132,7 +135,7 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 	</template>
 
 	<p class="text-sm text-muted">
-		Esto solo está en tu navegador. Para que lo vea todo el mundo, copia la ficha y proponla en la portada.
+		Lo que publicas lo ve todo el mundo, con tu nombre de GitHub. Hasta tres fichas por persona.
 	</p>
 </section>
 
@@ -142,23 +145,6 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 	 * marca del componente; por eso todo cuelga de #escaparate.
 	 */
 
-	/* El check solo sale cuando la copia ha ido bien. */
-	#escaparate [data-copy] [data-icon='check'] {
-		display: none;
-	}
-	#escaparate [data-copy][data-state='done'] {
-		color: var(--color-accent);
-	}
-	#escaparate [data-copy][data-state='done'] [data-icon='copy'] {
-		display: none;
-	}
-	#escaparate [data-copy][data-state='done'] [data-icon='check'] {
-		display: inline-flex;
-	}
-	#escaparate [data-copy][data-state='error'] {
-		color: var(--color-heart);
-	}
-
 	#escaparate [data-filtro][aria-pressed='true'] {
 		border-color: var(--color-accent);
 		color: var(--color-accent);
@@ -166,15 +152,7 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 </style>
 
 <script>
-	import {
-		MAX_PROJECTS,
-		type Project,
-		hostOf,
-		pitchOf,
-		readProjects,
-		saveProjects,
-		toProject,
-	} from '../lib/showcase';
+	import { PER_PERSON, type Project, fromApi, hostOf, toProject } from '../lib/showcase';
 
 	const section = document.querySelector<HTMLElement>('#escaparate');
 	const form = section?.querySelector<HTMLFormElement>('[data-form]');
@@ -182,16 +160,60 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 	const template = section?.querySelector<HTMLTemplateElement>('[data-card]');
 	const filters = section?.querySelector<HTMLElement>('[data-filters]');
 	const errorOut = section?.querySelector<HTMLElement>('[data-error]');
+	const statusOut = section?.querySelector<HTMLElement>('[data-status]');
+	const loginOut = section?.querySelector<HTMLElement>('[data-login]');
 	const countOut = section?.querySelector<HTMLElement>('[data-count]');
-	const clearButton = section?.querySelector<HTMLButtonElement>('[data-clear]');
 	const house = section?.querySelector<HTMLElement>('[data-house]');
+
+	interface Respuesta {
+		ok: boolean;
+		status: number;
+		code: string;
+		data: Record<string, unknown> | null;
+	}
+
+	/** Una llamada a la API que nunca revienta: si falla la red, status 0. */
+	async function pedir(url: string, method = 'GET', body?: unknown): Promise<Respuesta> {
+		try {
+			const res = await fetch(url, {
+				method,
+				headers: method === 'GET' ? undefined : { 'Content-Type': 'application/json' },
+				body: body === undefined ? undefined : JSON.stringify(body),
+			});
+			const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+			const code = typeof data?.error === 'string' ? data.error : '';
+			return { ok: res.ok, status: res.status, code, data };
+		} catch {
+			return { ok: false, status: 0, code: '', data: null };
+		}
+	}
+
+	/** Lo que dice el servidor, dicho en corto. */
+	function mensaje(status: number) {
+		if (status === 400) return 'A la ficha le falta algo o algo no vale. Revísala.';
+		if (status === 401) return 'Entra con GitHub para publicar.';
+		if (status === 403) return 'La petición no salió de esta web. Recarga la página.';
+		if (status === 404) return 'Esa ficha ya no está.';
+		if (status === 409) return `Ya tienes ${PER_PERSON} fichas publicadas. Quita alguna.`;
+		if (status === 422) return 'Eso parece spam: sin enlaces en el nombre ni letras repetidas.';
+		if (status === 429) return 'Más despacio: espera un minuto y vuelve a probar.';
+		return 'No se pudo hablar con el servidor. Prueba otra vez.';
+	}
 
 	if (section && form && list && template && filters && countOut) {
 		const CHIP =
 			'border border-line px-3 py-2 text-muted hover:border-accent hover:text-accent';
 
-		let projects = readProjects();
+		/** Las fichas de todo el mundo, tal como vinieron la última vez. */
+		let projects: Project[] = [];
 		let filter = '';
+		let loaded = false;
+		let loading = false;
+		/** Si alguien pidió cargar mientras ya se cargaba, se repite al acabar. */
+		let again = false;
+		let retry = 0;
+		let retryTimer = 0;
+		let sending = false;
 
 		function field(name: string) {
 			return form!.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`);
@@ -199,6 +221,18 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 
 		function fail(message: string) {
 			if (errorOut) errorOut.textContent = message;
+		}
+
+		function aviso(message: string) {
+			if (!statusOut) return;
+			statusOut.textContent = message;
+			statusOut.hidden = !message;
+		}
+
+		/** Con sesión, el formulario; sin ella, el enlace para entrar. */
+		function setLogin(login: string | null) {
+			form!.hidden = !login;
+			if (loginOut) loginOut.hidden = Boolean(login);
 		}
 
 		function fecha(at: number) {
@@ -209,27 +243,22 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 			});
 		}
 
-		async function copy(text: string) {
-			try {
-				await navigator.clipboard.writeText(text);
-				return true;
-			} catch {
-				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
-				try {
-					const helper = document.createElement('textarea');
-					helper.value = text;
-					helper.readOnly = true;
-					helper.style.position = 'fixed';
-					helper.style.opacity = '0';
-					document.body.append(helper);
-					helper.select();
-					const done = document.execCommand('copy');
-					helper.remove();
-					return done;
-				} catch {
-					return false;
-				}
+		async function quitar(project: Project, boton: HTMLButtonElement) {
+			boton.disabled = true;
+			aviso('');
+
+			const res = await pedir(`/api/escaparate/${project.id}`, 'DELETE');
+			// Si ya no estaba, el resultado es el mismo: fuera del escaparate.
+			if (res.ok || res.status === 404) {
+				projects = projects.filter((item) => item.id !== project.id);
+				render();
+				void cargar();
+				return;
 			}
+
+			boton.disabled = false;
+			if (res.status === 401) setLogin(null);
+			aviso(mensaje(res.status));
 		}
 
 		function card(project: Project) {
@@ -237,34 +266,25 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 			node.dataset.tag = project.tag;
 
 			const link = node.querySelector<HTMLAnchorElement>('[data-link]')!;
-			// La URL viene ya limpia de toProject: solo http o https.
-			link.href = project.url;
+			// fromApi ya ha cribado la URL: o es http(s) o viene vacía, y sin ella
+			// no hay enlace.
+			if (project.url) link.href = project.url;
 			node.querySelector('[data-name]')!.textContent = project.name;
 			node.querySelector('[data-tag-label]')!.textContent = project.tag;
 			node.querySelector('[data-pitch]')!.textContent = project.pitch;
-			node.querySelector('[data-host]')!.textContent = hostOf(project.url);
+			node.querySelector('[data-host]')!.textContent = project.url ? hostOf(project.url) : 'sin enlace';
 			node.querySelector('[data-at]')!.textContent = fecha(project.at);
+			node.querySelector('[data-author]')!.textContent = project.mine
+				? 'tuya'
+				: `de ${project.author || 'alguien'}`;
 
-			const copyButton = node.querySelector<HTMLButtonElement>('[data-copy]')!;
-			const copyLabel = node.querySelector<HTMLElement>('[data-copy-label]')!;
-			let timer = 0;
-
-			copyButton.addEventListener('click', async () => {
-				const done = await copy(pitchOf(project));
-
-				copyButton.dataset.state = done ? 'done' : 'error';
-				copyLabel.textContent = done ? 'Copiada' : 'No se pudo copiar';
-
-				clearTimeout(timer);
-				timer = window.setTimeout(() => {
-					copyButton.removeAttribute('data-state');
-					copyLabel.textContent = 'Copiar la ficha';
-				}, 2000);
-			});
-
-			node.querySelector<HTMLButtonElement>('[data-remove]')!.addEventListener('click', () => {
-				commit(projects.filter((item) => item.id !== project.id));
-			});
+			// Solo se quita lo que publicaste tú.
+			const tools = node.querySelector<HTMLElement>('[data-tools]');
+			if (tools) tools.hidden = !project.mine;
+			if (project.mine) {
+				const remove = node.querySelector<HTMLButtonElement>('[data-remove]')!;
+				remove.addEventListener('click', () => void quitar(project, remove));
+			}
 
 			return node;
 		}
@@ -317,25 +337,56 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 			if (house) house.hidden = Boolean(filter);
 
 			const total = projects.length;
-			countOut!.textContent =
-				total === 0
-					? 'Todavía no has publicado nada. Empieza por lo tuyo.'
-					: `${total} ${total === 1 ? 'proyecto publicado' : 'proyectos publicados'} en este navegador · quedan ${MAX_PROJECTS - total} huecos.`;
-			if (clearButton) clearButton.hidden = total === 0;
+			const mias = projects.filter((project) => project.mine).length;
+			countOut!.textContent = !loaded
+				? 'Trayendo el escaparate…'
+				: total === 0
+					? 'Todavía no ha publicado nadie. Empieza por lo tuyo.'
+					: `${total} ${total === 1 ? 'proyecto publicado' : 'proyectos publicados'} · ` +
+						`${mias} de ${PER_PERSON} tuyos.`;
 		}
 
-		function commit(next: Project[]) {
-			projects = next;
-			saveProjects(projects);
+		/** Las fichas de todo el mundo. Si falla, se avisa y se vuelve a probar cada vez más tarde. */
+		async function cargar() {
+			if (loading) {
+				again = true;
+				return;
+			}
+			loading = true;
+			clearTimeout(retryTimer);
+
+			const res = await pedir('/api/escaparate');
+			const data = res.data;
+			loading = false;
+
+			if (!res.ok || !data || !Array.isArray(data.projects)) {
+				retry = Math.min(retry ? retry * 2 : 5_000, 60_000);
+				aviso(`No llega el escaparate. Se vuelve a probar en ${Math.round(retry / 1000)} s.`);
+				retryTimer = window.setTimeout(() => void cargar(), retry);
+				return;
+			}
+
+			retry = 0;
+			aviso('');
+			const filas: unknown[] = data.projects;
+			projects = filas.map((item) => fromApi(item)).filter((item): item is Project => item !== null);
+			loaded = true;
+			setLogin(typeof data.login === 'string' ? data.login : null);
 			render();
+
+			if (again) {
+				again = false;
+				void cargar();
+			}
 		}
 
-		form.addEventListener('submit', (event) => {
+		form.addEventListener('submit', async (event) => {
 			event.preventDefault();
 			fail('');
+			if (sending) return;
 
-			if (projects.length >= MAX_PROJECTS) {
-				fail(`El escaparate está lleno: ${MAX_PROJECTS} como mucho. Quita alguno.`);
+			if (projects.filter((item) => item.mine).length >= PER_PERSON) {
+				fail(`Ya tienes ${PER_PERSON} fichas publicadas. Quita alguna.`);
 				return;
 			}
 
@@ -356,18 +407,29 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 				return;
 			}
 
-			// Lo último publicado, primero: un escaparate se mira por delante.
-			commit([project, ...projects]);
+			const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+			sending = true;
+			if (submit) submit.disabled = true;
 
+			const res = await pedir('/api/escaparate', 'POST', project);
+
+			sending = false;
+			if (submit) submit.disabled = false;
+
+			if (!res.ok) {
+				if (res.status === 401) setLogin(null);
+				fail(mensaje(res.status));
+				return;
+			}
+
+			// Lo último publicado sale primero, y sin filtro para que se vea.
+			filter = '';
 			form.reset();
 			field('name')?.focus();
-		});
-
-		clearButton?.addEventListener('click', () => {
-			if (!projects.length) return;
-			commit([]);
+			await cargar();
 		});
 
 		render();
+		void cargar();
 	}
 </script>
