@@ -134,6 +134,40 @@ async function decideWithLlm(
 	}
 }
 
+/** El texto sin mayúsculas, tildes, signos ni espacios de más. */
+function normalizeBody(body: string) {
+	return body
+		.normalize('NFKD')
+		.replaceAll(/\p{M}/gu, '')
+		.toLowerCase()
+		.replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
+		.trim();
+}
+
+/**
+ * Una idea copiada letra por letra desde otra cuenta no es otra persona
+ * pidiendo lo mismo: es un voto duplicado. Dos cuentas que mandaban el mismo
+ * texto en cada ventana sumaban un grupo de dos y ganaban siempre. Las copias
+ * se juntan antes de agrupar: el modelo ve una sola, y las demás siguen su
+ * suerte (mismo veredicto, mismo grupo) sin sumar.
+ */
+export function collapseCopies<T extends { id: number; body: string }>(pending: T[]) {
+	const firstByText = new Map<string, T>();
+	const copiesOf = new Map<number, number[]>();
+
+	for (const item of pending) {
+		const key = normalizeBody(item.body);
+		const first = firstByText.get(key);
+		if (!first) {
+			firstByText.set(key, item);
+			continue;
+		}
+		copiesOf.set(first.id, [...(copiesOf.get(first.id) ?? []), item.id]);
+	}
+
+	return { unique: [...firstByText.values()], copiesOf };
+}
+
 /**
  * Un ciclo cada vez. Entre leer las pendientes y recibir la decisión del modelo
  * pasan hasta 20 segundos, y en ese hueco un reintento del cron o un segundo
@@ -176,8 +210,9 @@ async function runCycle() {
 		};
 	}
 
-	const fallback = heuristicDecision(pending);
-	const decision = await decideWithLlm(pending, fallback);
+	const { unique, copiesOf } = collapseCopies(pending);
+	const fallback = heuristicDecision(unique);
+	const decision = await decideWithLlm(unique, fallback);
 	const now = nowIso();
 
 	const cycle = get<{ id: number }>(
@@ -222,23 +257,32 @@ async function runCycle() {
 	const winnerCluster = clusterRows.find((row) => row.isWinner);
 	let featureId: number | null = null;
 
+	const reviewedIds = new Set<number>();
+
 	for (const review of decision.reviews) {
+		const ids = [review.id, ...(copiesOf.get(review.id) ?? [])];
+		for (const id of ids) reviewedIds.add(id);
+
 		if (review.verdict === 'discard') {
-			run(
-				"UPDATE prompts SET status = 'discarded', discard_reason = ?, cluster_id = NULL WHERE id = ?",
-				review.reason ?? 'spam',
-				review.id,
-			);
+			for (const id of ids) {
+				run(
+					"UPDATE prompts SET status = 'discarded', discard_reason = ?, cluster_id = NULL WHERE id = ?",
+					review.reason ?? 'spam',
+					id,
+				);
+			}
 			continue;
 		}
 
 		const cluster = clusterRows.find((row) => row.promptIds.includes(review.id));
-		run(
-			'UPDATE prompts SET status = ?, discard_reason = NULL, cluster_id = ? WHERE id = ?',
-			cluster?.isWinner ? 'selected' : 'grouped',
-			cluster?.id ?? null,
-			review.id,
-		);
+		for (const id of ids) {
+			run(
+				'UPDATE prompts SET status = ?, discard_reason = NULL, cluster_id = ? WHERE id = ?',
+				cluster?.isWinner ? 'selected' : 'grouped',
+				cluster?.id ?? null,
+				id,
+			);
+		}
 	}
 
 	if (winnerCluster && decision.winnerTitle) {
@@ -257,9 +301,7 @@ async function runCycle() {
 	}
 
 	// Lo que el modelo no revisó se descarta: no se queda dando vueltas.
-	const leftover = pending
-		.map((item) => item.id)
-		.filter((id) => !decision.reviews.some((review) => review.id === id));
+	const leftover = pending.map((item) => item.id).filter((id) => !reviewedIds.has(id));
 	for (const id of leftover) {
 		run("UPDATE prompts SET status = 'discarded', discard_reason = 'spam' WHERE id = ?", id);
 	}
