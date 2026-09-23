@@ -33,6 +33,7 @@ const PORT = process.env.PORT || '4321';
 const BASE = (process.env.HEALTH_URL || process.env.SITE_URL || `http://127.0.0.1:${PORT}`).replace(/\/$/, '');
 const SECRET = process.env.CRON_SECRET;
 const CLAUDE_CMD = process.env.CLAUDE_CMD || 'claude';
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 const TIMEOUT_MS = Number(process.env.ITERATE_TIMEOUT_MS || 15 * 60 * 1000);
 // Arreglar es más acotado que implementar, y mientras tanto la idea no está en
 // la calle: se le da menos cuerda que a la primera pasada.
@@ -228,20 +229,18 @@ function repairPrompt(winner, failure) {
  * Lo que la IA no puede ni mirar. Las verjas de después atrapan un secreto que
  * salga en el diff, pero esto es mejor: no llega a tenerlo nunca. Y escribir
  * pesa aún más, porque .env y la base están fuera de git: si las machacara, un
- * reset --hard no las devuelve.
+ * reset --hard no las devuelve. Las reglas Edit() cubren todas las herramientas
+ * que escriben (Edit y Write); una regla Write() no bloquea nada.
  */
 const CLAUDE_SETTINGS = JSON.stringify({
 	permissions: {
 		deny: [
 			'Read(**/.env*)',
 			'Edit(**/.env*)',
-			'Write(**/.env*)',
-			'Read(**/*.db)',
+			'Read(**/*.db*)',
 			'Edit(**/*.db*)',
-			'Write(**/*.db*)',
 			'Read(**/.iterate*)',
 			'Edit(**/.iterate*)',
-			'Write(**/.iterate*)',
 		],
 	},
 });
@@ -252,6 +251,8 @@ function runClaude(prompt, timeout) {
 		[
 			'-p',
 			prompt,
+			'--model',
+			CLAUDE_MODEL,
 			'--settings',
 			CLAUDE_SETTINGS,
 			'--permission-mode',
