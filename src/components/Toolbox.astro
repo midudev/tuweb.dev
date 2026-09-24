@@ -18,6 +18,7 @@ import ParallaxTool from './ParallaxTool.astro';
 import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
 import ShadowTool from './ShadowTool.astro';
+import SoundTool from './SoundTool.astro';
 import SvgAnimTool from './SvgAnimTool.astro';
 import ThemeTool from './ThemeTool.astro';
 import TransitionTool from './TransitionTool.astro';
@@ -51,6 +52,7 @@ const tools = [
 	{ id: 'diagramas', label: 'Diagramas', icon: 'sitemap' },
 	{ id: 'ascii', label: 'ASCII art', icon: 'typography' },
 	{ id: 'calendario', label: 'Calendario', icon: 'calendar-month' },
+	{ id: 'sonidos', label: 'Sonidos', icon: 'bell-ringing' },
 	{ id: 'unidades', label: 'Unidades', icon: 'ruler-measure' },
 	{ id: 'tema', label: 'Tema', icon: 'brush' },
 	{ id: 'config', label: 'Config', icon: 'adjustments' },
@@ -220,6 +222,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<AsciiTool />
 
 	<CalendarTool />
+
+	<SoundTool />
 
 	<UnitTool />
 

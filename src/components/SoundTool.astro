@@ -1,0 +1,515 @@
+---
+/**
+ * Sonidos de notificación hechos a medida: se elige un tono, la forma de onda,
+ * la altura, la duración y el volumen, se escucha al momento y se baja en WAV.
+ * Se sintetiza todo con Web Audio en el navegador: no hay ficheros de audio ni
+ * se envía nada. Lo único que se guarda es el ajuste, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+const NUMERO =
+	'w-20 border border-line bg-panel px-2 py-1 text-right text-sm text-fg outline-none focus-visible:border-accent';
+
+const TONOS = [
+	{ id: 'ding', label: 'Ding' },
+	{ id: 'doble', label: 'Doble' },
+	{ id: 'campana', label: 'Campana' },
+	{ id: 'burbuja', label: 'Burbuja' },
+	{ id: 'exito', label: 'Éxito' },
+	{ id: 'error', label: 'Error' },
+	{ id: 'alerta', label: 'Alerta' },
+	{ id: 'moneda', label: 'Moneda' },
+];
+
+const ONDAS = [
+	{ id: 'sine', label: 'Suave' },
+	{ id: 'triangle', label: 'Triangular' },
+	{ id: 'square', label: 'Cuadrada' },
+	{ id: 'sawtooth', label: 'Sierra' },
+];
+
+const MEDIDAS = [
+	{ id: 'altura', label: 'Altura', min: -12, max: 12, paso: 1, unidad: 'st' },
+	{ id: 'duracion', label: 'Duración', min: 100, max: 2000, paso: 10, unidad: 'ms' },
+	{ id: 'volumen', label: 'Volumen', min: 0, max: 100, paso: 1, unidad: '%' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="sonidos"
+	aria-labelledby="tab-sonidos"
+	data-panel="sonidos"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Tono</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						TONOS.map((tono) => (
+							<button type="button" data-so-tono={tono.id} aria-pressed="false" class={OPCION}>
+								{tono.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Onda</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						ONDAS.map((onda) => (
+							<button type="button" data-so-onda={onda.id} aria-pressed="false" class={OPCION}>
+								{onda.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			{
+				MEDIDAS.map((m) => (
+					<div class="flex flex-col gap-2">
+						<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`so-${m.id}`}>
+							{m.label}
+							<span class="inline-flex items-center gap-1">
+								<input
+									type="number"
+									min={m.min}
+									max={m.max}
+									step={m.paso}
+									data-so-num={m.id}
+									aria-label={`${m.label} en ${m.unidad}`}
+									class={NUMERO}
+								/>
+								<span class="w-5">{m.unidad}</span>
+							</span>
+						</label>
+						<input
+							id={`so-${m.id}`}
+							type="range"
+							min={m.min}
+							max={m.max}
+							step={m.paso}
+							data-so-rango={m.id}
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<canvas
+				data-so-onda-vista
+				width="800"
+				height="240"
+				role="img"
+				aria-label="Forma de onda del sonido"
+				class="h-60 w-full border border-line bg-panel text-accent"></canvas>
+
+			<p data-so-resumen class="text-sm text-mark"></p>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-so-play class={BOTON}>
+					<span data-icon="play" class="inline-flex"><Icon name="player-play" class="size-4 shrink-0" /></span>
+					<span data-icon="stop" class="inline-flex"><Icon name="player-stop" class="size-4 shrink-0" /></span>
+					<span data-so-play-texto>Escuchar</span>
+				</button>
+				<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-so-auto class="size-4 accent-accent" />
+					Sonar al cambiar
+				</label>
+				<button type="button" data-so-bajar class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar WAV
+				</button>
+				<button type="button" data-so-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+
+			<p data-so-aviso class="text-sm text-heart empty:hidden" aria-live="polite"></p>
+
+			<p class="text-sm text-muted">
+				Un aviso bueno dura menos de un segundo y no asusta. Si lo vas a oír cien veces al día,
+				baja el volumen y usa la onda suave.
+			</p>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-so-play] [data-icon='stop'] {
+		display: none;
+	}
+	[data-so-play][data-state='sonando'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-so-play][data-state='sonando'] [data-icon='play'] {
+		display: none;
+	}
+	[data-so-play][data-state='sonando'] [data-icon='stop'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	type Onda = 'sine' | 'triangle' | 'square' | 'sawtooth';
+	type Medida = 'altura' | 'duracion' | 'volumen';
+	type Estado = { tono: string; onda: Onda; altura: number; duracion: number; volumen: number };
+	// Una nota: semitonos sobre la base, cuándo empieza y cuánto dura (en
+	// fracciones de la duración total), a qué semitono resbala y cuánto pesa.
+	type Nota = { st: number; en: number; dura: number; hasta?: number; peso?: number };
+
+	const CLAVE = 'tuweb:sonidos';
+	const BASE = 660;
+	const MUESTREO = 44100;
+	const RANGOS: Record<Medida, [number, number]> = {
+		altura: [-12, 12],
+		duracion: [100, 2000],
+		volumen: [0, 100],
+	};
+	const MEDIDAS = Object.keys(RANGOS) as Medida[];
+	const ONDAS: Onda[] = ['sine', 'triangle', 'square', 'sawtooth'];
+	// Cuadrada y sierra suenan mucho más fuerte a igual amplitud: se compensan.
+	const PESO_ONDA: Record<Onda, number> = { sine: 1, triangle: 1, square: 0.45, sawtooth: 0.55 };
+
+	const TONOS: Record<string, Nota[]> = {
+		ding: [{ st: 0, en: 0, dura: 1 }],
+		doble: [
+			{ st: 0, en: 0, dura: 0.45 },
+			{ st: 7, en: 0.4, dura: 0.6 },
+		],
+		campana: [
+			{ st: 0, en: 0, dura: 1 },
+			{ st: 12, en: 0, dura: 0.7, peso: 0.4 },
+			{ st: 19, en: 0, dura: 0.45, peso: 0.25 },
+		],
+		burbuja: [{ st: -7, en: 0, dura: 1, hasta: 12 }],
+		exito: [
+			{ st: 0, en: 0, dura: 0.4 },
+			{ st: 4, en: 0.2, dura: 0.4 },
+			{ st: 7, en: 0.4, dura: 0.4 },
+			{ st: 12, en: 0.6, dura: 0.4 },
+		],
+		error: [
+			{ st: -5, en: 0, dura: 0.45 },
+			{ st: -8, en: 0.5, dura: 0.5 },
+		],
+		alerta: [
+			{ st: 5, en: 0, dura: 0.25 },
+			{ st: 5, en: 0.35, dura: 0.25 },
+			{ st: 5, en: 0.7, dura: 0.3 },
+		],
+		moneda: [
+			{ st: 2, en: 0, dura: 0.14 },
+			{ st: 7, en: 0.12, dura: 0.88 },
+		],
+	};
+
+	const INICIAL: Estado = { tono: 'doble', onda: 'sine', altura: 0, duracion: 500, volumen: 70 };
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="sonidos"]');
+	const lienzo = panel?.querySelector<HTMLCanvasElement>('[data-so-onda-vista]');
+	const resumen = panel?.querySelector<HTMLElement>('[data-so-resumen]');
+	const aviso = panel?.querySelector<HTMLElement>('[data-so-aviso]');
+	const play = panel?.querySelector<HTMLButtonElement>('[data-so-play]');
+	const playTexto = play?.querySelector<HTMLElement>('[data-so-play-texto]');
+	const auto = panel?.querySelector<HTMLInputElement>('[data-so-auto]');
+	const bajar = panel?.querySelector<HTMLButtonElement>('[data-so-bajar]');
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+
+	function cargar(): Estado {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && typeof g === 'object') {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				return {
+					tono: typeof g.tono === 'string' && g.tono in TONOS ? g.tono : INICIAL.tono,
+					onda: ONDAS.includes(g.onda) ? g.onda : INICIAL.onda,
+					altura: limitar(num(g.altura, INICIAL.altura), ...RANGOS.altura),
+					duracion: limitar(num(g.duracion, INICIAL.duracion), ...RANGOS.duracion),
+					volumen: limitar(num(g.volumen, INICIAL.volumen), ...RANGOS.volumen),
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return { ...INICIAL };
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	const frecuencia = (st: number) => BASE * 2 ** ((st + estado.altura) / 12);
+
+	/**
+	 * Programa el sonido entero en un contexto. Vale igual para el que suena por
+	 * los altavoces que para el offline que lo convierte en WAV: así lo que se
+	 * descarga es exactamente lo que se ha escuchado.
+	 */
+	function sintetizar(ctx: BaseAudioContext, inicio: number) {
+		const total = estado.duracion / 1000;
+		const volumen = (estado.volumen / 100) * PESO_ONDA[estado.onda] * 0.5;
+		const fuentes: OscillatorNode[] = [];
+
+		for (const nota of TONOS[estado.tono]) {
+			const t0 = inicio + nota.en * total;
+			const t1 = Math.min(t0 + nota.dura * total, inicio + total);
+			const pico = volumen * (nota.peso ?? 1);
+			const osc = ctx.createOscillator();
+			const gan = ctx.createGain();
+
+			osc.type = estado.onda;
+			osc.frequency.setValueAtTime(frecuencia(nota.st), t0);
+			if (nota.hasta !== undefined) osc.frequency.exponentialRampToValueAtTime(frecuencia(nota.hasta), t1);
+
+			// Ataque cortito para que no chasque, y caída exponencial hasta el final.
+			const ataque = Math.min(0.01, (t1 - t0) / 4);
+			gan.gain.setValueAtTime(0, t0);
+			if (pico > 0) {
+				gan.gain.linearRampToValueAtTime(pico, t0 + ataque);
+				gan.gain.exponentialRampToValueAtTime(0.0001, t1);
+			}
+			gan.gain.setValueAtTime(0, t1);
+
+			osc.connect(gan).connect(ctx.destination);
+			osc.start(t0);
+			osc.stop(t1 + 0.01);
+			fuentes.push(osc);
+		}
+		return fuentes;
+	}
+
+	async function renderizar() {
+		const muestras = Math.ceil((estado.duracion / 1000) * MUESTREO);
+		const ctx = new OfflineAudioContext(1, muestras, MUESTREO);
+		sintetizar(ctx, 0);
+		return ctx.startRendering();
+	}
+
+	// Un solo contexto para todo el rato: los navegadores limitan cuántos hay.
+	let contexto: AudioContext | null = null;
+	let sonando: OscillatorNode[] = [];
+	let fin: number | undefined;
+
+	function parar() {
+		sonando.forEach((osc) => {
+			try {
+				osc.stop();
+			} catch {
+				// Ya estaba parado.
+			}
+		});
+		sonando = [];
+		clearTimeout(fin);
+		play?.removeAttribute('data-state');
+		if (playTexto) playTexto.textContent = 'Escuchar';
+	}
+
+	async function escuchar() {
+		parar();
+		try {
+			contexto ??= new AudioContext();
+			if (contexto.state === 'suspended') await contexto.resume();
+		} catch {
+			if (aviso) aviso.textContent = 'Este navegador no deja reproducir audio.';
+			return;
+		}
+		if (aviso) aviso.textContent = '';
+		sonando = sintetizar(contexto, contexto.currentTime + 0.02);
+		if (play) play.dataset.state = 'sonando';
+		if (playTexto) playTexto.textContent = 'Parar';
+		fin = window.setTimeout(parar, estado.duracion + 80);
+	}
+
+	let turno = 0;
+
+	async function dibujar() {
+		if (!lienzo) return;
+		const mio = ++turno;
+		let datos: Float32Array;
+		try {
+			datos = (await renderizar()).getChannelData(0);
+		} catch {
+			return;
+		}
+		// Si mientras tanto ha cambiado algo, ya viene otro dibujo detrás.
+		if (mio !== turno) return;
+
+		const pincel = lienzo.getContext('2d');
+		if (!pincel) return;
+		const { width: ancho, height: alto } = lienzo;
+		const estilo = getComputedStyle(lienzo);
+		pincel.clearRect(0, 0, ancho, alto);
+
+		pincel.fillStyle = estilo.borderTopColor;
+		pincel.fillRect(0, alto / 2, ancho, 1);
+
+		// Por cada columna, el mínimo y el máximo de su trozo de muestras.
+		pincel.fillStyle = estilo.color;
+		const porColumna = datos.length / ancho;
+		for (let x = 0; x < ancho; x++) {
+			let min = 0;
+			let max = 0;
+			const desde = Math.floor(x * porColumna);
+			const hasta = Math.min(datos.length, Math.floor((x + 1) * porColumna) + 1);
+			for (let i = desde; i < hasta; i++) {
+				if (datos[i] < min) min = datos[i];
+				if (datos[i] > max) max = datos[i];
+			}
+			const arriba = alto / 2 - max * alto * 0.9;
+			const abajo = alto / 2 - min * alto * 0.9;
+			pincel.fillRect(x, arriba, 1, Math.max(1, abajo - arriba));
+		}
+	}
+
+	/** PCM de 16 bits, mono: lo abre cualquier sistema y cualquier editor. */
+	function wav(datos: Float32Array, muestreo: number) {
+		const buffer = new ArrayBuffer(44 + datos.length * 2);
+		const vista = new DataView(buffer);
+		const texto = (en: number, s: string) => [...s].forEach((c, i) => vista.setUint8(en + i, c.charCodeAt(0)));
+
+		texto(0, 'RIFF');
+		vista.setUint32(4, 36 + datos.length * 2, true);
+		texto(8, 'WAVE');
+		texto(12, 'fmt ');
+		vista.setUint32(16, 16, true);
+		vista.setUint16(20, 1, true);
+		vista.setUint16(22, 1, true);
+		vista.setUint32(24, muestreo, true);
+		vista.setUint32(28, muestreo * 2, true);
+		vista.setUint16(32, 2, true);
+		vista.setUint16(34, 16, true);
+		texto(36, 'data');
+		vista.setUint32(40, datos.length * 2, true);
+
+		datos.forEach((m, i) => {
+			const s = Math.max(-1, Math.min(1, m));
+			vista.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+		});
+		return new Blob([buffer], { type: 'audio/wav' });
+	}
+
+	async function descargar() {
+		try {
+			const audio = await renderizar();
+			const url = URL.createObjectURL(wav(audio.getChannelData(0), audio.sampleRate));
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `aviso-${estado.tono}-${estado.duracion}ms.wav`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+			if (aviso) aviso.textContent = '';
+		} catch {
+			if (aviso) aviso.textContent = 'No se pudo generar el WAV en este navegador.';
+		}
+	}
+
+	function pintarControles() {
+		panel?.querySelectorAll<HTMLButtonElement>('[data-so-tono]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.soTono === estado.tono));
+		});
+		panel?.querySelectorAll<HTMLButtonElement>('[data-so-onda]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.soOnda === estado.onda));
+		});
+		MEDIDAS.forEach((m) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-so-rango="${m}"]`);
+			const numero = panel?.querySelector<HTMLInputElement>(`[data-so-num="${m}"]`);
+			if (rango) rango.value = String(estado[m]);
+			if (numero && document.activeElement !== numero) numero.value = String(estado[m]);
+		});
+		const altura = estado.altura === 0 ? 'altura base' : `${estado.altura > 0 ? '+' : ''}${estado.altura} semitonos`;
+		if (resumen) resumen.textContent = `${estado.duracion} ms · ${altura} · volumen ${estado.volumen} %`;
+	}
+
+	let espera: number | undefined;
+
+	function actualizar(sonar = true) {
+		pintarControles();
+		guardar();
+		dibujar();
+		// Con «Sonar al cambiar», se oye al soltar: arrastrar un deslizador no
+		// debería disparar veinte avisos seguidos.
+		if (sonar && auto?.checked) {
+			clearTimeout(espera);
+			espera = window.setTimeout(escuchar, 180);
+		}
+	}
+
+	function ponerMedida(m: Medida, valor: number) {
+		if (!Number.isFinite(valor)) return;
+		estado[m] = limitar(valor, ...RANGOS[m]);
+		actualizar();
+	}
+
+	MEDIDAS.forEach((m) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-so-rango="${m}"]`);
+		const numero = panel?.querySelector<HTMLInputElement>(`[data-so-num="${m}"]`);
+		rango?.addEventListener('input', () => ponerMedida(m, Number(rango.value)));
+		numero?.addEventListener('input', () => {
+			if (numero.value.trim() !== '') ponerMedida(m, Number(numero.value));
+		});
+		numero?.addEventListener('blur', () => {
+			numero.value = String(estado[m]);
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-so-tono]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const tono = b.dataset.soTono ?? '';
+			if (!(tono in TONOS)) return;
+			estado.tono = tono;
+			actualizar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-so-onda]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const onda = b.dataset.soOnda as Onda;
+			if (!ONDAS.includes(onda)) return;
+			estado.onda = onda;
+			actualizar();
+		});
+	});
+
+	play?.addEventListener('click', () => {
+		if (play.dataset.state === 'sonando') parar();
+		else escuchar();
+	});
+
+	bajar?.addEventListener('click', descargar);
+
+	panel?.querySelector('[data-so-reset]')?.addEventListener('click', () => {
+		estado = { ...INICIAL };
+		actualizar(false);
+	});
+
+	// El lienzo toma el color del tema: si cambia a oscuro, se repinta.
+	new MutationObserver(() => dibujar()).observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ['data-modo', 'style', 'class'],
+	});
+
+	actualizar(false);
+</script>
