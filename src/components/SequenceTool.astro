@@ -1,0 +1,423 @@
+---
+/**
+ * Secuencias de animaciones CSS: pones pasos en fila (deslizar, rebotar, una
+ * pausa, sacudir...), le das a cada uno su duración y lo ves moverse al momento.
+ * Todo sale en un solo @keyframes para copiar. El cálculo está en
+ * src/lib/sequence.ts; aquí solo están los mandos. Se guarda en localStorage.
+ */
+import { DURATION, SELECTOR_MAX, SIDES, TIMINGS } from '../lib/animation';
+import { STEP_EFFECTS, STEPS_MAX } from '../lib/sequence';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+const MINI =
+	'inline-flex items-center border border-line p-1 text-muted hover:border-accent hover:text-accent disabled:opacity-30 disabled:hover:border-line disabled:hover:text-muted';
+const CAMPO = 'border border-line bg-bg px-2 py-1 text-sm text-fg outline-none focus-visible:border-accent';
+---
+
+<div
+	role="tabpanel"
+	id="secuencias"
+	aria-labelledby="tab-secuencias"
+	data-panel="secuencias"
+	hidden
+	class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start"
+>
+	<div class="flex min-w-0 flex-col gap-4">
+		<div
+			class="relative flex h-72 items-center justify-center overflow-hidden border border-line bg-panel"
+			aria-label="Vista previa de la secuencia"
+			role="img"
+		>
+			<div
+				data-seq-caja
+				class="flex size-28 items-center justify-center border border-accent bg-accent font-pixel text-2xl text-bg"
+			>
+				tuweb
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-1">
+			<div data-seq-linea class="relative flex h-6 border border-line bg-panel" aria-hidden="true">
+				<span data-seq-cabezal class="absolute inset-y-0 w-0.5 bg-mark"></span>
+			</div>
+			<span data-seq-paso class="text-sm text-muted" aria-live="polite"></span>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-seq-play class={`${BOTON} border-accent text-accent`}>
+				<span data-seq-play-icono="play"><Icon name="player-play" class="size-4 shrink-0" /></span>
+				<span data-seq-play-icono="pause" hidden><Icon name="player-pause" class="size-4 shrink-0" /></span>
+				<span data-seq-play-texto>Pausar</span>
+			</button>
+			<button type="button" data-seq-otra class={BOTON}>
+				<Icon name="refresh" class="size-4 shrink-0" />
+				Otra vez
+			</button>
+			<span data-seq-estado class="text-sm text-muted" aria-live="polite"></span>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center justify-between gap-2">
+				<span class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="keyframes" class="size-4 shrink-0 text-accent" />
+					El CSS
+				</span>
+				<button type="button" data-seq-copiar class={`${BOTON} px-2 py-1`}>
+					<Icon name="copy" class="size-4 shrink-0" />
+					<span data-seq-copiar-texto aria-live="polite">Copiar</span>
+				</button>
+			</span>
+			<pre class="overflow-auto border border-line bg-panel p-4 text-sm text-fg"><code data-seq-css></code></pre>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center justify-between gap-2">
+				<span class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="list-numbers" class="size-4 shrink-0" />
+					Pasos <span data-seq-cuenta class="text-mark"></span>
+				</span>
+				<button type="button" data-seq-reset class={`${BOTON} px-2 py-1`}>
+					<Icon name="eraser" class="size-4 shrink-0" />
+					Por defecto
+				</button>
+			</span>
+			<ol data-seq-lista class="flex flex-col gap-2"></ol>
+			<button type="button" data-seq-anadir class={BOTON}>
+				<Icon name="plus" class="size-4 shrink-0" />
+				Añadir paso
+			</button>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span id="seq-timing" class="text-sm text-muted">Función de tiempo</span>
+			<div role="group" aria-labelledby="seq-timing" class="flex flex-wrap gap-2">
+				{
+					TIMINGS.map((item) => (
+						<button type="button" data-seq-timing={item.id} aria-pressed="false" class={`${BOTON} px-2 py-1`}>
+							{item.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<label class="inline-flex items-center gap-2 text-sm text-muted">
+			<input type="checkbox" data-seq-bucle class="accent-accent" />
+			<Icon name="repeat" class="size-4 shrink-0" />
+			Repetir sin fin
+		</label>
+
+		<label class="flex flex-col gap-1">
+			<span class="text-sm text-muted">Clase del elemento</span>
+			<input
+				type="text"
+				data-seq-clase
+				maxlength={SELECTOR_MAX}
+				placeholder="caja"
+				autocomplete="off"
+				spellcheck="false"
+				class={`${CAMPO} w-full p-3`}
+			/>
+		</label>
+
+		<p class="text-xs text-muted">Hasta {STEPS_MAX} pasos. Se guarda solo en tu navegador.</p>
+	</div>
+</div>
+
+<template data-seq-plantilla>
+	<li class="flex flex-col gap-2 border border-line bg-bg p-3">
+		<div class="flex items-center gap-2">
+			<span data-seq-num class="w-5 shrink-0 font-pixel text-mark"></span>
+			<select data-seq-efecto aria-label="Efecto" class={`${CAMPO} min-w-0 flex-1`}>
+				{STEP_EFFECTS.map((item) => <option value={item.id}>{item.label}</option>)}
+			</select>
+			<select data-seq-lado aria-label="Entra desde" class={`${CAMPO} min-w-0`}>
+				{SIDES.map((item) => <option value={item.id}>Desde {item.label.toLowerCase()}</option>)}
+			</select>
+			<button type="button" data-seq-mover="-1" aria-label="Subir paso" class={MINI}>
+				<Icon name="arrow-up" class="size-4" />
+			</button>
+			<button type="button" data-seq-mover="1" aria-label="Bajar paso" class={MINI}>
+				<Icon name="arrow-down" class="size-4" />
+			</button>
+			<button type="button" data-seq-quitar aria-label="Quitar paso" class={MINI}>
+				<Icon name="trash" class="size-4" />
+			</button>
+		</div>
+		<label class="flex items-center gap-3 text-sm text-muted">
+			<Icon name="hourglass" class="size-4 shrink-0" />
+			<input
+				type="range"
+				data-seq-duracion
+				aria-label="Duración del paso"
+				min={DURATION.min}
+				max={DURATION.max}
+				step={DURATION.step}
+				class="w-full accent-accent"
+			/>
+			<output data-seq-ms class="w-16 shrink-0 text-right text-mark"></output>
+		</label>
+	</li>
+</template>
+
+<script>
+	import {
+		DEFAULT_SEQUENCE,
+		STEPS_MAX,
+		type SequenceOptions,
+		loadSequence,
+		saveSequence,
+		sequenceCss,
+		sequenceWebFrames,
+		sequenceWebTiming,
+		stepLabel,
+		toSequence,
+		totalDuration,
+	} from '../lib/sequence';
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="secuencias"]');
+	const caja = panel?.querySelector<HTMLElement>('[data-seq-caja]');
+	const linea = panel?.querySelector<HTMLElement>('[data-seq-linea]');
+	const cabezal = panel?.querySelector<HTMLElement>('[data-seq-cabezal]');
+	const pasoActual = panel?.querySelector<HTMLElement>('[data-seq-paso]');
+	const lista = panel?.querySelector<HTMLOListElement>('[data-seq-lista]');
+	const cuenta = panel?.querySelector<HTMLElement>('[data-seq-cuenta]');
+	const anadir = panel?.querySelector<HTMLButtonElement>('[data-seq-anadir]');
+	const bucle = panel?.querySelector<HTMLInputElement>('[data-seq-bucle]');
+	const clase = panel?.querySelector<HTMLInputElement>('[data-seq-clase]');
+	const css = panel?.querySelector<HTMLElement>('[data-seq-css]');
+	const estado = panel?.querySelector<HTMLElement>('[data-seq-estado]');
+	const play = panel?.querySelector<HTMLButtonElement>('[data-seq-play]');
+	const playTexto = panel?.querySelector<HTMLElement>('[data-seq-play-texto]');
+	const copiarTexto = panel?.querySelector<HTMLElement>('[data-seq-copiar-texto]');
+	const plantilla = document.querySelector<HTMLTemplateElement>('[data-seq-plantilla]');
+
+	let opciones: SequenceOptions = loadSequence();
+	let animacion: Animation | null = null;
+	let frame = 0;
+	let reloj: number | undefined;
+
+	const calma = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	function ms(valor: number) {
+		return valor >= 1000 ? `${(valor / 1000).toFixed(2).replace(/\.?0+$/, '')} s` : `${valor} ms`;
+	}
+
+	/** El paso que suena en este momento, por el tiempo dentro de la vuelta. */
+	function pasoEn(tiempo: number) {
+		let inicio = 0;
+		for (const [indice, paso] of opciones.steps.entries()) {
+			if (tiempo < inicio + paso.duration) return indice;
+			inicio += paso.duration;
+		}
+		return opciones.steps.length - 1;
+	}
+
+	function seguir() {
+		cancelAnimationFrame(frame);
+		const total = totalDuration(opciones);
+		const tiempo = Number(animacion?.currentTime ?? 0);
+		const acabada = animacion?.playState === 'finished';
+		const dentro = acabada ? total : tiempo % total;
+		if (cabezal) cabezal.style.left = `${Math.min(100, (dentro / total) * 100)}%`;
+		const indice = pasoEn(acabada ? total - 1 : dentro);
+		linea?.querySelectorAll<HTMLElement>('[data-seq-tramo]').forEach((tramo, i) => {
+			tramo.classList.toggle('bg-accent', i === indice);
+		});
+		if (pasoActual) pasoActual.textContent = `Paso ${indice + 1}: ${stepLabel(opciones.steps[indice])}`;
+		if (animacion?.playState === 'running') frame = requestAnimationFrame(seguir);
+	}
+
+	function pintarPlay() {
+		const parada = !animacion || animacion.playState !== 'running';
+		panel?.querySelectorAll<HTMLElement>('[data-seq-play-icono]').forEach((icono) => {
+			icono.hidden = (icono.dataset.seqPlayIcono === 'play') !== parada;
+		});
+		if (playTexto) playTexto.textContent = parada ? 'Reproducir' : 'Pausar';
+		if (estado) estado.textContent = animacion?.playState === 'finished' ? 'Terminada.' : '';
+		seguir();
+	}
+
+	function lanzar() {
+		if (!caja) return;
+		animacion?.cancel();
+		try {
+			animacion = caja.animate(sequenceWebFrames(opciones), sequenceWebTiming(opciones));
+		} catch {
+			animacion = null;
+		}
+		animacion?.addEventListener('finish', pintarPlay);
+		pintarPlay();
+	}
+
+	function pintarLinea() {
+		if (!linea) return;
+		linea.querySelectorAll('[data-seq-tramo]').forEach((tramo) => tramo.remove());
+		const total = totalDuration(opciones);
+		opciones.steps.forEach((paso) => {
+			const tramo = document.createElement('span');
+			tramo.dataset.seqTramo = '';
+			tramo.className = 'h-full border-r border-line opacity-40';
+			tramo.style.width = `${(paso.duration / total) * 100}%`;
+			linea.insertBefore(tramo, cabezal ?? null);
+		});
+	}
+
+	function pintarPasos() {
+		if (!lista || !plantilla) return;
+		lista.replaceChildren();
+		opciones.steps.forEach((paso, indice) => {
+			const fila = plantilla.content.firstElementChild?.cloneNode(true) as HTMLLIElement | undefined;
+			if (!fila) return;
+			fila.dataset.indice = String(indice);
+			const num = fila.querySelector<HTMLElement>('[data-seq-num]');
+			const efecto = fila.querySelector<HTMLSelectElement>('[data-seq-efecto]');
+			const lado = fila.querySelector<HTMLSelectElement>('[data-seq-lado]');
+			const duracion = fila.querySelector<HTMLInputElement>('[data-seq-duracion]');
+			const salida = fila.querySelector<HTMLOutputElement>('[data-seq-ms]');
+			if (num) num.textContent = String(indice + 1);
+			if (efecto) efecto.value = paso.effect;
+			if (lado) {
+				lado.value = paso.side;
+				lado.hidden = paso.effect !== 'slide';
+			}
+			if (duracion) duracion.value = String(paso.duration);
+			if (salida) salida.textContent = ms(paso.duration);
+			fila.querySelector<HTMLButtonElement>('[data-seq-mover="-1"]')?.toggleAttribute('disabled', indice === 0);
+			fila
+				.querySelector<HTMLButtonElement>('[data-seq-mover="1"]')
+				?.toggleAttribute('disabled', indice === opciones.steps.length - 1);
+			fila.querySelector<HTMLButtonElement>('[data-seq-quitar]')?.toggleAttribute('disabled', opciones.steps.length === 1);
+			lista.append(fila);
+		});
+	}
+
+	function pintarResto() {
+		if (cuenta) cuenta.textContent = `${opciones.steps.length} · ${ms(totalDuration(opciones))}`;
+		if (anadir) anadir.disabled = opciones.steps.length >= STEPS_MAX;
+		panel?.querySelectorAll<HTMLButtonElement>('[data-seq-timing]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.seqTiming === opciones.timing));
+		});
+		if (bucle) bucle.checked = opciones.loop;
+		if (clase && document.activeElement !== clase) clase.value = opciones.selector;
+		if (css) css.textContent = sequenceCss(opciones);
+		pintarLinea();
+	}
+
+	/** Guarda, repinta y relanza. Las filas solo se rehacen si cambia la forma de la lista. */
+	function cambiar(parcial: Partial<Record<keyof SequenceOptions, unknown>>, filas = false) {
+		opciones = toSequence({ ...opciones, ...parcial });
+		saveSequence(opciones);
+		if (filas) pintarPasos();
+		pintarResto();
+		lanzar();
+	}
+
+	function editarPaso(indice: number, cambio: Record<string, unknown>, filas = false) {
+		const pasos = opciones.steps.map((paso, i) => (i === indice ? { ...paso, ...cambio } : paso));
+		cambiar({ steps: pasos }, filas);
+	}
+
+	const indiceDe = (el: Element) => Number((el.closest('[data-indice]') as HTMLElement | null)?.dataset.indice ?? -1);
+
+	lista?.addEventListener('change', (evento) => {
+		const campo = evento.target as HTMLElement;
+		const indice = indiceDe(campo);
+		if (indice < 0) return;
+		if (campo instanceof HTMLSelectElement && campo.matches('[data-seq-efecto]')) {
+			editarPaso(indice, { effect: campo.value }, true);
+		} else if (campo instanceof HTMLSelectElement && campo.matches('[data-seq-lado]')) {
+			editarPaso(indice, { side: campo.value });
+		}
+	});
+
+	lista?.addEventListener('input', (evento) => {
+		const campo = evento.target as HTMLElement;
+		if (!(campo instanceof HTMLInputElement) || !campo.matches('[data-seq-duracion]')) return;
+		const indice = indiceDe(campo);
+		if (indice < 0) return;
+		const salida = campo.closest('li')?.querySelector('[data-seq-ms]');
+		if (salida) salida.textContent = ms(Number(campo.value));
+		editarPaso(indice, { duration: Number(campo.value) });
+	});
+
+	lista?.addEventListener('click', (evento) => {
+		const boton = (evento.target as HTMLElement).closest<HTMLButtonElement>('button');
+		if (!boton || boton.disabled) return;
+		const indice = indiceDe(boton);
+		if (indice < 0) return;
+		const pasos = [...opciones.steps];
+		if (boton.matches('[data-seq-quitar]')) {
+			pasos.splice(indice, 1);
+		} else if (boton.dataset.seqMover) {
+			const destino = indice + Number(boton.dataset.seqMover);
+			if (destino < 0 || destino >= pasos.length) return;
+			[pasos[indice], pasos[destino]] = [pasos[destino], pasos[indice]];
+		} else return;
+		cambiar({ steps: pasos }, true);
+	});
+
+	anadir?.addEventListener('click', () => {
+		if (opciones.steps.length >= STEPS_MAX) return;
+		cambiar({ steps: [...opciones.steps, { effect: 'fade', side: 'left', duration: 600 }] }, true);
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-seq-timing]').forEach((boton) => {
+		boton.addEventListener('click', () => cambiar({ timing: boton.dataset.seqTiming ?? '' }));
+	});
+
+	bucle?.addEventListener('change', () => cambiar({ loop: bucle.checked }));
+
+	clase?.addEventListener('input', () => {
+		// El CSS cambia al escribir; la animación no hace falta relanzarla.
+		opciones = toSequence({ ...opciones, selector: clase.value });
+		saveSequence(opciones);
+		if (css) css.textContent = sequenceCss(opciones);
+	});
+
+	clase?.addEventListener('blur', () => {
+		clase.value = opciones.selector;
+	});
+
+	panel?.querySelector('[data-seq-reset]')?.addEventListener('click', () => {
+		cambiar(structuredClone(DEFAULT_SEQUENCE), true);
+	});
+
+	play?.addEventListener('click', () => {
+		if (!animacion || animacion.playState === 'finished') lanzar();
+		else if (animacion.playState === 'running') animacion.pause();
+		else animacion.play();
+		pintarPlay();
+	});
+
+	panel?.querySelector('[data-seq-otra]')?.addEventListener('click', lanzar);
+
+	panel?.querySelector('[data-seq-copiar]')?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(sequenceCss(opciones));
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
+		}
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo';
+		window.clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 1600);
+	});
+
+	pintarPasos();
+	pintarResto();
+	lanzar();
+	if (calma && animacion) {
+		animacion.pause();
+		animacion.currentTime = 0;
+		pintarPlay();
+		if (estado) estado.textContent = 'Pediste menos movimiento: dale a reproducir para verla.';
+	}
+</script>

@@ -17,6 +17,7 @@ import OverlayTool from './OverlayTool.astro';
 import ParallaxTool from './ParallaxTool.astro';
 import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
+import SequenceTool from './SequenceTool.astro';
 import ShadowTool from './ShadowTool.astro';
 import SoundTool from './SoundTool.astro';
 import SvgAnimTool from './SvgAnimTool.astro';
@@ -40,6 +41,7 @@ const tools = [
 	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
 	{ id: 'sombras', label: 'Sombras', icon: 'shadow' },
 	{ id: 'transiciones', label: 'Transiciones', icon: 'vector-bezier-2' },
+	{ id: 'secuencias', label: 'Secuencias CSS', icon: 'timeline-event' },
 	{ id: 'animaciones-svg', label: 'Animaciones SVG', icon: 'svg' },
 	{ id: 'parallax', label: 'Parallax', icon: 'stack-2' },
 	{ id: 'maquetador', label: 'Maquetador', icon: 'layout-board' },
@@ -198,6 +200,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ShadowTool />
 
 	<TransitionTool />
+
+	<SequenceTool />
 
 	<SvgAnimTool />
 
