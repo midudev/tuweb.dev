@@ -11,6 +11,7 @@ import SectionsLink from '../components/SectionsLink.astro';
 import TopBar from '../components/TopBar.astro';
 import TopOne from '../components/TopOne.astro';
 import Tour from '../components/Tour.astro';
+import VoiceDictation from '../components/VoiceDictation.astro';
 import { getSessionUser } from '../lib/auth';
 import { getDashboardData, getHomeData } from '../lib/db/queries';
 import { siteState } from '../lib/releases';
@@ -69,7 +70,10 @@ const deployedAt =
 						<Header user={user} version={data.version} deployedAt={deployedAt} state={state} />
 					</div>
 					{flash && <p class="text-sm text-mark">{flash}</p>}
-					<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
+					<div class="flex flex-col">
+						<ProposeForm user={user} myPrompt={data.myPrompt} endsAt={data.window.endsAt} state={state} />
+						<VoiceDictation />
+					</div>
 					<div data-live="ideas">
 						<IdeasLink ideaCount={data.ideaCount} discardedCount={data.discardedCount} />
 					</div>

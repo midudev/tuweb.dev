@@ -1,0 +1,156 @@
+---
+/**
+ * Dictar la idea por voz. Va fuera del formulario a propósito: la portada
+ * cambia el formulario entero al ponerse al día, así que esto busca el
+ * textarea cada vez en vez de guardarlo. Si el navegador no sabe dictar,
+ * no sale nada.
+ */
+import Icon from './Icon.astro';
+---
+
+<div
+	data-voice
+	hidden
+	class="flex flex-wrap items-center justify-between gap-4 border border-t-0 border-line bg-bg px-8 py-3 text-sm"
+>
+	<p class="text-muted" data-voice-status aria-live="polite">También puedes dictarla.</p>
+	<button
+		type="button"
+		data-voice-toggle
+		aria-pressed="false"
+		class="inline-flex items-center gap-2 border border-line px-4 py-2 hover:border-fg aria-pressed:border-mark aria-pressed:text-mark"
+	>
+		<span data-voice-idle class="inline-flex items-center gap-2">
+			<Icon name="microphone" class="size-4 shrink-0" />
+			Dictar
+		</span>
+		<span data-voice-busy hidden class="inline-flex items-center gap-2">
+			<Icon name="player-stop" class="size-4 shrink-0" />
+			Parar
+		</span>
+	</button>
+</div>
+
+<script>
+	const MAX = 280;
+
+	interface Resultado {
+		isFinal: boolean;
+		0: { transcript: string };
+	}
+	interface Reconocedor {
+		lang: string;
+		continuous: boolean;
+		interimResults: boolean;
+		start(): void;
+		stop(): void;
+		onresult: ((event: { resultIndex: number; results: ArrayLike<Resultado> }) => void) | null;
+		onerror: ((event: { error: string }) => void) | null;
+		onend: (() => void) | null;
+	}
+	type ConReconocedor = {
+		SpeechRecognition?: new () => Reconocedor;
+		webkitSpeechRecognition?: new () => Reconocedor;
+	};
+
+	const nav = window as unknown as ConReconocedor;
+	const Clase = nav.SpeechRecognition ?? nav.webkitSpeechRecognition;
+
+	const barra = document.querySelector<HTMLElement>('[data-voice]');
+	const boton = document.querySelector<HTMLButtonElement>('[data-voice-toggle]');
+	const estado = document.querySelector<HTMLElement>('[data-voice-status]');
+	const quieto = document.querySelector<HTMLElement>('[data-voice-idle]');
+	const ocupado = document.querySelector<HTMLElement>('[data-voice-busy]');
+
+	const campo = () =>
+		document.querySelector<HTMLTextAreaElement>('[data-prompt-input]:not(:disabled)');
+
+	const ERRORES: Record<string, string> = {
+		'not-allowed': 'Sin permiso para usar el micrófono.',
+		'service-not-allowed': 'Tu navegador no deja dictar aquí.',
+		'no-speech': 'No se oye nada. Prueba otra vez.',
+		'audio-capture': 'No hay micrófono.',
+		network: 'Sin conexión para dictar.',
+	};
+
+	if (Clase && barra && boton && estado && quieto && ocupado) {
+		let reconocedor: Reconocedor | null = null;
+		let base = '';
+
+		const pinta = (activo: boolean) => {
+			boton.setAttribute('aria-pressed', String(activo));
+			quieto.hidden = activo;
+			ocupado.hidden = !activo;
+		};
+
+		// Solo se ofrece si hay dónde escribir: sin sesión o con los cambios
+		// gastados el textarea no está o está desactivado.
+		const mira = () => {
+			const hay = Boolean(campo());
+			barra.hidden = !hay;
+			if (!hay) reconocedor?.stop();
+		};
+
+		const escribe = (texto: string) => {
+			const input = campo();
+			if (!input) return;
+			const junto = [base, texto.trim()].filter(Boolean).join(' ');
+			input.value = junto.slice(0, MAX);
+			// Así el contador de caracteres se entera.
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			if (junto.length >= MAX) reconocedor?.stop();
+		};
+
+		const empieza = () => {
+			const input = campo();
+			if (!input) return;
+
+			base = input.value.trim();
+			const r = new Clase();
+			r.lang = document.documentElement.lang || 'es-ES';
+			r.continuous = true;
+			r.interimResults = true;
+
+			let hecho = '';
+			r.onresult = (event) => {
+				let provisional = '';
+				for (let i = event.resultIndex; i < event.results.length; i++) {
+					const resultado = event.results[i];
+					if (resultado.isFinal) hecho += `${resultado[0].transcript} `;
+					else provisional += resultado[0].transcript;
+				}
+				escribe(hecho + provisional);
+			};
+			r.onerror = (event) => {
+				if (event.error === 'aborted') return;
+				estado.textContent = ERRORES[event.error] ?? 'No se pudo dictar.';
+			};
+			r.onend = () => {
+				reconocedor = null;
+				pinta(false);
+				if (estado.textContent === 'Escuchando…') {
+					estado.textContent = 'Listo. Revisa el texto antes de enviar.';
+				}
+			};
+
+			try {
+				r.start();
+			} catch {
+				estado.textContent = 'No se pudo dictar.';
+				return;
+			}
+			reconocedor = r;
+			pinta(true);
+			estado.textContent = 'Escuchando…';
+		};
+
+		boton.addEventListener('click', () => {
+			if (reconocedor) reconocedor.stop();
+			else empieza();
+		});
+
+		const zona = document.querySelector('[data-live="propose"]');
+		if (zona) new MutationObserver(mira).observe(zona, { childList: true, subtree: true });
+		mira();
+	}
+</script>
