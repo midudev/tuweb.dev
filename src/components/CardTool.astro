@@ -1,0 +1,707 @@
+---
+/**
+ * Diseñador de cartas: colores, tipografía, forma y contenido de una card, con
+ * la vista previa al momento y una tanda de variaciones al azar para comparar.
+ * Todo pasa en el navegador y lo único que se guarda es el estado, en
+ * localStorage. El texto del visitante entra siempre como textContent.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm text-fg outline-none focus-visible:border-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const TEXTOS = [
+	{ id: 'etiqueta', label: 'Etiqueta', max: 24 },
+	{ id: 'titulo', label: 'Título', max: 60 },
+	{ id: 'texto', label: 'Texto', max: 160 },
+	{ id: 'boton', label: 'Botón', max: 24 },
+];
+
+const COLORES = [
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'tinta', label: 'Texto' },
+	{ id: 'acento', label: 'Acento' },
+	{ id: 'borde', label: 'Borde' },
+];
+
+const MEDIDAS = [
+	{ id: 'tamano', label: 'Tamaño del título', min: 14, max: 40 },
+	{ id: 'radio', label: 'Esquinas', min: 0, max: 32 },
+	{ id: 'grosor', label: 'Borde', min: 0, max: 6 },
+	{ id: 'relleno', label: 'Relleno', min: 8, max: 48 },
+	{ id: 'ancho', label: 'Ancho', min: 200, max: 480 },
+];
+
+const OPCIONES = [
+	{
+		id: 'fuente',
+		label: 'Tipografía',
+		valores: [
+			['mono', 'Mono'],
+			['pixel', 'Pixel'],
+			['sans', 'Sans'],
+			['serif', 'Serif'],
+		],
+	},
+	{
+		id: 'sombra',
+		label: 'Sombra',
+		valores: [
+			['ninguna', 'Ninguna'],
+			['suave', 'Suave'],
+			['dura', 'Dura'],
+			['flotante', 'Flotante'],
+		],
+	},
+	{
+		id: 'dir',
+		label: 'Disposición',
+		valores: [
+			['columna', 'Vertical'],
+			['fila', 'Horizontal'],
+		],
+	},
+	{
+		id: 'alineado',
+		label: 'Alineación',
+		valores: [
+			['izquierda', 'Izquierda'],
+			['centro', 'Centro'],
+		],
+	},
+];
+---
+
+<div
+	role="tabpanel"
+	id="cartas"
+	aria-labelledby="tab-cartas"
+	data-panel="cartas"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<fieldset class="flex flex-col gap-3">
+				<legend class="mb-2 text-sm text-muted">Contenido</legend>
+				{
+					TEXTOS.map((t) => (
+						<label class="flex flex-col gap-1 text-sm text-muted">
+							{t.label}
+							<input type="text" maxlength={t.max} data-cd-campo={t.id} class={CAMPO} />
+						</label>
+					))
+				}
+				<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-cd-campo="imagen" class="size-4 accent-accent" />
+					Con imagen
+				</label>
+				<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-cd-campo="negrita" class="size-4 accent-accent" />
+					Título en negrita
+				</label>
+			</fieldset>
+
+			<fieldset class="flex flex-wrap gap-4">
+				<legend class="mb-2 text-sm text-muted">Colores</legend>
+				{
+					COLORES.map((c) => (
+						<label class="inline-flex items-center gap-2 text-sm text-muted">
+							<input type="color" data-cd-campo={c.id} aria-label={`Color: ${c.label}`} class={COLOR} />
+							{c.label}
+						</label>
+					))
+				}
+			</fieldset>
+
+			{
+				OPCIONES.map((o) => (
+					<div class="flex flex-col gap-2" role="group" aria-label={o.label}>
+						<span class="text-sm text-muted">{o.label}</span>
+						<div class="flex flex-wrap gap-2">
+							{o.valores.map(([valor, label]) => (
+								<button type="button" data-cd-opcion={o.id} data-valor={valor} aria-pressed="false" class={OPCION}>
+									{label}
+								</button>
+							))}
+						</div>
+					</div>
+				))
+			}
+
+			{
+				MEDIDAS.map((m) => (
+					<label class="flex flex-col gap-2 text-sm text-muted">
+						<span class="flex justify-between gap-3">
+							{m.label}
+							<span data-cd-valor={m.id} class="text-fg" />
+						</span>
+						<input type="range" min={m.min} max={m.max} step="1" data-cd-campo={m.id} class="w-full accent-accent" />
+					</label>
+				))
+			}
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div data-cd-lienzo class="flex min-h-96 w-full items-center justify-center overflow-hidden border border-line bg-panel p-8 sm:p-12">
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-cd-variar class={BOTON}>
+					<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+					Generar variaciones
+				</button>
+				<button type="button" data-cd-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+
+			<div data-cd-variaciones class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite"></div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">HTML y CSS</span>
+				<pre data-cd-codigo class="max-h-96 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre text-mark"></pre>
+			</div>
+
+			<div>
+				<button type="button" data-cd-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-cd-copiar-texto aria-live="polite">Copiar código</span>
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<template data-cd-plantilla>
+		<article class="cd-carta">
+			<div class="cd-imagen" aria-hidden="true"></div>
+			<div class="cd-cuerpo">
+				<span class="cd-etiqueta"></span>
+				<h3 class="cd-titulo"></h3>
+				<p class="cd-texto"></p>
+				<span class="cd-boton"></span>
+			</div>
+		</article>
+	</template>
+</div>
+
+<style is:global>
+	[data-panel='cartas'] input[type='color']::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='cartas'] input[type='color']::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='cartas'] input[type='color']::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+
+	/* La carta de prueba vive de sus variables: la misma pieza sirve para la
+	   vista grande y para las variaciones. */
+	[data-panel='cartas'] .cd-carta {
+		display: flex;
+		flex-direction: var(--cd-dir);
+		width: 100%;
+		max-width: var(--cd-ancho);
+		overflow: hidden;
+		background: var(--cd-fondo);
+		color: var(--cd-tinta);
+		border: var(--cd-grosor) solid var(--cd-borde);
+		border-radius: var(--cd-radio);
+		box-shadow: var(--cd-sombra);
+		font-family: var(--cd-fuente);
+		line-height: 1.5;
+	}
+	[data-panel='cartas'] .cd-imagen {
+		flex: 0 0 auto;
+		min-height: 8rem;
+		background: repeating-linear-gradient(
+			45deg,
+			var(--cd-acento) 0 12px,
+			color-mix(in oklab, var(--cd-acento) 65%, var(--cd-fondo)) 12px 24px
+		);
+	}
+	[data-panel='cartas'] .cd-carta[data-dir='fila'] .cd-imagen {
+		width: 38%;
+		min-height: 0;
+	}
+	[data-panel='cartas'] .cd-cuerpo {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		align-items: var(--cd-alinear);
+		gap: calc(var(--cd-relleno) / 2);
+		padding: var(--cd-relleno);
+		text-align: var(--cd-texto-alinear);
+		min-width: 0;
+	}
+	[data-panel='cartas'] .cd-etiqueta {
+		color: var(--cd-acento);
+		font-size: 0.75rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+	[data-panel='cartas'] .cd-titulo {
+		margin: 0;
+		font-size: var(--cd-tamano);
+		font-weight: var(--cd-peso);
+		line-height: 1.15;
+	}
+	[data-panel='cartas'] .cd-texto {
+		margin: 0;
+		font-size: 0.9rem;
+		opacity: 0.8;
+	}
+	[data-panel='cartas'] .cd-boton {
+		margin-top: calc(var(--cd-relleno) / 4);
+		padding: 0.5em 1em;
+		background: var(--cd-acento);
+		color: var(--cd-fondo);
+		border-radius: calc(var(--cd-radio) / 2);
+		font-size: 0.875rem;
+	}
+	[data-panel='cartas'] .cd-carta [data-vacio] {
+		display: none;
+	}
+
+	[data-cd-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-cd-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-cd-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-cd-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-cd-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Fuente = 'mono' | 'pixel' | 'sans' | 'serif';
+	type Sombra = 'ninguna' | 'suave' | 'dura' | 'flotante';
+	type Diseno = {
+		etiqueta: string;
+		titulo: string;
+		texto: string;
+		boton: string;
+		imagen: boolean;
+		negrita: boolean;
+		fondo: string;
+		tinta: string;
+		acento: string;
+		borde: string;
+		fuente: Fuente;
+		sombra: Sombra;
+		dir: 'columna' | 'fila';
+		alineado: 'izquierda' | 'centro';
+		tamano: number;
+		radio: number;
+		grosor: number;
+		relleno: number;
+		ancho: number;
+	};
+	type Texto = 'etiqueta' | 'titulo' | 'texto' | 'boton';
+	type Color = 'fondo' | 'tinta' | 'acento' | 'borde';
+	type Medida = 'tamano' | 'radio' | 'grosor' | 'relleno' | 'ancho';
+	type Opcion = 'fuente' | 'sombra' | 'dir' | 'alineado';
+
+	const CLAVE = 'tuweb:cartas';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const TEXTOS: Record<Texto, number> = { etiqueta: 24, titulo: 60, texto: 160, boton: 24 };
+	const COLORES: Color[] = ['fondo', 'tinta', 'acento', 'borde'];
+	const RANGOS: Record<Medida, [number, number]> = {
+		tamano: [14, 40],
+		radio: [0, 32],
+		grosor: [0, 6],
+		relleno: [8, 48],
+		ancho: [200, 480],
+	};
+	const OPCIONES: Record<Opcion, readonly string[]> = {
+		fuente: ['mono', 'pixel', 'sans', 'serif'],
+		sombra: ['ninguna', 'suave', 'dura', 'flotante'],
+		dir: ['columna', 'fila'],
+		alineado: ['izquierda', 'centro'],
+	};
+	const FUENTES: Record<Fuente, string> = {
+		mono: '"Geist Mono Variable", ui-monospace, monospace',
+		pixel: '"Geist Pixel", ui-monospace, monospace',
+		sans: 'system-ui, sans-serif',
+		serif: 'Georgia, "Times New Roman", serif',
+	};
+	// Paletas que casan: fondo, texto, acento y borde.
+	const PALETAS: [string, string, string, string][] = [
+		['#fdf6ef', '#3b2d24', '#c2410c', '#e8d9c8'],
+		['#17110d', '#f3e7db', '#fc784b', '#382b21'],
+		['#ffffff', '#111827', '#2563eb', '#e5e7eb'],
+		['#0f172a', '#e2e8f0', '#22d3ee', '#1e293b'],
+		['#fef9c3', '#422006', '#ca8a04', '#422006'],
+		['#ecfdf5', '#064e3b', '#059669', '#a7f3d0'],
+		['#fdf2f8', '#500724', '#db2777', '#fbcfe8'],
+		['#18181b', '#fafafa', '#a3e635', '#3f3f46'],
+	];
+
+	const INICIAL: Diseno = {
+		etiqueta: 'Nuevo',
+		titulo: 'Una idea cada media hora',
+		texto: 'La gente propone, se vota y la ganadora acaba en la web.',
+		boton: 'Proponer',
+		imagen: true,
+		negrita: true,
+		fondo: '#fdf6ef',
+		tinta: '#3b2d24',
+		acento: '#c2410c',
+		borde: '#e8d9c8',
+		fuente: 'mono',
+		sombra: 'suave',
+		dir: 'columna',
+		alineado: 'izquierda',
+		tamano: 22,
+		radio: 0,
+		grosor: 1,
+		relleno: 24,
+		ancho: 320,
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="cartas"]');
+	const lienzo = panel?.querySelector<HTMLElement>('[data-cd-lienzo]');
+	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-cd-plantilla]');
+	const variaciones = panel?.querySelector<HTMLElement>('[data-cd-variaciones]');
+	const codigo = panel?.querySelector<HTMLElement>('[data-cd-codigo]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-cd-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-cd-copiar-texto]');
+	const campo = (id: string) => panel?.querySelector<HTMLInputElement>(`[data-cd-campo="${id}"]`);
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	function azar<T>(lista: readonly T[]): T {
+		return lista[Math.floor(Math.random() * lista.length)];
+	}
+
+	function sanear(bruto: unknown): Diseno {
+		const d = structuredClone(INICIAL);
+		if (!bruto || typeof bruto !== 'object') return d;
+		const g = bruto as Record<string, unknown>;
+		(Object.keys(TEXTOS) as Texto[]).forEach((k) => {
+			if (typeof g[k] === 'string') d[k] = (g[k] as string).slice(0, TEXTOS[k]);
+		});
+		COLORES.forEach((k) => {
+			if (HEX.test(String(g[k]))) d[k] = String(g[k]).toLowerCase();
+		});
+		(Object.keys(RANGOS) as Medida[]).forEach((k) => {
+			if (typeof g[k] === 'number' && Number.isFinite(g[k])) d[k] = limitar(g[k] as number, ...RANGOS[k]);
+		});
+		(Object.keys(OPCIONES) as Opcion[]).forEach((k) => {
+			if (OPCIONES[k].includes(String(g[k]))) (d as Record<Opcion, string>)[k] = String(g[k]);
+		});
+		if (typeof g.imagen === 'boolean') d.imagen = g.imagen;
+		if (typeof g.negrita === 'boolean') d.negrita = g.negrita;
+		return d;
+	}
+
+	function cargar() {
+		try {
+			return sanear(JSON.parse(localStorage.getItem(CLAVE) ?? 'null'));
+		} catch {
+			return structuredClone(INICIAL);
+		}
+	}
+
+	let diseno = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(diseno));
+		} catch {
+			// Sin almacenamiento: la herramienta sigue igual.
+		}
+	}
+
+	function sombraCss(d: Diseno) {
+		if (d.sombra === 'suave') return '0 8px 24px rgb(0 0 0 / 0.12)';
+		if (d.sombra === 'dura') return `6px 6px 0 ${d.tinta}`;
+		if (d.sombra === 'flotante') return '0 24px 48px -12px rgb(0 0 0 / 0.35)';
+		return 'none';
+	}
+
+	const px = (v: number) => (v === 0 ? '0' : `${v}px`);
+
+	function crearCarta() {
+		return plantilla?.content.firstElementChild?.cloneNode(true) as HTMLElement | undefined;
+	}
+
+	function pintarCarta(carta: HTMLElement, d: Diseno) {
+		const vars: Record<string, string> = {
+			'--cd-dir': d.dir === 'fila' ? 'row' : 'column',
+			'--cd-ancho': `${d.dir === 'fila' ? Math.max(d.ancho, 320) : d.ancho}px`,
+			'--cd-fondo': d.fondo,
+			'--cd-tinta': d.tinta,
+			'--cd-acento': d.acento,
+			'--cd-borde': d.borde,
+			'--cd-grosor': `${d.grosor}px`,
+			'--cd-radio': `${d.radio}px`,
+			'--cd-sombra': sombraCss(d),
+			'--cd-fuente': FUENTES[d.fuente],
+			'--cd-relleno': `${d.relleno}px`,
+			'--cd-tamano': `${d.tamano}px`,
+			'--cd-peso': d.negrita ? '700' : '400',
+			'--cd-alinear': d.alineado === 'centro' ? 'center' : 'flex-start',
+			'--cd-texto-alinear': d.alineado === 'centro' ? 'center' : 'left',
+		};
+		Object.entries(vars).forEach(([k, v]) => carta.style.setProperty(k, v));
+		carta.dataset.dir = d.dir;
+
+		const partes: [string, string][] = [
+			['.cd-etiqueta', d.etiqueta],
+			['.cd-titulo', d.titulo],
+			['.cd-texto', d.texto],
+			['.cd-boton', d.boton],
+		];
+		partes.forEach(([sel, valor]) => {
+			const el = carta.querySelector<HTMLElement>(sel);
+			if (!el) return;
+			el.textContent = valor;
+			el.toggleAttribute('data-vacio', valor.trim() === '');
+		});
+		carta.querySelector('.cd-imagen')?.toggleAttribute('data-vacio', !d.imagen);
+	}
+
+	const escapar = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+	function generarCodigo(d: Diseno) {
+		const html = [
+			'<article class="carta">',
+			d.imagen ? '  <div class="carta-imagen"></div>' : '',
+			'  <div class="carta-cuerpo">',
+			d.etiqueta.trim() ? `    <span class="carta-etiqueta">${escapar(d.etiqueta)}</span>` : '',
+			d.titulo.trim() ? `    <h3 class="carta-titulo">${escapar(d.titulo)}</h3>` : '',
+			d.texto.trim() ? `    <p class="carta-texto">${escapar(d.texto)}</p>` : '',
+			d.boton.trim() ? `    <a class="carta-boton" href="#">${escapar(d.boton)}</a>` : '',
+			'  </div>',
+			'</article>',
+		].filter(Boolean);
+		const centro = d.alineado === 'centro';
+		const fila = d.dir === 'fila';
+		const css = `.carta {
+  display: flex;
+  flex-direction: ${fila ? 'row' : 'column'};
+  max-width: ${fila ? Math.max(d.ancho, 320) : d.ancho}px;
+  overflow: hidden;
+  background: ${d.fondo};
+  color: ${d.tinta};
+  border: ${d.grosor === 0 ? '0' : `${d.grosor}px solid ${d.borde}`};
+  border-radius: ${px(d.radio)};
+  box-shadow: ${sombraCss(d)};
+  font-family: ${FUENTES[d.fuente]};
+}
+.carta-imagen {
+  ${fila ? 'width: 38%;' : 'min-height: 8rem;'}
+  background: repeating-linear-gradient(45deg, ${d.acento} 0 12px, color-mix(in oklab, ${d.acento} 65%, ${d.fondo}) 12px 24px);
+}
+.carta-cuerpo {
+  display: flex;
+  flex-direction: column;
+  align-items: ${centro ? 'center' : 'flex-start'};
+  gap: ${d.relleno / 2}px;
+  padding: ${d.relleno}px;${centro ? '\n  text-align: center;' : ''}
+}
+.carta-etiqueta {
+  color: ${d.acento};
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.carta-titulo {
+  margin: 0;
+  font-size: ${d.tamano}px;
+  font-weight: ${d.negrita ? 700 : 400};
+  line-height: 1.15;
+}
+.carta-texto {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+.carta-boton {
+  padding: 0.5em 1em;
+  background: ${d.acento};
+  color: ${d.fondo};
+  border-radius: ${px(d.radio / 2)};
+  text-decoration: none;
+}`;
+		return `${html.join('\n')}\n\n${css}`;
+	}
+
+	const principal = crearCarta();
+	if (principal && lienzo) lienzo.append(principal);
+
+	function pintarControles() {
+		(Object.keys(TEXTOS) as Texto[]).forEach((k) => {
+			const el = campo(k);
+			if (el && document.activeElement !== el) el.value = diseno[k];
+		});
+		COLORES.forEach((k) => {
+			const el = campo(k);
+			if (el) el.value = diseno[k];
+		});
+		(Object.keys(RANGOS) as Medida[]).forEach((k) => {
+			const el = campo(k);
+			if (el) el.value = String(diseno[k]);
+			const valor = panel?.querySelector(`[data-cd-valor="${k}"]`);
+			if (valor) valor.textContent = `${diseno[k]}px`;
+		});
+		const imagen = campo('imagen');
+		if (imagen) imagen.checked = diseno.imagen;
+		const negrita = campo('negrita');
+		if (negrita) negrita.checked = diseno.negrita;
+		panel?.querySelectorAll<HTMLButtonElement>('[data-cd-opcion]').forEach((b) => {
+			const k = b.dataset.cdOpcion as Opcion;
+			b.setAttribute('aria-pressed', String(diseno[k] === b.dataset.valor));
+		});
+	}
+
+	function pintar() {
+		if (principal) pintarCarta(principal, diseno);
+		if (codigo) codigo.textContent = generarCodigo(diseno);
+	}
+
+	function actualizar() {
+		pintarControles();
+		pintar();
+		guardar();
+	}
+
+	// Una variación se queda con el contenido y lo cambia todo lo demás.
+	function variar(base: Diseno): Diseno {
+		const [fondo, tinta, acento, borde] = azar(PALETAS);
+		return {
+			...base,
+			fondo,
+			tinta,
+			acento,
+			borde,
+			fuente: azar(OPCIONES.fuente) as Fuente,
+			sombra: azar(OPCIONES.sombra) as Sombra,
+			dir: Math.random() < 0.25 ? 'fila' : 'columna',
+			alineado: Math.random() < 0.3 ? 'centro' : 'izquierda',
+			negrita: Math.random() < 0.7,
+			tamano: azar([18, 20, 22, 26, 30]),
+			radio: azar([0, 0, 4, 12, 24]),
+			grosor: azar([0, 1, 2, 3]),
+			relleno: azar([16, 20, 24, 32]),
+		};
+	}
+
+	function generarVariaciones() {
+		if (!variaciones) return;
+		variaciones.replaceChildren();
+		for (let i = 0; i < 6; i++) {
+			const d = variar(diseno);
+			const carta = crearCarta();
+			if (!carta) return;
+			pintarCarta(carta, d);
+
+			const caja = document.createElement('div');
+			caja.className = 'flex flex-col items-start gap-3 border border-line p-4';
+			const escenario = document.createElement('div');
+			escenario.className = 'flex w-full justify-center';
+			escenario.append(carta);
+			const usar = document.createElement('button');
+			usar.type = 'button';
+			usar.className = 'border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+			usar.textContent = `Usar la ${i + 1}`;
+			usar.addEventListener('click', () => {
+				diseno = d;
+				actualizar();
+				lienzo?.scrollIntoView({ block: 'nearest' });
+			});
+			caja.append(escenario, usar);
+			variaciones.append(caja);
+		}
+	}
+
+	(Object.keys(TEXTOS) as Texto[]).forEach((k) => {
+		const el = campo(k);
+		el?.addEventListener('input', () => {
+			diseno[k] = el.value.slice(0, TEXTOS[k]);
+			actualizar();
+		});
+	});
+
+	COLORES.forEach((k) => {
+		const el = campo(k);
+		el?.addEventListener('input', () => {
+			if (HEX.test(el.value)) diseno[k] = el.value.toLowerCase();
+			actualizar();
+		});
+	});
+
+	(Object.keys(RANGOS) as Medida[]).forEach((k) => {
+		const el = campo(k);
+		el?.addEventListener('input', () => {
+			const v = Number(el.value);
+			if (Number.isFinite(v)) diseno[k] = limitar(v, ...RANGOS[k]);
+			actualizar();
+		});
+	});
+
+	(['imagen', 'negrita'] as const).forEach((k) => {
+		const el = campo(k);
+		el?.addEventListener('change', () => {
+			diseno[k] = el.checked;
+			actualizar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-cd-opcion]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const k = b.dataset.cdOpcion as Opcion;
+			const v = b.dataset.valor ?? '';
+			if (!OPCIONES[k]?.includes(v)) return;
+			(diseno as Record<Opcion, string>)[k] = v;
+			actualizar();
+		});
+	});
+
+	panel?.querySelector('[data-cd-variar]')?.addEventListener('click', generarVariaciones);
+
+	panel?.querySelector('[data-cd-reset]')?.addEventListener('click', () => {
+		diseno = structuredClone(INICIAL);
+		variaciones?.replaceChildren();
+		actualizar();
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(codigo?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar código';
+		}, 2000);
+	});
+
+	pintarControles();
+	pintar();
+</script>
