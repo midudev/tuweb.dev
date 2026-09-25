@@ -1,6 +1,7 @@
 ---
 import ArtPaletteTool from './ArtPaletteTool.astro';
 import AsciiTool from './AsciiTool.astro';
+import BarTool from './BarTool.astro';
 import Base64Tool from './Base64Tool.astro';
 import CalendarTool from './CalendarTool.astro';
 import CardTool from './CardTool.astro';
@@ -52,6 +53,7 @@ const tools = [
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
 	{ id: 'graficos', label: 'Gráficos', icon: 'chart-bar' },
+	{ id: 'barras', label: 'Barras', icon: 'chart-histogram' },
 	{ id: 'funciones', label: 'Funciones', icon: 'math-function' },
 	{ id: 'diagramas', label: 'Diagramas', icon: 'sitemap' },
 	{ id: 'ascii', label: 'ASCII art', icon: 'typography' },
@@ -222,6 +224,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<TypeTool />
 
 	<ChartTool />
+
+	<BarTool />
 
 	<FunctionTool />
 

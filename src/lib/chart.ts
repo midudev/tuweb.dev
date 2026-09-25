@@ -209,7 +209,7 @@ export function fromCsv(text: string, chart: Chart): { chart: Chart; aviso: stri
 }
 
 /** Un eje con pasos redondos (1, 2, 2,5 o 5 por potencia de diez) que siempre incluye el cero. */
-function niceScale(min: number, max: number, count = 5) {
+export function niceScale(min: number, max: number, count = 5) {
 	if (min === max) max = min + 1;
 	const raw = (max - min) / count;
 	const mag = 10 ** Math.floor(Math.log10(raw));
