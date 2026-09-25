@@ -1,0 +1,403 @@
+---
+/**
+ * Dispersión: series de puntos (x, y) con su color, escritas a mano o a golpe
+ * de clic sobre el gráfico, y su línea de tendencia si se quiere. El SVG se
+ * rehace a cada tecla y se baja en SVG o PNG. No se guarda ni se envía nada.
+ */
+import { MAX_POINTS, MAX_SERIES_XY } from '../lib/scatter';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-40';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+---
+
+<div role="tabpanel" id="dispersion" aria-labelledby="tab-dispersion" data-panel="dispersion" hidden class="grid gap-7 md:grid-cols-2">
+	<div class="flex min-w-0 flex-col gap-6">
+		<label class="flex flex-col gap-1">
+			<span class="text-sm text-muted">Título</span>
+			<input type="text" data-dis-texto="title" maxlength="80" class={CAMPO} />
+		</label>
+		<div class="grid gap-3 sm:grid-cols-2">
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Eje X</span>
+				<input type="text" data-dis-texto="xLabel" maxlength="40" class={CAMPO} />
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Eje Y</span>
+				<input type="text" data-dis-texto="yLabel" maxlength="40" class={CAMPO} />
+			</label>
+		</div>
+
+		<label class="flex flex-col gap-2">
+			<span class="flex justify-between text-sm text-muted">
+				Tamaño del punto
+				<output data-dis-size-valor class="text-mark"></output>
+			</span>
+			<input type="range" data-dis-size min="2" max="12" step="1" class="w-full accent-accent" />
+		</label>
+
+		<div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" data-dis-check="trend" class="size-4 accent-accent" />
+				Tendencia
+			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" data-dis-check="join" class="size-4 accent-accent" />
+				Unir puntos
+			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" data-dis-check="showGrid" class="size-4 accent-accent" />
+				Rejilla
+			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" data-dis-oscuro class="size-4 accent-accent" />
+				Fondo oscuro
+			</label>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Series</h3>
+			<p class="text-sm text-muted">Un punto por línea: <code class="text-mark">x; y</code>. Los clics en el gráfico van a la serie marcada.</p>
+			<ol data-dis-lista class="flex flex-col gap-4"></ol>
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-dis-nueva class={OPCION}>
+					<Icon name="plus" class="size-4 shrink-0" />
+					Serie
+				</button>
+				<button type="button" data-dis-paleta class={OPCION}>
+					<Icon name="palette" class="size-4 shrink-0" />
+					Paleta
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="flex min-w-0 flex-col gap-4 md:sticky md:top-6 md:self-start">
+		<span class="text-sm text-muted">Así queda</span>
+		<div data-dis-previo class="cursor-crosshair border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+		<p data-dis-estado class="text-sm text-muted" aria-live="polite"></p>
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-dis-baja="svg" class={OPCION}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-dis-baja="png" class={OPCION}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+		</div>
+		<p data-dis-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+		<p class="text-sm text-muted">
+			Hasta {MAX_SERIES_XY} series de {MAX_POINTS} puntos. Decimales con coma. La tendencia es la recta de mínimos cuadrados de cada serie.
+		</p>
+	</div>
+
+	<template data-dis-icono-quita><Icon name="x" class="size-4 shrink-0" /></template>
+	<template data-dis-icono-clic><Icon name="click" class="size-4 shrink-0" /></template>
+</div>
+
+<script>
+	import { PALETTE, fmt, type Theme } from '../lib/chart';
+	import { DEFAULT_DISPERSION, MAX_POINTS, MAX_SERIES_XY, buildScatter, parsePoints, type Dispersion, type Marco } from '../lib/scatter';
+
+	const previo = document.querySelector<HTMLElement>('[data-dis-previo]');
+	const lista = document.querySelector<HTMLOListElement>('[data-dis-lista]');
+	const estado = document.querySelector<HTMLElement>('[data-dis-estado]');
+	const aviso = document.querySelector<HTMLElement>('[data-dis-aviso]');
+	const size = document.querySelector<HTMLInputElement>('[data-dis-size]');
+	const sizeValor = document.querySelector<HTMLOutputElement>('[data-dis-size-valor]');
+	const oscuro = document.querySelector<HTMLInputElement>('[data-dis-oscuro]');
+	const nueva = document.querySelector<HTMLButtonElement>('[data-dis-nueva]');
+	const iconoQuita = document.querySelector<HTMLTemplateElement>('[data-dis-icono-quita]');
+	const iconoClic = document.querySelector<HTMLTemplateElement>('[data-dis-icono-clic]');
+
+	type Texto = 'title' | 'xLabel' | 'yLabel';
+	type Check = 'trend' | 'join' | 'showGrid';
+
+	let diseno: Dispersion = structuredClone(DEFAULT_DISPERSION);
+	if (document.documentElement.dataset.modo === 'oscuro') diseno = recolorea(diseno, 'oscuro');
+	/** La serie que recibe los clics sobre el gráfico. */
+	let activa = 0;
+	let marco: Marco | null = null;
+
+	/** Los colores de la paleta pasan a su paso del otro fondo; los elegidos a mano se quedan. */
+	function recolorea(d: Dispersion, theme: Theme): Dispersion {
+		const paso = (color: string) => {
+			const i = PALETTE[d.theme].indexOf(color);
+			return i >= 0 ? PALETTE[theme][i] : color;
+		};
+		return { ...d, theme, series: d.series.map((s) => ({ ...s, color: paso(s.color) })) };
+	}
+
+	function boton(icono: HTMLTemplateElement | null, label: string, data: Record<string, string>) {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.title = label;
+		b.setAttribute('aria-label', label);
+		b.className = 'inline-flex shrink-0 items-center p-1 text-muted hover:text-accent aria-pressed:text-accent disabled:opacity-30';
+		Object.assign(b.dataset, data);
+		if (icono) b.append(icono.content.cloneNode(true));
+		return b;
+	}
+
+	function pintaLista() {
+		if (!lista) return;
+		lista.replaceChildren(
+			...diseno.series.map((serie, i) => {
+				const li = document.createElement('li');
+				li.className = 'flex flex-col gap-2';
+				const fila = document.createElement('div');
+				fila.className = 'flex items-center gap-2';
+				const color = document.createElement('input');
+				color.type = 'color';
+				color.value = serie.color;
+				color.dataset.disColor = String(i);
+				color.setAttribute('aria-label', `Color de la serie ${i + 1}`);
+				color.className = 'h-8 w-9 shrink-0 cursor-pointer border border-line bg-panel p-0.5';
+				const nombre = document.createElement('input');
+				nombre.type = 'text';
+				nombre.value = serie.name;
+				nombre.maxLength = 40;
+				nombre.dataset.disNombre = String(i);
+				nombre.setAttribute('aria-label', `Nombre de la serie ${i + 1}`);
+				nombre.className = 'min-w-0 flex-1 border border-line bg-panel px-2 py-1 text-sm outline-none focus-visible:border-accent';
+				const clic = boton(iconoClic, 'Los clics van a esta serie', { disActiva: String(i) });
+				clic.setAttribute('aria-pressed', String(i === activa));
+				const quitar = boton(iconoQuita, 'Quitar serie', { disQuita: String(i) });
+				quitar.disabled = diseno.series.length <= 1;
+				fila.append(color, nombre, clic, quitar);
+				const puntos = document.createElement('textarea');
+				puntos.value = serie.points;
+				puntos.rows = 4;
+				puntos.spellcheck = false;
+				puntos.placeholder = '1; 2,5\n2; 3';
+				puntos.dataset.disPuntos = String(i);
+				puntos.setAttribute('aria-label', `Puntos de la serie ${i + 1}`);
+				puntos.className = 'w-full resize-y border border-line bg-panel px-2 py-1 text-sm outline-none focus-visible:border-accent';
+				li.append(fila, puntos);
+				return li;
+			}),
+		);
+		if (nueva) nueva.disabled = diseno.series.length >= MAX_SERIES_XY;
+	}
+
+	function marcaActiva() {
+		lista?.querySelectorAll<HTMLButtonElement>('[data-dis-activa]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(Number(b.dataset.disActiva) === activa));
+		});
+	}
+
+	function pintaControles() {
+		document.querySelectorAll<HTMLInputElement>('[data-dis-texto]').forEach((input) => {
+			input.value = diseno[input.dataset.disTexto as Texto];
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-dis-check]').forEach((input) => {
+			input.checked = diseno[input.dataset.disCheck as Check];
+		});
+		if (size) size.value = String(diseno.size);
+		if (sizeValor) sizeValor.value = `${diseno.size} px`;
+		if (oscuro) oscuro.checked = diseno.theme === 'oscuro';
+	}
+
+	function pinta() {
+		const hecho = buildScatter(diseno);
+		marco = hecho.frame;
+		if (previo) previo.innerHTML = hecho.svg;
+		if (!estado) return;
+		let total = 0;
+		const fallos: string[] = [];
+		diseno.series.forEach((s, i) => {
+			const { puntos, malas } = parsePoints(s.points);
+			total += puntos.length;
+			if (malas.length) fallos.push(`${s.name.trim() || `Serie ${i + 1}`} (${malas.slice(0, 5).join(', ')}${malas.length > 5 ? '…' : ''})`);
+		});
+		const cuenta = `${total} ${total === 1 ? 'punto' : 'puntos'}`;
+		estado.textContent = fallos.length ? `${cuenta}. No entiendo estas líneas: ${fallos.join(' · ')}.` : `${cuenta}.`;
+	}
+
+	document.querySelectorAll<HTMLInputElement>('[data-dis-texto]').forEach((input) => {
+		input.addEventListener('input', () => {
+			diseno[input.dataset.disTexto as Texto] = input.value;
+			pinta();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-dis-check]').forEach((input) => {
+		input.addEventListener('change', () => {
+			diseno[input.dataset.disCheck as Check] = input.checked;
+			pinta();
+		});
+	});
+
+	size?.addEventListener('input', () => {
+		diseno.size = Number(size.value);
+		if (sizeValor) sizeValor.value = `${diseno.size} px`;
+		pinta();
+	});
+
+	oscuro?.addEventListener('change', () => {
+		diseno = recolorea(diseno, oscuro.checked ? 'oscuro' : 'claro');
+		pintaLista();
+		pinta();
+	});
+
+	lista?.addEventListener('input', (event) => {
+		const input = event.target as HTMLInputElement | HTMLTextAreaElement;
+		const { disColor, disNombre, disPuntos } = input.dataset;
+		if (disColor) diseno.series[Number(disColor)].color = input.value;
+		else if (disNombre) diseno.series[Number(disNombre)].name = input.value;
+		else if (disPuntos) diseno.series[Number(disPuntos)].points = input.value;
+		else return;
+		pinta();
+	});
+
+	// Escribir en una serie también la marca para los clics.
+	lista?.addEventListener('focusin', (event) => {
+		const puntos = (event.target as HTMLElement).dataset.disPuntos;
+		if (puntos === undefined) return;
+		activa = Number(puntos);
+		marcaActiva();
+	});
+
+	lista?.addEventListener('click', (event) => {
+		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-dis-quita], [data-dis-activa]');
+		if (!button || button.disabled) return;
+		if (button.dataset.disActiva !== undefined) {
+			activa = Number(button.dataset.disActiva);
+			marcaActiva();
+			return;
+		}
+		const i = Number(button.dataset.disQuita);
+		diseno.series.splice(i, 1);
+		if (activa >= i && activa > 0) activa--;
+		pintaLista();
+		pinta();
+	});
+
+	nueva?.addEventListener('click', () => {
+		if (diseno.series.length >= MAX_SERIES_XY) return;
+		const paleta = PALETTE[diseno.theme];
+		const usados = diseno.series.map((s) => s.color);
+		const color = paleta.find((c) => !usados.includes(c)) ?? paleta[diseno.series.length % paleta.length];
+		diseno.series.push({ name: `Serie ${diseno.series.length + 1}`, color, points: '' });
+		activa = diseno.series.length - 1;
+		pintaLista();
+		pinta();
+		lista?.querySelector<HTMLTextAreaElement>('li:last-child textarea')?.focus();
+	});
+
+	document.querySelector('[data-dis-paleta]')?.addEventListener('click', () => {
+		const paleta = PALETTE[diseno.theme];
+		diseno.series.forEach((s, i) => (s.color = paleta[i % paleta.length]));
+		pintaLista();
+		pinta();
+	});
+
+	/** Redondeo a una centésima del eje: suficiente para leerlo y no llenar de decimales. */
+	function redondea(v: number, lo: number, hi: number) {
+		const decimales = Math.max(0, Math.min(6, -Math.floor(Math.log10((hi - lo) / 100))));
+		return Number(v.toFixed(decimales));
+	}
+
+	previo?.addEventListener('click', (event) => {
+		const svg = previo.querySelector('svg');
+		const serie = diseno.series[activa];
+		if (!svg || !marco || !serie) return;
+		const caja = svg.getBoundingClientRect();
+		const escala = svg.viewBox.baseVal.width / caja.width;
+		const px = (event.clientX - caja.left) * escala;
+		const py = (event.clientY - caja.top) * escala;
+		const { x0, x1, y0, y1, xlo, xhi, ylo, yhi } = marco;
+		if (px < x0 || px > x1 || py < y0 || py > y1) return;
+		if (parsePoints(serie.points).puntos.length >= MAX_POINTS) return;
+		const x = redondea(xlo + ((px - x0) / (x1 - x0)) * (xhi - xlo), xlo, xhi);
+		const y = redondea(yhi - ((py - y0) / (y1 - y0)) * (yhi - ylo), ylo, yhi);
+		const linea = `${fmt(x)}; ${fmt(y)}`;
+		serie.points = serie.points.trim() ? `${serie.points.replace(/\s+$/, '')}\n${linea}` : linea;
+		const area = lista?.querySelector<HTMLTextAreaElement>(`[data-dis-puntos="${activa}"]`);
+		if (area) area.value = serie.points;
+		pinta();
+	});
+
+	function nombre(extension: string) {
+		const base = diseno.title
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `${base || 'dispersion'}.${extension}`;
+	}
+
+	function bajar(fichero: Blob, name: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = name;
+		enlace.click();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/* Un SVG pintado como imagen no ve las fuentes de la página: para el PNG van dentro. */
+	const FUENTES = [
+		['Geist Mono Variable', '/fonts/geist-mono-latin-wght-normal.woff2', '100 900'],
+		['Geist Pixel', '/fonts/geist-pixel-latin-400-normal.woff2', '400'],
+	];
+	let fuentesCss: Promise<string> | null = null;
+
+	function fuentes() {
+		fuentesCss ??= Promise.all(
+			FUENTES.map(async ([family, url, weight]) => {
+				const blob = await (await fetch(url)).blob();
+				const data = await new Promise<string>((resolve, reject) => {
+					const lector = new FileReader();
+					lector.onload = () => resolve(String(lector.result));
+					lector.onerror = () => reject(lector.error);
+					lector.readAsDataURL(blob);
+				});
+				return `@font-face{font-family:'${family}';font-weight:${weight};src:url(${data}) format('woff2');}`;
+			}),
+		)
+			.then((reglas) => reglas.join(''))
+			.catch(() => '');
+		return fuentesCss;
+	}
+
+	async function png() {
+		const { svg, width, height } = buildScatter(diseno, { fontCss: await fuentes() });
+		const imagen = new Image();
+		imagen.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+		await imagen.decode();
+		const lienzo = document.createElement('canvas');
+		lienzo.width = width * 2;
+		lienzo.height = height * 2;
+		lienzo.getContext('2d')?.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+		const blob = await new Promise<Blob | null>((resolve) => lienzo.toBlob(resolve, 'image/png'));
+		if (!blob) throw new Error('sin PNG');
+		bajar(blob, nombre('png'));
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-dis-baja]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (button.dataset.disBaja === 'svg') {
+				bajar(new Blob([buildScatter(diseno).svg], { type: 'image/svg+xml' }), nombre('svg'));
+				return;
+			}
+			button.disabled = true;
+			try {
+				await png();
+				if (aviso) aviso.textContent = '';
+			} catch {
+				if (aviso) aviso.textContent = 'No se pudo sacar el PNG. Prueba con el SVG.';
+			} finally {
+				button.disabled = false;
+			}
+		});
+	});
+
+	pintaControles();
+	pintaLista();
+	pinta();
+</script>
