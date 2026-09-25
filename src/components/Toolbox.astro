@@ -1,4 +1,5 @@
 ---
+import ArrowTool from './ArrowTool.astro';
 import ArtPaletteTool from './ArtPaletteTool.astro';
 import AsciiTool from './AsciiTool.astro';
 import BarTool from './BarTool.astro';
@@ -52,6 +53,7 @@ const tools = [
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
 	{ id: 'superposicion', label: 'Superposición', icon: 'layers-difference' },
 	{ id: 'patrones', label: 'Tramas SVG', icon: 'texture' },
+	{ id: 'flechas', label: 'Flechas CSS', icon: 'arrows-right' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
 	{ id: 'graficos', label: 'Gráficos', icon: 'chart-bar' },
 	{ id: 'barras', label: 'Barras', icon: 'chart-histogram' },
@@ -222,6 +224,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<OverlayTool />
 
 	<PatternTool />
+
+	<ArrowTool />
 
 	<TypeTool />
 

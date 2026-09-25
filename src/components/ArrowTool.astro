@@ -1,0 +1,462 @@
+---
+/**
+ * Patrones de flechas CSS: una flecha pequeña en SVG, repetida como fondo. Se
+ * elige la forma, la dirección, el tamaño, la separación, el grosor y los
+ * colores, y la vista previa es el propio CSS aplicado a un recuadro. Todo pasa
+ * en el navegador y lo único que se guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+const NUMERO =
+	'w-20 border border-line bg-panel px-2 py-1 text-right text-sm text-fg outline-none focus-visible:border-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const FORMAS = [
+	{ id: 'flecha', label: 'Flecha' },
+	{ id: 'chevron', label: 'Chevron' },
+	{ id: 'doble', label: 'Doble' },
+	{ id: 'triangulo', label: 'Triángulo' },
+];
+
+// En el orden de la rejilla de 3 × 3; el hueco del centro va vacío.
+const DIRECCIONES = [
+	{ id: 'arriba-izquierda', label: 'Arriba a la izquierda', icon: 'arrow-up-left' },
+	{ id: 'arriba', label: 'Arriba', icon: 'arrow-up' },
+	{ id: 'arriba-derecha', label: 'Arriba a la derecha', icon: 'arrow-up-right' },
+	{ id: 'izquierda', label: 'Izquierda', icon: 'arrow-left' },
+	null,
+	{ id: 'derecha', label: 'Derecha', icon: 'arrow-right' },
+	{ id: 'abajo-izquierda', label: 'Abajo a la izquierda', icon: 'arrow-down-left' },
+	{ id: 'abajo', label: 'Abajo', icon: 'arrow-down' },
+	{ id: 'abajo-derecha', label: 'Abajo a la derecha', icon: 'arrow-down-right' },
+];
+
+const MEDIDAS = [
+	{ id: 'tamano', label: 'Tamaño', min: 8, max: 96, step: 1, unidad: 'px' },
+	{ id: 'hueco', label: 'Separación', min: 0, max: 96, step: 1, unidad: 'px' },
+	{ id: 'grosor', label: 'Grosor', min: 1, max: 4, step: 0.5, unidad: '' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="flechas"
+	aria-labelledby="tab-flechas"
+	data-panel="flechas"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Forma</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						FORMAS.map((f) => (
+							<button type="button" data-fl-forma={f.id} aria-pressed="false" class={OPCION}>
+								{f.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Dirección</span>
+				<div class="grid w-max grid-cols-3 gap-2">
+					{
+						DIRECCIONES.map((d) =>
+							d ? (
+								<button
+									type="button"
+									data-fl-dir={d.id}
+									aria-pressed="false"
+									aria-label={d.label}
+									title={d.label}
+									class={`${OPCION} inline-flex items-center justify-center`}
+								>
+									<Icon name={d.icon} class="size-4 shrink-0" />
+								</button>
+							) : (
+								<span />
+							),
+						)
+					}
+				</div>
+			</div>
+
+			{
+				MEDIDAS.map((m) => (
+					<div class="flex flex-col gap-2">
+						<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`fl-${m.id}`}>
+							{m.label}
+							<span class="inline-flex items-center gap-1">
+								<input
+									type="number"
+									min={m.min}
+									max={m.max}
+									step={m.step}
+									data-fl-num={m.id}
+									aria-label={m.unidad ? `${m.label} en ${m.unidad}` : m.label}
+									class={NUMERO}
+								/>
+								<span class="w-5">{m.unidad}</span>
+							</span>
+						</label>
+						<input
+							id={`fl-${m.id}`}
+							type="range"
+							min={m.min}
+							max={m.max}
+							step={m.step}
+							data-fl-rango={m.id}
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+
+			<div class="flex flex-wrap items-center gap-4">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-fl-color aria-label="Color de las flechas" class={COLOR} />
+					Flechas
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-fl-fondo aria-label="Color del fondo" class={COLOR} />
+					Fondo
+				</label>
+			</div>
+
+			<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-fl-tresbolillo class="size-4 accent-accent" />
+				Filas al tresbolillo
+			</label>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div
+				data-fl-vista
+				class="min-h-80 w-full border border-line"
+				role="img"
+				aria-label="Vista previa del patrón de flechas"
+			>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">CSS</span>
+				<pre data-fl-css class="max-h-64 overflow-auto border border-line bg-panel p-4 text-sm break-all whitespace-pre-wrap text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-fl-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-fl-copiar-texto aria-live="polite">Copiar CSS</span>
+				</button>
+				<button type="button" data-fl-svg class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Bajar .svg
+				</button>
+				<button type="button" data-fl-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-panel='flechas'] input[type='color']::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='flechas'] input[type='color']::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='flechas'] input[type='color']::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-fl-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-fl-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-fl-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-fl-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-fl-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Forma = 'flecha' | 'chevron' | 'doble' | 'triangulo';
+	type Medida = 'tamano' | 'hueco' | 'grosor';
+	type Estado = {
+		forma: Forma;
+		dir: string;
+		tamano: number;
+		hueco: number;
+		grosor: number;
+		color: string;
+		fondo: string;
+		tresbolillo: boolean;
+	};
+
+	const CLAVE = 'tuweb:flechas';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const RANGOS: Record<Medida, [number, number, number]> = {
+		tamano: [8, 96, 1],
+		hueco: [0, 96, 1],
+		grosor: [1, 4, 0.5],
+	};
+	const MEDIDAS = Object.keys(RANGOS) as Medida[];
+
+	// Cada forma se dibuja mirando a la derecha en una caja de 24 × 24; la
+	// dirección es solo un giro alrededor del centro.
+	const TRAZOS: Record<Forma, string> = {
+		flecha: 'M4 12h16M14 6l6 6-6 6',
+		chevron: 'M9 5l7 7-7 7',
+		doble: 'M5 5l7 7-7 7M12 5l7 7-7 7',
+		triangulo: 'M7 4l12 8-12 8z',
+	};
+	const GIROS: Record<string, number> = {
+		derecha: 0,
+		'abajo-derecha': 45,
+		abajo: 90,
+		'abajo-izquierda': 135,
+		izquierda: 180,
+		'arriba-izquierda': 225,
+		arriba: 270,
+		'arriba-derecha': 315,
+	};
+
+	const INICIAL: Estado = {
+		forma: 'flecha',
+		dir: 'derecha',
+		tamano: 24,
+		hueco: 16,
+		grosor: 2,
+		color: '#f5c542',
+		fondo: '#1c1917',
+		tresbolillo: false,
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="flechas"]');
+	const vista = panel?.querySelector<HTMLElement>('[data-fl-vista]');
+	const salida = panel?.querySelector<HTMLElement>('[data-fl-css]');
+	const color = panel?.querySelector<HTMLInputElement>('[data-fl-color]');
+	const fondo = panel?.querySelector<HTMLInputElement>('[data-fl-fondo]');
+	const tresbolillo = panel?.querySelector<HTMLInputElement>('[data-fl-tresbolillo]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-fl-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-fl-copiar-texto]');
+
+	const limitar = (v: number, [min, max, paso]: [number, number, number]) =>
+		Math.min(Math.max(Math.round(v / paso) * paso, min), max);
+	const hexValido = (v: unknown, d: string) => (HEX.test(String(v)) ? String(v).toLowerCase() : d);
+
+	function cargar(): Estado {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && typeof g === 'object') {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				return {
+					forma: Object.hasOwn(TRAZOS, String(g.forma)) ? g.forma : INICIAL.forma,
+					dir: Object.hasOwn(GIROS, String(g.dir)) ? g.dir : INICIAL.dir,
+					tamano: limitar(num(g.tamano, INICIAL.tamano), RANGOS.tamano),
+					hueco: limitar(num(g.hueco, INICIAL.hueco), RANGOS.hueco),
+					grosor: limitar(num(g.grosor, INICIAL.grosor), RANGOS.grosor),
+					color: hexValido(g.color, INICIAL.color),
+					fondo: hexValido(g.fondo, INICIAL.fondo),
+					tresbolillo: g.tresbolillo === true,
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return { ...INICIAL };
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	const celda = () => estado.tamano + estado.hueco;
+	const redondo = (v: number) => Math.round(v * 1000) / 1000;
+
+	// Una sola baldosa: la flecha centrada en su celda y girada hacia donde toca.
+	function baldosa() {
+		const c = celda();
+		const m = redondo((c - estado.tamano) / 2);
+		const s = redondo(estado.tamano / 24);
+		const relleno = estado.forma === 'triangulo';
+		const pintura = relleno
+			? `fill='${estado.color}' stroke='none'`
+			: `fill='none' stroke='${estado.color}' stroke-width='${estado.grosor}' stroke-linecap='square'`;
+		return (
+			`<svg xmlns='http://www.w3.org/2000/svg' width='${c}' height='${c}' viewBox='0 0 ${c} ${c}'>` +
+			`<g transform='translate(${m} ${m}) scale(${s}) rotate(${GIROS[estado.dir]} 12 12)' ${pintura}>` +
+			`<path d='${TRAZOS[estado.forma]}'/></g></svg>`
+		);
+	}
+
+	// Lo justo para que el SVG vaya dentro de url("…") y se siga leyendo.
+	const dataUri = (svg: string) =>
+		`data:image/svg+xml,${svg.replace(/%/g, '%25').replace(/#/g, '%23').replace(/</g, '%3C').replace(/>/g, '%3E').replace(/"/g, '%22')}`;
+
+	function css() {
+		const c = celda();
+		const url = `url("${dataUri(baldosa())}")`;
+		const lineas = [`background-color: ${estado.fondo};`];
+		if (estado.tresbolillo) {
+			// La misma baldosa dos veces, la segunda movida media celda en cada eje.
+			const mitad = redondo(c / 2);
+			lineas.push(
+				`background-image:\n    ${url},\n    ${url};`,
+				`background-size: ${c}px ${c}px;`,
+				`background-position: 0 0, ${mitad}px ${mitad}px;`,
+			);
+		} else {
+			lineas.push(`background-image: ${url};`, `background-size: ${c}px ${c}px;`);
+		}
+		return lineas.join('\n');
+	}
+
+	function pintar() {
+		const texto = css();
+		if (salida) salida.textContent = texto;
+		if (vista) vista.setAttribute('style', texto.replace(/\n\s*/g, ' '));
+	}
+
+	function pintarControles() {
+		panel?.querySelectorAll<HTMLButtonElement>('[data-fl-forma]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.flForma === estado.forma));
+		});
+		panel?.querySelectorAll<HTMLButtonElement>('[data-fl-dir]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.flDir === estado.dir));
+		});
+		MEDIDAS.forEach((m) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-fl-rango="${m}"]`);
+			const numero = panel?.querySelector<HTMLInputElement>(`[data-fl-num="${m}"]`);
+			if (rango) rango.value = String(estado[m]);
+			if (numero && document.activeElement !== numero) numero.value = String(estado[m]);
+		});
+		// El triángulo va relleno: el grosor no pinta nada.
+		const grosor = panel?.querySelector<HTMLInputElement>('[data-fl-rango="grosor"]');
+		const grosorNum = panel?.querySelector<HTMLInputElement>('[data-fl-num="grosor"]');
+		if (grosor) grosor.disabled = estado.forma === 'triangulo';
+		if (grosorNum) grosorNum.disabled = estado.forma === 'triangulo';
+		if (color) color.value = estado.color;
+		if (fondo) fondo.value = estado.fondo;
+		if (tresbolillo) tresbolillo.checked = estado.tresbolillo;
+	}
+
+	function actualizar() {
+		pintarControles();
+		pintar();
+		guardar();
+	}
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-fl-forma]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const forma = b.dataset.flForma ?? '';
+			if (Object.hasOwn(TRAZOS, forma)) estado.forma = forma as Forma;
+			actualizar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-fl-dir]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const dir = b.dataset.flDir ?? '';
+			if (Object.hasOwn(GIROS, dir)) estado.dir = dir;
+			actualizar();
+		});
+	});
+
+	function ponerMedida(m: Medida, valor: number) {
+		if (!Number.isFinite(valor)) return;
+		estado[m] = limitar(valor, RANGOS[m]);
+		actualizar();
+	}
+
+	MEDIDAS.forEach((m) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-fl-rango="${m}"]`);
+		const numero = panel?.querySelector<HTMLInputElement>(`[data-fl-num="${m}"]`);
+		rango?.addEventListener('input', () => ponerMedida(m, Number(rango.value)));
+		numero?.addEventListener('input', () => {
+			if (numero.value.trim() !== '') ponerMedida(m, Number(numero.value));
+		});
+		numero?.addEventListener('blur', () => {
+			numero.value = String(estado[m]);
+		});
+	});
+
+	color?.addEventListener('input', () => {
+		estado.color = hexValido(color.value, estado.color);
+		actualizar();
+	});
+
+	fondo?.addEventListener('input', () => {
+		estado.fondo = hexValido(fondo.value, estado.fondo);
+		actualizar();
+	});
+
+	tresbolillo?.addEventListener('change', () => {
+		estado.tresbolillo = tresbolillo.checked;
+		actualizar();
+	});
+
+	panel?.querySelector('[data-fl-reset]')?.addEventListener('click', () => {
+		estado = { ...INICIAL };
+		actualizar();
+	});
+
+	// La baldosa suelta, por si se prefiere como fichero y no dentro del CSS.
+	panel?.querySelector('[data-fl-svg]')?.addEventListener('click', () => {
+		const svg = baldosa().replace(/'/g, '"');
+		const enlace = document.createElement('a');
+		enlace.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+		enlace.download = `flecha-${estado.forma}-${estado.dir}.svg`;
+		enlace.click();
+		setTimeout(() => URL.revokeObjectURL(enlace.href), 1000);
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar CSS';
+		}, 2000);
+	});
+
+	actualizar();
+</script>
