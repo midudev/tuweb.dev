@@ -1,10 +1,10 @@
 ---
 /**
  * Dispersión: series de puntos (x, y) con su color, escritas a mano o a golpe
- * de clic sobre el gráfico, y su línea de tendencia si se quiere. El SVG se
+ * de clic sobre el gráfico, y su línea de ajuste si se quiere. El SVG se
  * rehace a cada tecla y se baja en SVG o PNG. No se guarda ni se envía nada.
  */
-import { MAX_POINTS, MAX_SERIES_XY } from '../lib/scatter';
+import { AJUSTES, MAX_POINTS, MAX_SERIES_XY } from '../lib/scatter';
 import Icon from './Icon.astro';
 
 const OPCION =
@@ -37,11 +37,14 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 			<input type="range" data-dis-size min="2" max="12" step="1" class="w-full accent-accent" />
 		</label>
 
+		<label class="flex flex-col gap-1">
+			<span class="text-sm text-muted">Línea de ajuste</span>
+			<select data-dis-ajuste class={CAMPO}>
+				{Object.entries(AJUSTES).map(([valor, nombre]) => <option value={valor}>{nombre}</option>)}
+			</select>
+		</label>
+
 		<div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-			<label class="inline-flex items-center gap-2">
-				<input type="checkbox" data-dis-check="trend" class="size-4 accent-accent" />
-				Tendencia
-			</label>
 			<label class="inline-flex items-center gap-2">
 				<input type="checkbox" data-dis-check="join" class="size-4 accent-accent" />
 				Unir puntos
@@ -89,7 +92,7 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 		</div>
 		<p data-dis-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
 		<p class="text-sm text-muted">
-			Hasta {MAX_SERIES_XY} series de {MAX_POINTS} puntos. Decimales con coma. La tendencia es la recta de mínimos cuadrados de cada serie.
+			Hasta {MAX_SERIES_XY} series de {MAX_POINTS} puntos. Decimales con coma. Cada serie lleva su curva por mínimos cuadrados; la exponencial, la logarítmica y la potencia se ajustan sobre logaritmos.
 		</p>
 	</div>
 
@@ -99,7 +102,17 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 
 <script>
 	import { PALETTE, fmt, type Theme } from '../lib/chart';
-	import { DEFAULT_DISPERSION, MAX_POINTS, MAX_SERIES_XY, buildScatter, parsePoints, type Dispersion, type Marco } from '../lib/scatter';
+	import {
+		DEFAULT_DISPERSION,
+		MAX_POINTS,
+		MAX_SERIES_XY,
+		ajusta,
+		buildScatter,
+		parsePoints,
+		type Ajuste,
+		type Dispersion,
+		type Marco,
+	} from '../lib/scatter';
 
 	const previo = document.querySelector<HTMLElement>('[data-dis-previo]');
 	const lista = document.querySelector<HTMLOListElement>('[data-dis-lista]');
@@ -108,12 +121,13 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 	const size = document.querySelector<HTMLInputElement>('[data-dis-size]');
 	const sizeValor = document.querySelector<HTMLOutputElement>('[data-dis-size-valor]');
 	const oscuro = document.querySelector<HTMLInputElement>('[data-dis-oscuro]');
+	const ajuste = document.querySelector<HTMLSelectElement>('[data-dis-ajuste]');
 	const nueva = document.querySelector<HTMLButtonElement>('[data-dis-nueva]');
 	const iconoQuita = document.querySelector<HTMLTemplateElement>('[data-dis-icono-quita]');
 	const iconoClic = document.querySelector<HTMLTemplateElement>('[data-dis-icono-clic]');
 
 	type Texto = 'title' | 'xLabel' | 'yLabel';
-	type Check = 'trend' | 'join' | 'showGrid';
+	type Check = 'join' | 'showGrid';
 
 	let diseno: Dispersion = structuredClone(DEFAULT_DISPERSION);
 	if (document.documentElement.dataset.modo === 'oscuro') diseno = recolorea(diseno, 'oscuro');
@@ -198,6 +212,7 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 		if (size) size.value = String(diseno.size);
 		if (sizeValor) sizeValor.value = `${diseno.size} px`;
 		if (oscuro) oscuro.checked = diseno.theme === 'oscuro';
+		if (ajuste) ajuste.value = diseno.fit;
 	}
 
 	function pinta() {
@@ -207,13 +222,19 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 		if (!estado) return;
 		let total = 0;
 		const fallos: string[] = [];
+		const sinCurva: string[] = [];
 		diseno.series.forEach((s, i) => {
 			const { puntos, malas } = parsePoints(s.points);
+			const nombre = s.name.trim() || `Serie ${i + 1}`;
 			total += puntos.length;
-			if (malas.length) fallos.push(`${s.name.trim() || `Serie ${i + 1}`} (${malas.slice(0, 5).join(', ')}${malas.length > 5 ? '…' : ''})`);
+			if (malas.length) fallos.push(`${nombre} (${malas.slice(0, 5).join(', ')}${malas.length > 5 ? '…' : ''})`);
+			const curva = puntos.length ? ajusta(puntos, diseno.fit) : null;
+			if (typeof curva === 'string') sinCurva.push(`${nombre}: ${curva}`);
 		});
-		const cuenta = `${total} ${total === 1 ? 'punto' : 'puntos'}`;
-		estado.textContent = fallos.length ? `${cuenta}. No entiendo estas líneas: ${fallos.join(' · ')}.` : `${cuenta}.`;
+		const partes = [`${total} ${total === 1 ? 'punto' : 'puntos'}.`];
+		if (fallos.length) partes.push(`No entiendo estas líneas: ${fallos.join(' · ')}.`);
+		if (sinCurva.length) partes.push(`Sin curva en ${sinCurva.join(' · ')}.`);
+		estado.textContent = partes.join(' ');
 	}
 
 	document.querySelectorAll<HTMLInputElement>('[data-dis-texto]').forEach((input) => {
@@ -233,6 +254,11 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 	size?.addEventListener('input', () => {
 		diseno.size = Number(size.value);
 		if (sizeValor) sizeValor.value = `${diseno.size} px`;
+		pinta();
+	});
+
+	ajuste?.addEventListener('change', () => {
+		diseno.fit = ajuste.value as Ajuste;
 		pinta();
 	});
 

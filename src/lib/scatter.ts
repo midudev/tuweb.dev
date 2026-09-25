@@ -1,6 +1,6 @@
 /**
  * Gráficos de dispersión: series de puntos (x, y), cada una con su color, y si
- * se quiere su línea de tendencia por mínimos cuadrados. Sale un SVG que se
+ * se quiere su línea de ajuste por mínimos cuadrados. Sale un SVG que se
  * sostiene solo. Lo pinta el navegador; aquí no se guarda ni se envía nada.
  */
 import { MONO, PALETTE, SURFACE, type Theme, esc, fmt, niceScale, parseNumber } from './chart';
@@ -12,12 +12,23 @@ export interface SerieXY {
 	points: string;
 }
 
+export type Ajuste = 'no' | 'lineal' | 'cuadratica' | 'exponencial' | 'logaritmica' | 'potencia';
+
+export const AJUSTES: Record<Ajuste, string> = {
+	no: 'Ninguna',
+	lineal: 'Recta',
+	cuadratica: 'Parábola',
+	exponencial: 'Exponencial',
+	logaritmica: 'Logarítmica',
+	potencia: 'Potencia',
+};
+
 export interface Dispersion {
 	title: string;
 	xLabel: string;
 	yLabel: string;
 	size: number;
-	trend: boolean;
+	fit: Ajuste;
 	join: boolean;
 	showGrid: boolean;
 	theme: Theme;
@@ -32,7 +43,7 @@ export const DEFAULT_DISPERSION: Dispersion = {
 	xLabel: 'Horas',
 	yLabel: 'Nota',
 	size: 5,
-	trend: true,
+	fit: 'lineal',
 	join: false,
 	showGrid: true,
 	theme: 'claro',
@@ -88,7 +99,7 @@ export interface Marco {
 	yhi: number;
 }
 
-/** Recta de mínimos cuadrados y su R². Sin dos x distintas no hay recta. */
+/** Recta de mínimos cuadrados. Sin dos x distintas no hay recta. */
 export function regression(puntos: Punto[]) {
 	const n = puntos.length;
 	if (n < 2) return null;
@@ -96,15 +107,96 @@ export function regression(puntos: Punto[]) {
 	const my = puntos.reduce((s, p) => s + p.y, 0) / n;
 	let sxx = 0;
 	let sxy = 0;
-	let syy = 0;
 	for (const p of puntos) {
 		sxx += (p.x - mx) ** 2;
 		sxy += (p.x - mx) * (p.y - my);
-		syy += (p.y - my) ** 2;
 	}
 	if (sxx === 0) return null;
 	const slope = sxy / sxx;
-	return { slope, intercept: my - slope * mx, r2: syy === 0 ? 1 : (sxy * sxy) / (sxx * syy) };
+	return { slope, intercept: my - slope * mx };
+}
+
+/** Parábola de mínimos cuadrados. Con x centradas para no perder decimales por el camino. */
+function parabola(puntos: Punto[]) {
+	if (new Set(puntos.map((p) => p.x)).size < 3) return null;
+	const n = puntos.length;
+	const mx = puntos.reduce((s, p) => s + p.x, 0) / n;
+	let s1 = 0, s2 = 0, s3 = 0, s4 = 0, sy = 0, s1y = 0, s2y = 0;
+	for (const p of puntos) {
+		const u = p.x - mx;
+		s1 += u;
+		s2 += u * u;
+		s3 += u ** 3;
+		s4 += u ** 4;
+		sy += p.y;
+		s1y += u * p.y;
+		s2y += u * u * p.y;
+	}
+	const det = (m: number[][]) =>
+		m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+	const M = [
+		[s4, s3, s2],
+		[s3, s2, s1],
+		[s2, s1, n],
+	];
+	const D = det(M);
+	if (!D) return null;
+	const R = [s2y, s1y, sy];
+	const [A, B, C] = [0, 1, 2].map((col) => det(M.map((fila, i) => fila.map((v, j) => (j === col ? R[i] : v)))) / D);
+	return { a: A, b: B - 2 * A * mx, c: A * mx * mx - B * mx + C };
+}
+
+export interface Curva {
+	f: (x: number) => number;
+	ecuacion: string;
+	r2: number;
+}
+
+/** R² contra los puntos de verdad, también cuando el ajuste se hace sobre logaritmos. */
+function bondad(puntos: Punto[], f: (x: number) => number) {
+	const my = puntos.reduce((s, p) => s + p.y, 0) / puntos.length;
+	let res = 0;
+	let tot = 0;
+	for (const p of puntos) {
+		res += (p.y - f(p.x)) ** 2;
+		tot += (p.y - my) ** 2;
+	}
+	return tot === 0 ? 1 : Math.max(0, 1 - res / tot);
+}
+
+const mas = (v: number) => (Math.abs(v) < 1e-9 ? '' : ` ${v < 0 ? '−' : '+'} ${fmt(Math.abs(v))}`);
+
+/** La curva de una serie, o por qué no sale. `null` si no se pide ninguna. */
+export function ajusta(puntos: Punto[], tipo: Ajuste): Curva | string | null {
+	if (tipo === 'no') return null;
+	const pocos = 'faltan puntos con x distintas';
+	const curva = (f: (x: number) => number, ecuacion: string) => ({ f, ecuacion, r2: bondad(puntos, f) });
+
+	if (tipo === 'cuadratica') {
+		const p = parabola(puntos);
+		return p ? curva((x) => p.a * x * x + p.b * x + p.c, `y = ${fmt(p.a)}x²${mas(p.b)}x${mas(p.c)}`) : pocos;
+	}
+	if (tipo === 'lineal') {
+		const r = regression(puntos);
+		return r ? curva((x) => r.slope * x + r.intercept, `y = ${fmt(r.slope)}x${mas(r.intercept)}`) : pocos;
+	}
+	if (tipo === 'exponencial') {
+		if (puntos.some((p) => p.y <= 0)) return 'la exponencial pide y mayores que 0';
+		const r = regression(puntos.map((p) => ({ x: p.x, y: Math.log(p.y) })));
+		if (!r) return pocos;
+		const a = Math.exp(r.intercept);
+		return curva((x) => a * Math.exp(r.slope * x), `y = ${fmt(a)}·e^(${fmt(r.slope)}x)`);
+	}
+	if (tipo === 'logaritmica') {
+		if (puntos.some((p) => p.x <= 0)) return 'la logarítmica pide x mayores que 0';
+		const r = regression(puntos.map((p) => ({ x: Math.log(p.x), y: p.y })));
+		return r ? curva((x) => r.slope * Math.log(x) + r.intercept, `y = ${fmt(r.slope)}·ln x${mas(r.intercept)}`) : pocos;
+	}
+	if (puntos.some((p) => p.x <= 0 || p.y <= 0)) return 'la potencia pide x e y mayores que 0';
+	const r = regression(puntos.map((p) => ({ x: Math.log(p.x), y: Math.log(p.y) })));
+	if (!r) return pocos;
+	const a = Math.exp(r.intercept);
+	return curva((x) => a * x ** r.slope, `y = ${fmt(a)}·x^${fmt(r.slope)}`);
 }
 
 const W = 800;
@@ -121,11 +213,6 @@ const clip = (value: string, max: number) => (value.length > max ? `${value.slic
 function text(x: number, y: number, content: string, size: number, fill: string, anchor = 'start', extra = '') {
 	const a = anchor === 'start' ? '' : ` text-anchor="${anchor}"`;
 	return `<text x="${r1(x)}" y="${r1(y)}" font-size="${size}" fill="${fill}"${a}${extra}>${esc(content)}</text>`;
-}
-
-function ecuacion(slope: number, intercept: number) {
-	const b = Math.abs(intercept) < 1e-9 ? '' : ` ${intercept < 0 ? '−' : '+'} ${fmt(Math.abs(intercept))}`;
-	return `y = ${fmt(slope)}x${b}`;
 }
 
 /** Un poco de aire alrededor de los datos para que ningún punto quede pegado al borde. */
@@ -211,7 +298,7 @@ export function buildScatter(d: Dispersion, options: { fontCss?: string } = {}) 
 			out.push(text(PAD + 10, cy, clip(d.yLabel.trim(), 40), 13, t.fg, 'middle', ` transform="rotate(-90 ${PAD + 10} ${r1(cy)})"`));
 		}
 
-		// La tendencia puede salirse por arriba o por abajo: se recorta al marco.
+		// La curva puede salirse por arriba o por abajo: se recorta al marco.
 		out.push(`<clipPath id="dispersion-marco"><rect x="${r1(x0)}" y="${r1(y0)}" width="${r1(x1 - x0)}" height="${r1(y1 - y0)}"/></clipPath>`);
 		const dentro: string[] = [];
 
@@ -221,15 +308,28 @@ export function buildScatter(d: Dispersion, options: { fontCss?: string } = {}) 
 				const trazo = orden.map((p, k) => `${k ? 'L' : 'M'}${r1(X(p.x))} ${r1(Y(p.y))}`).join('');
 				dentro.push(`<path d="${trazo}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-opacity="0.6" stroke-linejoin="round"/>`);
 			}
-			const recta = d.trend ? regression(s.puntos) : null;
-			if (recta) {
+			const curva = ajusta(s.puntos, d.fit);
+			if (curva && typeof curva !== 'string') {
 				const lo = Math.min(...s.puntos.map((p) => p.x));
 				const hi = Math.max(...s.puntos.map((p) => p.x));
-				const f = (x: number) => recta.slope * x + recta.intercept;
-				dentro.push(
-					`<line x1="${r1(X(lo))}" y1="${r1(Y(f(lo)))}" x2="${r1(X(hi))}" y2="${r1(Y(f(hi)))}" stroke="${s.color}" stroke-width="2" stroke-dasharray="8 5"/>`,
-				);
-				lineas.push(`${s.name}: ${ecuacion(recta.slope, recta.intercept)} · R² = ${fmt(recta.r2)}`);
+				// La recta se pinta con dos puntos; las curvas, a tramos cortos. Lo que se dispara se corta.
+				const pasos = d.fit === 'lineal' ? 1 : 120;
+				let trazo = '';
+				let sigue = false;
+				for (let k = 0; k <= pasos; k++) {
+					const x = lo + ((hi - lo) * k) / pasos;
+					const py = Y(curva.f(x));
+					if (!Number.isFinite(py) || py < y0 - 2000 || py > y1 + 2000) {
+						sigue = false;
+						continue;
+					}
+					trazo += `${sigue ? 'L' : 'M'}${r1(X(x))} ${r1(py)}`;
+					sigue = true;
+				}
+				if (trazo) {
+					dentro.push(`<path d="${trazo}" fill="none" stroke="${s.color}" stroke-width="2" stroke-dasharray="8 5" stroke-linejoin="round"/>`);
+				}
+				lineas.push(`${s.name}: ${curva.ecuacion} · R² = ${fmt(curva.r2)}`);
 			}
 		}
 		for (const s of series) {
