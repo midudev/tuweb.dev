@@ -1,0 +1,593 @@
+---
+/**
+ * Generador de botones CSS: colores en reposo y al pasar por encima, borde,
+ * relleno, letra, sombra y cómo reacciona al ratón. La vista previa es un botón
+ * de verdad con el mismo CSS que se copia, así que el hover y el clic se prueban
+ * ahí mismo. Todo pasa en el navegador y el estado se guarda en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const NUMERO =
+	'w-20 border border-line bg-panel px-2 py-1 text-right text-sm text-fg outline-none focus-visible:border-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+const CAMPO = 'border border-line bg-panel px-3 py-2 text-sm text-fg outline-none focus-visible:border-accent';
+
+const GRUPOS = [
+	{
+		titulo: 'Forma',
+		medidas: [
+			{ id: 'py', label: 'Relleno vertical', min: 0, max: 40, unidad: 'px' },
+			{ id: 'px', label: 'Relleno lateral', min: 0, max: 80, unidad: 'px' },
+			{ id: 'letra', label: 'Tamaño de letra', min: 10, max: 32, unidad: 'px' },
+			{ id: 'grosor', label: 'Grosor del borde', min: 0, max: 8, unidad: 'px' },
+			{ id: 'radio', label: 'Radio del borde', min: 0, max: 40, unidad: 'px' },
+		],
+	},
+	{
+		titulo: 'Sombra',
+		medidas: [
+			{ id: 'sx', label: 'Desplazamiento X', min: -20, max: 20, unidad: 'px' },
+			{ id: 'sy', label: 'Desplazamiento Y', min: -20, max: 20, unidad: 'px' },
+			{ id: 'sblur', label: 'Difuminado', min: 0, max: 60, unidad: 'px' },
+			{ id: 'salpha', label: 'Opacidad', min: 0, max: 100, unidad: '%' },
+		],
+	},
+	{
+		titulo: 'Interacción',
+		medidas: [
+			{ id: 'elevar', label: 'Subida al pasar', min: 0, max: 8, unidad: 'px' },
+			{ id: 'duracion', label: 'Transición', min: 0, max: 600, unidad: 'ms' },
+		],
+	},
+];
+
+const COLORES = [
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'tinta', label: 'Texto' },
+	{ id: 'borde', label: 'Borde' },
+	{ id: 'fondoHover', label: 'Fondo al pasar' },
+	{ id: 'tintaHover', label: 'Texto al pasar' },
+	{ id: 'bordeHover', label: 'Borde al pasar' },
+	{ id: 'sombra', label: 'Sombra' },
+];
+
+const MUESTRAS = [
+	{ id: 'solido', label: 'Sólido' },
+	{ id: 'contorno', label: 'Contorno' },
+	{ id: 'brutal', label: 'Brutal' },
+	{ id: 'fantasma', label: 'Fantasma' },
+	{ id: 'neon', label: 'Neón' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="botones"
+	aria-labelledby="tab-botones"
+	data-panel="botones"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-6">
+			<label class="flex flex-col gap-2 text-sm text-muted">
+				Texto del botón
+				<input type="text" data-bt-texto maxlength="40" spellcheck="false" class={CAMPO} />
+			</label>
+
+			<div class="flex flex-col gap-3">
+				<span class="text-sm text-muted">Colores</span>
+				<div class="grid grid-cols-2 gap-3">
+					{
+						COLORES.map((c) => (
+							<label class="inline-flex items-center gap-2 text-sm text-muted">
+								<input type="color" data-bt-color={c.id} aria-label={c.label} class={COLOR} />
+								{c.label}
+							</label>
+						))
+					}
+				</div>
+			</div>
+
+			{
+				GRUPOS.map((grupo) => (
+					<div class="flex flex-col gap-4">
+						<span class="text-sm text-fg">{grupo.titulo}</span>
+						{grupo.medidas.map((m) => (
+							<div class="flex flex-col gap-2">
+								<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`bt-${m.id}`}>
+									{m.label}
+									<span class="inline-flex items-center gap-1">
+										<input
+											type="number"
+											min={m.min}
+											max={m.max}
+											step="1"
+											data-bt-num={m.id}
+											aria-label={`${m.label} en ${m.unidad}`}
+											class={NUMERO}
+										/>
+										<span class="w-6">{m.unidad}</span>
+									</span>
+								</label>
+								<input
+									id={`bt-${m.id}`}
+									type="range"
+									min={m.min}
+									max={m.max}
+									step="1"
+									data-bt-rango={m.id}
+									class="w-full accent-accent"
+								/>
+							</div>
+						))}
+					</div>
+				))
+			}
+
+			<div class="flex flex-wrap items-center gap-4">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Borde
+					<select data-bt-estilo class={CAMPO}>
+						<option value="solid">Continuo</option>
+						<option value="dashed">Discontinuo</option>
+						<option value="dotted">Punteado</option>
+						<option value="double">Doble</option>
+					</select>
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Peso
+					<select data-bt-peso class={CAMPO}>
+						<option value="400">Normal</option>
+						<option value="500">Medio</option>
+						<option value="600">Seminegrita</option>
+						<option value="700">Negrita</option>
+					</select>
+				</label>
+				<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-bt-hundir class="size-4 accent-accent" />
+					Se hunde al pulsar
+				</label>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div
+				data-bt-fondo
+				class="flex min-h-72 w-full items-center justify-center overflow-hidden border border-line p-12"
+			>
+				<button type="button" class="bt-vista"></button>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-4">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-bt-lienzo aria-label="Color del fondo de la vista previa" class={COLOR} />
+					Fondo de la vista
+				</label>
+				<span class="text-xs text-muted">Pasa por encima y pulsa para probarlo.</span>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Muestras</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						MUESTRAS.map((muestra) => (
+							<button
+								type="button"
+								data-bt-muestra={muestra.id}
+								class="border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								{muestra.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">CSS</span>
+				<pre data-bt-css class="max-h-96 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-bt-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-bt-copiar-texto aria-live="polite">Copiar CSS</span>
+				</button>
+				<button type="button" data-bt-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<style data-bt-estilos is:inline></style>
+</div>
+
+<style>
+	[data-panel='botones'] input[type='color']::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='botones'] input[type='color']::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='botones'] input[type='color']::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-bt-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-bt-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-bt-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-bt-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-bt-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	const NUMEROS = {
+		py: [0, 40],
+		px: [0, 80],
+		letra: [10, 32],
+		grosor: [0, 8],
+		radio: [0, 40],
+		sx: [-20, 20],
+		sy: [-20, 20],
+		sblur: [0, 60],
+		salpha: [0, 100],
+		elevar: [0, 8],
+		duracion: [0, 600],
+	} as const;
+	const COLORES = ['fondo', 'tinta', 'borde', 'fondoHover', 'tintaHover', 'bordeHover', 'sombra'] as const;
+	const ESTILOS = ['solid', 'dashed', 'dotted', 'double'];
+	const PESOS = ['400', '500', '600', '700'];
+
+	type Numero = keyof typeof NUMEROS;
+	type Color = (typeof COLORES)[number];
+	type Estado = Record<Numero, number> &
+		Record<Color, string> & { texto: string; estilo: string; peso: string; hundir: boolean; lienzo: string };
+
+	const CLAVE = 'tuweb:botones';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const CLAVES = Object.keys(NUMEROS) as Numero[];
+
+	const BASE: Estado = {
+		texto: 'Enviar idea',
+		fondo: '#c2410c',
+		tinta: '#fdf6ef',
+		borde: '#7c2d12',
+		fondoHover: '#9a3412',
+		tintaHover: '#ffffff',
+		bordeHover: '#431407',
+		sombra: '#000000',
+		py: 12,
+		px: 24,
+		letra: 16,
+		grosor: 2,
+		radio: 0,
+		sx: 0,
+		sy: 4,
+		sblur: 12,
+		salpha: 20,
+		elevar: 2,
+		duracion: 150,
+		estilo: 'solid',
+		peso: '600',
+		hundir: true,
+		lienzo: '#fdf6ef',
+	};
+
+	const MUESTRAS: Record<string, Partial<Estado>> = {
+		solido: {},
+		contorno: {
+			fondo: '#fdf6ef',
+			tinta: '#c2410c',
+			borde: '#c2410c',
+			fondoHover: '#c2410c',
+			tintaHover: '#fdf6ef',
+			bordeHover: '#c2410c',
+			sy: 0,
+			sblur: 0,
+			salpha: 0,
+			elevar: 0,
+		},
+		brutal: {
+			fondo: '#f5c542',
+			tinta: '#111111',
+			borde: '#111111',
+			fondoHover: '#fcd34d',
+			tintaHover: '#111111',
+			bordeHover: '#111111',
+			sombra: '#111111',
+			grosor: 3,
+			sx: 6,
+			sy: 6,
+			sblur: 0,
+			salpha: 100,
+			elevar: 2,
+			peso: '700',
+			duracion: 100,
+		},
+		fantasma: {
+			fondo: '#fdf6ef',
+			tinta: '#3b2d24',
+			borde: '#fdf6ef',
+			fondoHover: '#f7ece1',
+			tintaHover: '#c2410c',
+			bordeHover: '#e8d9c8',
+			grosor: 1,
+			sy: 0,
+			sblur: 0,
+			salpha: 0,
+			elevar: 0,
+			peso: '500',
+			hundir: false,
+		},
+		neon: {
+			fondo: '#17110d',
+			tinta: '#fc784b',
+			borde: '#fc784b',
+			fondoHover: '#fc784b',
+			tintaHover: '#17110d',
+			bordeHover: '#fc784b',
+			sombra: '#fc784b',
+			sx: 0,
+			sy: 0,
+			sblur: 24,
+			salpha: 70,
+			elevar: 0,
+			duracion: 250,
+			lienzo: '#17110d',
+		},
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="botones"]');
+	const vista = panel?.querySelector<HTMLButtonElement>('.bt-vista');
+	const hoja = panel?.querySelector<HTMLStyleElement>('[data-bt-estilos]');
+	const lienzo = panel?.querySelector<HTMLElement>('[data-bt-fondo]');
+	const lienzoColor = panel?.querySelector<HTMLInputElement>('[data-bt-lienzo]');
+	const salida = panel?.querySelector<HTMLElement>('[data-bt-css]');
+	const texto = panel?.querySelector<HTMLInputElement>('[data-bt-texto]');
+	const estilo = panel?.querySelector<HTMLSelectElement>('[data-bt-estilo]');
+	const peso = panel?.querySelector<HTMLSelectElement>('[data-bt-peso]');
+	const hundir = panel?.querySelector<HTMLInputElement>('[data-bt-hundir]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-bt-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-bt-copiar-texto]');
+
+	const limitar = (v: number, [min, max]: readonly [number, number]) => Math.min(Math.max(Math.round(v), min), max);
+	const hexValido = (v: unknown, d: string) => (HEX.test(String(v)) ? String(v).toLowerCase() : d);
+
+	function cargar(): Estado {
+		const estado = structuredClone(BASE);
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			CLAVES.forEach((k) => {
+				if (typeof guardado[k] === 'number' && Number.isFinite(guardado[k])) estado[k] = limitar(guardado[k], NUMEROS[k]);
+			});
+			COLORES.forEach((k) => {
+				estado[k] = hexValido(guardado[k], BASE[k]);
+			});
+			if (typeof guardado.texto === 'string') estado.texto = guardado.texto.slice(0, 40);
+			if (ESTILOS.includes(guardado.estilo)) estado.estilo = guardado.estilo;
+			if (PESOS.includes(guardado.peso)) estado.peso = guardado.peso;
+			if (typeof guardado.hundir === 'boolean') estado.hundir = guardado.hundir;
+			estado.lienzo = hexValido(guardado.lienzo, BASE.lienzo);
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	const px = (v: number) => (v === 0 ? '0' : `${v}px`);
+
+	function colorSombra(alpha: number) {
+		if (alpha >= 100) return estado.sombra;
+		const canal = (k: number) => parseInt(estado.sombra.slice(1 + k * 2, 3 + k * 2), 16);
+		return `rgb(${canal(0)} ${canal(1)} ${canal(2)} / ${Math.round(alpha) / 100})`;
+	}
+
+	// La sombra en reposo y la de encima: al subir el botón, la sombra se estira
+	// lo mismo que ha subido, que es lo que haría una sombra de verdad.
+	function sombra(subida: number) {
+		if (estado.salpha === 0) return 'none';
+		const y = estado.sy === 0 && estado.sx === 0 ? 0 : estado.sy + subida;
+		return `${px(estado.sx)} ${px(y)} ${px(estado.sblur + subida * 2)} 0 ${colorSombra(estado.salpha)}`;
+	}
+
+	function css(selector: string) {
+		const s = estado;
+		const borde = s.grosor === 0 ? 'none' : `${s.grosor}px ${s.estilo} ${s.borde}`;
+		const props = ['background-color', 'color', 'border-color', 'box-shadow', 'transform'];
+		const bloques = [
+			`${selector} {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${px(s.py)} ${px(s.px)};
+  font: inherit;
+  font-size: ${s.letra}px;
+  font-weight: ${s.peso};
+  line-height: 1.2;
+  color: ${s.tinta};
+  background-color: ${s.fondo};
+  border: ${borde};
+  border-radius: ${px(s.radio)};
+  box-shadow: ${sombra(0)};
+  cursor: pointer;${s.duracion > 0 ? `\n  transition: ${props.map((p) => `${p} ${s.duracion}ms ease`).join(',\n    ')};` : ''}
+}`,
+			`${selector}:hover {
+  color: ${s.tintaHover};
+  background-color: ${s.fondoHover};${s.grosor > 0 ? `\n  border-color: ${s.bordeHover};` : ''}${
+				s.elevar > 0 ? `\n  transform: translateY(-${s.elevar}px);\n  box-shadow: ${sombra(s.elevar)};` : ''
+			}
+}`,
+		];
+		if (s.hundir) {
+			// Al pulsar, el botón baja hasta donde caía su sombra y la sombra se va.
+			const bajada = s.salpha > 0 && (s.sx !== 0 || s.sy > 0) ? `translate(${px(s.sx)}, ${px(Math.max(s.sy, 0))})` : 'translateY(1px)';
+			bloques.push(`${selector}:active {
+  transform: ${bajada};
+  box-shadow: none;
+}`);
+		}
+		bloques.push(`${selector}:focus-visible {
+  outline: 2px solid ${s.grosor > 0 ? s.borde : s.fondo};
+  outline-offset: 3px;
+}`);
+		if (s.duracion > 0) {
+			bloques.push(`@media (prefers-reduced-motion: reduce) {
+  ${selector} {
+    transition: none;
+  }
+}`);
+		}
+		return bloques.join('\n\n');
+	}
+
+	function pintar() {
+		if (vista) vista.textContent = estado.texto || 'Botón';
+		if (hoja) hoja.textContent = css('[data-panel="botones"] .bt-vista');
+		if (lienzo) lienzo.style.background = estado.lienzo;
+		if (salida) salida.textContent = css('.boton');
+	}
+
+	function pintarControles() {
+		CLAVES.forEach((k) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-bt-rango="${k}"]`);
+			const numero = panel?.querySelector<HTMLInputElement>(`[data-bt-num="${k}"]`);
+			if (rango) rango.value = String(estado[k]);
+			if (numero && document.activeElement !== numero) numero.value = String(estado[k]);
+		});
+		COLORES.forEach((k) => {
+			const campo = panel?.querySelector<HTMLInputElement>(`[data-bt-color="${k}"]`);
+			if (campo) campo.value = estado[k];
+		});
+		if (texto && document.activeElement !== texto) texto.value = estado.texto;
+		if (estilo) estilo.value = estado.estilo;
+		if (peso) peso.value = estado.peso;
+		if (hundir) hundir.checked = estado.hundir;
+		if (lienzoColor) lienzoColor.value = estado.lienzo;
+	}
+
+	function actualizar() {
+		pintar();
+		guardar();
+	}
+
+	function todo() {
+		pintarControles();
+		actualizar();
+	}
+
+	CLAVES.forEach((k) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-bt-rango="${k}"]`);
+		const numero = panel?.querySelector<HTMLInputElement>(`[data-bt-num="${k}"]`);
+		const poner = (valor: number) => {
+			if (!Number.isFinite(valor)) return;
+			estado[k] = limitar(valor, NUMEROS[k]);
+			todo();
+		};
+		rango?.addEventListener('input', () => poner(Number(rango.value)));
+		numero?.addEventListener('input', () => {
+			if (numero.value.trim() !== '') poner(Number(numero.value));
+		});
+		numero?.addEventListener('blur', () => {
+			numero.value = String(estado[k]);
+		});
+	});
+
+	COLORES.forEach((k) => {
+		const campo = panel?.querySelector<HTMLInputElement>(`[data-bt-color="${k}"]`);
+		campo?.addEventListener('input', () => {
+			estado[k] = hexValido(campo.value, estado[k]);
+			actualizar();
+		});
+	});
+
+	texto?.addEventListener('input', () => {
+		estado.texto = texto.value.slice(0, 40);
+		actualizar();
+	});
+
+	estilo?.addEventListener('change', () => {
+		if (ESTILOS.includes(estilo.value)) estado.estilo = estilo.value;
+		actualizar();
+	});
+
+	peso?.addEventListener('change', () => {
+		if (PESOS.includes(peso.value)) estado.peso = peso.value;
+		actualizar();
+	});
+
+	hundir?.addEventListener('change', () => {
+		estado.hundir = hundir.checked;
+		actualizar();
+	});
+
+	lienzoColor?.addEventListener('input', () => {
+		estado.lienzo = hexValido(lienzoColor.value, estado.lienzo);
+		actualizar();
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-bt-muestra]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const muestra = MUESTRAS[boton.dataset.btMuestra ?? ''];
+			if (!muestra) return;
+			// La muestra cambia el estilo, pero el texto que haya escrito cada uno se queda.
+			estado = { ...structuredClone(BASE), ...muestra, texto: estado.texto };
+			todo();
+		});
+	});
+
+	panel?.querySelector('[data-bt-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(BASE);
+		todo();
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar CSS';
+		}, 2000);
+	});
+
+	todo();
+</script>

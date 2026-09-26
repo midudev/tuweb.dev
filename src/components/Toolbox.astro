@@ -4,6 +4,7 @@ import ArtPaletteTool from './ArtPaletteTool.astro';
 import AsciiTool from './AsciiTool.astro';
 import BarTool from './BarTool.astro';
 import Base64Tool from './Base64Tool.astro';
+import ButtonTool from './ButtonTool.astro';
 import CalendarTool from './CalendarTool.astro';
 import CardTool from './CardTool.astro';
 import ChessTool from './ChessTool.astro';
@@ -47,6 +48,7 @@ const tools = [
 	{ id: 'obras', label: 'Paletas de obras', icon: 'artboard' },
 	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
 	{ id: 'sombras', label: 'Sombras', icon: 'shadow' },
+	{ id: 'botones', label: 'Botones CSS', icon: 'click' },
 	{ id: 'transiciones', label: 'Transiciones', icon: 'vector-bezier-2' },
 	{ id: 'secuencias', label: 'Secuencias CSS', icon: 'timeline-event' },
 	{ id: 'animaciones-svg', label: 'Animaciones SVG', icon: 'svg' },
@@ -212,6 +214,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<GradientTool />
 
 	<ShadowTool />
+
+	<ButtonTool />
 
 	<TransitionTool />
 
