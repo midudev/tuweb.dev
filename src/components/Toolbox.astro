@@ -6,6 +6,7 @@ import BarTool from './BarTool.astro';
 import Base64Tool from './Base64Tool.astro';
 import CalendarTool from './CalendarTool.astro';
 import CardTool from './CardTool.astro';
+import ChessTool from './ChessTool.astro';
 import ColorLab from './ColorLab.astro';
 import ChartTool from './ChartTool.astro';
 import ColorTool from './ColorTool.astro';
@@ -64,6 +65,7 @@ const tools = [
 	{ id: 'ascii', label: 'ASCII art', icon: 'typography' },
 	{ id: 'calendario', label: 'Calendario', icon: 'calendar-month' },
 	{ id: 'interacciones', label: 'Interacciones', icon: 'hand-click' },
+	{ id: 'ajedrez', label: 'Ajedrez', icon: 'chess' },
 	{ id: 'sonidos', label: 'Sonidos', icon: 'bell-ringing' },
 	{ id: 'unidades', label: 'Unidades', icon: 'ruler-measure' },
 	{ id: 'tema', label: 'Tema', icon: 'brush' },
@@ -246,6 +248,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<CalendarTool />
 
 	<InteractionTool />
+
+	<ChessTool />
 
 	<SoundTool />
 
