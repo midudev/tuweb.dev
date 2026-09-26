@@ -59,12 +59,15 @@ const {
 		-->
 		<script>
 			import { applyConfig, readConfig } from '../lib/config';
+			import { watchEfectos } from '../lib/efectos';
 			import { applyTheme, readTheme, watchSystemMode } from '../lib/theme';
 
 			applyTheme(readTheme());
 			applyConfig(readConfig());
 			// Con el modo en «sistema», la web sigue al sistema sin recargar.
 			watchSystemMode();
+			// Los sonidos de clic y scroll, si alguien los ha encendido en Herramientas.
+			watchEfectos();
 		</script>
 	</head>
 	<body data-canvas class="bg-bg font-mono text-fg antialiased">

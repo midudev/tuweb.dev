@@ -1,0 +1,214 @@
+---
+/**
+ * Efectos de sonido para la propia web: se elige qué suena al hacer clic y qué
+ * al desplazarse, y se enciende para todas las páginas. Lo que suena lo engancha
+ * el layout con src/lib/efectos.ts; aquí solo se elige y se prueba.
+ */
+import { PASO, SONIDOS_CLIC, SONIDOS_SCROLL, VOLUMEN } from '../lib/efectos';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const GRUPOS = [
+	{ id: 'clic', label: 'Al hacer clic', icon: 'click', sonidos: SONIDOS_CLIC },
+	{ id: 'scroll', label: 'Al desplazarte', icon: 'arrows-down-up', sonidos: SONIDOS_SCROLL },
+];
+
+const MEDIDAS = [
+	{ id: 'volumen', label: 'Volumen', rango: VOLUMEN, paso: 1, unidad: '%' },
+	{ id: 'paso', label: 'Un sonido cada', rango: PASO, paso: 10, unidad: 'px' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="efectos"
+	aria-labelledby="tab-efectos"
+	data-panel="efectos"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<label class="inline-flex cursor-pointer items-center gap-3 text-fg">
+		<input type="checkbox" data-ef-activo class="size-4 accent-accent" />
+		Activar en toda la web
+		<span data-ef-estado class="text-sm text-muted"></span>
+	</label>
+
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
+		<div class="flex flex-col gap-5">
+			{
+				GRUPOS.map((grupo) => (
+					<div class="flex flex-col gap-2">
+						<span class="inline-flex items-center gap-2 text-sm text-muted">
+							<Icon name={grupo.icon} class="size-4 shrink-0" />
+							{grupo.label}
+						</span>
+						<div class="flex flex-wrap gap-2" data-efectos-mudo>
+							{Object.entries(grupo.sonidos).map(([id, sonido]) => (
+								<button
+									type="button"
+									data-ef-grupo={grupo.id}
+									data-ef-sonido={id}
+									aria-pressed="false"
+									class={OPCION}
+								>
+									{sonido.label}
+								</button>
+							))}
+						</div>
+					</div>
+				))
+			}
+
+			{
+				MEDIDAS.map((m) => (
+					<label class="flex flex-col gap-2">
+						<span class="flex items-center justify-between text-sm text-muted">
+							{m.label}
+							<span class="text-mark">
+								<span data-ef-valor={m.id} /> {m.unidad}
+							</span>
+						</span>
+						<input
+							type="range"
+							min={m.rango[0]}
+							max={m.rango[1]}
+							step={m.paso}
+							data-ef-rango={m.id}
+							class="w-full accent-accent"
+						/>
+					</label>
+				))
+			}
+
+			<div class="flex flex-wrap gap-2" data-efectos-mudo>
+				<button type="button" data-ef-probar="clic" class={BOTON}>
+					<Icon name="player-play" class="size-4 shrink-0" />
+					Probar clic
+				</button>
+				<button type="button" data-ef-probar="scroll" class={BOTON}>
+					<Icon name="player-play" class="size-4 shrink-0" />
+					Probar scroll
+				</button>
+				<button type="button" data-ef-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="inline-flex items-center gap-2 text-sm text-muted">
+				<Icon name="mouse" class="size-4 shrink-0" />
+				Zona de prueba: desplázate aquí dentro
+			</span>
+			<div
+				data-ef-zona
+				tabindex="0"
+				aria-label="Zona de prueba para el sonido de desplazamiento"
+				class="h-60 overflow-y-auto border border-line bg-panel p-4 text-sm text-muted outline-none focus-visible:border-accent"
+			>
+				{Array.from({ length: 40 }, (_, i) => <p class="py-1">{String(i + 1).padStart(2, '0')} ·····</p>)}
+			</div>
+		</div>
+	</div>
+
+	<p class="text-sm text-muted">
+		Se guarda en este navegador y suena en todas las páginas. El navegador no deja sonar nada hasta
+		tu primer clic, así que el scroll se oye a partir de ahí.
+	</p>
+</div>
+
+<script>
+	import {
+		EFECTOS_INICIAL,
+		SONIDOS_CLIC,
+		SONIDOS_SCROLL,
+		despertarAudio,
+		readEfectos,
+		saveEfectos,
+		sonar,
+		type Efectos,
+	} from '../lib/efectos';
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="efectos"]');
+	const activo = panel?.querySelector<HTMLInputElement>('[data-ef-activo]');
+	const estadoTexto = panel?.querySelector<HTMLElement>('[data-ef-estado]');
+	const zona = panel?.querySelector<HTMLElement>('[data-ef-zona]');
+	const MEDIDAS = ['volumen', 'paso'] as const;
+
+	let efectos: Efectos = readEfectos();
+
+	const golpe = (grupo: string) =>
+		grupo === 'clic' ? SONIDOS_CLIC[efectos.clic]?.golpe : SONIDOS_SCROLL[efectos.scroll]?.golpe;
+
+	function pintar() {
+		if (activo) activo.checked = efectos.activo;
+		if (estadoTexto) estadoTexto.textContent = efectos.activo ? '· encendido' : '· apagado';
+		panel?.querySelectorAll<HTMLButtonElement>('[data-ef-sonido]').forEach((b) => {
+			const elegido = b.dataset.efGrupo === 'clic' ? efectos.clic : efectos.scroll;
+			b.setAttribute('aria-pressed', String(b.dataset.efSonido === elegido));
+		});
+		MEDIDAS.forEach((m) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-ef-rango="${m}"]`);
+			const valor = panel?.querySelector<HTMLElement>(`[data-ef-valor="${m}"]`);
+			if (rango) rango.value = String(efectos[m]);
+			if (valor) valor.textContent = String(efectos[m]);
+		});
+	}
+
+	function cambiar(parte: Partial<Efectos>) {
+		efectos = { ...efectos, ...parte };
+		saveEfectos(efectos);
+		pintar();
+	}
+
+	activo?.addEventListener('change', () => cambiar({ activo: activo.checked }));
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-ef-sonido]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const grupo = b.dataset.efGrupo ?? '';
+			const id = b.dataset.efSonido ?? '';
+			if (grupo === 'clic' && Object.hasOwn(SONIDOS_CLIC, id)) cambiar({ clic: id });
+			else if (grupo === 'scroll' && Object.hasOwn(SONIDOS_SCROLL, id)) cambiar({ scroll: id });
+			else return;
+			// Al elegir, se oye: así se compara sin tener que ir a probar.
+			sonar(golpe(grupo), efectos.volumen, true);
+		});
+	});
+
+	MEDIDAS.forEach((m) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-ef-rango="${m}"]`);
+		rango?.addEventListener('input', () => {
+			const valor = Number(rango.value);
+			cambiar(m === 'volumen' ? { volumen: valor } : { paso: valor });
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-ef-probar]').forEach((b) => {
+		b.addEventListener('click', () => sonar(golpe(b.dataset.efProbar ?? ''), efectos.volumen, true));
+	});
+
+	panel?.querySelector('[data-ef-reset]')?.addEventListener('click', () => cambiar({ ...EFECTOS_INICIAL }));
+
+	// La zona de prueba suena aunque no esté activado: es para oírlo antes. Como
+	// es mucho más baja que la página, el espaciado va a un cuarto.
+	let ultimoY = 0;
+	zona?.addEventListener(
+		'scroll',
+		() => {
+			if (Math.abs(zona.scrollTop - ultimoY) < efectos.paso / 4) return;
+			ultimoY = zona.scrollTop;
+			const alto = zona.scrollHeight - zona.clientHeight;
+			sonar(golpe('scroll'), efectos.volumen, false, alto > 0 ? 1 - zona.scrollTop / alto : 0.5);
+		},
+		{ passive: true },
+	);
+	// Un clic en la zona despierta el audio para que el scroll se oiga ya.
+	zona?.addEventListener('pointerdown', despertarAudio);
+
+	pintar();
+</script>

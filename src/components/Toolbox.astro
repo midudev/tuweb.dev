@@ -11,6 +11,7 @@ import ColorLab from './ColorLab.astro';
 import ChartTool from './ChartTool.astro';
 import ColorTool from './ColorTool.astro';
 import ConfigTool from './ConfigTool.astro';
+import EffectsTool from './EffectsTool.astro';
 import FlowTool from './FlowTool.astro';
 import FunctionTool from './FunctionTool.astro';
 import GradientTool from './GradientTool.astro';
@@ -67,6 +68,7 @@ const tools = [
 	{ id: 'interacciones', label: 'Interacciones', icon: 'hand-click' },
 	{ id: 'ajedrez', label: 'Ajedrez', icon: 'chess' },
 	{ id: 'sonidos', label: 'Sonidos', icon: 'bell-ringing' },
+	{ id: 'efectos', label: 'Efectos de sonido', icon: 'volume' },
 	{ id: 'unidades', label: 'Unidades', icon: 'ruler-measure' },
 	{ id: 'tema', label: 'Tema', icon: 'brush' },
 	{ id: 'config', label: 'Config', icon: 'adjustments' },
@@ -252,6 +254,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ChessTool />
 
 	<SoundTool />
+
+	<EffectsTool />
 
 	<UnitTool />
 
