@@ -1,0 +1,636 @@
+---
+/**
+ * Simulador de interacciones: un botón y un slider con el tamaño, el paso y el
+ * retardo del feedback que tú elijas. Se puede tocar a lo libre o hacer una
+ * prueba por rondas que mide tiempos, fallos, clics repetidos y precisión, para
+ * ver qué diseño funciona mejor. Todo pasa en el navegador y lo único que se
+ * guarda son los ajustes, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const AJUSTES = [
+	{ id: 'tamano', label: 'Tamaño del botón', min: 24, max: 160, step: 4, unidad: 'px', solo: 'boton' },
+	{ id: 'tirador', label: 'Tamaño del tirador', min: 8, max: 40, step: 2, unidad: 'px', solo: 'slider' },
+	{ id: 'paso', label: 'Paso del slider', min: 1, max: 20, step: 1, unidad: '', solo: 'slider' },
+	{ id: 'retardo', label: 'Retardo del feedback', min: 0, max: 1000, step: 50, unidad: 'ms', solo: '' },
+	{ id: 'rondas', label: 'Rondas', min: 3, max: 20, step: 1, unidad: '', solo: '' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="interacciones"
+	aria-labelledby="tab-interacciones"
+	data-panel="interacciones"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Elemento</span>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-ui-modo="boton" aria-pressed="true" class={OPCION}>
+						<Icon name="hand-click" class="size-4 shrink-0" />
+						Botón
+					</button>
+					<button type="button" data-ui-modo="slider" aria-pressed="false" class={OPCION}>
+						<Icon name="adjustments-horizontal" class="size-4 shrink-0" />
+						Slider
+					</button>
+				</div>
+			</div>
+
+			{
+				AJUSTES.map((a) => (
+					<div class="flex flex-col gap-2" data-ui-solo={a.solo || undefined}>
+						<label class="flex items-center justify-between gap-3 text-sm text-muted" for={`ui-${a.id}`}>
+							{a.label}
+							<span data-ui-valor={a.id} class="text-fg" data-unidad={a.unidad} />
+						</label>
+						<input
+							id={`ui-${a.id}`}
+							type="range"
+							min={a.min}
+							max={a.max}
+							step={a.step}
+							data-ui-ajuste={a.id}
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+
+			<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted" data-ui-solo="boton">
+				<input type="checkbox" data-ui-pulsado class="size-4 accent-accent" />
+				Estado pulsado y hover visibles
+			</label>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-ui-empezar class={BOTON}>
+					<Icon name="player-play" class="size-4 shrink-0" />
+					<span data-ui-empezar-texto>Empezar prueba</span>
+				</button>
+				<button type="button" data-ui-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<p data-ui-mensaje aria-live="polite" class="text-sm text-muted"></p>
+
+			<div data-ui-arena class="relative h-80 w-full touch-manipulation overflow-hidden border border-line bg-panel select-none">
+				<button
+					type="button"
+					data-ui-objetivo
+					aria-label="Botón de prueba"
+					class="absolute flex items-center justify-center border-2 border-accent bg-bg text-xs text-accent"
+				></button>
+
+				<div data-ui-caja hidden class="absolute inset-x-6 top-1/2 flex -translate-y-1/2 flex-col gap-4 border border-line bg-bg p-5">
+					<div class="flex items-center justify-between gap-3 text-sm">
+						<span data-ui-meta-texto class="text-muted">Mueve el tirador</span>
+						<span class="text-muted">Valor <span data-ui-lectura class="text-lg text-mark">0</span></span>
+					</div>
+					<div class="relative">
+						<input type="range" min="0" max="100" value="50" data-ui-rango aria-label="Slider de prueba" class="w-full" />
+						<span data-ui-meta hidden class="pointer-events-none absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 bg-mark"></span>
+					</div>
+					<div class="h-1 w-full bg-line" aria-hidden="true">
+						<div data-ui-distancia class="h-full bg-heart" style="width: 0%"></div>
+					</div>
+				</div>
+			</div>
+
+			<dl class="grid grid-cols-2 gap-px border border-line bg-line text-sm sm:grid-cols-5">
+				{
+					[0, 1, 2, 3, 4].map(() => (
+						<div data-ui-celda class="flex flex-col gap-1 bg-bg p-3">
+							<dt class="text-muted" />
+							<dd class="text-lg text-fg" />
+						</div>
+					))
+				}
+			</dl>
+
+			<p data-ui-veredicto aria-live="polite" class="text-sm text-mark"></p>
+
+			<ol data-ui-registro class="flex flex-col gap-1 text-xs text-muted"></ol>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-ui-objetivo] {
+		transition: transform 60ms;
+	}
+	[data-ui-arena][data-press] [data-ui-objetivo]:hover {
+		background: color-mix(in oklab, var(--color-accent) 15%, var(--color-bg));
+	}
+	[data-ui-arena][data-press] [data-ui-objetivo][data-state='pulsado'] {
+		background: var(--color-accent);
+		color: var(--color-bg);
+		transform: translateY(2px);
+	}
+	[data-ui-caja][data-state='exacto'] {
+		border-color: var(--color-ok);
+	}
+	[data-ui-caja][data-state='fallo'] {
+		border-color: var(--color-heart);
+	}
+	[data-ui-marca] {
+		position: absolute;
+		width: 0.75rem;
+		height: 0.75rem;
+		border: 2px solid var(--color-accent);
+		transform: translate(-50%, -50%);
+		pointer-events: none;
+		animation: ui-marca 900ms ease-out forwards;
+	}
+	[data-ui-marca='fallo'] {
+		border-color: var(--color-heart);
+	}
+	[data-ui-marca='repetido'] {
+		border-color: var(--color-mark);
+		border-style: dashed;
+	}
+	@keyframes ui-marca {
+		to {
+			opacity: 0;
+			width: 2.5rem;
+			height: 2.5rem;
+		}
+	}
+
+	/* El slider de prueba se dibuja a mano para poder cambiar el tirador. */
+	[data-ui-rango] {
+		--tirador: 16px;
+		appearance: none;
+		height: var(--tirador);
+		background: transparent;
+		cursor: pointer;
+	}
+	[data-ui-rango]::-webkit-slider-runnable-track {
+		height: 4px;
+		background: var(--color-line);
+	}
+	[data-ui-rango]::-webkit-slider-thumb {
+		appearance: none;
+		width: var(--tirador);
+		height: var(--tirador);
+		margin-top: calc((4px - var(--tirador)) / 2);
+		border: none;
+		border-radius: 0;
+		background: var(--color-accent);
+	}
+	[data-ui-rango]::-moz-range-track {
+		height: 4px;
+		background: var(--color-line);
+	}
+	[data-ui-rango]::-moz-range-thumb {
+		width: var(--tirador);
+		height: var(--tirador);
+		border: none;
+		border-radius: 0;
+		background: var(--color-accent);
+	}
+	[data-ui-rango]:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 4px;
+	}
+</style>
+
+<script>
+	type Modo = 'boton' | 'slider';
+	type Ajuste = 'tamano' | 'tirador' | 'paso' | 'retardo' | 'rondas';
+	type Estado = Record<Ajuste, number> & { modo: Modo; pulsado: boolean };
+
+	const CLAVE = 'tuweb:interacciones';
+	const RANGOS: Record<Ajuste, [number, number]> = {
+		tamano: [24, 160],
+		tirador: [8, 40],
+		paso: [1, 20],
+		retardo: [0, 1000],
+		rondas: [3, 20],
+	};
+	const AJUSTES = Object.keys(RANGOS) as Ajuste[];
+	const INICIAL: Estado = { modo: 'boton', tamano: 48, tirador: 16, paso: 1, retardo: 0, rondas: 10, pulsado: true };
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="interacciones"]');
+	const arena = panel?.querySelector<HTMLElement>('[data-ui-arena]');
+	const objetivo = panel?.querySelector<HTMLButtonElement>('[data-ui-objetivo]');
+	const caja = panel?.querySelector<HTMLElement>('[data-ui-caja]');
+	const rango = panel?.querySelector<HTMLInputElement>('[data-ui-rango]');
+	const meta = panel?.querySelector<HTMLElement>('[data-ui-meta]');
+	const metaTexto = panel?.querySelector<HTMLElement>('[data-ui-meta-texto]');
+	const lectura = panel?.querySelector<HTMLElement>('[data-ui-lectura]');
+	const distancia = panel?.querySelector<HTMLElement>('[data-ui-distancia]');
+	const mensaje = panel?.querySelector<HTMLElement>('[data-ui-mensaje]');
+	const empezarTexto = panel?.querySelector<HTMLElement>('[data-ui-empezar-texto]');
+	const veredicto = panel?.querySelector<HTMLElement>('[data-ui-veredicto]');
+	const registro = panel?.querySelector<HTMLElement>('[data-ui-registro]');
+	const pulsado = panel?.querySelector<HTMLInputElement>('[data-ui-pulsado]');
+	const celdas = [...(panel?.querySelectorAll<HTMLElement>('[data-ui-celda]') ?? [])];
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const media = (lista: number[]) => (lista.length ? lista.reduce((a, b) => a + b, 0) / lista.length : 0);
+	const ms = (v: number | undefined) => (v === undefined ? '-' : `${Math.round(v)} ms`);
+
+	function cargar(): Estado {
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (guardado && typeof guardado === 'object') {
+				const salida = structuredClone(INICIAL);
+				AJUSTES.forEach((a) => {
+					const v = guardado[a];
+					if (typeof v === 'number' && Number.isFinite(v)) salida[a] = limitar(v, ...RANGOS[a]);
+				});
+				salida.modo = guardado.modo === 'slider' ? 'slider' : 'boton';
+				salida.pulsado = guardado.pulsado !== false;
+				return salida;
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return structuredClone(INICIAL);
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento: la herramienta sigue igual.
+		}
+	}
+
+	const nuevaPrueba = () => ({
+		activa: false,
+		bloqueado: false,
+		ronda: 0,
+		inicio: 0,
+		tiempos: [] as number[],
+		dificultades: [] as number[],
+		errores: [] as number[],
+		fallos: 0,
+		repetidos: 0,
+		dificultad: 0,
+		desde: [0, 0] as [number, number],
+		meta: 0,
+	});
+
+	let prueba = nuevaPrueba();
+	let temporizadores: number[] = [];
+
+	// Todo lo que va con retardo pasa por aquí para poder cortarlo de golpe.
+	function temporizar(fn: () => void, espera: number) {
+		const id = window.setTimeout(() => {
+			temporizadores = temporizadores.filter((t) => t !== id);
+			fn();
+		}, espera);
+		temporizadores.push(id);
+	}
+
+	function cortar() {
+		temporizadores.forEach((id) => clearTimeout(id));
+		temporizadores = [];
+	}
+
+	function pintarAjustes() {
+		AJUSTES.forEach((a) => {
+			const control = panel?.querySelector<HTMLInputElement>(`[data-ui-ajuste="${a}"]`);
+			const valor = panel?.querySelector<HTMLElement>(`[data-ui-valor="${a}"]`);
+			if (control) control.value = String(estado[a]);
+			if (valor) valor.textContent = `${estado[a]} ${valor.dataset.unidad ?? ''}`.trim();
+		});
+		panel?.querySelectorAll<HTMLButtonElement>('[data-ui-modo]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.uiModo === estado.modo));
+		});
+		panel?.querySelectorAll<HTMLElement>('[data-ui-solo]').forEach((el) => {
+			el.hidden = el.dataset.uiSolo !== estado.modo;
+		});
+		if (pulsado) pulsado.checked = estado.pulsado;
+		if (arena) arena.toggleAttribute('data-press', estado.pulsado);
+		if (objetivo) {
+			objetivo.style.width = `${estado.tamano}px`;
+			objetivo.style.height = `${estado.tamano}px`;
+		}
+		if (rango) {
+			rango.style.setProperty('--tirador', `${estado.tirador}px`);
+			rango.step = String(estado.paso);
+		}
+	}
+
+	function pintarDatos() {
+		const exactos = prueba.errores.filter((e) => e === 0).length;
+		const datos =
+			estado.modo === 'boton'
+				? [
+						['Ronda', `${prueba.ronda}/${estado.rondas}`],
+						['Último', ms(prueba.tiempos.at(-1))],
+						['Media', prueba.tiempos.length ? ms(media(prueba.tiempos)) : '-'],
+						['Fallos', String(prueba.fallos)],
+						['Repetidos', String(prueba.repetidos)],
+					]
+				: [
+						['Ronda', `${prueba.ronda}/${estado.rondas}`],
+						['Último', ms(prueba.tiempos.at(-1))],
+						['Media', prueba.tiempos.length ? ms(media(prueba.tiempos)) : '-'],
+						['Error medio', prueba.errores.length ? media(prueba.errores).toFixed(1) : '-'],
+						['Exactos', String(exactos)],
+					];
+		celdas.forEach((celda, i) => {
+			const [etiqueta, valor] = datos[i];
+			const dt = celda.querySelector('dt');
+			const dd = celda.querySelector('dd');
+			if (dt) dt.textContent = etiqueta ?? '';
+			if (dd) dd.textContent = valor ?? '';
+		});
+	}
+
+	function anotar(texto: string) {
+		if (!registro) return;
+		const li = document.createElement('li');
+		li.textContent = texto;
+		registro.prepend(li);
+		while (registro.children.length > 8) registro.lastElementChild?.remove();
+	}
+
+	function marcar(x: number, y: number, tipo: 'acierto' | 'fallo' | 'repetido') {
+		if (!arena) return;
+		const marca = document.createElement('span');
+		marca.dataset.uiMarca = tipo;
+		marca.style.left = `${x}px`;
+		marca.style.top = `${y}px`;
+		marca.addEventListener('animationend', () => marca.remove());
+		arena.append(marca);
+	}
+
+	// Dónde cayó el clic dentro de la arena. Con teclado no hay puntero: el centro
+	// del botón.
+	function punto(e: MouseEvent): [number, number] {
+		const r = arena?.getBoundingClientRect();
+		if (!r) return [0, 0];
+		if (e.detail === 0 && objetivo) {
+			const b = objetivo.getBoundingClientRect();
+			return [b.left + b.width / 2 - r.left, b.top + b.height / 2 - r.top];
+		}
+		return [e.clientX - r.left, e.clientY - r.top];
+	}
+
+	// Sin prueba en marcha se puede tocar a lo libre: botón en el centro, slider
+	// sin objetivo.
+	function vistaLibre(texto: string) {
+		cortar();
+		prueba.activa = false;
+		prueba.bloqueado = false;
+		if (objetivo) {
+			objetivo.hidden = estado.modo !== 'boton';
+			objetivo.removeAttribute('data-state');
+			objetivo.textContent = '';
+			objetivo.style.left = `calc(50% - ${estado.tamano / 2}px)`;
+			objetivo.style.top = `calc(50% - ${estado.tamano / 2}px)`;
+		}
+		if (caja) {
+			caja.hidden = estado.modo !== 'slider';
+			caja.removeAttribute('data-state');
+		}
+		if (meta) meta.hidden = true;
+		if (metaTexto) metaTexto.textContent = 'Mueve el tirador';
+		if (distancia) distancia.style.width = '0%';
+		if (lectura && rango) lectura.textContent = rango.value;
+		if (mensaje) mensaje.textContent = texto;
+		if (empezarTexto) empezarTexto.textContent = 'Empezar prueba';
+	}
+
+	function colocarBoton() {
+		if (!arena || !objetivo) return;
+		const lado = estado.tamano;
+		const margen = 8;
+		const x = margen + Math.random() * Math.max(0, arena.clientWidth - lado - margen * 2);
+		const y = margen + Math.random() * Math.max(0, arena.clientHeight - lado - margen * 2);
+		const cx = x + lado / 2;
+		const cy = y + lado / 2;
+		// Ley de Fitts: cuanto más lejos y más pequeño, más difícil.
+		prueba.dificultad = Math.log2(Math.hypot(cx - prueba.desde[0], cy - prueba.desde[1]) / lado + 1);
+		prueba.desde = [cx, cy];
+		objetivo.style.left = `${x}px`;
+		objetivo.style.top = `${y}px`;
+		objetivo.textContent = String(prueba.ronda + 1);
+		objetivo.removeAttribute('data-state');
+		objetivo.hidden = false;
+		prueba.bloqueado = false;
+		prueba.inicio = performance.now();
+	}
+
+	function colocarSlider() {
+		if (!rango) return;
+		const actual = Number(rango.value);
+		const pasos = Math.floor(100 / estado.paso);
+		// Un destino que caiga en el paso y no esté pegado a donde ya estás.
+		let destino = actual;
+		for (let i = 0; i < 30 && Math.abs(destino - actual) < 20; i++) {
+			destino = Math.round(Math.random() * pasos) * estado.paso;
+		}
+		prueba.meta = destino;
+		if (meta) {
+			meta.hidden = false;
+			meta.style.left = `calc(${estado.tirador / 2}px + (100% - ${estado.tirador}px) * ${destino / 100})`;
+		}
+		if (metaTexto) metaTexto.textContent = `Llévalo a ${destino}`;
+		caja?.removeAttribute('data-state');
+		prueba.bloqueado = false;
+		prueba.inicio = performance.now();
+		leer();
+	}
+
+	function empezar() {
+		cortar();
+		prueba = nuevaPrueba();
+		prueba.activa = true;
+		registro?.replaceChildren();
+		if (veredicto) veredicto.textContent = '';
+		if (empezarTexto) empezarTexto.textContent = 'Reiniciar prueba';
+		if (estado.modo === 'boton') {
+			if (caja) caja.hidden = true;
+			prueba.desde = [(arena?.clientWidth ?? 0) / 2, (arena?.clientHeight ?? 0) / 2];
+			if (mensaje) mensaje.textContent = 'Pulsa el botón en cuanto aparezca. Fuera de él cuenta como fallo.';
+			colocarBoton();
+		} else {
+			if (objetivo) objetivo.hidden = true;
+			if (caja) caja.hidden = false;
+			if (mensaje) mensaje.textContent = 'Lleva el tirador a la raya y suéltalo. Con teclado, Enter confirma.';
+			colocarSlider();
+		}
+		pintarDatos();
+	}
+
+	function conclusiones() {
+		const t = media(prueba.tiempos);
+		const frases: string[] = [];
+		if (estado.modo === 'boton') {
+			const bits = t > 0 ? media(prueba.dificultades) / (t / 1000) : 0;
+			frases.push(`Media de ${ms(t)} y ${bits.toFixed(1)} bits/s de rendimiento.`);
+			if (prueba.repetidos > 0) {
+				frases.push(`${prueba.repetidos} clics repetidos: si la respuesta tarda y no se ve, la gente vuelve a pulsar.`);
+			}
+			if (prueba.fallos / estado.rondas >= 0.2) frases.push('Muchos fallos: el botón se queda pequeño.');
+			if (t > 1200) frases.push('Lento: un botón más grande se encuentra antes.');
+		} else {
+			const error = media(prueba.errores);
+			frases.push(`Media de ${ms(t)} y error medio de ${error.toFixed(1)}.`);
+			if (error > estado.paso) frases.push('Cuesta afinar: prueba un tirador más grande o un paso mayor.');
+			if (estado.retardo >= 300) frases.push('El valor llega tarde y obliga a corregir a ciegas.');
+			if (t > 3000) frases.push('Lento: tanta precisión cansa.');
+		}
+		if (frases.length === 1) frases.push('Funciona bien: rápido y sin errores.');
+		return frases.join(' ');
+	}
+
+	function terminar() {
+		const texto = conclusiones();
+		vistaLibre('Prueba terminada. Cambia el diseño y compara.');
+		if (veredicto) veredicto.textContent = texto;
+		if (empezarTexto) empezarTexto.textContent = 'Otra vez';
+	}
+
+	function siguiente(fin: () => void) {
+		prueba.ronda++;
+		pintarDatos();
+		if (prueba.ronda >= estado.rondas) terminar();
+		else fin();
+	}
+
+	objetivo?.addEventListener('click', (e) => {
+		if (estado.modo !== 'boton') return;
+		const [x, y] = punto(e);
+
+		if (prueba.bloqueado) {
+			if (prueba.activa) {
+				prueba.repetidos++;
+				pintarDatos();
+			}
+			marcar(x, y, 'repetido');
+			return;
+		}
+
+		const t = performance.now() - prueba.inicio;
+		prueba.bloqueado = true;
+		if (estado.pulsado) objetivo.dataset.state = 'pulsado';
+
+		// La respuesta de verdad (la marca, el salto al siguiente) llega tras el
+		// retardo. El estado pulsado, si está activado, sale al momento.
+		temporizar(() => {
+			marcar(x, y, 'acierto');
+			objetivo.removeAttribute('data-state');
+			prueba.bloqueado = false;
+			if (!prueba.activa) return;
+			prueba.tiempos.push(t);
+			prueba.dificultades.push(prueba.dificultad);
+			anotar(`${prueba.ronda + 1} · ${ms(t)} · dificultad ${prueba.dificultad.toFixed(1)}`);
+			siguiente(colocarBoton);
+		}, Math.max(estado.retardo, estado.pulsado ? 120 : 0));
+	});
+
+	arena?.addEventListener('pointerdown', (e) => {
+		if (!prueba.activa || estado.modo !== 'boton' || prueba.bloqueado) return;
+		if (objetivo?.contains(e.target as Node)) return;
+		prueba.fallos++;
+		marcar(...punto(e), 'fallo');
+		pintarDatos();
+	});
+
+	// El número que ve la persona llega con el retardo elegido.
+	function leer() {
+		if (!rango) return;
+		const valor = Number(rango.value);
+		const pintar = () => {
+			if (lectura) lectura.textContent = String(valor);
+			if (distancia) distancia.style.width = prueba.activa ? `${Math.abs(valor - prueba.meta)}%` : '0%';
+		};
+		if (estado.retardo > 0) temporizar(pintar, estado.retardo);
+		else pintar();
+	}
+
+	function confirmar() {
+		if (!rango || !prueba.activa || estado.modo !== 'slider' || prueba.bloqueado) return;
+		const t = performance.now() - prueba.inicio;
+		const error = Math.abs(Number(rango.value) - prueba.meta);
+		prueba.bloqueado = true;
+		prueba.tiempos.push(t);
+		prueba.errores.push(error);
+		if (caja) caja.dataset.state = error === 0 ? 'exacto' : 'fallo';
+		anotar(`${prueba.ronda + 1} · ${ms(t)} · ${error === 0 ? 'exacto' : `error ${error}`}`);
+		temporizar(() => siguiente(colocarSlider), 500);
+	}
+
+	let porPuntero = false;
+	rango?.addEventListener('pointerdown', () => {
+		porPuntero = true;
+	});
+	rango?.addEventListener('input', leer);
+	rango?.addEventListener('change', () => {
+		if (!porPuntero) return;
+		porPuntero = false;
+		confirmar();
+	});
+	rango?.addEventListener('keydown', (e) => {
+		if (e.key !== 'Enter') return;
+		e.preventDefault();
+		confirmar();
+	});
+
+	const REPOSO = 'Toca a lo libre o empieza una prueba para medir.';
+
+	function cambiar() {
+		pintarAjustes();
+		guardar();
+		const aviso = prueba.activa ? 'Has cambiado el diseño: la prueba se ha cortado.' : REPOSO;
+		vistaLibre(aviso);
+		prueba = nuevaPrueba();
+		pintarDatos();
+	}
+
+	AJUSTES.forEach((a) => {
+		const control = panel?.querySelector<HTMLInputElement>(`[data-ui-ajuste="${a}"]`);
+		control?.addEventListener('input', () => {
+			estado[a] = limitar(Number(control.value), ...RANGOS[a]);
+			cambiar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-ui-modo]').forEach((b) => {
+		b.addEventListener('click', () => {
+			estado.modo = b.dataset.uiModo === 'slider' ? 'slider' : 'boton';
+			if (veredicto) veredicto.textContent = '';
+			registro?.replaceChildren();
+			cambiar();
+		});
+	});
+
+	pulsado?.addEventListener('change', () => {
+		estado.pulsado = pulsado.checked;
+		cambiar();
+	});
+
+	panel?.querySelector('[data-ui-empezar]')?.addEventListener('click', empezar);
+
+	panel?.querySelector('[data-ui-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		if (veredicto) veredicto.textContent = '';
+		registro?.replaceChildren();
+		cambiar();
+	});
+
+	pintarAjustes();
+	vistaLibre(REPOSO);
+	pintarDatos();
+</script>
