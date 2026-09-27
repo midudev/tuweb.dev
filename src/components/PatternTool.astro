@@ -1,11 +1,11 @@
 ---
 /**
  * Generador de tramas SVG para fondos: figura, tamaño, colores, borde, giro y
- * opacidad, y si se quiere, movimiento, cambio de color y latido. Sale un SVG
- * y el CSS listo para pegar. Todo se pinta aquí, en el navegador; no se
- * guarda ni se envía nada.
+ * opacidad, una textura por encima y, si se quiere, movimiento, cambio de
+ * color y latido. Sale un SVG y el CSS listo para pegar. Todo se pinta aquí,
+ * en el navegador; no se guarda ni se envía nada.
  */
-import { DIRECTIONS, RECIPES, SHAPES } from '../lib/pattern';
+import { DIRECTIONS, RECIPES, SHAPES, TEXTURES } from '../lib/pattern';
 import Icon from './Icon.astro';
 import PatternSliders from './PatternSliders.astro';
 
@@ -16,6 +16,8 @@ const SLIDERS = [
 	{ id: 'angle', label: 'Giro', min: 0, max: 180, step: 1 },
 	{ id: 'opacity', label: 'Opacidad', min: 0.05, max: 1, step: 0.01 },
 ];
+
+const TEXTURA = [{ id: 'textureAmount', label: 'Intensidad', min: 0, max: 1, step: 0.01 }];
 
 const MOVIMIENTO = [{ id: 'speed', label: 'Velocidad', min: 0, max: 120, step: 1 }];
 
@@ -89,6 +91,29 @@ const OPCION =
 					</label>
 				</div>
 				<p data-trama-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<h3 id="trama-textura" class="text-sm text-muted">Textura</h3>
+				<div role="group" aria-labelledby="trama-textura" class="flex flex-wrap gap-2">
+					{
+						TEXTURES.map((texture) => (
+							<button type="button" data-trama-textura={texture.id} aria-pressed="false" class={OPCION}>
+								<Icon name={texture.icon} class="size-4 shrink-0" />
+								{texture.label}
+							</button>
+						))
+					}
+				</div>
+				<PatternSliders sliders={TEXTURA} />
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Tinta
+					<input
+						type="color"
+						data-trama-color="textureColor"
+						class="h-9 w-14 cursor-pointer border border-line bg-panel p-1 disabled:opacity-40"
+					/>
+				</label>
 			</div>
 
 			<div class="flex flex-col gap-3">
@@ -266,10 +291,12 @@ const OPCION =
 		type Pattern,
 		RECIPES,
 		SHAPES,
+		TEXTURES,
 		buildSvg,
 		directionOf,
 		isAnimated,
 		shapeOf,
+		textureOf,
 		toCss,
 		toDataUri,
 	} from '../lib/pattern';
@@ -287,8 +314,17 @@ const OPCION =
 	const direcciones = document.querySelectorAll<HTMLButtonElement>('[data-trama-direccion]');
 
 	/** Los ajustes que van por deslizador y los que van por selector de color. */
-	type Numerico = 'size' | 'scale' | 'stroke' | 'angle' | 'opacity' | 'speed' | 'pulse' | 'cycle';
-	type Tinta = 'fill' | 'border' | 'background' | 'shiftColor';
+	type Numerico =
+		| 'size'
+		| 'scale'
+		| 'stroke'
+		| 'angle'
+		| 'opacity'
+		| 'speed'
+		| 'pulse'
+		| 'cycle'
+		| 'textureAmount';
+	type Tinta = 'fill' | 'border' | 'background' | 'shiftColor' | 'textureColor';
 
 	/** Las figuras de línea no tienen relleno: solo se ven si el borde tiene grosor. */
 	const GROSOR_MINIMO = 1.5;
@@ -310,15 +346,21 @@ const OPCION =
 
 	function render() {
 		const figura = shapeOf(trama.shape);
+		const textura = textureOf(trama.texture);
 
 		document.querySelectorAll<HTMLButtonElement>('[data-trama-figura]').forEach((button) => {
 			button.setAttribute('aria-pressed', String(button.dataset.tramaFigura === figura.id));
+		});
+
+		document.querySelectorAll<HTMLButtonElement>('[data-trama-textura]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.tramaTextura === textura.id));
 		});
 
 		rangos.forEach((rango) => {
 			const clave = rango.dataset.tramaRango as Numerico;
 			const valor = trama[clave];
 			rango.value = String(valor);
+			if (clave === 'textureAmount') rango.disabled = !textura.noise;
 			const salida = document.querySelector<HTMLElement>(`[data-trama-valor="${clave}"]`);
 			if (salida) salida.textContent = mostrar(clave, valor);
 		});
@@ -331,7 +373,8 @@ const OPCION =
 			color.disabled =
 				(clave === 'fill' && Boolean(figura.line)) ||
 				(clave === 'background' && trama.transparent) ||
-				(clave === 'shiftColor' && !trama.shift);
+				(clave === 'shiftColor' && !trama.shift) ||
+				(clave === 'textureColor' && !textura.noise);
 		});
 
 		const direccion = directionOf(trama.direction);
@@ -409,6 +452,10 @@ const OPCION =
 		});
 	});
 
+	document.querySelectorAll<HTMLButtonElement>('[data-trama-textura]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ texture: button.dataset.tramaTextura ?? '' }));
+	});
+
 	transparente?.addEventListener('change', () => cambiar({ transparent: transparente.checked }));
 	cambio?.addEventListener('change', () => cambiar({ shift: cambio.checked }));
 
@@ -453,6 +500,9 @@ const OPCION =
 			border: alAzar(PALETA),
 			background: alAzar(['#fdf6ef', '#f7ece1', '#f2e3d3', '#e8d9c8']),
 			transparent: false,
+			texture: alAzar(TEXTURES).id,
+			textureAmount: entre(0.15, 0.6, 0.05),
+			textureColor: alAzar(PALETA),
 		});
 	});
 

@@ -38,6 +38,11 @@ export interface Pattern {
 	pulse: number;
 	/** Segundos que tarda una vuelta del cambio de color y del latido. */
 	cycle: number;
+	/** Textura que va por encima de todo; uno de los ids de TEXTURES. */
+	texture: string;
+	/** Cuánto se nota la textura, de 0 a 1. */
+	textureAmount: number;
+	textureColor: string;
 }
 
 interface Shape {
@@ -201,6 +206,76 @@ export function directionOf(id: string) {
 	return DIRECTIONS.find((direction) => direction.id === id) ?? DIRECTIONS[4];
 }
 
+/**
+ * Texturas: ruido del propio SVG (feTurbulence), sin imágenes. El ruido se
+ * queda en un solo canal y ese canal pasa a ser la transparencia de la tinta;
+ * «contrast» y «offset» dicen cuánto se aprieta ese canal.
+ */
+interface Texture {
+	id: string;
+	label: string;
+	icon: string;
+	noise?: {
+		type: 'fractalNoise' | 'turbulence';
+		frequency: string;
+		octaves: number;
+		contrast: number;
+		offset: number;
+	};
+}
+
+export const TEXTURES: readonly Texture[] = [
+	{ id: 'ninguna', label: 'Ninguna', icon: 'square-off' },
+	{
+		id: 'grano',
+		label: 'Grano',
+		icon: 'grain',
+		noise: { type: 'fractalNoise', frequency: '0.85', octaves: 3, contrast: 3, offset: -1 },
+	},
+	{
+		id: 'papel',
+		label: 'Papel',
+		icon: 'file',
+		noise: { type: 'fractalNoise', frequency: '0.04', octaves: 5, contrast: 2.5, offset: -0.8 },
+	},
+	{
+		id: 'fibras',
+		label: 'Fibras',
+		icon: 'align-justified',
+		noise: { type: 'fractalNoise', frequency: '0.008 0.6', octaves: 2, contrast: 3, offset: -1 },
+	},
+	{
+		id: 'nubes',
+		label: 'Nubes',
+		icon: 'cloud',
+		noise: { type: 'turbulence', frequency: '0.012', octaves: 4, contrast: 2.5, offset: -0.2 },
+	},
+];
+
+export function textureOf(id: string) {
+	return TEXTURES.find((texture) => texture.id === id) ?? TEXTURES[0];
+}
+
+/** El filtro y la capa de la textura, o nada si no lleva o está a cero. */
+function textureLayer(pattern: Pattern) {
+	const noise = textureOf(pattern.texture).noise;
+	const amount = Math.min(1, Math.max(0, pattern.textureAmount));
+	if (!noise || amount <= 0) return { filter: '', layer: '' };
+
+	const ink = safeColor(pattern.textureColor, DEFAULT_PATTERN.textureColor);
+	const [r, g, b] = [1, 3, 5].map((at) => n(parseInt(ink.slice(at, at + 2), 16) / 255));
+	const matrix = `0 0 0 0 ${r} 0 0 0 0 ${g} 0 0 0 0 ${b} ${n(noise.contrast)} 0 0 0 ${n(noise.offset)}`;
+
+	return {
+		filter: `
+\t\t<filter id="textura" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+\t\t\t<feTurbulence type="${noise.type}" baseFrequency="${noise.frequency}" numOctaves="${noise.octaves}" seed="7"/>
+\t\t\t<feColorMatrix type="matrix" values="${matrix}"/>
+\t\t</filter>`,
+		layer: `\n\t<rect width="100%" height="100%" filter="url(#textura)" opacity="${n(amount)}"/>`,
+	};
+}
+
 export const DEFAULT_PATTERN: Pattern = {
 	shape: 'puntos',
 	size: 28,
@@ -218,6 +293,9 @@ export const DEFAULT_PATTERN: Pattern = {
 	shiftColor: '#3b2d24',
 	pulse: 0,
 	cycle: 6,
+	texture: 'ninguna',
+	textureAmount: 0.35,
+	textureColor: '#3b2d24',
 };
 
 /** Recetas para arrancar con algo puesto en vez de con la baldosa vacía. */
@@ -253,6 +331,34 @@ export const RECIPES: readonly { label: string; pattern: Pattern }[] = [
 			stroke: 1.5,
 			border: '#c2410c',
 			opacity: 0.6,
+		},
+	},
+	{
+		label: 'Lienzo',
+		pattern: {
+			...DEFAULT_PATTERN,
+			shape: 'rejilla',
+			size: 24,
+			scale: 1,
+			stroke: 1,
+			border: '#e8d9c8',
+			background: '#f7ece1',
+			texture: 'fibras',
+			textureAmount: 0.3,
+		},
+	},
+	{
+		label: 'Pergamino',
+		pattern: {
+			...DEFAULT_PATTERN,
+			size: 36,
+			scale: 0.15,
+			fill: '#a75f2b',
+			opacity: 0.5,
+			background: '#f2e3d3',
+			texture: 'papel',
+			textureAmount: 0.45,
+			textureColor: '#7c4a21',
 		},
 	},
 	{
@@ -372,14 +478,15 @@ export function buildSvg(pattern: Pattern, box?: { width: number; height: number
 	const moving = animated ? motion(pattern, size) : '';
 	const measures = box ? `width="${box.width}" height="${box.height}"` : 'width="100%" height="100%"';
 	const floor = pattern.transparent ? '' : `\n\t<rect width="100%" height="100%" fill="${background}"/>`;
+	const texture = textureLayer(pattern);
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" ${measures}>
 \t<defs>
 \t\t<pattern id="trama" width="${n(size)}" height="${n(size)}" patternUnits="userSpaceOnUse"${turn}>
 \t\t\t${tile}${moving}
-\t\t</pattern>
+\t\t</pattern>${texture.filter}
 \t</defs>${floor}
-\t<rect width="100%" height="100%" fill="url(#trama)"/>
+\t<rect width="100%" height="100%" fill="url(#trama)"/>${texture.layer}
 </svg>`;
 }
 
