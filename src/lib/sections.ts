@@ -178,6 +178,15 @@ export const SECTIONS: Section[] = [
 			'Diseña una animación CSS mirándola moverse. Elige el efecto —desvanecer, deslizar, rotar, escalar, rebotar, latir o sacudir— y afina la duración, el retraso, las repeticiones, la dirección y la función de tiempo: la caja de prueba lo repite al momento. Cuando esté, copias el CSS entero, con sus @keyframes y su animation. Corre en tu navegador y los ajustes se quedan en él.',
 	},
 	{
+		href: '/paletas',
+		title: 'Paletas y fondos',
+		icon: 'color-swatch',
+		group: 'herramientas',
+		card: 'Una paleta a partir de un color, sus HEX y un fondo abstracto para tu pantalla.',
+		intro:
+			'Elige un color y una armonía —análoga, monocromática, complementaria, triádica o tetrádica— y sale la paleta de cinco, con su saturación y su brillo a mano y el HEX de cada uno a un clic. Con esos colores se pinta un fondo abstracto: ondas, burbujas, polígonos o bloques, en el tamaño de tu escritorio o de tu móvil, y te lo llevas en PNG. Se pinta en tu navegador y los ajustes se quedan en él.',
+	},
+	{
 		href: '/comparador',
 		title: 'Comparador de textos',
 		icon: 'git-compare',

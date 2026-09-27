@@ -1,0 +1,681 @@
+---
+/**
+ * Paletas y fondos. Arriba, una paleta de cinco colores a partir de uno base y
+ * una armonía, con la saturación y el brillo a mano y el HEX de cada color a
+ * un clic. Abajo, un fondo abstracto pintado con esa paleta en el tamaño de
+ * una pantalla de verdad, que te llevas en PNG.
+ *
+ * Todo pasa en tu navegador: el fondo se dibuja en un canvas con una semilla,
+ * así que la vista previa y el PNG grande salen iguales, y los ajustes se
+ * guardan en el localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50';
+
+const CAMPO = 'w-full border border-line bg-bg p-2 text-sm outline-none focus-visible:border-accent';
+
+const RANGO = 'w-full accent-accent';
+
+const MODOS = [
+	{ id: 'analoga', label: 'Análoga' },
+	{ id: 'mono', label: 'Monocromática' },
+	{ id: 'complementaria', label: 'Complementaria' },
+	{ id: 'triadica', label: 'Triádica' },
+	{ id: 'tetradica', label: 'Tetrádica' },
+];
+
+const ESTILOS = [
+	{ id: 'ondas', label: 'Ondas' },
+	{ id: 'burbujas', label: 'Burbujas' },
+	{ id: 'poligonos', label: 'Polígonos' },
+	{ id: 'bloques', label: 'Bloques' },
+];
+
+const TAMANOS = [
+	{ ancho: 1920, alto: 1080, label: 'Full HD', icon: 'device-desktop' },
+	{ ancho: 2560, alto: 1440, label: 'QHD', icon: 'device-desktop' },
+	{ ancho: 3840, alto: 2160, label: '4K', icon: 'device-desktop' },
+	{ ancho: 3440, alto: 1440, label: 'Panorámico', icon: 'device-desktop' },
+	{ ancho: 1080, alto: 1920, label: 'Móvil', icon: 'device-mobile' },
+	{ ancho: 1170, alto: 2532, label: 'iPhone', icon: 'device-mobile' },
+	{ ancho: 1440, alto: 3200, label: 'Android QHD', icon: 'device-mobile' },
+];
+---
+
+<div class="flex flex-col gap-10">
+	<section aria-labelledby="pal-titulo" class="flex flex-col gap-4">
+		<h2 id="pal-titulo" class="flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="palette" class="size-5 shrink-0 text-accent" />
+			La paleta
+		</h2>
+
+		<div class="grid grid-cols-5 border border-line" data-pal-muestras>
+			{
+				[0, 1, 2, 3, 4].map((i) => (
+					<button
+						type="button"
+						data-pal-muestra={i}
+						class="flex h-28 flex-col justify-end p-2 text-left text-xs sm:h-36 sm:p-3 sm:text-sm"
+					>
+						<span data-pal-hex class="break-all">#000000</span>
+						<span data-pal-aviso class="opacity-80">copiar</span>
+					</button>
+				))
+			}
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-pal-copiar="hex" class={BOTON}>
+				<Icon name="copy" class="size-4 shrink-0" />
+				Copiar HEX
+			</button>
+			<button type="button" data-pal-copiar="css" class={BOTON}>
+				<Icon name="copy" class="size-4 shrink-0" />
+				Copiar CSS
+			</button>
+			<button type="button" data-pal-azar class={BOTON}>
+				<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+				Al azar
+			</button>
+			<span data-pal-estado class="text-sm text-muted" aria-live="polite"></span>
+		</div>
+
+		<div class="grid gap-5 border border-line bg-panel p-5 md:grid-cols-2">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Color base</span>
+				<div class="flex items-center gap-2">
+					<input
+						type="color"
+						data-pal-base
+						aria-label="Color base"
+						class="h-10 w-14 shrink-0 cursor-pointer border border-line bg-bg p-0.5"
+					/>
+					<input
+						type="text"
+						data-pal-base-texto
+						aria-label="Color base en HEX"
+						maxlength="7"
+						autocomplete="off"
+						spellcheck="false"
+						class={CAMPO}
+					/>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span id="pal-modo" class="text-sm text-muted">Armonía</span>
+				<div role="group" aria-labelledby="pal-modo" class="flex flex-wrap gap-2">
+					{
+						MODOS.map((item) => (
+							<button type="button" data-pal-opcion="modo" data-valor={item.id} aria-pressed="false" class={BOTON}>
+								{item.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<label class="flex flex-col gap-1">
+				<span class="flex justify-between gap-2 text-sm text-muted">
+					<span class="flex items-center gap-2"><Icon name="droplet" class="size-4 shrink-0" />Saturación</span>
+					<output data-pal-valor="sat" class="text-mark"></output>
+				</span>
+				<input type="range" data-pal-rango="sat" min="-50" max="50" step="1" class={RANGO} />
+			</label>
+
+			<label class="flex flex-col gap-1">
+				<span class="flex justify-between gap-2 text-sm text-muted">
+					<span class="flex items-center gap-2"><Icon name="sun" class="size-4 shrink-0" />Brillo</span>
+					<output data-pal-valor="luz" class="text-mark"></output>
+				</span>
+				<input type="range" data-pal-rango="luz" min="-50" max="50" step="1" class={RANGO} />
+			</label>
+		</div>
+	</section>
+
+	<section aria-labelledby="fondo-titulo" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+		<div class="flex min-w-0 flex-col gap-4">
+			<h2 id="fondo-titulo" class="flex items-center gap-2 font-pixel text-lg font-normal">
+				<Icon name="wallpaper" class="size-5 shrink-0 text-accent" />
+				El fondo
+			</h2>
+			<div class="flex items-center justify-center border border-line bg-panel p-4">
+				<canvas
+					data-fondo-lienzo
+					role="img"
+					aria-label="Vista previa del fondo"
+					class="block h-auto max-h-[70vh] w-auto max-w-full border border-line"></canvas>
+			</div>
+			<div class="flex flex-wrap items-center gap-3">
+				<button type="button" data-fondo-bajar class={`${BOTON} border-accent text-accent`}>
+					<Icon name="download" class="size-4 shrink-0" />
+					<span data-fondo-bajar-texto>Descargar PNG</span>
+				</button>
+				<button type="button" data-fondo-otro class={BOTON}>
+					<Icon name="dice-5" class="size-4 shrink-0" />
+					Otro
+				</button>
+				<span data-fondo-medida class="text-sm text-muted"></span>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+			<div class="flex flex-col gap-2">
+				<span id="fondo-estilo" class="text-sm text-muted">Estilo</span>
+				<div role="group" aria-labelledby="fondo-estilo" class="flex flex-wrap gap-2">
+					{
+						ESTILOS.map((item) => (
+							<button type="button" data-pal-opcion="estilo" data-valor={item.id} aria-pressed="false" class={BOTON}>
+								{item.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<label class="flex flex-col gap-1">
+				<span class="flex justify-between gap-2 text-sm text-muted">
+					<span>Formas</span>
+					<output data-pal-valor="densidad" class="text-mark"></output>
+				</span>
+				<input type="range" data-pal-rango="densidad" min="0" max="100" step="1" class={RANGO} />
+			</label>
+
+			<div class="flex flex-col gap-2">
+				<span id="fondo-tamano" class="text-sm text-muted">Tamaño</span>
+				<div role="group" aria-labelledby="fondo-tamano" class="flex flex-wrap gap-2">
+					{
+						TAMANOS.map((item) => (
+							<button
+								type="button"
+								data-fondo-tamano
+								data-ancho={item.ancho}
+								data-alto={item.alto}
+								aria-pressed="false"
+								class={BOTON}
+							>
+								<Icon name={item.icon} class="size-4 shrink-0" />
+								{item.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<p class="text-xs text-muted">Se pinta y se guarda solo en tu navegador. No se envía a ninguna parte.</p>
+		</div>
+	</section>
+</div>
+
+<script>
+	type Hsl = [number, number, number];
+
+	interface Estado {
+		base: string;
+		modo: string;
+		sat: number;
+		luz: number;
+		estilo: string;
+		densidad: number;
+		ancho: number;
+		alto: number;
+		semilla: number;
+	}
+
+	const CLAVE = 'tuweb:paletas';
+	const INICIAL: Estado = {
+		base: '#c2410c',
+		modo: 'analoga',
+		sat: 0,
+		luz: 0,
+		estilo: 'ondas',
+		densidad: 50,
+		ancho: 1920,
+		alto: 1080,
+		semilla: 7,
+	};
+
+	/** Cuánto se mueve cada color de la armonía: tono, y brillo sobre el base. */
+	const ARMONIAS: Record<string, [number, number][]> = {
+		analoga: [[-40, 0], [-20, 0], [0, 0], [20, 0], [40, 0]],
+		mono: [[0, -30], [0, -15], [0, 0], [0, 15], [0, 30]],
+		complementaria: [[0, -20], [0, 0], [0, 20], [180, -10], [180, 10]],
+		triadica: [[0, 0], [120, 0], [240, 0], [0, 25], [120, -20]],
+		tetradica: [[0, 0], [90, 0], [180, 0], [270, 0], [0, -25]],
+	};
+
+	const muestras = [...document.querySelectorAll<HTMLButtonElement>('[data-pal-muestra]')];
+	const base = document.querySelector<HTMLInputElement>('[data-pal-base]');
+	const baseTexto = document.querySelector<HTMLInputElement>('[data-pal-base-texto]');
+	const estadoPal = document.querySelector<HTMLElement>('[data-pal-estado]');
+	const lienzo = document.querySelector<HTMLCanvasElement>('[data-fondo-lienzo]');
+	const medida = document.querySelector<HTMLElement>('[data-fondo-medida]');
+	const bajar = document.querySelector<HTMLButtonElement>('[data-fondo-bajar]');
+	const bajarTexto = document.querySelector<HTMLElement>('[data-fondo-bajar-texto]');
+	const tamanos = [...document.querySelectorAll<HTMLButtonElement>('[data-fondo-tamano]')];
+
+	const tope = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+	const esHex = (valor: unknown): valor is string => typeof valor === 'string' && /^#[0-9a-f]{6}$/i.test(valor);
+
+	function valeOpcion(grupo: string, valor: unknown) {
+		return [...document.querySelectorAll<HTMLElement>(`[data-pal-opcion="${grupo}"]`)].some(
+			(boton) => boton.dataset.valor === valor,
+		);
+	}
+
+	function limpiar(bruto: Record<string, unknown>): Estado {
+		const numero = (valor: unknown, porDefecto: number, min: number, max: number) =>
+			Number.isFinite(Number(valor)) ? tope(Math.round(Number(valor)), min, max) : porDefecto;
+		const tamano = tamanos.find(
+			(boton) => boton.dataset.ancho === String(bruto.ancho) && boton.dataset.alto === String(bruto.alto),
+		);
+		return {
+			base: esHex(bruto.base) ? bruto.base.toLowerCase() : INICIAL.base,
+			modo: valeOpcion('modo', bruto.modo) ? String(bruto.modo) : INICIAL.modo,
+			sat: numero(bruto.sat, 0, -50, 50),
+			luz: numero(bruto.luz, 0, -50, 50),
+			estilo: valeOpcion('estilo', bruto.estilo) ? String(bruto.estilo) : INICIAL.estilo,
+			densidad: numero(bruto.densidad, 50, 0, 100),
+			ancho: tamano ? Number(tamano.dataset.ancho) : INICIAL.ancho,
+			alto: tamano ? Number(tamano.dataset.alto) : INICIAL.alto,
+			semilla: numero(bruto.semilla, INICIAL.semilla, 0, 2 ** 31),
+		};
+	}
+
+	function cargar(): Estado {
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? '{}');
+			return limpiar({ ...INICIAL, ...(guardado && typeof guardado === 'object' ? guardado : {}) });
+		} catch {
+			return { ...INICIAL };
+		}
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin localStorage (modo privado o lleno): se pierde al recargar y ya.
+		}
+	}
+
+	function hexAHsl(hex: string): Hsl {
+		const r = parseInt(hex.slice(1, 3), 16) / 255;
+		const g = parseInt(hex.slice(3, 5), 16) / 255;
+		const b = parseInt(hex.slice(5, 7), 16) / 255;
+		const max = Math.max(r, g, b);
+		const min = Math.min(r, g, b);
+		const l = (max + min) / 2;
+		const d = max - min;
+		if (d === 0) return [0, 0, l * 100];
+		const s = d / (1 - Math.abs(2 * l - 1));
+		let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+		h = (h * 60 + 360) % 360;
+		return [h, s * 100, l * 100];
+	}
+
+	function hslAHex([h, s, l]: Hsl) {
+		const sat = s / 100;
+		const luz = l / 100;
+		const a = sat * Math.min(luz, 1 - luz);
+		const canal = (n: number) => {
+			const k = (n + h / 30) % 12;
+			const valor = luz - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+			return Math.round(valor * 255)
+				.toString(16)
+				.padStart(2, '0');
+		};
+		return `#${canal(0)}${canal(8)}${canal(4)}`;
+	}
+
+	function rgb(hex: string) {
+		return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+	}
+
+	function mezclar(a: string, b: string, t: number) {
+		const x = rgb(a);
+		const y = rgb(b);
+		return `#${x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
+	}
+
+	function luminancia(hex: string) {
+		const [r, g, b] = rgb(hex).map((v) => {
+			const c = v / 255;
+			return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+		});
+		return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+	}
+
+	function paleta(e: Estado) {
+		const [h, s, l] = hexAHsl(e.base);
+		return (ARMONIAS[e.modo] ?? ARMONIAS.analoga).map(([dh, dl]) =>
+			hslAHex([(h + dh + 360) % 360, tope(s + e.sat, 0, 100), tope(l + dl + e.luz, 3, 97)]),
+		);
+	}
+
+	/** Un azar con semilla (mulberry32): la misma semilla pinta el mismo fondo. */
+	function azar(semilla: number) {
+		let a = semilla >>> 0;
+		return () => {
+			a = (a + 0x6d2b79f5) >>> 0;
+			let t = a;
+			t = Math.imul(t ^ (t >>> 15), t | 1);
+			t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+	}
+
+	/**
+	 * Pinta el fondo en un contexto de cualquier tamaño. Todas las medidas son
+	 * proporcionales al lienzo, así que la vista previa es el PNG en pequeño.
+	 */
+	function pintar(ctx: CanvasRenderingContext2D, w: number, h: number, e: Estado) {
+		const rnd = azar(e.semilla);
+		const colores = [...paleta(e)].sort((a, b) => luminancia(a) - luminancia(b));
+		const color = () => colores[Math.floor(rnd() * colores.length)];
+		const m = Math.min(w, h);
+		const d = e.densidad / 100;
+		ctx.globalAlpha = 1;
+
+		if (e.estilo === 'ondas') {
+			const g = ctx.createLinearGradient(0, 0, w, h);
+			g.addColorStop(0, colores[0]);
+			g.addColorStop(1, colores[1]);
+			ctx.fillStyle = g;
+			ctx.fillRect(0, 0, w, h);
+			const capas = 3 + Math.round(d * 7);
+			for (let i = 0; i < capas; i++) {
+				const y0 = h * (0.15 + (0.85 * (i + 1)) / (capas + 1));
+				const amp = h * (0.03 + rnd() * 0.09);
+				const frec = 1 + rnd() * 2.5;
+				const fase = rnd() * Math.PI * 2;
+				ctx.beginPath();
+				ctx.moveTo(0, h);
+				for (let paso = 0; paso <= 160; paso++) {
+					const x = (w * paso) / 160;
+					const t = (paso / 160) * Math.PI * 2;
+					ctx.lineTo(x, y0 + Math.sin(t * frec + fase) * amp + Math.sin(t * frec * 2.3 + fase * 2) * amp * 0.3);
+				}
+				ctx.lineTo(w, h);
+				ctx.closePath();
+				ctx.globalAlpha = 0.75;
+				ctx.fillStyle = colores[1 + (i % (colores.length - 1))];
+				ctx.fill();
+			}
+		} else if (e.estilo === 'burbujas') {
+			ctx.fillStyle = colores[0];
+			ctx.fillRect(0, 0, w, h);
+			const halos = 5 + Math.round(d * 20);
+			for (let i = 0; i < halos; i++) {
+				const x = rnd() * w;
+				const y = rnd() * h;
+				const r = m * (0.15 + rnd() * 0.5);
+				const c = color();
+				const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+				g.addColorStop(0, `${c}cc`);
+				g.addColorStop(1, `${c}00`);
+				ctx.fillStyle = g;
+				ctx.fillRect(x - r, y - r, r * 2, r * 2);
+			}
+			const bolas = Math.round(d * 30);
+			for (let i = 0; i < bolas; i++) {
+				ctx.globalAlpha = 0.25 + rnd() * 0.5;
+				ctx.fillStyle = color();
+				ctx.beginPath();
+				ctx.arc(rnd() * w, rnd() * h, m * (0.005 + rnd() * 0.04), 0, Math.PI * 2);
+				ctx.fill();
+			}
+		} else if (e.estilo === 'poligonos') {
+			const lado = Math.max(w, h) / (4 + Math.round(d * 16));
+			const nx = Math.ceil(w / lado) + 1;
+			const ny = Math.ceil(h / lado) + 1;
+			const puntos: [number, number][][] = [];
+			for (let j = 0; j < ny; j++) {
+				puntos.push([]);
+				for (let i = 0; i < nx; i++) {
+					const dx = i === 0 || i === nx - 1 ? 0 : (rnd() - 0.5) * lado * 0.7;
+					const dy = j === 0 || j === ny - 1 ? 0 : (rnd() - 0.5) * lado * 0.7;
+					puntos[j].push([Math.min(w, i * lado) + dx, Math.min(h, j * lado) + dy]);
+				}
+			}
+			ctx.lineWidth = Math.max(1, m / 1000);
+			ctx.lineJoin = 'round';
+			for (let j = 0; j < ny - 1; j++) {
+				for (let i = 0; i < nx - 1; i++) {
+					const a = puntos[j][i];
+					const b = puntos[j][i + 1];
+					const c = puntos[j + 1][i];
+					const dd = puntos[j + 1][i + 1];
+					for (const tri of [[a, b, c], [b, dd, c]]) {
+						const cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3;
+						const cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+						const pos = tope((cx / w + cy / h) / 2 + (rnd() - 0.5) * 0.12, 0, 0.999) * (colores.length - 1);
+						const tono = mezclar(colores[Math.floor(pos)], colores[Math.floor(pos) + 1], pos % 1);
+						ctx.fillStyle = tono;
+						ctx.strokeStyle = tono;
+						ctx.beginPath();
+						ctx.moveTo(tri[0][0], tri[0][1]);
+						ctx.lineTo(tri[1][0], tri[1][1]);
+						ctx.lineTo(tri[2][0], tri[2][1]);
+						ctx.closePath();
+						ctx.fill();
+						ctx.stroke();
+					}
+				}
+			}
+		} else {
+			const lado = w / (3 + Math.round(d * 9));
+			const filas = Math.ceil(h / lado);
+			const columnas = Math.ceil(w / lado);
+			for (let j = 0; j < filas; j++) {
+				for (let i = 0; i < columnas; i++) {
+					const x = i * lado;
+					const y = j * lado;
+					const fondo = color();
+					let forma = color();
+					if (forma === fondo) forma = colores[(colores.indexOf(fondo) + 2) % colores.length];
+					ctx.fillStyle = fondo;
+					ctx.fillRect(x, y, lado + 1, lado + 1);
+					ctx.fillStyle = forma;
+					ctx.beginPath();
+					const tipo = Math.floor(rnd() * 5);
+					const giro = Math.floor(rnd() * 4);
+					if (tipo === 0) {
+						ctx.arc(x + lado / 2, y + lado / 2, lado * 0.4, 0, Math.PI * 2);
+					} else if (tipo === 1) {
+						const esquinas: [number, number][] = [[x, y], [x + lado, y], [x + lado, y + lado], [x, y + lado]];
+						const [ex, ey] = esquinas[giro];
+						ctx.moveTo(ex, ey);
+						ctx.arc(ex, ey, lado, (giro * Math.PI) / 2, (giro * Math.PI) / 2 + Math.PI / 2);
+					} else if (tipo === 2) {
+						ctx.arc(x + lado / 2, y + lado / 2, lado / 2, (giro * Math.PI) / 2, (giro * Math.PI) / 2 + Math.PI);
+					} else if (tipo === 3) {
+						const esquinas: [number, number][] = [[x, y], [x + lado, y], [x + lado, y + lado], [x, y + lado]];
+						ctx.moveTo(...esquinas[giro]);
+						ctx.lineTo(...esquinas[(giro + 1) % 4]);
+						ctx.lineTo(...esquinas[(giro + 2) % 4]);
+					}
+					ctx.closePath();
+					ctx.fill();
+				}
+			}
+		}
+		ctx.globalAlpha = 1;
+	}
+
+	let estado = cargar();
+	let reloj: number | undefined;
+	let cuadro = 0;
+
+	function avisar(texto: string) {
+		if (estadoPal) estadoPal.textContent = texto;
+		window.clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			if (estadoPal) estadoPal.textContent = '';
+		}, 1800);
+	}
+
+	function pintarFondo() {
+		if (!lienzo) return;
+		const escala = Math.min(1, 1200 / Math.max(estado.ancho, estado.alto));
+		lienzo.width = Math.round(estado.ancho * escala);
+		lienzo.height = Math.round(estado.alto * escala);
+		const ctx = lienzo.getContext('2d');
+		if (ctx) pintar(ctx, lienzo.width, lienzo.height, estado);
+		if (medida) medida.textContent = `${estado.ancho} × ${estado.alto} px`;
+	}
+
+	function pintarTodo() {
+		const colores = paleta(estado);
+		muestras.forEach((muestra, i) => {
+			const hex = colores[i];
+			muestra.style.background = hex;
+			muestra.style.color = luminancia(hex) > 0.4 ? '#1a120c' : '#fdf6ef';
+			muestra.dataset.hex = hex;
+			muestra.setAttribute('aria-label', `Copiar ${hex}`);
+			const texto = muestra.querySelector('[data-pal-hex]');
+			if (texto) texto.textContent = hex;
+		});
+		if (base) base.value = estado.base;
+		if (baseTexto && document.activeElement !== baseTexto) baseTexto.value = estado.base;
+		document.querySelectorAll<HTMLButtonElement>('[data-pal-opcion]').forEach((boton) => {
+			const grupo = boton.dataset.palOpcion === 'modo' ? estado.modo : estado.estilo;
+			boton.setAttribute('aria-pressed', String(grupo === boton.dataset.valor));
+		});
+		const valores: Record<string, number> = { sat: estado.sat, luz: estado.luz, densidad: estado.densidad };
+		document.querySelectorAll<HTMLInputElement>('[data-pal-rango]').forEach((rango) => {
+			rango.value = String(valores[rango.dataset.palRango ?? ''] ?? 0);
+		});
+		document.querySelectorAll<HTMLOutputElement>('[data-pal-valor]').forEach((salida) => {
+			const clave = salida.dataset.palValor ?? '';
+			const valor = valores[clave] ?? 0;
+			salida.textContent = clave === 'densidad' ? `${valor} %` : `${valor > 0 ? '+' : ''}${valor}`;
+		});
+		tamanos.forEach((boton) => {
+			const activo = boton.dataset.ancho === String(estado.ancho) && boton.dataset.alto === String(estado.alto);
+			boton.setAttribute('aria-pressed', String(activo));
+		});
+		// El canvas se repinta una vez por fotograma aunque el rango dispare mil veces.
+		cancelAnimationFrame(cuadro);
+		cuadro = requestAnimationFrame(pintarFondo);
+	}
+
+	function cambiar(parcial: Record<string, unknown>) {
+		estado = limpiar({ ...estado, ...parcial });
+		guardar();
+		pintarTodo();
+	}
+
+	base?.addEventListener('input', () => cambiar({ base: base.value }));
+
+	baseTexto?.addEventListener('input', () => {
+		const valor = baseTexto.value.trim();
+		const hex = valor.startsWith('#') ? valor : `#${valor}`;
+		if (esHex(hex)) cambiar({ base: hex });
+	});
+
+	baseTexto?.addEventListener('blur', () => {
+		baseTexto.value = estado.base;
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-pal-opcion]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			cambiar({ [boton.dataset.palOpcion === 'modo' ? 'modo' : 'estilo']: boton.dataset.valor });
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-pal-rango]').forEach((rango) => {
+		rango.addEventListener('input', () => {
+			const clave = rango.dataset.palRango;
+			if (clave === 'sat' || clave === 'luz' || clave === 'densidad') cambiar({ [clave]: Number(rango.value) });
+		});
+	});
+
+	tamanos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			cambiar({ ancho: Number(boton.dataset.ancho), alto: Number(boton.dataset.alto) });
+		});
+	});
+
+	document.querySelector('[data-pal-azar]')?.addEventListener('click', () => {
+		const tono = Math.random() * 360;
+		const sat = 45 + Math.random() * 40;
+		const luz = 38 + Math.random() * 22;
+		cambiar({ base: hslAHex([tono, sat, luz]), semilla: Math.floor(Math.random() * 2 ** 31) });
+	});
+
+	document.querySelector('[data-fondo-otro]')?.addEventListener('click', () => {
+		cambiar({ semilla: Math.floor(Math.random() * 2 ** 31) });
+	});
+
+	async function copiar(texto: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			return true;
+		} catch {
+			// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+			try {
+				const campo = document.createElement('textarea');
+				campo.value = texto;
+				campo.readOnly = true;
+				campo.style.position = 'fixed';
+				campo.style.opacity = '0';
+				document.body.append(campo);
+				campo.select();
+				const hecho = document.execCommand('copy');
+				campo.remove();
+				return hecho;
+			} catch {
+				return false;
+			}
+		}
+	}
+
+	muestras.forEach((muestra) => {
+		muestra.addEventListener('click', async () => {
+			const hex = muestra.dataset.hex ?? '';
+			avisar((await copiar(hex)) ? `Copiado ${hex}.` : 'No se pudo copiar.');
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-pal-copiar]').forEach((boton) => {
+		boton.addEventListener('click', async () => {
+			const colores = paleta(estado);
+			const texto =
+				boton.dataset.palCopiar === 'css'
+					? `:root {\n${colores.map((hex, i) => `\t--color-${i + 1}: ${hex};`).join('\n')}\n}`
+					: colores.join('\n');
+			avisar((await copiar(texto)) ? 'Copiada la paleta.' : 'No se pudo copiar.');
+		});
+	});
+
+	bajar?.addEventListener('click', () => {
+		const grande = document.createElement('canvas');
+		grande.width = estado.ancho;
+		grande.height = estado.alto;
+		const ctx = grande.getContext('2d');
+		if (!ctx) return;
+		bajar.disabled = true;
+		if (bajarTexto) bajarTexto.textContent = 'Pintando…';
+		// Un respiro para que se vea el aviso antes de pintar los millones de píxeles.
+		window.setTimeout(() => {
+			pintar(ctx, grande.width, grande.height, estado);
+			grande.toBlob((blob) => {
+				bajar.disabled = false;
+				if (bajarTexto) bajarTexto.textContent = blob ? 'Descargar PNG' : 'No se pudo';
+				if (!blob) return;
+				const enlace = document.createElement('a');
+				enlace.href = URL.createObjectURL(blob);
+				enlace.download = `fondo-${estado.estilo}-${estado.ancho}x${estado.alto}.png`;
+				document.body.append(enlace);
+				enlace.click();
+				enlace.remove();
+				window.setTimeout(() => URL.revokeObjectURL(enlace.href), 4000);
+			}, 'image/png');
+		}, 30);
+	});
+
+	pintarTodo();
+</script>
