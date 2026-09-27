@@ -51,7 +51,7 @@ export const GROUPS: Group[] = [
 		icon: 'messages',
 		card: 'Donde se junta la gente: hablar, con nombre o sin él, y el reto de la semana.',
 		intro:
-			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número— y los retos semanales: tres de la casa cada lunes, los que propone la gente y un tablón de soluciones para cada uno. En los chats sale el reto de la semana, por si quieres hablar de él.',
+			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número—, un mural ASCII que se pasa de mano en mano y los retos semanales: tres de la casa cada lunes, los que propone la gente y un tablón de soluciones para cada uno. En los chats sale el reto de la semana, por si quieres hablar de él.',
 	},
 	{
 		id: 'proceso',
@@ -338,6 +338,15 @@ export const SECTIONS: Section[] = [
 		card: 'El mismo canal sin nombre. Cada mensaje se borra solo a los diez minutos.',
 		intro:
 			'Sin nombre y sin memoria. Tu alias es un número que puedes cambiar cuando quieras y no se guarda en tu navegador. Lo que escribes lo ve quien esté aquí y el servidor lo borra solo a los diez minutos.',
+	},
+	{
+		href: '/ascii',
+		title: 'Mural ASCII',
+		icon: 'typography',
+		group: 'canales',
+		card: 'Un lienzo de letras que se pinta entre varios: en directo y pasándose el enlace.',
+		intro:
+			'Un lienzo de 64 × 28 celdas que se pinta con letras: lápiz con el carácter que elijas, goma y texto para escribir encima. Se ve en directo en todas las pestañas que tengas abiertas. Para pintarlo entre varios, pasa el enlace: el mural va dentro, con la firma de quien ha pasado por él, y quien lo abre sigue donde lo dejaste. Te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/retos',

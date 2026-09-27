@@ -1,0 +1,634 @@
+---
+/**
+ * El mural ASCII: un lienzo de letras que se pinta con un carácter de pincel o
+ * escribiendo encima. Va en directo entre las pestañas de tu navegador con
+ * BroadcastChannel, y para pasárselo a otra persona el mural entero viaja en el
+ * enlace, con las firmas de quien ha pintado. No hay servidor: no se envía nada.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const COLUMNAS = 64;
+const FILAS = 28;
+
+const HERRAMIENTAS = [
+	{ id: 'lapiz', label: 'Lápiz', icon: 'pencil' },
+	{ id: 'goma', label: 'Goma', icon: 'eraser' },
+	{ id: 'texto', label: 'Texto', icon: 'typography' },
+];
+
+const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\\', '|', '_', '^'];
+---
+
+<section id="ascii" data-columnas={COLUMNAS} data-filas={FILAS} class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<div class="flex flex-col gap-1 border border-accent bg-panel px-4 py-3">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0 text-accent" />
+				En directo
+			</span>
+			<p data-ascii-pestanas class="font-pixel text-marca text-mark">…</p>
+			<span class="text-xs text-muted">
+				Lo que pintas sale al momento en tus otras pestañas. Para que siga otra persona, pásale el enlace: el mural va dentro.
+			</span>
+		</div>
+
+		<p data-ascii-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="overflow-x-auto border border-line bg-panel p-4">
+			<div class="relative mx-auto w-max font-mono text-xs leading-[1.2]">
+				<pre
+					data-ascii-lienzo
+					role="img"
+					aria-label="El mural ASCII"
+					class="m-0 cursor-crosshair touch-none bg-bg font-mono leading-[1.2] text-fg select-none"></pre>
+				<div
+					data-ascii-cursor
+					hidden
+					class="pointer-events-none absolute h-[1.2em] w-[1ch] bg-accent/30 outline outline-accent"
+				>
+				</div>
+			</div>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-ascii-enlace class={`${BOTON} border-accent text-accent`}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Pasar el enlace
+			</button>
+			<button type="button" data-ascii-copiar class={BOTON}>
+				<Icon name="clipboard-copy" class="size-4 shrink-0" />
+				Copiar texto
+			</button>
+			<button type="button" data-ascii-txt class={BOTON}>
+				<Icon name="file-text" class="size-4 shrink-0" />
+				Descargar .txt
+			</button>
+			<button type="button" data-ascii-deshacer class={BOTON} title="Ctrl+Z">
+				<Icon name="arrow-back-up" class="size-4 shrink-0" />
+				Deshacer
+			</button>
+			<button type="button" data-ascii-rehacer class={BOTON} title="Ctrl+Y">
+				<Icon name="arrow-forward-up" class="size-4 shrink-0" />
+				Rehacer
+			</button>
+			<button type="button" data-ascii-vaciar class={BOTON}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Vaciar
+			</button>
+		</div>
+
+		<p data-ascii-cuenta class="text-sm text-muted"></p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-2">
+			<span id="ascii-herramienta" class="text-sm text-muted">Herramienta</span>
+			<div role="group" aria-labelledby="ascii-herramienta" class="flex flex-wrap gap-2">
+				{
+					HERRAMIENTAS.map((h) => (
+						<button type="button" data-ascii-herramienta={h.id} aria-pressed="false" class={BOTON}>
+							<Icon name={h.icon} class="size-4 shrink-0" />
+							{h.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<span id="ascii-pincel">Pincel</span>
+				<span data-ascii-pincel-actual class="font-mono text-mark"></span>
+			</span>
+			<div role="group" aria-labelledby="ascii-pincel" class="grid grid-cols-8 gap-2">
+				{
+					PINCELES.map((p) => (
+						<button
+							type="button"
+							data-ascii-pincel={p}
+							aria-pressed="false"
+							aria-label={`Pincel ${p}`}
+							class="aspect-square w-full border border-line bg-bg font-mono text-lg text-fg hover:border-accent aria-pressed:border-accent aria-pressed:text-accent"
+						>
+							{p}
+						</button>
+					))
+				}
+			</div>
+			<p class="text-xs text-muted">
+				Con el lápiz, cualquier tecla sirve de pincel. Con el texto, haz clic y escribe: Enter baja de línea, las flechas mueven y Esc suelta.
+			</p>
+		</div>
+
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-ascii-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+			<span class="text-xs">Se suma al mural cuando pasas el enlace.</span>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="users-group" class="size-4 shrink-0 text-accent" />
+				Han pintado aquí
+			</span>
+			<p data-ascii-firmas class="text-sm break-words text-fg"></p>
+			<p data-ascii-sin-firmas class="text-xs text-muted">Nadie aún. Pinta, firma y pásalo.</p>
+		</div>
+	</div>
+</section>
+
+<script>
+	type Herramienta = 'lapiz' | 'goma' | 'texto';
+	type Cambio = [number, string];
+
+	const raiz = document.querySelector<HTMLElement>('#ascii');
+	const COLUMNAS = Number(raiz?.dataset.columnas) || 64;
+	const FILAS = Number(raiz?.dataset.filas) || 28;
+	const TOTAL = COLUMNAS * FILAS;
+	const CLAVE = 'tuweb:ascii';
+	const MAX_HISTORIAL = 60;
+	const MAX_FIRMAS = 24;
+	const HERRAMIENTAS: Herramienta[] = ['lapiz', 'goma', 'texto'];
+	const YO = Math.random().toString(36).slice(2, 10);
+
+	const lienzo = raiz?.querySelector<HTMLPreElement>('[data-ascii-lienzo]');
+	const cursor = raiz?.querySelector<HTMLElement>('[data-ascii-cursor]');
+	const aviso = raiz?.querySelector<HTMLElement>('[data-ascii-aviso]');
+	const cuenta = raiz?.querySelector<HTMLElement>('[data-ascii-cuenta]');
+	const pestanas = raiz?.querySelector<HTMLElement>('[data-ascii-pestanas]');
+	const firmaCampo = raiz?.querySelector<HTMLInputElement>('[data-ascii-firma]');
+	const deshacerBoton = raiz?.querySelector<HTMLButtonElement>('[data-ascii-deshacer]');
+	const rehacerBoton = raiz?.querySelector<HTMLButtonElement>('[data-ascii-rehacer]');
+
+	// --- Validación ---
+
+	const imprimible = (c: unknown): c is string => typeof c === 'string' && c.length === 1 && c >= ' ' && c <= '~';
+	const textoValido = (t: unknown): t is string => typeof t === 'string' && t.length === TOTAL && /^[ -~]*$/.test(t);
+	const limpiarFirma = (s: unknown) =>
+		typeof s === 'string' ? s.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 20) : '';
+	const limpiarFirmas = (lista: unknown) =>
+		Array.isArray(lista) ? lista.map(limpiarFirma).filter(Boolean).slice(-MAX_FIRMAS) : [];
+
+	// --- Lo guardado ---
+
+	let celdas: string[] = Array(TOTAL).fill(' ');
+	let firmas: string[] = [];
+	let pincel = '#';
+	let herramienta: Herramienta = 'lapiz';
+	let firma = '';
+
+	try {
+		const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+		if (leido && typeof leido === 'object') {
+			if (textoValido(leido.texto)) celdas = [...leido.texto];
+			firmas = limpiarFirmas(leido.firmas);
+			if (imprimible(leido.pincel) && leido.pincel !== ' ') pincel = leido.pincel;
+			if (HERRAMIENTAS.includes(leido.herramienta)) herramienta = leido.herramienta;
+			firma = limpiarFirma(leido.firma);
+		}
+	} catch {
+		// Si lo guardado está roto, se empieza de cero.
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ texto: celdas.join(''), firmas, pincel, herramienta, firma }));
+		} catch {
+			// Sin almacenamiento se pinta igual; solo que no se guarda.
+		}
+	}
+
+	// --- En directo entre pestañas ---
+
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
+	const otras = new Map<string, number>();
+
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: YO });
+	const enviarTodo = () => enviar({ tipo: 'todo', texto: celdas.join(''), firmas });
+
+	let pendientes: Cambio[] = [];
+
+	function emitir() {
+		if (!pendientes.length) return;
+		enviar({ tipo: 'celdas', cambios: pendientes });
+		pendientes = [];
+	}
+
+	function pintarPestanas() {
+		if (!pestanas) return;
+		if (!canal) pestanas.textContent = 'Tu navegador no deja';
+		else if (!otras.size) pestanas.textContent = 'Solo esta pestaña';
+		else pestanas.textContent = `${otras.size + 1} pestañas pintando`;
+	}
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, Date.now());
+		if (data.tipo === 'hola') enviar({ tipo: 'aqui' });
+		if (data.tipo === 'celdas' && Array.isArray(data.cambios)) {
+			data.cambios.forEach((cambio: unknown) => {
+				if (!Array.isArray(cambio)) return;
+				const [i, c] = cambio;
+				if (Number.isInteger(i) && i >= 0 && i < TOTAL && imprimible(c)) celdas[i] = c;
+			});
+			pintar();
+		}
+		if (data.tipo === 'todo' && textoValido(data.texto)) {
+			celdas = [...data.texto];
+			firmas = limpiarFirmas(data.firmas);
+			pintar();
+			pintarFirmas();
+		}
+		pintarPestanas();
+	});
+
+	setInterval(() => {
+		enviar({ tipo: 'aqui' });
+		const limite = Date.now() - 10_000;
+		otras.forEach((visto, id) => visto < limite && otras.delete(id));
+		pintarPestanas();
+	}, 4_000);
+
+	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// --- Pintado ---
+
+	function avisar(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		aviso.hidden = false;
+	}
+
+	function filas() {
+		const salida: string[] = [];
+		for (let y = 0; y < FILAS; y++) salida.push(celdas.slice(y * COLUMNAS, (y + 1) * COLUMNAS).join(''));
+		return salida;
+	}
+
+	function pintar() {
+		if (lienzo) lienzo.textContent = filas().join('\n');
+		if (cuenta) {
+			const llenas = celdas.filter((c) => c !== ' ').length;
+			cuenta.textContent = `${llenas} de ${TOTAL} celdas con algo · ${COLUMNAS} × ${FILAS}`;
+		}
+		if (deshacerBoton) deshacerBoton.disabled = !historial.length;
+		if (rehacerBoton) rehacerBoton.disabled = !futuro.length;
+	}
+
+	function pintarControles() {
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-ascii-herramienta]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.asciiHerramienta === herramienta));
+		});
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-ascii-pincel]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.asciiPincel === pincel));
+		});
+		const actual = raiz?.querySelector<HTMLElement>('[data-ascii-pincel-actual]');
+		if (actual) actual.textContent = pincel;
+		if (herramienta !== 'texto') mover(null);
+	}
+
+	function pintarFirmas() {
+		const lista = raiz?.querySelector<HTMLElement>('[data-ascii-firmas]');
+		const sin = raiz?.querySelector<HTMLElement>('[data-ascii-sin-firmas]');
+		if (lista) lista.textContent = firmas.join(' · ');
+		if (sin) sin.hidden = firmas.length > 0;
+	}
+
+	/** El recuadro que marca dónde escribe el texto. */
+	let escribe: number | null = null;
+	let inicioLinea = 0;
+
+	function mover(i: number | null) {
+		escribe = i;
+		if (!cursor) return;
+		cursor.hidden = i === null;
+		if (i === null) return;
+		cursor.style.left = `${i % COLUMNAS}ch`;
+		cursor.style.top = `${Math.floor(i / COLUMNAS) * 1.2}em`;
+	}
+
+	// --- Historial ---
+
+	let historial: string[] = [];
+	let futuro: string[] = [];
+
+	function apuntar() {
+		historial.push(celdas.join(''));
+		if (historial.length > MAX_HISTORIAL) historial.shift();
+		futuro = [];
+	}
+
+	function volver(desde: string[], hacia: string[]) {
+		const texto = desde.pop();
+		if (texto === undefined) return;
+		hacia.push(celdas.join(''));
+		celdas = [...texto];
+		pintar();
+		guardar();
+		enviarTodo();
+	}
+
+	const deshacer = () => volver(historial, futuro);
+	const rehacer = () => volver(futuro, historial);
+
+	// --- Lápiz y goma ---
+
+	function poner(i: number, c: string) {
+		if (celdas[i] === c) return;
+		celdas[i] = c;
+		pendientes.push([i, c]);
+	}
+
+	/** Una línea de celda a celda, para que un trazo rápido no deje huecos. */
+	function linea(x0: number, y0: number, x1: number, y1: number, c: string) {
+		const dx = Math.abs(x1 - x0);
+		const dy = -Math.abs(y1 - y0);
+		const sx = x0 < x1 ? 1 : -1;
+		const sy = y0 < y1 ? 1 : -1;
+		let error = dx + dy;
+		for (;;) {
+			poner(y0 * COLUMNAS + x0, c);
+			if (x0 === x1 && y0 === y1) return;
+			const e2 = 2 * error;
+			if (e2 >= dy) {
+				error += dy;
+				x0 += sx;
+			}
+			if (e2 <= dx) {
+				error += dx;
+				y0 += sy;
+			}
+		}
+	}
+
+	function celda(evento: PointerEvent, pegar = false): [number, number] | null {
+		if (!lienzo) return null;
+		const caja = lienzo.getBoundingClientRect();
+		if (!caja.width || !caja.height) return null;
+		let x = Math.floor(((evento.clientX - caja.left) / caja.width) * COLUMNAS);
+		let y = Math.floor(((evento.clientY - caja.top) / caja.height) * FILAS);
+		if (pegar) {
+			x = Math.min(COLUMNAS - 1, Math.max(0, x));
+			y = Math.min(FILAS - 1, Math.max(0, y));
+		} else if (x < 0 || y < 0 || x >= COLUMNAS || y >= FILAS) return null;
+		return [x, y];
+	}
+
+	let trazo: { x: number; y: number; c: string } | null = null;
+
+	lienzo?.addEventListener('contextmenu', (evento) => evento.preventDefault());
+
+	lienzo?.addEventListener('pointerdown', (evento) => {
+		const punto = celda(evento);
+		if (!punto || (evento.button !== 0 && evento.button !== 2)) return;
+		evento.preventDefault();
+		const [x, y] = punto;
+		const i = y * COLUMNAS + x;
+		if (herramienta === 'texto' && evento.button === 0) {
+			inicioLinea = x;
+			mover(i);
+			return;
+		}
+		const c = evento.button === 2 || herramienta === 'goma' ? ' ' : pincel;
+		apuntar();
+		trazo = { x, y, c };
+		poner(i, c);
+		emitir();
+		lienzo.setPointerCapture(evento.pointerId);
+		pintar();
+	});
+
+	lienzo?.addEventListener('pointermove', (evento) => {
+		if (!trazo) return;
+		const punto = celda(evento, true);
+		if (!punto) return;
+		const [x, y] = punto;
+		if (x === trazo.x && y === trazo.y) return;
+		linea(trazo.x, trazo.y, x, y, trazo.c);
+		trazo.x = x;
+		trazo.y = y;
+		emitir();
+		pintar();
+	});
+
+	function soltar() {
+		if (!trazo) return;
+		trazo = null;
+		// Un clic que no cambia nada no cuenta para deshacer.
+		if (historial.at(-1) === celdas.join('')) historial.pop();
+		pintar();
+		guardar();
+	}
+
+	lienzo?.addEventListener('pointerup', soltar);
+	lienzo?.addEventListener('pointercancel', soltar);
+
+	// --- Teclado ---
+
+	function escribir(c: string) {
+		if (escribe === null) return;
+		apuntar();
+		poner(escribe, c);
+		emitir();
+		if (historial.at(-1) === celdas.join('')) historial.pop();
+		mover(Math.min(TOTAL - 1, escribe + 1));
+		pintar();
+		guardar();
+	}
+
+	document.addEventListener('keydown', (evento) => {
+		const destino = evento.target as HTMLElement | null;
+		if (destino?.closest('input, textarea, select, [contenteditable="true"]')) return;
+		const tecla = evento.key;
+		if (evento.ctrlKey || evento.metaKey) {
+			const t = tecla.toLowerCase();
+			if (t === 'z' && !evento.shiftKey) deshacer();
+			else if (t === 'y' || (t === 'z' && evento.shiftKey)) rehacer();
+			else return;
+			evento.preventDefault();
+			return;
+		}
+		if (evento.altKey) return;
+
+		if (herramienta === 'texto' && escribe !== null) {
+			const x = escribe % COLUMNAS;
+			const y = Math.floor(escribe / COLUMNAS);
+			if (imprimible(tecla)) escribir(tecla);
+			else if (tecla === 'Backspace') {
+				if (x > 0) mover(escribe - 1);
+				escribir(' ');
+				mover(Math.max(0, (escribe ?? 1) - 1));
+			} else if (tecla === 'Enter') mover(Math.min(FILAS - 1, y + 1) * COLUMNAS + inicioLinea);
+			else if (tecla === 'ArrowLeft') mover(y * COLUMNAS + Math.max(0, x - 1));
+			else if (tecla === 'ArrowRight') mover(y * COLUMNAS + Math.min(COLUMNAS - 1, x + 1));
+			else if (tecla === 'ArrowUp') mover(Math.max(0, y - 1) * COLUMNAS + x);
+			else if (tecla === 'ArrowDown') mover(Math.min(FILAS - 1, y + 1) * COLUMNAS + x);
+			else if (tecla === 'Escape') mover(null);
+			else return;
+			evento.preventDefault();
+			return;
+		}
+
+		if (herramienta === 'lapiz' && imprimible(tecla) && tecla !== ' ') {
+			pincel = tecla;
+			pintarControles();
+			guardar();
+		}
+	});
+
+	// --- El enlace ---
+
+	/** Tiradas de un carácter: el carácter, cuántas veces en base 36 y una coma. */
+	function comprimir(texto: string) {
+		let salida = '';
+		for (let i = 0; i < texto.length; ) {
+			let j = i;
+			while (j < texto.length && texto[j] === texto[i]) j++;
+			salida += `${texto[i]}${(j - i).toString(36)},`;
+			i = j;
+		}
+		return salida;
+	}
+
+	function descomprimir(tiradas: string) {
+		let texto = '';
+		let i = 0;
+		while (i < tiradas.length) {
+			const fin = tiradas.indexOf(',', i + 1);
+			const veces = tiradas.slice(i + 1, fin);
+			if (fin < 0 || !/^[0-9a-z]+$/.test(veces)) return null;
+			const n = parseInt(veces, 36);
+			if (n < 1 || texto.length + n > TOTAL) return null;
+			texto += tiradas[i].repeat(n);
+			i = fin + 1;
+		}
+		return textoValido(texto) ? texto : null;
+	}
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	async function copiar(texto: string, bien: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			avisar(bien);
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	}
+
+	raiz?.querySelector('[data-ascii-enlace]')?.addEventListener('click', () => {
+		if (firma) firmas = [...firmas.filter((f) => f !== firma), firma].slice(-MAX_FIRMAS);
+		guardar();
+		pintarFirmas();
+		enviarTodo();
+		const url = `${location.origin}/ascii#m=${aBase64({ t: comprimir(celdas.join('')), f: firmas })}`;
+		copiar(url, 'Enlace copiado. Pásalo: quien lo abra sigue pintando donde lo dejaste.');
+	});
+
+	const textoPlano = () => filas().map((f) => f.trimEnd()).join('\n').replace(/\n+$/, '');
+
+	raiz?.querySelector('[data-ascii-copiar]')?.addEventListener('click', () => {
+		copiar(textoPlano(), 'Texto copiado.');
+	});
+
+	raiz?.querySelector('[data-ascii-txt]')?.addEventListener('click', () => {
+		const url = URL.createObjectURL(new Blob([`${textoPlano()}\n`], { type: 'text/plain' }));
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = 'mural-ascii.txt';
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	// --- Mandos ---
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-ascii-herramienta]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const h = b.dataset.asciiHerramienta as Herramienta;
+			if (!HERRAMIENTAS.includes(h)) return;
+			herramienta = h;
+			pintarControles();
+			guardar();
+		});
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-ascii-pincel]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const c = b.dataset.asciiPincel;
+			if (!imprimible(c)) return;
+			pincel = c;
+			// Elegir pincel con la goma o el texto puestos es que quieres pintar.
+			herramienta = 'lapiz';
+			pintarControles();
+			guardar();
+		});
+	});
+
+	raiz?.querySelector('[data-ascii-vaciar]')?.addEventListener('click', () => {
+		if (celdas.every((c) => c === ' ')) return;
+		apuntar();
+		celdas = Array(TOTAL).fill(' ');
+		pintar();
+		guardar();
+		enviarTodo();
+	});
+
+	deshacerBoton?.addEventListener('click', deshacer);
+	rehacerBoton?.addEventListener('click', rehacer);
+
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('input', () => {
+			firma = limpiarFirma(firmaCampo.value);
+			guardar();
+		});
+	}
+
+	// --- Arranque ---
+
+	// Un mural que llega en el enlace pisa el tuyo, pero Deshacer lo devuelve.
+	const recibido = /^#m=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const datos = deBase64(recibido[1]);
+		const texto = datos && typeof datos.t === 'string' ? descomprimir(datos.t) : null;
+		if (texto) {
+			if (texto !== celdas.join('')) apuntar();
+			celdas = [...texto];
+			firmas = limpiarFirmas(datos.f);
+			guardar();
+			enviarTodo();
+			avisar('Mural cargado del enlace. Sigue tú; Deshacer vuelve al que tenías.');
+		} else avisar('El enlace está roto: sigue el mural que tenías.');
+		history.replaceState(null, '', '/ascii');
+	}
+
+	enviar({ tipo: 'hola' });
+	pintarPestanas();
+	pintarControles();
+	pintarFirmas();
+	pintar();
+</script>
