@@ -1,0 +1,444 @@
+---
+/**
+ * «Simón dice»: la web enciende una secuencia de luces con su nota y hay que
+ * repetirla. Cada ronda suma un paso. Tres dificultades (cuanto más difícil,
+ * más rápido) y un modo contrarreloj con 60 segundos que solo corren en tu
+ * turno. Todo va en el navegador; el récord se guarda en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-40';
+
+const NIVELES = [
+	{ id: 'facil', label: 'Fácil' },
+	{ id: 'normal', label: 'Normal' },
+	{ id: 'dificil', label: 'Difícil' },
+];
+
+// Cada casilla tiene su color de la casa y su tecla.
+const CASILLAS = [
+	{ id: 0, color: 'var(--color-accent)', tecla: '1' },
+	{ id: 1, color: 'var(--color-ok)', tecla: '2' },
+	{ id: 2, color: 'var(--color-building)', tecla: '3' },
+	{ id: 3, color: 'var(--color-heart)', tecla: '4' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="simon"
+	aria-labelledby="tab-simon"
+	data-panel="simon"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Dificultad</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						NIVELES.map((n) => (
+							<button type="button" data-si-nivel={n.id} aria-pressed="false" class={OPCION}>
+								{n.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-si-reloj class="size-4 accent-accent" />
+				Contrarreloj: 60 segundos
+			</label>
+
+			<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+				<input type="checkbox" data-si-sonido checked class="size-4 accent-accent" />
+				Con sonido
+			</label>
+
+			<dl class="grid grid-cols-3 gap-2 text-sm">
+				<div class="flex flex-col border border-line bg-panel p-3">
+					<dt class="text-muted">Ronda</dt>
+					<dd data-si-ronda class="font-pixel text-titulo text-fg">0</dd>
+				</div>
+				<div class="flex flex-col border border-line bg-panel p-3">
+					<dt class="inline-flex items-center gap-1 text-muted">
+						<Icon name="hourglass" class="size-4 shrink-0" />Tiempo
+					</dt>
+					<dd data-si-tiempo class="font-pixel text-titulo text-fg">--</dd>
+				</div>
+				<div class="flex flex-col border border-line bg-panel p-3">
+					<dt class="inline-flex items-center gap-1 text-muted">
+						<Icon name="trophy" class="size-4 shrink-0" />Récord
+					</dt>
+					<dd data-si-record class="font-pixel text-titulo text-mark">0</dd>
+				</div>
+			</dl>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-si-jugar class={BOTON}>
+					<span data-icon="play" class="inline-flex"><Icon name="player-play" class="size-4 shrink-0" /></span>
+					<span data-icon="stop" class="inline-flex"><Icon name="player-stop" class="size-4 shrink-0" /></span>
+					<span data-si-jugar-texto>Empezar</span>
+				</button>
+			</div>
+
+			<p class="text-sm text-muted">
+				Mira la secuencia y repítela pulsando las casillas o las teclas 1 a 4. Cada ronda
+				añade un paso. En difícil, además, se acelera.
+			</p>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div data-si-tablero class="mx-auto grid w-full max-w-sm grid-cols-2 gap-3" role="group" aria-label="Tablero">
+				{
+					CASILLAS.map((c) => (
+						<button
+							type="button"
+							data-si-casilla={c.id}
+							disabled
+							aria-label={`Casilla ${c.tecla}`}
+							style={`--si-color: ${c.color}`}
+							class="si-casilla relative aspect-square border-2 border-line bg-panel"
+						>
+							<span class="absolute top-2 left-3 text-sm text-muted">{c.tecla}</span>
+						</button>
+					))
+				}
+			</div>
+			<p data-si-estado class="text-center text-sm text-mark" aria-live="polite">
+				Elige dificultad y pulsa Empezar.
+			</p>
+		</div>
+	</div>
+</div>
+
+<style>
+	.si-casilla {
+		border-color: color-mix(in oklab, var(--si-color) 45%, var(--color-line));
+		background: color-mix(in oklab, var(--si-color) 12%, var(--color-panel));
+		transition:
+			background-color 80ms,
+			border-color 80ms;
+	}
+	.si-casilla:not(:disabled) {
+		cursor: pointer;
+	}
+	.si-casilla:not(:disabled):hover {
+		border-color: var(--si-color);
+	}
+	.si-casilla[data-luz] {
+		background: var(--si-color);
+		border-color: var(--si-color);
+	}
+	.si-casilla[data-luz] span {
+		color: var(--color-bg);
+	}
+	[data-si-tablero][data-fallo] .si-casilla {
+		border-color: var(--color-heart);
+	}
+	[data-si-jugar] [data-icon='stop'] {
+		display: none;
+	}
+	[data-si-jugar][data-state='jugando'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-si-jugar][data-state='jugando'] [data-icon='play'] {
+		display: none;
+	}
+	[data-si-jugar][data-state='jugando'] [data-icon='stop'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	type Nivel = 'facil' | 'normal' | 'dificil';
+	type Fase = 'parado' | 'mostrando' | 'turno';
+
+	const CLAVE = 'tuweb:simon';
+	const LIMITE = 60;
+	// Cuánto dura cada luz, en milisegundos, según la dificultad.
+	const VELOCIDAD: Record<Nivel, number> = { facil: 650, normal: 450, dificil: 320 };
+	const NIVELES = Object.keys(VELOCIDAD) as Nivel[];
+	// Mi, do#, la y mi grave: las notas de siempre en este juego.
+	const NOTAS = [659.25, 554.37, 440, 329.63];
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="simon"]');
+	const tablero = panel?.querySelector<HTMLElement>('[data-si-tablero]');
+	const casillas = [...(panel?.querySelectorAll<HTMLButtonElement>('[data-si-casilla]') ?? [])];
+	const botonesNivel = [...(panel?.querySelectorAll<HTMLButtonElement>('[data-si-nivel]') ?? [])];
+	const reloj = panel?.querySelector<HTMLInputElement>('[data-si-reloj]');
+	const sonido = panel?.querySelector<HTMLInputElement>('[data-si-sonido]');
+	const jugar = panel?.querySelector<HTMLButtonElement>('[data-si-jugar]');
+	const jugarTexto = jugar?.querySelector<HTMLElement>('[data-si-jugar-texto]');
+	const verRonda = panel?.querySelector<HTMLElement>('[data-si-ronda]');
+	const verTiempo = panel?.querySelector<HTMLElement>('[data-si-tiempo]');
+	const verRecord = panel?.querySelector<HTMLElement>('[data-si-record]');
+	const verEstado = panel?.querySelector<HTMLElement>('[data-si-estado]');
+
+	let nivel: Nivel = 'normal';
+	let fase: Fase = 'parado';
+	let secuencia: number[] = [];
+	let paso = 0;
+	// Cada partida tiene su número: si se para a mitad, lo pendiente se descarta.
+	let partida = 0;
+	let restante = LIMITE * 1000;
+	let marca = 0;
+	let tic: number | undefined;
+	let records: Record<string, number> = {};
+
+	try {
+		const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+		if (g && typeof g === 'object') {
+			if (NIVELES.includes(g.nivel)) nivel = g.nivel;
+			if (reloj) reloj.checked = g.reloj === true;
+			if (sonido) sonido.checked = g.sonido !== false;
+			if (g.records && typeof g.records === 'object') {
+				for (const [k, v] of Object.entries(g.records)) {
+					if (typeof v === 'number' && Number.isFinite(v)) records[k] = v;
+				}
+			}
+		}
+	} catch {
+		// Lo guardado está roto: se empieza de cero.
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(
+				CLAVE,
+				JSON.stringify({ nivel, reloj: reloj?.checked, sonido: sonido?.checked, records }),
+			);
+		} catch {
+			// Sin almacenamiento el juego sigue igual, solo que sin récord.
+		}
+	}
+
+	const claveRecord = () => `${nivel}${reloj?.checked ? '-reloj' : ''}`;
+	const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+	// Un solo contexto de audio para toda la partida.
+	let audio: AudioContext | null = null;
+
+	function tono(frecuencia: number, ms: number, onda: OscillatorType = 'triangle') {
+		if (!sonido?.checked) return;
+		try {
+			audio ??= new AudioContext();
+			if (audio.state === 'suspended') audio.resume();
+			const t0 = audio.currentTime;
+			const t1 = t0 + ms / 1000;
+			const osc = audio.createOscillator();
+			const gan = audio.createGain();
+			osc.type = onda;
+			osc.frequency.value = frecuencia;
+			gan.gain.setValueAtTime(0, t0);
+			gan.gain.linearRampToValueAtTime(0.25, t0 + 0.01);
+			gan.gain.exponentialRampToValueAtTime(0.0001, t1);
+			osc.connect(gan).connect(audio.destination);
+			osc.start(t0);
+			osc.stop(t1 + 0.02);
+		} catch {
+			// Sin audio se juega solo con luces.
+		}
+	}
+
+	function encender(i: number, ms: number) {
+		const casilla = casillas[i];
+		if (!casilla) return;
+		casilla.dataset.luz = '';
+		tono(NOTAS[i], ms);
+		setTimeout(() => casilla.removeAttribute('data-luz'), ms);
+	}
+
+	function pintarTiempo() {
+		if (!verTiempo) return;
+		verTiempo.textContent = reloj?.checked ? String(Math.max(0, Math.ceil(restante / 1000))) : '--';
+	}
+
+	function pintar() {
+		botonesNivel.forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.siNivel === nivel));
+			b.disabled = fase !== 'parado';
+		});
+		if (reloj) reloj.disabled = fase !== 'parado';
+		casillas.forEach((c) => {
+			c.disabled = fase !== 'turno';
+		});
+		if (jugar) {
+			if (fase === 'parado') jugar.removeAttribute('data-state');
+			else jugar.dataset.state = 'jugando';
+		}
+		if (jugarTexto) jugarTexto.textContent = fase === 'parado' ? 'Empezar' : 'Parar';
+		if (verRecord) verRecord.textContent = String(records[claveRecord()] ?? 0);
+		pintarTiempo();
+	}
+
+	function estado(texto: string) {
+		if (verEstado) verEstado.textContent = texto;
+	}
+
+	// El reloj solo corre en tu turno: mirar la secuencia no gasta tiempo.
+	function arrancarReloj() {
+		if (!reloj?.checked) return;
+		marca = performance.now();
+		clearInterval(tic);
+		tic = window.setInterval(() => {
+			const ahora = performance.now();
+			restante -= ahora - marca;
+			marca = ahora;
+			pintarTiempo();
+			if (restante <= 0) {
+				restante = 0;
+				terminar('Se acabó el tiempo.');
+			}
+		}, 100);
+	}
+
+	function pararReloj() {
+		if (tic === undefined) return;
+		clearInterval(tic);
+		tic = undefined;
+		restante -= performance.now() - marca;
+	}
+
+	async function mostrar() {
+		const mia = partida;
+		fase = 'mostrando';
+		paso = 0;
+		pintar();
+		const ronda = secuencia.length;
+		if (verRonda) verRonda.textContent = String(ronda);
+		estado('Mira bien...');
+
+		// En difícil, cada ronda un poco más rápido, hasta un tope.
+		const base = VELOCIDAD[nivel];
+		const luz = nivel === 'dificil' ? Math.max(160, base - ronda * 10) : base;
+
+		await esperar(600);
+		for (const i of secuencia) {
+			if (mia !== partida) return;
+			encender(i, luz);
+			await esperar(luz + luz * 0.35);
+		}
+		if (mia !== partida) return;
+
+		fase = 'turno';
+		pintar();
+		estado(`Tu turno: ${ronda} ${ronda === 1 ? 'paso' : 'pasos'}.`);
+		arrancarReloj();
+	}
+
+	function siguiente() {
+		secuencia.push(Math.floor(Math.random() * casillas.length));
+		mostrar();
+	}
+
+	function terminar(motivo: string) {
+		pararReloj();
+		partida++;
+		const hechas = Math.max(0, secuencia.length - 1);
+		const clave = claveRecord();
+		const nuevo = hechas > (records[clave] ?? 0);
+		if (nuevo) {
+			records[clave] = hechas;
+			guardar();
+		}
+		fase = 'parado';
+		pintar();
+		estado(
+			`${motivo} ${hechas} ${hechas === 1 ? 'ronda superada' : 'rondas superadas'}.${nuevo ? ' Nuevo récord.' : ''}`,
+		);
+	}
+
+	function empezar() {
+		partida++;
+		secuencia = [];
+		restante = LIMITE * 1000;
+		tablero?.removeAttribute('data-fallo');
+		siguiente();
+	}
+
+	function parar() {
+		pararReloj();
+		partida++;
+		fase = 'parado';
+		secuencia = [];
+		restante = LIMITE * 1000;
+		if (verRonda) verRonda.textContent = '0';
+		pintar();
+		estado('Partida parada.');
+	}
+
+	function pulsar(i: number) {
+		if (fase !== 'turno') return;
+		encender(i, 220);
+
+		if (secuencia[paso] !== i) {
+			tono(110, 500, 'sawtooth');
+			tablero?.setAttribute('data-fallo', '');
+			setTimeout(() => tablero?.removeAttribute('data-fallo'), 600);
+			terminar('Fallo.');
+			return;
+		}
+
+		paso++;
+		if (paso === secuencia.length) {
+			pararReloj();
+			fase = 'mostrando';
+			pintar();
+			estado('Bien.');
+			const mia = partida;
+			setTimeout(() => {
+				if (mia === partida) siguiente();
+			}, 400);
+		}
+	}
+
+	casillas.forEach((c, i) => c.addEventListener('click', () => pulsar(i)));
+
+	botonesNivel.forEach((b) => {
+		b.addEventListener('click', () => {
+			const n = b.dataset.siNivel as Nivel;
+			if (!NIVELES.includes(n) || fase !== 'parado') return;
+			nivel = n;
+			guardar();
+			pintar();
+		});
+	});
+
+	reloj?.addEventListener('change', () => {
+		guardar();
+		pintar();
+	});
+	sonido?.addEventListener('change', guardar);
+
+	jugar?.addEventListener('click', () => {
+		if (fase === 'parado') empezar();
+		else parar();
+	});
+
+	// Teclas 1 a 4, solo con el panel a la vista y sin estar escribiendo.
+	document.addEventListener('keydown', (e) => {
+		if (!panel || panel.hidden || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+		const destino = e.target as HTMLElement | null;
+		if (destino?.closest('input, textarea, select, [contenteditable]')) return;
+		const i = ['1', '2', '3', '4'].indexOf(e.key);
+		if (i < 0 || fase !== 'turno') return;
+		e.preventDefault();
+		pulsar(i);
+	});
+
+	// Si se cambia de pestaña a mitad de partida, se para: no hay nadie mirando.
+	if (panel) {
+		new MutationObserver(() => {
+			if (panel.hidden && fase !== 'parado') parar();
+		}).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+	}
+
+	pintar();
+</script>
