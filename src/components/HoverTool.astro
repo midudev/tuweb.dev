@@ -1,0 +1,615 @@
+---
+/**
+ * Simulador de hover: seis elementos de prueba —botón, enlace, tarjeta, imagen,
+ * icono y etiqueta— y, para el que elijas, qué cambia al pasar el ratón por
+ * encima: colores, escala, giro, subida, sombra, opacidad y la transición. La
+ * vista previa lleva el mismo CSS que se copia. Todo pasa en el navegador y el
+ * estado se guarda en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+const CAMPO = 'border border-line bg-panel px-3 py-2 text-sm text-fg outline-none focus-visible:border-accent';
+
+const ELEMENTOS = [
+	{ id: 'boton', label: 'Botón' },
+	{ id: 'enlace', label: 'Enlace' },
+	{ id: 'tarjeta', label: 'Tarjeta' },
+	{ id: 'imagen', label: 'Imagen' },
+	{ id: 'icono', label: 'Icono' },
+	{ id: 'etiqueta', label: 'Etiqueta' },
+];
+
+const COLORES = [
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'tinta', label: 'Texto' },
+	{ id: 'borde', label: 'Borde' },
+];
+
+const MEDIDAS = [
+	{ id: 'escala', label: 'Escala', min: 50, max: 150, paso: 1, unidad: '%' },
+	{ id: 'giro', label: 'Giro', min: -45, max: 45, paso: 1, unidad: 'deg' },
+	{ id: 'subida', label: 'Subida', min: -20, max: 20, paso: 1, unidad: 'px' },
+	{ id: 'sblur', label: 'Sombra: difuminado', min: 0, max: 40, paso: 1, unidad: 'px' },
+	{ id: 'salpha', label: 'Sombra: opacidad', min: 0, max: 100, paso: 1, unidad: '%' },
+	{ id: 'opacidad', label: 'Opacidad', min: 10, max: 100, paso: 1, unidad: '%' },
+	{ id: 'duracion', label: 'Duración', min: 0, max: 1000, paso: 10, unidad: 'ms' },
+];
+
+const EFECTOS = [
+	{ id: 'subir', label: 'Subir' },
+	{ id: 'crecer', label: 'Crecer' },
+	{ id: 'girar', label: 'Girar' },
+	{ id: 'brillo', label: 'Brillo' },
+	{ id: 'atenuar', label: 'Atenuar' },
+	{ id: 'invertir', label: 'Invertir' },
+	{ id: 'nada', label: 'Sin efecto' },
+];
+---
+
+<div role="tabpanel" id="hover" aria-labelledby="tab-hover" data-panel="hover" hidden class="flex flex-col gap-6">
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-6">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Elemento</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						ELEMENTOS.map((el) => (
+							<button
+								type="button"
+								data-hv-elegir={el.id}
+								aria-pressed="false"
+								class="border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent"
+							>
+								{el.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Efectos rápidos</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						EFECTOS.map((ef) => (
+							<button
+								type="button"
+								data-hv-efecto={ef.id}
+								class="border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								{ef.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<span class="text-sm text-fg">Colores al pasar</span>
+				{
+					COLORES.map((c) => (
+						<div class="flex items-center gap-3 text-sm text-muted">
+							<input type="color" data-hv-color={c.id} aria-label={`${c.label} al pasar`} class={COLOR} />
+							<label class="inline-flex cursor-pointer items-center gap-2">
+								<input type="checkbox" data-hv-usar={c.id} class="size-4 accent-accent" />
+								Cambiar {c.label.toLowerCase()}
+							</label>
+						</div>
+					))
+				}
+				<div class="flex items-center gap-3 text-sm text-muted">
+					<input type="color" data-hv-sombra aria-label="Color de la sombra" class={COLOR} />
+					Color de la sombra
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-4">
+				<span class="text-sm text-fg">Movimiento y transición</span>
+				{
+					MEDIDAS.map((m) => (
+						<label class="flex flex-col gap-2 text-sm text-muted">
+							<span class="flex items-center justify-between gap-3">
+								{m.label}
+								<output data-hv-valor={m.id} class="text-fg" />
+							</span>
+							<input
+								type="range"
+								min={m.min}
+								max={m.max}
+								step={m.paso}
+								data-hv-rango={m.id}
+								data-unidad={m.unidad}
+								class="w-full accent-accent"
+							/>
+						</label>
+					))
+				}
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Curva
+					<select data-hv-curva class={CAMPO}>
+						<option value="ease">ease</option>
+						<option value="ease-in">ease-in</option>
+						<option value="ease-out">ease-out</option>
+						<option value="ease-in-out">ease-in-out</option>
+						<option value="linear">linear</option>
+						<option value="cubic-bezier(0.34, 1.56, 0.64, 1)">Rebote</option>
+					</select>
+				</label>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div data-hv-escena class="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3">
+				<div data-hv-celda="boton" class="hv-celda">
+					<button type="button" class="hv-boton" data-hv-vista="boton">Enviar idea</button>
+				</div>
+				<div data-hv-celda="enlace" class="hv-celda">
+					<a href="#hover" class="hv-enlace" data-hv-vista="enlace">Ver las ideas</a>
+				</div>
+				<div data-hv-celda="tarjeta" class="hv-celda">
+					<div class="hv-tarjeta" data-hv-vista="tarjeta">
+						<strong>Idea ganadora</strong>
+						<span class="text-xs">La que más votos tuvo.</span>
+					</div>
+				</div>
+				<div data-hv-celda="imagen" class="hv-celda">
+					<div class="hv-imagen" data-hv-vista="imagen"><Icon name="photo" class="size-8" /></div>
+				</div>
+				<div data-hv-celda="icono" class="hv-celda">
+					<span class="hv-icono" data-hv-vista="icono"><Icon name="star" class="size-5" /></span>
+				</div>
+				<div data-hv-celda="etiqueta" class="hv-celda">
+					<span class="hv-etiqueta" data-hv-vista="etiqueta">Nuevo</span>
+				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-4">
+				<label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-hv-forzar class="size-4 accent-accent" />
+					Forzar el hover en todos
+				</label>
+				<span class="text-xs text-muted">Pasa el cursor por encima. Pulsa uno para editarlo.</span>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">CSS de <span data-hv-nombre class="text-fg"></span></span>
+				<pre data-hv-css class="max-h-96 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-hv-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-hv-copiar-texto aria-live="polite">Copiar CSS</span>
+				</button>
+				<button type="button" data-hv-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer todo
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<style data-hv-estilos is:inline></style>
+</div>
+
+<style>
+	[data-panel='hover'] input[type='color']::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-panel='hover'] input[type='color']::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-panel='hover'] input[type='color']::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* Las celdas llevan fondo claro fijo: los colores de prueba son de papel. */
+	.hv-celda {
+		display: flex;
+		min-height: 10rem;
+		align-items: center;
+		justify-content: center;
+		padding: 1.5rem;
+		background: #fdf6ef;
+		cursor: pointer;
+		outline-offset: -3px;
+	}
+	.hv-celda[data-elegida] {
+		outline: 2px dashed var(--color-accent);
+	}
+	[data-hv-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-hv-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-hv-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-hv-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-hv-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	const IDS = ['boton', 'enlace', 'tarjeta', 'imagen', 'icono', 'etiqueta'] as const;
+	const NOMBRES: Record<Id, string> = {
+		boton: 'el botón',
+		enlace: 'el enlace',
+		tarjeta: 'la tarjeta',
+		imagen: 'la imagen',
+		icono: 'el icono',
+		etiqueta: 'la etiqueta',
+	};
+	const NUMEROS = {
+		escala: [50, 150],
+		giro: [-45, 45],
+		subida: [-20, 20],
+		sblur: [0, 40],
+		salpha: [0, 100],
+		opacidad: [10, 100],
+		duracion: [0, 1000],
+	} as const;
+	const COLORES = ['fondo', 'tinta', 'borde'] as const;
+	const CURVAS = ['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear', 'cubic-bezier(0.34, 1.56, 0.64, 1)'];
+
+	type Id = (typeof IDS)[number];
+	type Numero = keyof typeof NUMEROS;
+	type Color = (typeof COLORES)[number];
+	type Usar = 'usarFondo' | 'usarTinta' | 'usarBorde';
+	type Hover = Record<Numero, number> & Record<Color, string> & Record<Usar, boolean> & { sombra: string; curva: string };
+	type Estado = { elegido: Id; forzar: boolean; hover: Record<Id, Hover> };
+
+	const CLAVE = 'tuweb:hover';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const CLAVES = Object.keys(NUMEROS) as Numero[];
+	const USAR: Record<Color, Usar> = { fondo: 'usarFondo', tinta: 'usarTinta', borde: 'usarBorde' };
+
+	// Cómo es cada elemento en reposo. Sale igual en la vista y en el CSS copiado.
+	const REPOSO: Record<Id, { fondo: string; tinta: string; borde: string; resto: string[] }> = {
+		boton: {
+			fondo: '#c2410c',
+			tinta: '#fdf6ef',
+			borde: '#7c2d12',
+			resto: ['padding: 10px 20px;', 'font: inherit;', 'font-weight: 600;', 'border-width: 2px;', 'border-style: solid;', 'cursor: pointer;'],
+		},
+		enlace: {
+			fondo: 'transparent',
+			tinta: '#c2410c',
+			borde: '#e8d9c8',
+			resto: ['display: inline-block;', 'padding: 2px 0;', 'border-width: 0 0 2px;', 'border-style: solid;', 'text-decoration: none;', 'cursor: pointer;'],
+		},
+		tarjeta: {
+			fondo: '#ffffff',
+			tinta: '#3b2d24',
+			borde: '#e8d9c8',
+			resto: ['display: flex;', 'flex-direction: column;', 'gap: 6px;', 'width: 11rem;', 'padding: 16px;', 'border-width: 1px;', 'border-style: solid;'],
+		},
+		imagen: {
+			fondo: '#f5c542',
+			tinta: '#7c2d12',
+			borde: '#7c2d12',
+			resto: ['display: grid;', 'place-items: center;', 'width: 8rem;', 'height: 6rem;', 'border-width: 3px;', 'border-style: solid;'],
+		},
+		icono: {
+			fondo: '#fdf6ef',
+			tinta: '#3b2d24',
+			borde: '#3b2d24',
+			resto: ['display: grid;', 'place-items: center;', 'width: 3rem;', 'height: 3rem;', 'border-width: 2px;', 'border-style: solid;'],
+		},
+		etiqueta: {
+			fondo: '#f7ece1',
+			tinta: '#7c2d12',
+			borde: '#c2410c',
+			resto: ['display: inline-block;', 'padding: 4px 10px;', 'font-size: 12px;', 'letter-spacing: 0.08em;', 'text-transform: uppercase;', 'border-width: 1px;', 'border-style: solid;'],
+		},
+	};
+
+	const NEUTRO: Hover = {
+		escala: 100,
+		giro: 0,
+		subida: 0,
+		sblur: 0,
+		salpha: 0,
+		opacidad: 100,
+		duracion: 200,
+		fondo: '#9a3412',
+		tinta: '#ffffff',
+		borde: '#c2410c',
+		usarFondo: false,
+		usarTinta: false,
+		usarBorde: false,
+		sombra: '#000000',
+		curva: 'ease',
+	};
+
+	const INICIO: Record<Id, Partial<Hover>> = {
+		boton: { usarFondo: true, subida: 2, sblur: 12, salpha: 25, duracion: 150 },
+		enlace: { tinta: '#7c2d12', usarTinta: true, usarBorde: true, duracion: 150 },
+		tarjeta: { usarBorde: true, subida: 4, sblur: 24, salpha: 20 },
+		imagen: { escala: 105, sblur: 16, salpha: 30, duracion: 250 },
+		icono: { giro: 15, escala: 110, tinta: '#c2410c', usarTinta: true, usarBorde: true, curva: CURVAS[5] },
+		etiqueta: { fondo: '#c2410c', tinta: '#fdf6ef', usarFondo: true, usarTinta: true, duracion: 150 },
+	};
+
+	// Los efectos rápidos parten de cero y solo tocan el elemento elegido.
+	const EFECTOS: Record<string, (id: Id) => Partial<Hover>> = {
+		subir: () => ({ subida: 4, sblur: 16, salpha: 25 }),
+		crecer: () => ({ escala: 110, duracion: 250, curva: CURVAS[5] }),
+		girar: () => ({ giro: -8, escala: 105, duracion: 250 }),
+		brillo: () => ({ sombra: '#fc784b', sblur: 24, salpha: 80, borde: '#fc784b', usarBorde: true, duracion: 300 }),
+		atenuar: () => ({ opacidad: 60, duracion: 300 }),
+		invertir: (id) => {
+			const base = REPOSO[id];
+			const fondo = HEX.test(base.fondo) ? base.fondo : '#fdf6ef';
+			return { fondo: base.tinta, tinta: fondo, usarFondo: true, usarTinta: true, duracion: 150 };
+		},
+		nada: () => ({}),
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="hover"]');
+	const hoja = panel?.querySelector<HTMLStyleElement>('[data-hv-estilos]');
+	const salida = panel?.querySelector<HTMLElement>('[data-hv-css]');
+	const nombre = panel?.querySelector<HTMLElement>('[data-hv-nombre]');
+	const curva = panel?.querySelector<HTMLSelectElement>('[data-hv-curva]');
+	const sombra = panel?.querySelector<HTMLInputElement>('[data-hv-sombra]');
+	const forzar = panel?.querySelector<HTMLInputElement>('[data-hv-forzar]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-hv-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-hv-copiar-texto]');
+
+	const limitar = (v: number, [min, max]: readonly [number, number]) => Math.min(Math.max(Math.round(v), min), max);
+	const hexValido = (v: unknown, d: string) => (HEX.test(String(v)) ? String(v).toLowerCase() : d);
+	const inicial = (id: Id): Hover => ({ ...NEUTRO, ...INICIO[id] });
+	const esId = (v: unknown): v is Id => IDS.includes(v as Id);
+
+	function limpio(guardado: unknown, id: Id): Hover {
+		const h = inicial(id);
+		if (!guardado || typeof guardado !== 'object') return h;
+		const g = guardado as Record<string, unknown>;
+		CLAVES.forEach((k) => {
+			const v = g[k];
+			if (typeof v === 'number' && Number.isFinite(v)) h[k] = limitar(v, NUMEROS[k]);
+		});
+		COLORES.forEach((k) => {
+			h[k] = hexValido(g[k], h[k]);
+			if (typeof g[USAR[k]] === 'boolean') h[USAR[k]] = g[USAR[k]] as boolean;
+		});
+		h.sombra = hexValido(g.sombra, h.sombra);
+		if (CURVAS.includes(String(g.curva))) h.curva = String(g.curva);
+		return h;
+	}
+
+	function cargar(): Estado {
+		const estado: Estado = {
+			elegido: 'boton',
+			forzar: false,
+			hover: { boton: inicial('boton'), enlace: inicial('enlace'), tarjeta: inicial('tarjeta'), imagen: inicial('imagen'), icono: inicial('icono'), etiqueta: inicial('etiqueta') },
+		};
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			if (esId(guardado.elegido)) estado.elegido = guardado.elegido;
+			if (typeof guardado.forzar === 'boolean') estado.forzar = guardado.forzar;
+			if (guardado.hover && typeof guardado.hover === 'object') {
+				IDS.forEach((id) => {
+					estado.hover[id] = limpio(guardado.hover[id], id);
+				});
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	function rgba(hex: string, alpha: number) {
+		if (alpha >= 100) return hex;
+		const canal = (k: number) => parseInt(hex.slice(1 + k * 2, 3 + k * 2), 16);
+		return `rgb(${canal(0)} ${canal(1)} ${canal(2)} / ${alpha / 100})`;
+	}
+
+	function transform(h: Hover) {
+		const partes: string[] = [];
+		if (h.subida !== 0) partes.push(`translateY(${-h.subida}px)`);
+		if (h.giro !== 0) partes.push(`rotate(${h.giro}deg)`);
+		if (h.escala !== 100) partes.push(`scale(${h.escala / 100})`);
+		return partes.join(' ');
+	}
+
+	// selector es el del CSS copiado; encima, el de la vista, con el forzado.
+	function css(id: Id, selector: string, encima: string) {
+		const base = REPOSO[id];
+		const h = estado.hover[id];
+		const reposo = [...base.resto, `color: ${base.tinta};`, `background-color: ${base.fondo};`, `border-color: ${base.borde};`];
+		if (h.duracion > 0) {
+			reposo.push(
+				'transition-property: color, background-color, border-color, box-shadow, transform, opacity;',
+				`transition-duration: ${h.duracion}ms;`,
+				`transition-timing-function: ${h.curva};`,
+			);
+		}
+
+		const cambios: string[] = [];
+		if (h.usarFondo) cambios.push(`background-color: ${h.fondo};`);
+		if (h.usarTinta) cambios.push(`color: ${h.tinta};`);
+		if (h.usarBorde) cambios.push(`border-color: ${h.borde};`);
+		const t = transform(h);
+		if (t) cambios.push(`transform: ${t};`);
+		if (h.salpha > 0) cambios.push(`box-shadow: 0 ${Math.round(h.sblur / 3)}px ${h.sblur}px ${rgba(h.sombra, h.salpha)};`);
+		if (h.opacidad < 100) cambios.push(`opacity: ${h.opacidad / 100};`);
+
+		const bloque = (sel: string, lineas: string[]) => `${sel} {\n${lineas.map((l) => `  ${l}`).join('\n')}\n}`;
+		const bloques = [bloque(selector, reposo), bloque(encima, cambios.length ? cambios : ['/* Sin cambios al pasar. */'])];
+		if (h.duracion > 0) {
+			bloques.push(`@media (prefers-reduced-motion: reduce) {\n  ${selector} {\n    transition: none;\n  }\n}`);
+		}
+		return bloques.join('\n\n');
+	}
+
+	function pintar() {
+		if (hoja) {
+			hoja.textContent = IDS.map((id) => {
+				const sel = `[data-panel="hover"] .hv-${id}`;
+				return css(id, sel, `${sel}:hover,\n${sel}[data-forzado]`);
+			}).join('\n\n');
+		}
+		if (salida) salida.textContent = css(estado.elegido, `.${estado.elegido}`, `.${estado.elegido}:hover`);
+		if (nombre) nombre.textContent = NOMBRES[estado.elegido];
+		panel?.querySelectorAll<HTMLElement>('[data-hv-vista]').forEach((vista) => {
+			vista.toggleAttribute('data-forzado', estado.forzar);
+		});
+		panel?.querySelectorAll<HTMLElement>('[data-hv-celda]').forEach((celda) => {
+			celda.toggleAttribute('data-elegida', celda.dataset.hvCelda === estado.elegido);
+		});
+		panel?.querySelectorAll<HTMLElement>('[data-hv-elegir]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.hvElegir === estado.elegido));
+		});
+	}
+
+	function pintarControles() {
+		const h = estado.hover[estado.elegido];
+		CLAVES.forEach((k) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-hv-rango="${k}"]`);
+			const valor = panel?.querySelector<HTMLOutputElement>(`[data-hv-valor="${k}"]`);
+			if (rango) rango.value = String(h[k]);
+			if (valor) valor.textContent = `${h[k]} ${rango?.dataset.unidad ?? ''}`;
+		});
+		COLORES.forEach((k) => {
+			const campo = panel?.querySelector<HTMLInputElement>(`[data-hv-color="${k}"]`);
+			const usar = panel?.querySelector<HTMLInputElement>(`[data-hv-usar="${k}"]`);
+			if (campo) campo.value = h[k];
+			if (usar) usar.checked = h[USAR[k]];
+		});
+		if (sombra) sombra.value = h.sombra;
+		if (curva) curva.value = h.curva;
+		if (forzar) forzar.checked = estado.forzar;
+	}
+
+	function actualizar() {
+		pintar();
+		guardar();
+	}
+
+	function todo() {
+		pintarControles();
+		actualizar();
+	}
+
+	function elegir(id: string | undefined) {
+		if (!esId(id)) return;
+		estado.elegido = id;
+		todo();
+	}
+
+	CLAVES.forEach((k) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-hv-rango="${k}"]`);
+		rango?.addEventListener('input', () => {
+			const v = Number(rango.value);
+			if (!Number.isFinite(v)) return;
+			estado.hover[estado.elegido][k] = limitar(v, NUMEROS[k]);
+			todo();
+		});
+	});
+
+	COLORES.forEach((k) => {
+		const campo = panel?.querySelector<HTMLInputElement>(`[data-hv-color="${k}"]`);
+		const usar = panel?.querySelector<HTMLInputElement>(`[data-hv-usar="${k}"]`);
+		campo?.addEventListener('input', () => {
+			const h = estado.hover[estado.elegido];
+			h[k] = hexValido(campo.value, h[k]);
+			// Si tocas el color es que lo quieres ver: se marca solo.
+			h[USAR[k]] = true;
+			todo();
+		});
+		usar?.addEventListener('change', () => {
+			estado.hover[estado.elegido][USAR[k]] = usar.checked;
+			actualizar();
+		});
+	});
+
+	sombra?.addEventListener('input', () => {
+		const h = estado.hover[estado.elegido];
+		h.sombra = hexValido(sombra.value, h.sombra);
+		actualizar();
+	});
+
+	curva?.addEventListener('change', () => {
+		if (CURVAS.includes(curva.value)) estado.hover[estado.elegido].curva = curva.value;
+		actualizar();
+	});
+
+	forzar?.addEventListener('change', () => {
+		estado.forzar = forzar.checked;
+		actualizar();
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-hv-elegir]').forEach((boton) => {
+		boton.addEventListener('click', () => elegir(boton.dataset.hvElegir));
+	});
+
+	panel?.querySelectorAll<HTMLElement>('[data-hv-celda]').forEach((celda) => {
+		celda.addEventListener('click', (evento) => {
+			// El enlace de prueba no lleva a ninguna parte: solo se elige.
+			evento.preventDefault();
+			elegir(celda.dataset.hvCelda);
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-hv-efecto]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const efecto = EFECTOS[boton.dataset.hvEfecto ?? ''];
+			if (!efecto) return;
+			estado.hover[estado.elegido] = { ...NEUTRO, ...efecto(estado.elegido) };
+			todo();
+		});
+	});
+
+	panel?.querySelector('[data-hv-reset]')?.addEventListener('click', () => {
+		try {
+			localStorage.removeItem(CLAVE);
+		} catch {
+			// Sin almacenamiento: cargar() ya empieza de cero.
+		}
+		estado = cargar();
+		todo();
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar CSS';
+		}, 2000);
+	});
+
+	todo();
+</script>

@@ -16,6 +16,7 @@ import EffectsTool from './EffectsTool.astro';
 import FlowTool from './FlowTool.astro';
 import FunctionTool from './FunctionTool.astro';
 import GradientTool from './GradientTool.astro';
+import HoverTool from './HoverTool.astro';
 import Icon from './Icon.astro';
 import ImageTool from './ImageTool.astro';
 import InteractionTool from './InteractionTool.astro';
@@ -50,6 +51,7 @@ const tools = [
 	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
 	{ id: 'sombras', label: 'Sombras', icon: 'shadow' },
 	{ id: 'botones', label: 'Botones CSS', icon: 'click' },
+	{ id: 'hover', label: 'Efectos hover', icon: 'pointer' },
 	{ id: 'transiciones', label: 'Transiciones', icon: 'vector-bezier-2' },
 	{ id: 'secuencias', label: 'Secuencias CSS', icon: 'timeline-event' },
 	{ id: 'animaciones-svg', label: 'Animaciones SVG', icon: 'svg' },
@@ -218,6 +220,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ShadowTool />
 
 	<ButtonTool />
+
+	<HoverTool />
 
 	<TransitionTool />
 
