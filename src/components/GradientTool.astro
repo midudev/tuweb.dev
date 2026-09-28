@@ -1,9 +1,10 @@
 ---
 /**
  * Generador de gradientes CSS: dos o más colores con su posición, lineal o
- * radial, con ángulo. La vista previa es el propio CSS aplicado a una caja; el
- * PNG se pinta aparte en un canvas con la misma geometría que usa el navegador
- * para el CSS, así lo que se baja es lo que se ve. Todo pasa en el navegador y
+ * radial, con ángulo. La vista previa es el propio CSS aplicado a una caja. Se
+ * exporta como CSS, variable, clase de Tailwind, SVG o PNG; el SVG y el PNG
+ * usan la misma geometría que el navegador para el CSS, así lo que se baja es
+ * lo que se ve. Todo pasa en el navegador y
  * lo único que se guarda es el estado, en localStorage.
  */
 import Icon from './Icon.astro';
@@ -21,6 +22,13 @@ const TAMANOS = [
 	{ id: '1920x1080', label: '1920×1080 (fondo)' },
 	{ id: '1080x1080', label: '1080×1080 (cuadrado)' },
 	{ id: '1080x1920', label: '1080×1920 (vertical)' },
+];
+
+const FORMATOS = [
+	{ id: 'css', label: 'CSS', icon: 'file-type-css' },
+	{ id: 'variable', label: 'Variable', icon: 'variable' },
+	{ id: 'tailwind', label: 'Tailwind', icon: 'brand-tailwind' },
+	{ id: 'svg', label: 'SVG', icon: 'file-type-svg' },
 ];
 ---
 
@@ -110,15 +118,38 @@ const TAMANOS = [
 			<div data-gr-vista class="w-full border border-line" style="aspect-ratio: 1200 / 630;" role="img" aria-label="Vista previa del gradiente"></div>
 
 			<div class="flex flex-col gap-2">
-				<span class="text-sm text-muted">CSS</span>
-				<pre data-gr-css class="overflow-x-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+				<span class="text-sm text-muted">Exportar como</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						FORMATOS.map((formato) => (
+							<button
+								type="button"
+								data-gr-formato={formato.id}
+								aria-pressed={formato.id === 'css' ? 'true' : 'false'}
+								class={`${OPCION} inline-flex items-center gap-2`}
+							>
+								<Icon name={formato.icon} class="size-4 shrink-0" />
+								{formato.label}
+							</button>
+						))
+					}
+				</div>
+				<pre data-gr-css class="max-h-72 overflow-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
 			</div>
 
 			<div class="flex flex-wrap items-center gap-2">
 				<button type="button" data-gr-copiar class={BOTON}>
 					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
 					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
-					<span data-gr-copiar-texto aria-live="polite">Copiar CSS</span>
+					<span data-gr-copiar-texto aria-live="polite">Copiar</span>
+				</button>
+				<button type="button" data-gr-bajar="css" class={BOTON}>
+					<Icon name="file-type-css" class="size-4 shrink-0" />
+					Descargar .css
+				</button>
+				<button type="button" data-gr-bajar="svg" class={BOTON}>
+					<Icon name="file-type-svg" class="size-4 shrink-0" />
+					Descargar .svg
 				</button>
 				<label class="inline-flex items-center gap-2 text-sm text-muted">
 					<span class="sr-only">Tamaño del PNG</span>
@@ -198,7 +229,17 @@ const TAMANOS = [
 
 <script>
 	type Parada = { color: string; pos: number };
-	type Estado = { tipo: 'linear' | 'radial'; angulo: number; forma: 'circle' | 'ellipse'; paradas: Parada[]; tamano: string };
+	type Formato = 'css' | 'variable' | 'tailwind' | 'svg';
+	type Estado = {
+		tipo: 'linear' | 'radial';
+		angulo: number;
+		forma: 'circle' | 'ellipse';
+		paradas: Parada[];
+		tamano: string;
+		formato: Formato;
+	};
+
+	const FORMATOS: Formato[] = ['css', 'variable', 'tailwind', 'svg'];
 
 	const CLAVE = 'tuweb:gradientes';
 	const MAX_PARADAS = 8;
@@ -213,6 +254,7 @@ const TAMANOS = [
 			{ color: '#2563eb', pos: 100 },
 		],
 		tamano: '1200x630',
+		formato: 'css',
 	};
 
 	const panel = document.querySelector<HTMLElement>('[data-panel="gradientes"]');
@@ -229,6 +271,7 @@ const TAMANOS = [
 	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-gr-copiar-texto]');
 	const tipos = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-tipo]') ?? [];
 	const formas = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-forma]') ?? [];
+	const formatos = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-formato]') ?? [];
 
 	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
 
@@ -246,6 +289,7 @@ const TAMANOS = [
 						pos: limitar(num(p.pos, 0), 0, 100),
 					})),
 					tamano: typeof guardado.tamano === 'string' ? guardado.tamano : INICIAL.tamano,
+					formato: FORMATOS.includes(guardado.formato) ? guardado.formato : INICIAL.formato,
 				};
 			}
 		} catch {
@@ -282,6 +326,47 @@ const TAMANOS = [
 		return { ancho, alto };
 	}
 
+	// ——— Exportar ———
+	// Cada formato sale del mismo gradiente. El CSS lleva delante el primer color
+	// como fondo liso, por si el navegador no entiende el gradiente.
+	function svg() {
+		const { ancho, alto } = medidas();
+		const paradas = ordenadas()
+			.map((p) => `    <stop offset="${p.pos}%" stop-color="${p.color}"/>`)
+			.join('\n');
+		const g = geometria();
+		const r = (n: number) => Math.round(n * 100) / 100;
+		const abre =
+			g.tipo === 'lineal'
+				? `<linearGradient id="g" gradientUnits="userSpaceOnUse" x1="${r(g.x1)}" y1="${r(g.y1)}" x2="${r(g.x2)}" y2="${r(g.y2)}">`
+				: `<radialGradient id="g" gradientUnits="userSpaceOnUse" cx="${r(g.cx)}" cy="${r(g.cy)}" r="${r(g.rx)}"${
+						g.rx === g.ry ? '' : ` gradientTransform="translate(${r(g.cx)} ${r(g.cy)}) scale(1 ${r(g.ry / g.rx)}) translate(${r(-g.cx)} ${r(-g.cy)})"`
+					}>`;
+		const cierra = g.tipo === 'lineal' ? '</linearGradient>' : '</radialGradient>';
+		return [
+			`<svg xmlns="http://www.w3.org/2000/svg" width="${ancho}" height="${alto}" viewBox="0 0 ${ancho} ${alto}">`,
+			'  <defs>',
+			`  ${abre}`,
+			paradas,
+			`  ${cierra}`,
+			'  </defs>',
+			`  <rect width="${ancho}" height="${alto}" fill="url(#g)"/>`,
+			'</svg>',
+		].join('\n');
+	}
+
+	function exportar(formato: Formato) {
+		const css = gradiente();
+		const liso = ordenadas()[0]?.color ?? '#000000';
+		if (formato === 'variable') {
+			return `:root {\n  --gradiente: ${css};\n}\n\n.fondo {\n  background: ${liso};\n  background: var(--gradiente);\n}`;
+		}
+		// En los valores arbitrarios de Tailwind el espacio se escribe con _.
+		if (formato === 'tailwind') return `bg-[${css.replace(/,\s+/g, ',').replace(/\s+/g, '_')}]`;
+		if (formato === 'svg') return svg();
+		return `background: ${liso};\nbackground: ${css};`;
+	}
+
 	function pintar() {
 		const css = gradiente();
 		if (vista) {
@@ -289,8 +374,30 @@ const TAMANOS = [
 			const { ancho, alto } = medidas();
 			vista.style.aspectRatio = `${ancho} / ${alto}`;
 		}
-		if (salida) salida.textContent = `background: ${css};`;
+		if (salida) salida.textContent = exportar(estado.formato);
 	}
+
+	function bajar(contenido: Blob, nombre: string) {
+		const url = URL.createObjectURL(contenido);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = nombre;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	const nombre = () => `gradiente-${estado.tipo === 'linear' ? 'lineal' : 'radial'}`;
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-gr-bajar]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			if (boton.dataset.grBajar === 'svg') {
+				bajar(new Blob([svg()], { type: 'image/svg+xml' }), `${nombre()}-${estado.tamano}.svg`);
+			} else {
+				bajar(new Blob([`${exportar('variable')}\n`], { type: 'text/css' }), `${nombre()}.css`);
+			}
+		});
+	});
 
 	function actualizar() {
 		pintar();
@@ -300,6 +407,7 @@ const TAMANOS = [
 	function pintarControles() {
 		tipos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grTipo === estado.tipo)));
 		formas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grForma === estado.forma)));
+		formatos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grFormato === estado.formato)));
 		if (bloqueLineal) bloqueLineal.hidden = estado.tipo !== 'linear';
 		if (bloqueRadial) bloqueRadial.hidden = estado.tipo !== 'radial';
 		if (angulo) angulo.value = String(estado.angulo);
@@ -424,6 +532,32 @@ const TAMANOS = [
 	// como el reloj) y mide lo justo para que las esquinas caigan en el 0% y el
 	// 100%. Radial: centrado y hasta la esquina más lejana, que es lo que hace
 	// CSS cuando no se le dice tamaño.
+	// El SVG usa las mismas cuentas, así que salen de aquí.
+	function geometria() {
+		const { ancho, alto } = medidas();
+		const cx = ancho / 2;
+		const cy = alto / 2;
+		if (estado.tipo === 'linear') {
+			const rad = (estado.angulo * Math.PI) / 180;
+			const dx = Math.sin(rad);
+			const dy = -Math.cos(rad);
+			const medio = (Math.abs(ancho * dx) + Math.abs(alto * dy)) / 2;
+			return {
+				tipo: 'lineal' as const,
+				x1: cx - dx * medio,
+				y1: cy - dy * medio,
+				x2: cx + dx * medio,
+				y2: cy + dy * medio,
+			};
+		}
+		// La elipse guarda la proporción del lienzo y toca las esquinas: radios
+		// de la mitad de cada lado por raíz de dos.
+		const circulo = estado.forma === 'circle';
+		const rx = circulo ? Math.hypot(cx, cy) : cx * Math.SQRT2;
+		const ry = circulo ? rx : cy * Math.SQRT2;
+		return { tipo: 'radial' as const, cx, cy, rx, ry };
+	}
+
 	function lienzo() {
 		const { ancho, alto } = medidas();
 		const canvas = document.createElement('canvas');
@@ -431,29 +565,22 @@ const TAMANOS = [
 		canvas.height = alto;
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return null;
-		const cx = ancho / 2;
-		const cy = alto / 2;
 		const poner = (g: CanvasGradient) => ordenadas().forEach((p) => g.addColorStop(p.pos / 100, p.color));
+		const geo = geometria();
 
-		if (estado.tipo === 'linear') {
-			const rad = (estado.angulo * Math.PI) / 180;
-			const dx = Math.sin(rad);
-			const dy = -Math.cos(rad);
-			const medio = (Math.abs(ancho * dx) + Math.abs(alto * dy)) / 2;
-			const g = ctx.createLinearGradient(cx - dx * medio, cy - dy * medio, cx + dx * medio, cy + dy * medio);
+		if (geo.tipo === 'lineal') {
+			const g = ctx.createLinearGradient(geo.x1, geo.y1, geo.x2, geo.y2);
 			poner(g);
 			ctx.fillStyle = g;
 			ctx.fillRect(0, 0, ancho, alto);
-		} else if (estado.forma === 'circle') {
-			const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(cx, cy));
+		} else if (geo.rx === geo.ry) {
+			const g = ctx.createRadialGradient(geo.cx, geo.cy, 0, geo.cx, geo.cy, geo.rx);
 			poner(g);
 			ctx.fillStyle = g;
 			ctx.fillRect(0, 0, ancho, alto);
 		} else {
-			// La elipse guarda la proporción del lienzo y toca las esquinas: radios
-			// de la mitad de cada lado por raíz de dos. Se pinta un círculo aplastado.
-			const rx = cx * Math.SQRT2;
-			const ry = cy * Math.SQRT2;
+			// Se pinta un círculo aplastado.
+			const { cx, cy, rx, ry } = geo;
 			const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
 			poner(g);
 			ctx.translate(cx, cy);
@@ -468,14 +595,7 @@ const TAMANOS = [
 		const canvas = lienzo();
 		if (!canvas) return;
 		canvas.toBlob((blob) => {
-			if (!blob) return;
-			const url = URL.createObjectURL(blob);
-			const enlace = document.createElement('a');
-			enlace.href = url;
-			enlace.download = `gradiente-${estado.tipo === 'linear' ? 'lineal' : 'radial'}-${estado.tamano}.png`;
-			enlace.click();
-			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
-			setTimeout(() => URL.revokeObjectURL(url), 1000);
+			if (blob) bajar(blob, `${nombre()}-${estado.tamano}.png`);
 		}, 'image/png');
 	});
 
@@ -494,7 +614,7 @@ const TAMANOS = [
 		clearTimeout(reloj);
 		reloj = window.setTimeout(() => {
 			copiar.removeAttribute('data-state');
-			if (copiarTexto) copiarTexto.textContent = 'Copiar CSS';
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
 		}, 2000);
 	});
 
@@ -531,6 +651,16 @@ const TAMANOS = [
 	formas.forEach((boton) => {
 		boton.addEventListener('click', () => {
 			estado.forma = boton.dataset.grForma === 'ellipse' ? 'ellipse' : 'circle';
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	formatos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegido = FORMATOS.find((f) => f === boton.dataset.grFormato);
+			if (!elegido) return;
+			estado.formato = elegido;
 			pintarControles();
 			actualizar();
 		});
