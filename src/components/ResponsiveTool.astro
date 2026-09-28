@@ -1,0 +1,511 @@
+---
+/**
+ * Diseño responsivo: una página de ejemplo dentro de un marco de ancho libre
+ * —móvil, tablet, escritorio o lo que marque el deslizador— y, para cada
+ * tramo, sus columnas, huecos, letra, relleno, barra lateral y menú. Se ajusta
+ * el tramo que se está viendo y debajo sale el CSS con sus media queries.
+ * Todo pasa en el navegador; los ajustes se guardan en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+
+const DISPOSITIVOS = [
+	{ id: 'movil', label: 'Móvil', icon: 'device-mobile', ancho: 360 },
+	{ id: 'tablet', label: 'Tablet', icon: 'device-tablet', ancho: 768 },
+	{ id: 'escritorio', label: 'Escritorio', icon: 'device-desktop', ancho: 1280 },
+];
+
+const MEDIDAS = [
+	{ id: 'columnas', label: 'Columnas de tarjetas', min: 1, max: 4, step: 1 },
+	{ id: 'hueco', label: 'Hueco', min: 0, max: 48, step: 2 },
+	{ id: 'letra', label: 'Letra', min: 12, max: 22, step: 1 },
+	{ id: 'relleno', label: 'Relleno', min: 0, max: 64, step: 4 },
+];
+
+const OPCIONES = [
+	{
+		id: 'lateral',
+		label: 'Barra lateral',
+		valores: [
+			{ id: 'lado', label: 'Al lado' },
+			{ id: 'abajo', label: 'Abajo' },
+			{ id: 'oculta', label: 'Oculta' },
+		],
+	},
+	{
+		id: 'menu',
+		label: 'Menú',
+		valores: [
+			{ id: 'enlaces', label: 'Enlaces' },
+			{ id: 'boton', label: 'Botón' },
+		],
+	},
+];
+
+const CORTES = [
+	{ id: 'tablet', label: 'Tablet desde', min: 400, max: 1000 },
+	{ id: 'escritorio', label: 'Escritorio desde', min: 700, max: 1600 },
+];
+---
+
+<div role="tabpanel" id="responsivo" aria-labelledby="tab-responsivo" data-panel="responsivo" hidden class="flex flex-col gap-6">
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-4">
+			<p class="text-sm text-muted">
+				Ajustando <span data-rs-tramo class="text-accent"></span>
+				<span data-rs-rango></span>
+			</p>
+
+			{
+				MEDIDAS.map((m) => (
+					<label class="flex flex-col gap-1">
+						<span class="flex justify-between gap-2 text-sm text-muted">
+							{m.label}
+							<output data-rs-salida={m.id} class="text-mark" />
+						</span>
+						<input type="range" data-rs-campo={m.id} min={m.min} max={m.max} step={m.step} class="w-full accent-accent" />
+					</label>
+				))
+			}
+
+			{
+				OPCIONES.map((o) => (
+					<div class="flex flex-col gap-2">
+						<span id={`rs-${o.id}`} class="text-sm text-muted">{o.label}</span>
+						<div role="group" aria-labelledby={`rs-${o.id}`} class="flex flex-wrap gap-2">
+							{o.valores.map((v) => (
+								<button type="button" data-rs-opcion={o.id} data-rs-valor={v.id} aria-pressed="false" class={BOTON}>
+									{v.label}
+								</button>
+							))}
+						</div>
+					</div>
+				))
+			}
+
+			<div class="flex flex-col gap-3 border-t border-line pt-4">
+				<span class="text-sm text-muted">Puntos de corte</span>
+				{
+					CORTES.map((c) => (
+						<label class="flex flex-col gap-1">
+							<span class="flex justify-between gap-2 text-sm text-muted">
+								{c.label}
+								<output data-rs-corte-salida={c.id} class="text-mark" />
+							</span>
+							<input type="range" data-rs-corte={c.id} min={c.min} max={c.max} step="8" class="w-full accent-accent" />
+						</label>
+					))
+				}
+			</div>
+
+			<button type="button" data-rs-reset class={`${BOTON} self-start`}>
+				<Icon name="eraser" class="size-4 shrink-0" />
+				Restablecer
+			</button>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="flex flex-col gap-2">
+				<span id="rs-dispositivo" class="text-sm text-muted">Tamaño de pantalla</span>
+				<div role="group" aria-labelledby="rs-dispositivo" class="flex flex-wrap gap-2">
+					{
+						DISPOSITIVOS.map((d) => (
+							<button type="button" data-rs-dispositivo={d.id} data-rs-ancho={d.ancho} aria-pressed="false" class={BOTON}>
+								<Icon name={d.icon} class="size-4 shrink-0" />
+								{d.label}
+							</button>
+						))
+					}
+				</div>
+				<label class="flex items-center gap-3 text-sm text-muted">
+					<Icon name="arrows-horizontal" class="size-4 shrink-0" />
+					<span class="sr-only">Ancho de la pantalla</span>
+					<input type="range" data-rs-ancho-libre min="320" max="1600" step="8" class="w-full accent-accent" />
+					<output data-rs-ancho-salida class="w-20 shrink-0 text-right text-mark"></output>
+				</label>
+			</div>
+
+			<div data-rs-hueco class="relative w-full overflow-hidden">
+				<div data-rs-marco class="absolute top-0 left-0 w-max origin-top-left border border-line bg-panel">
+					<div class="flex h-6 items-center justify-between gap-2 border-b border-line px-2 text-xs text-muted">
+						<span class="flex gap-1" aria-hidden="true">
+							<span class="size-2 bg-line"></span>
+							<span class="size-2 bg-line"></span>
+							<span class="size-2 bg-line"></span>
+						</span>
+						<span data-rs-medida></span>
+					</div>
+					<div data-rs-pantalla tabindex="0" aria-label="Vista previa de la página, con scroll" class="overflow-y-auto bg-bg outline-none focus-visible:outline-1 focus-visible:outline-accent">
+						<div data-rs-pagina class="flex flex-col">
+							<header class="flex items-center justify-between gap-4 border-b border-line pb-3">
+								<span class="font-pixel text-[1.4em] text-fg">Mi web</span>
+								<nav data-rs-enlaces class="flex gap-4 text-muted">
+									<span>Inicio</span>
+									<span>Blog</span>
+									<span>Contacto</span>
+								</nav>
+								<span data-rs-boton class="border border-line p-1 text-muted">
+									<Icon name="menu-2" class="size-[1.2em]" />
+								</span>
+							</header>
+							<section class="flex flex-col gap-2 border border-line bg-panel p-[1.2em]">
+								<span class="font-pixel text-[1.8em] leading-tight text-fg">Hola, pantalla</span>
+								<span class="text-muted">Cambia el ancho y mira cómo se recoloca todo.</span>
+							</section>
+							<div data-rs-cuerpo class="grid">
+								<div data-rs-tarjetas class="grid">
+									{
+										[1, 2, 3, 4, 5, 6].map((n) => (
+											<article class="flex flex-col gap-1 border border-line bg-panel p-[1em]">
+												<span class="text-accent">Tarjeta {n}</span>
+												<span class="text-[0.85em] text-muted">Un texto corto de relleno.</span>
+											</article>
+										))
+									}
+								</div>
+								<aside data-rs-lateral class="flex flex-col gap-2 border border-line p-[1em]">
+									<span class="text-mark">Barra lateral</span>
+									<span class="text-[0.85em] text-muted">Enlaces, filtros o lo que toque.</span>
+								</aside>
+							</div>
+							<footer class="border-t border-line pt-3 text-[0.85em] text-muted">Pie de página</footer>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="flex items-center justify-between gap-2">
+					<span class="flex items-center gap-2 text-sm text-muted">
+						<Icon name="braces" class="size-4 shrink-0 text-accent" />
+						El CSS
+					</span>
+					<button type="button" data-rs-copiar class={`${BOTON} px-2 py-1`}>
+						<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+						<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+						<span data-rs-copiar-texto aria-live="polite">Copiar</span>
+					</button>
+				</span>
+				<pre class="max-h-72 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre text-mark"><code data-rs-codigo /></pre>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-rs-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-rs-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-rs-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-rs-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-rs-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Tramo = 'movil' | 'tablet' | 'escritorio';
+	type Medida = 'columnas' | 'hueco' | 'letra' | 'relleno';
+	type Ajustes = Record<Medida, number> & { lateral: 'lado' | 'abajo' | 'oculta'; menu: 'enlaces' | 'boton' };
+	type Estado = { ancho: number; cortes: { tablet: number; escritorio: number }; tramos: Record<Tramo, Ajustes> };
+
+	const CLAVE = 'tuweb:responsivo';
+	const TRAMOS: Tramo[] = ['movil', 'tablet', 'escritorio'];
+	const NOMBRES: Record<Tramo, string> = { movil: 'Móvil', tablet: 'Tablet', escritorio: 'Escritorio' };
+	const RANGOS: Record<Medida, [number, number]> = { columnas: [1, 4], hueco: [0, 48], letra: [12, 22], relleno: [0, 64] };
+	const MEDIDAS = Object.keys(RANGOS) as Medida[];
+	const VALORES = { lateral: ['lado', 'abajo', 'oculta'], menu: ['enlaces', 'boton'] };
+	const ANCHO: [number, number] = [320, 1600];
+	const CORTES = { tablet: [400, 1000], escritorio: [700, 1600] } as const;
+	// Entre un corte y el siguiente dejamos aire para que el tramo de tablet exista.
+	const SEPARACION = 64;
+
+	const INICIAL: Estado = {
+		ancho: 360,
+		cortes: { tablet: 640, escritorio: 1024 },
+		tramos: {
+			movil: { columnas: 1, hueco: 12, letra: 14, relleno: 16, lateral: 'abajo', menu: 'boton' },
+			tablet: { columnas: 2, hueco: 16, letra: 15, relleno: 24, lateral: 'abajo', menu: 'enlaces' },
+			escritorio: { columnas: 3, hueco: 24, letra: 16, relleno: 40, lateral: 'lado', menu: 'enlaces' },
+		},
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="responsivo"]');
+	const hueco = panel?.querySelector<HTMLElement>('[data-rs-hueco]');
+	const marco = panel?.querySelector<HTMLElement>('[data-rs-marco]');
+	const pantalla = panel?.querySelector<HTMLElement>('[data-rs-pantalla]');
+	const pagina = panel?.querySelector<HTMLElement>('[data-rs-pagina]');
+	const cuerpo = panel?.querySelector<HTMLElement>('[data-rs-cuerpo]');
+	const tarjetas = panel?.querySelector<HTMLElement>('[data-rs-tarjetas]');
+	const lateral = panel?.querySelector<HTMLElement>('[data-rs-lateral]');
+	const enlaces = panel?.querySelector<HTMLElement>('[data-rs-enlaces]');
+	const botonMenu = panel?.querySelector<HTMLElement>('[data-rs-boton]');
+	const medida = panel?.querySelector<HTMLElement>('[data-rs-medida]');
+	const anchoLibre = panel?.querySelector<HTMLInputElement>('[data-rs-ancho-libre]');
+	const anchoSalida = panel?.querySelector<HTMLOutputElement>('[data-rs-ancho-salida]');
+	const tramoTexto = panel?.querySelector<HTMLElement>('[data-rs-tramo]');
+	const rangoTexto = panel?.querySelector<HTMLElement>('[data-rs-rango]');
+	const codigo = panel?.querySelector<HTMLElement>('[data-rs-codigo]');
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+	function cargar(): Estado {
+		const estado = structuredClone(INICIAL);
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			estado.ancho = limitar(num(guardado.ancho, estado.ancho), ...ANCHO);
+			estado.cortes.tablet = limitar(num(guardado.cortes?.tablet, 640), ...CORTES.tablet);
+			estado.cortes.escritorio = limitar(num(guardado.cortes?.escritorio, 1024), ...CORTES.escritorio);
+			if (estado.cortes.escritorio < estado.cortes.tablet + SEPARACION) estado.cortes = { ...INICIAL.cortes };
+			TRAMOS.forEach((t) => {
+				const g = guardado.tramos?.[t];
+				if (!g || typeof g !== 'object') return;
+				const a = estado.tramos[t];
+				MEDIDAS.forEach((m) => {
+					a[m] = limitar(num(g[m], a[m]), ...RANGOS[m]);
+				});
+				if (VALORES.lateral.includes(g.lateral)) a.lateral = g.lateral;
+				if (VALORES.menu.includes(g.menu)) a.menu = g.menu;
+			});
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	function tramoDe(ancho: number): Tramo {
+		if (ancho >= estado.cortes.escritorio) return 'escritorio';
+		if (ancho >= estado.cortes.tablet) return 'tablet';
+		return 'movil';
+	}
+
+	function rango(t: Tramo) {
+		const { tablet, escritorio } = estado.cortes;
+		if (t === 'movil') return `(hasta ${tablet - 1} px)`;
+		if (t === 'tablet') return `(de ${tablet} a ${escritorio - 1} px)`;
+		return `(desde ${escritorio} px)`;
+	}
+
+	// --- El CSS para llevarse ---
+
+	function reglas(a: Ajustes, sangria: string) {
+		const bloques: [string, string[]][] = [
+			['.pagina', [`padding: ${a.relleno}px;`, `gap: ${a.hueco}px;`, `font-size: ${a.letra}px;`]],
+			[
+				'.cuerpo',
+				[`grid-template-columns: ${a.lateral === 'lado' ? 'minmax(0, 1fr) 16em' : 'minmax(0, 1fr)'};`, `gap: ${a.hueco}px;`],
+			],
+			['.tarjetas', [`grid-template-columns: repeat(${a.columnas}, minmax(0, 1fr));`, `gap: ${a.hueco}px;`]],
+			['.lateral', [`display: ${a.lateral === 'oculta' ? 'none' : 'flex'};`]],
+			['.menu-enlaces', [`display: ${a.menu === 'enlaces' ? 'flex' : 'none'};`]],
+			['.menu-boton', [`display: ${a.menu === 'boton' ? 'inline-flex' : 'none'};`]],
+		];
+		return bloques
+			.map(([selector, lineas]) =>
+				[`${sangria}${selector} {`, ...lineas.map((l) => `${sangria}  ${l}`), `${sangria}}`].join('\n'),
+			)
+			.join('\n\n');
+	}
+
+	function css() {
+		const base = [
+			'/* Primero el móvil; cada media query pisa lo de antes. */',
+			'.pagina { display: flex; flex-direction: column; }',
+			'.cuerpo, .tarjetas { display: grid; }',
+			'',
+			reglas(estado.tramos.movil, ''),
+		];
+		(['tablet', 'escritorio'] as const).forEach((t) => {
+			base.push('', `@media (min-width: ${estado.cortes[t]}px) {`, reglas(estado.tramos[t], '  '), '}');
+		});
+		return base.join('\n');
+	}
+
+	// --- Vista previa ---
+
+	function pintarPagina() {
+		const a = estado.tramos[tramoDe(estado.ancho)];
+		if (pagina) {
+			pagina.style.padding = `${a.relleno}px`;
+			pagina.style.gap = `${a.hueco}px`;
+			pagina.style.fontSize = `${a.letra}px`;
+		}
+		if (cuerpo) {
+			cuerpo.style.gridTemplateColumns = a.lateral === 'lado' ? 'minmax(0, 1fr) 16em' : 'minmax(0, 1fr)';
+			cuerpo.style.gap = `${a.hueco}px`;
+		}
+		if (tarjetas) {
+			tarjetas.style.gridTemplateColumns = `repeat(${a.columnas}, minmax(0, 1fr))`;
+			tarjetas.style.gap = `${a.hueco}px`;
+		}
+		if (lateral) lateral.hidden = a.lateral === 'oculta';
+		if (enlaces) enlaces.hidden = a.menu !== 'enlaces';
+		if (botonMenu) botonMenu.hidden = a.menu !== 'boton';
+	}
+
+	/** El marco se pinta a tamaño real y se encoge con scale para que quepa. */
+	function encajar() {
+		if (!hueco || !marco || !pantalla) return;
+		const ancho = estado.ancho;
+		const alto = ancho < 600 ? 640 : ancho < 1024 ? 900 : 800;
+		pantalla.style.width = `${ancho}px`;
+		pantalla.style.height = `${alto}px`;
+		if (medida) medida.textContent = `${ancho} × ${alto}`;
+		const w = marco.offsetWidth;
+		const h = marco.offsetHeight;
+		// Con la pestaña oculta todo mide 0: ya se reajustará al verse.
+		if (!w || !h || !hueco.clientWidth) return;
+		const escala = Math.min(1, hueco.clientWidth / w, 560 / h);
+		marco.style.transform = `scale(${escala})`;
+		marco.style.left = `${Math.max(0, (hueco.clientWidth - w * escala) / 2)}px`;
+		hueco.style.height = `${Math.ceil(h * escala)}px`;
+	}
+
+	function pintarControles() {
+		const t = tramoDe(estado.ancho);
+		const a = estado.tramos[t];
+		if (tramoTexto) tramoTexto.textContent = NOMBRES[t];
+		if (rangoTexto) rangoTexto.textContent = rango(t);
+		if (anchoLibre) anchoLibre.value = String(estado.ancho);
+		if (anchoSalida) anchoSalida.textContent = `${estado.ancho} px`;
+		panel?.querySelectorAll<HTMLButtonElement>('[data-rs-dispositivo]').forEach((boton) => {
+			boton.setAttribute('aria-pressed', String(boton.dataset.rsDispositivo === t));
+		});
+		panel?.querySelectorAll<HTMLInputElement>('[data-rs-campo]').forEach((campo) => {
+			campo.value = String(a[campo.dataset.rsCampo as Medida]);
+		});
+		panel?.querySelectorAll<HTMLOutputElement>('[data-rs-salida]').forEach((salida) => {
+			const m = salida.dataset.rsSalida as Medida;
+			salida.textContent = m === 'columnas' ? String(a[m]) : `${a[m]} px`;
+		});
+		panel?.querySelectorAll<HTMLButtonElement>('[data-rs-opcion]').forEach((boton) => {
+			const opcion = boton.dataset.rsOpcion as 'lateral' | 'menu';
+			boton.setAttribute('aria-pressed', String(a[opcion] === boton.dataset.rsValor));
+		});
+		panel?.querySelectorAll<HTMLInputElement>('[data-rs-corte]').forEach((campo) => {
+			campo.value = String(estado.cortes[campo.dataset.rsCorte as 'tablet' | 'escritorio']);
+		});
+		panel?.querySelectorAll<HTMLOutputElement>('[data-rs-corte-salida]').forEach((salida) => {
+			salida.textContent = `${estado.cortes[salida.dataset.rsCorteSalida as 'tablet' | 'escritorio']} px`;
+		});
+	}
+
+	function todo() {
+		pintarControles();
+		pintarPagina();
+		encajar();
+		if (codigo) codigo.textContent = css();
+		guardar();
+	}
+
+	// --- Controles ---
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-rs-dispositivo]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.ancho = limitar(Number(boton.dataset.rsAncho), ...ANCHO);
+			// Si los cortes dejan el ancho típico fuera de su tramo, lo metemos dentro.
+			const t = boton.dataset.rsDispositivo as Tramo;
+			if (t === 'movil' && tramoDe(estado.ancho) !== 'movil') estado.ancho = Math.max(ANCHO[0], estado.cortes.tablet - 8);
+			if (t === 'tablet' && tramoDe(estado.ancho) !== 'tablet') estado.ancho = estado.cortes.tablet;
+			if (t === 'escritorio' && tramoDe(estado.ancho) !== 'escritorio') estado.ancho = Math.min(ANCHO[1], estado.cortes.escritorio);
+			todo();
+		});
+	});
+
+	anchoLibre?.addEventListener('input', () => {
+		estado.ancho = limitar(Number(anchoLibre.value), ...ANCHO);
+		todo();
+	});
+
+	panel?.querySelectorAll<HTMLInputElement>('[data-rs-campo]').forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const m = campo.dataset.rsCampo as Medida;
+			const valor = Number(campo.value);
+			if (!MEDIDAS.includes(m) || !Number.isFinite(valor)) return;
+			estado.tramos[tramoDe(estado.ancho)][m] = limitar(valor, ...RANGOS[m]);
+			todo();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-rs-opcion]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const a = estado.tramos[tramoDe(estado.ancho)];
+			const valor = boton.dataset.rsValor ?? '';
+			if (boton.dataset.rsOpcion === 'lateral' && VALORES.lateral.includes(valor)) a.lateral = valor as Ajustes['lateral'];
+			if (boton.dataset.rsOpcion === 'menu' && VALORES.menu.includes(valor)) a.menu = valor as Ajustes['menu'];
+			todo();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLInputElement>('[data-rs-corte]').forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const valor = Number(campo.value);
+			if (!Number.isFinite(valor)) return;
+			// Los dos cortes se empujan entre sí para no cruzarse.
+			if (campo.dataset.rsCorte === 'tablet') {
+				estado.cortes.tablet = limitar(valor, ...CORTES.tablet);
+				estado.cortes.escritorio = Math.max(estado.cortes.escritorio, estado.cortes.tablet + SEPARACION);
+			} else {
+				estado.cortes.escritorio = limitar(valor, ...CORTES.escritorio);
+				estado.cortes.tablet = Math.min(estado.cortes.tablet, estado.cortes.escritorio - SEPARACION);
+			}
+			estado.cortes.tablet = limitar(estado.cortes.tablet, ...CORTES.tablet);
+			estado.cortes.escritorio = limitar(estado.cortes.escritorio, ...CORTES.escritorio);
+			todo();
+		});
+	});
+
+	panel?.querySelector('[data-rs-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		if (pantalla) pantalla.scrollTop = 0;
+		todo();
+	});
+
+	// La pestaña empieza oculta: al hacerse visible (o cambiar el ancho) se reajusta.
+	if (hueco) new ResizeObserver(() => encajar()).observe(hueco);
+
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-rs-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-rs-copiar-texto]');
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(css());
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	todo();
+</script>
