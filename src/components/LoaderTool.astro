@@ -1,0 +1,449 @@
+---
+/**
+ * Animaciones de carga: un estilo, sus colores, su tamaño, su duración y su
+ * curva, con la vista previa moviéndose al momento. La vista previa va dentro
+ * de un shadow root, así el CSS que se exporta es el mismo que se ve y no
+ * choca con el de la web. Todo pasa en el navegador y lo único que se guarda
+ * son los ajustes, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+
+const ESTILOS = [
+	{ id: 'anillo', label: 'Anillo' },
+	{ id: 'puntos', label: 'Puntos' },
+	{ id: 'barras', label: 'Barras' },
+	{ id: 'pulso', label: 'Pulso' },
+	{ id: 'progreso', label: 'Progreso' },
+	{ id: 'rejilla', label: 'Rejilla' },
+	{ id: 'volteo', label: 'Volteo' },
+];
+
+const CURVAS = [
+	{ id: 'linear', label: 'Lineal' },
+	{ id: 'ease', label: 'Ease' },
+	{ id: 'ease-in', label: 'Acelera' },
+	{ id: 'ease-out', label: 'Frena' },
+	{ id: 'ease-in-out', label: 'Acelera y frena' },
+	{ id: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)', label: 'Con rebote' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="carga"
+	aria-labelledby="tab-carga"
+	data-panel="carga"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Estilo</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						ESTILOS.map((estilo) => (
+							<button type="button" data-cg-estilo={estilo.id} aria-pressed="false" class={OPCION}>
+								{estilo.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-wrap gap-5">
+				<label class="flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-cg-color aria-label="Color principal" class={COLOR} />
+					Color
+				</label>
+				<label class="flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-cg-pista aria-label="Color de fondo" class={COLOR} />
+					Fondo
+				</label>
+			</div>
+
+			<label class="flex flex-col gap-2">
+				<span class="flex justify-between text-sm text-muted">
+					Tamaño <span data-cg-tamano-texto class="text-fg"></span>
+				</span>
+				<input type="range" min="16" max="120" step="2" data-cg-tamano class="w-full accent-accent" />
+			</label>
+
+			<label class="flex flex-col gap-2">
+				<span class="flex justify-between text-sm text-muted">
+					Duración <span data-cg-duracion-texto class="text-fg"></span>
+				</span>
+				<input type="range" min="0.2" max="4" step="0.1" data-cg-duracion class="w-full accent-accent" />
+			</label>
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Curva</span>
+				<select
+					data-cg-curva
+					class="w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent"
+				>
+					{CURVAS.map((curva) => <option value={curva.id}>{curva.label}</option>)}
+				</select>
+			</label>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Esquinas</span>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-cg-esquinas="rectas" aria-pressed="true" class={OPCION}>Rectas</button>
+					<button type="button" data-cg-esquinas="redondas" aria-pressed="false" class={OPCION}>Redondas</button>
+				</div>
+			</div>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-cg-pausa class={BOTON}>
+					<span data-icon="pause" class="inline-flex"><Icon name="player-pause" class="size-4 shrink-0" /></span>
+					<span data-icon="play" class="inline-flex"><Icon name="player-play" class="size-4 shrink-0" /></span>
+					<span data-cg-pausa-texto>Pausar</span>
+				</button>
+				<button type="button" data-cg-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div data-cg-vista class="min-h-64 w-full border border-line bg-panel" role="img" aria-label="Vista previa de la animación de carga"></div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">HTML y CSS</span>
+				<pre data-cg-codigo class="max-h-80 overflow-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-cg-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-cg-copiar-texto aria-live="polite">Copiar</span>
+				</button>
+				<button type="button" data-cg-bajar class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .html
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-cg-color]::-webkit-color-swatch-wrapper,
+	[data-cg-pista]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-cg-color]::-webkit-color-swatch,
+	[data-cg-pista]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-cg-color]::-moz-color-swatch,
+	[data-cg-pista]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-cg-pausa] [data-icon='play'],
+	[data-cg-pausa][data-state='paused'] [data-icon='pause'] {
+		display: none;
+	}
+	[data-cg-pausa][data-state='paused'] [data-icon='play'] {
+		display: inline-flex;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-cg-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-cg-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-cg-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-cg-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-cg-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Estilo = 'anillo' | 'puntos' | 'barras' | 'pulso' | 'progreso' | 'rejilla' | 'volteo';
+	type Estado = {
+		estilo: Estilo;
+		color: string;
+		pista: string;
+		tamano: number;
+		duracion: number;
+		curva: string;
+		redondas: boolean;
+	};
+
+	const ESTILOS: Estilo[] = ['anillo', 'puntos', 'barras', 'pulso', 'progreso', 'rejilla', 'volteo'];
+	const CLAVE = 'tuweb:carga';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const INICIAL: Estado = {
+		estilo: 'anillo',
+		color: '#c2410c',
+		pista: '#e5e0d8',
+		tamano: 48,
+		duracion: 1,
+		curva: 'linear',
+		redondas: false,
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="carga"]');
+	const vista = panel?.querySelector<HTMLElement>('[data-cg-vista]');
+	const codigo = panel?.querySelector<HTMLElement>('[data-cg-codigo]');
+	const color = panel?.querySelector<HTMLInputElement>('[data-cg-color]');
+	const pista = panel?.querySelector<HTMLInputElement>('[data-cg-pista]');
+	const tamano = panel?.querySelector<HTMLInputElement>('[data-cg-tamano]');
+	const tamanoTexto = panel?.querySelector<HTMLElement>('[data-cg-tamano-texto]');
+	const duracion = panel?.querySelector<HTMLInputElement>('[data-cg-duracion]');
+	const duracionTexto = panel?.querySelector<HTMLElement>('[data-cg-duracion-texto]');
+	const curva = panel?.querySelector<HTMLSelectElement>('[data-cg-curva]');
+	const pausa = panel?.querySelector<HTMLButtonElement>('[data-cg-pausa]');
+	const pausaTexto = pausa?.querySelector<HTMLElement>('[data-cg-pausa-texto]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-cg-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-cg-copiar-texto]');
+	const estilos = panel?.querySelectorAll<HTMLButtonElement>('[data-cg-estilo]') ?? [];
+	const esquinas = panel?.querySelectorAll<HTMLButtonElement>('[data-cg-esquinas]') ?? [];
+	const curvas = [...(curva?.options ?? [])].map((o) => o.value);
+
+	// El shadow root aísla la vista previa: sus clases y @keyframes no se cruzan
+	// con los de la página.
+	const raiz = vista?.attachShadow({ mode: 'open' });
+	let pausada = false;
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+	const redondear = (v: number) => Math.round(v * 100) / 100;
+
+	function cargar(): Estado {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && typeof g === 'object') {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				return {
+					estilo: ESTILOS.includes(g.estilo) ? g.estilo : INICIAL.estilo,
+					color: HEX.test(String(g.color)) ? String(g.color).toLowerCase() : INICIAL.color,
+					pista: HEX.test(String(g.pista)) ? String(g.pista).toLowerCase() : INICIAL.pista,
+					tamano: Math.round(limitar(num(g.tamano, INICIAL.tamano), 16, 120)),
+					duracion: redondear(limitar(num(g.duracion, INICIAL.duracion), 0.2, 4)),
+					curva: curvas.includes(g.curva) ? g.curva : INICIAL.curva,
+					redondas: g.redondas === true,
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return { ...INICIAL };
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	// ——— El CSS de cada estilo ———
+	// Cada uno dice cuántos <span> lleva dentro y su CSS. El color de fondo es
+	// la pista del anillo y de la barra, y el tono «apagado» de los demás.
+	function pieza(e: Estado): { hijos: number; css: string } {
+		const s = e.tamano;
+		const d = e.duracion;
+		const anim = (nombre: string) => `animation: ${nombre} ${d}s ${e.curva} infinite both;`;
+		const radio = (valor: string) => (e.redondas ? `\n  border-radius: ${valor};` : '');
+		const retraso = (selector: string, paso: number) =>
+			paso ? `\n.loader ${selector} { animation-delay: ${redondear(paso * d)}s; }` : '';
+
+		if (e.estilo === 'puntos') {
+			const p = Math.round(s / 3.5);
+			return {
+				hijos: 3,
+				css: `.loader {\n  display: flex;\n  align-items: center;\n  gap: ${Math.round(p / 2)}px;\n  height: ${s}px;\n}\n.loader span {\n  width: ${p}px;\n  height: ${p}px;${radio('50%')}\n  ${anim('salto')}\n}${retraso('span:nth-child(2)', 0.15)}${retraso('span:nth-child(3)', 0.3)}\n@keyframes salto {\n  0%, 80%, 100% { transform: scale(0.4); background: ${e.pista}; }\n  40% { transform: scale(1); background: ${e.color}; }\n}`,
+			};
+		}
+		if (e.estilo === 'barras') {
+			const retrasos = [2, 3, 4, 5].map((n) => retraso(`span:nth-child(${n})`, (n - 1) * 0.1)).join('');
+			return {
+				hijos: 5,
+				css: `.loader {\n  display: flex;\n  align-items: center;\n  gap: ${Math.max(2, Math.round(s / 12))}px;\n  height: ${s}px;\n}\n.loader span {\n  width: ${Math.max(3, Math.round(s / 8))}px;\n  height: 100%;${radio(`${Math.round(s / 16)}px`)}\n  ${anim('onda')}\n}${retrasos}\n@keyframes onda {\n  0%, 40%, 100% { transform: scaleY(0.35); background: ${e.pista}; }\n  20% { transform: scaleY(1); background: ${e.color}; }\n}`,
+			};
+		}
+		if (e.estilo === 'pulso') {
+			return {
+				hijos: 0,
+				css: `.loader {\n  width: ${s}px;\n  height: ${s}px;${radio('50%')}\n  ${anim('pulso')}\n}\n@keyframes pulso {\n  0% { transform: scale(0); background: ${e.color}; opacity: 1; }\n  100% { transform: scale(1); background: ${e.pista}; opacity: 0; }\n}`,
+			};
+		}
+		if (e.estilo === 'progreso') {
+			const alto = Math.max(4, Math.round(s / 8));
+			return {
+				hijos: 0,
+				css: `.loader {\n  position: relative;\n  width: ${s * 3}px;\n  height: ${alto}px;\n  overflow: hidden;\n  background: ${e.pista};${radio(`${Math.round(alto / 2)}px`)}\n}\n.loader::before {\n  content: "";\n  position: absolute;\n  inset: 0 auto 0 0;\n  width: 40%;\n  background: ${e.color};${radio(`${Math.round(alto / 2)}px`)}\n  ${anim('barrido')}\n}\n@keyframes barrido {\n  from { transform: translateX(-100%); }\n  to { transform: translateX(250%); }\n}`,
+			};
+		}
+		if (e.estilo === 'rejilla') {
+			// Las casillas se apagan en diagonal: misma fila + columna, mismo retraso.
+			const diagonales = [1, 2, 3, 4]
+				.map((k) => {
+					const casillas = [0, 1, 2, 3, 4, 5, 6, 7, 8].filter((i) => (i % 3) + Math.floor(i / 3) === k);
+					return retraso(casillas.map((i) => `span:nth-child(${i + 1})`).join(', .loader '), k * 0.1);
+				})
+				.join('');
+			return {
+				hijos: 9,
+				css: `.loader {\n  display: grid;\n  grid-template: repeat(3, 1fr) / repeat(3, 1fr);\n  gap: ${Math.max(2, Math.round(s / 16))}px;\n  width: ${s}px;\n  height: ${s}px;\n}\n.loader span {${radio(`${Math.round(s / 24)}px`)}\n  ${anim('rejilla')}\n}${diagonales}\n@keyframes rejilla {\n  0%, 70%, 100% { transform: scale(1); background: ${e.color}; }\n  35% { transform: scale(0.2); background: ${e.pista}; }\n}`,
+			};
+		}
+		if (e.estilo === 'volteo') {
+			const lado = Math.round(s * 0.8);
+			return {
+				hijos: 0,
+				css: `.loader {\n  width: ${lado}px;\n  height: ${lado}px;${radio(`${Math.round(lado / 8)}px`)}\n  ${anim('volteo')}\n}\n@keyframes volteo {\n  0% { transform: perspective(${s * 3}px) rotateX(0) rotateY(0); background: ${e.color}; }\n  50% { transform: perspective(${s * 3}px) rotateX(-180deg) rotateY(0); background: ${e.pista}; }\n  100% { transform: perspective(${s * 3}px) rotateX(-180deg) rotateY(-180deg); background: ${e.color}; }\n}`,
+			};
+		}
+		return {
+			hijos: 0,
+			css: `.loader {\n  box-sizing: border-box;\n  width: ${s}px;\n  height: ${s}px;\n  border: ${Math.max(2, Math.round(s / 8))}px solid ${e.pista};\n  border-top-color: ${e.color};${radio('50%')}\n  ${anim('giro')}\n}\n@keyframes giro {\n  to { transform: rotate(360deg); }\n}`,
+		};
+	}
+
+	function html(hijos: number) {
+		const dentro = hijos ? `\n${'  <span></span>\n'.repeat(hijos)}` : '';
+		return `<div class="loader" role="status" aria-label="Cargando">${dentro}</div>`;
+	}
+
+	function fragmento() {
+		const { hijos, css } = pieza(estado);
+		return `${html(hijos)}\n\n<style>\n${css}\n</style>`;
+	}
+
+	function pintar() {
+		const { hijos, css } = pieza(estado);
+		if (raiz) {
+			const quieta = pausada
+				? '.loader, .loader *, .loader::before { animation-play-state: paused !important; }'
+				: '';
+			// Todo lo que entra aquí está validado: colores HEX, números y curvas de la lista.
+			raiz.innerHTML = `<style>:host { display: grid; place-items: center; min-height: 16rem; }\n${css}\n${quieta}</style>${html(hijos)}`;
+		}
+		if (codigo) codigo.textContent = fragmento();
+	}
+
+	function pintarControles() {
+		estilos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cgEstilo === estado.estilo)));
+		esquinas.forEach((b) =>
+			b.setAttribute('aria-pressed', String((b.dataset.cgEsquinas === 'redondas') === estado.redondas)),
+		);
+		if (color) color.value = estado.color;
+		if (pista) pista.value = estado.pista;
+		if (tamano) tamano.value = String(estado.tamano);
+		if (tamanoTexto) tamanoTexto.textContent = `${estado.tamano}px`;
+		if (duracion) duracion.value = String(estado.duracion);
+		if (duracionTexto) duracionTexto.textContent = `${estado.duracion}s`;
+		if (curva) curva.value = estado.curva;
+	}
+
+	function actualizar() {
+		pintarControles();
+		pintar();
+		guardar();
+	}
+
+	estilos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.estilo = ESTILOS.find((e) => e === boton.dataset.cgEstilo) ?? INICIAL.estilo;
+			actualizar();
+		});
+	});
+
+	esquinas.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.redondas = boton.dataset.cgEsquinas === 'redondas';
+			actualizar();
+		});
+	});
+
+	color?.addEventListener('input', () => {
+		if (HEX.test(color.value)) estado.color = color.value.toLowerCase();
+		actualizar();
+	});
+	pista?.addEventListener('input', () => {
+		if (HEX.test(pista.value)) estado.pista = pista.value.toLowerCase();
+		actualizar();
+	});
+	tamano?.addEventListener('input', () => {
+		estado.tamano = Math.round(limitar(Number(tamano.value) || INICIAL.tamano, 16, 120));
+		actualizar();
+	});
+	duracion?.addEventListener('input', () => {
+		estado.duracion = redondear(limitar(Number(duracion.value) || INICIAL.duracion, 0.2, 4));
+		actualizar();
+	});
+	curva?.addEventListener('change', () => {
+		if (curvas.includes(curva.value)) estado.curva = curva.value;
+		actualizar();
+	});
+
+	pausa?.addEventListener('click', () => {
+		pausada = !pausada;
+		if (pausada) pausa.dataset.state = 'paused';
+		else pausa.removeAttribute('data-state');
+		if (pausaTexto) pausaTexto.textContent = pausada ? 'Seguir' : 'Pausar';
+		pintar();
+	});
+
+	panel?.querySelector('[data-cg-reset]')?.addEventListener('click', () => {
+		estado = { ...INICIAL };
+		actualizar();
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(fragmento());
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	panel?.querySelector('[data-cg-bajar]')?.addEventListener('click', () => {
+		const { hijos, css } = pieza(estado);
+		const pagina = `<!doctype html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n<title>Cargando</title>\n<style>\nbody {\n  margin: 0;\n  min-height: 100vh;\n  display: grid;\n  place-items: center;\n}\n${css}\n</style>\n</head>\n<body>\n${html(hijos)}\n</body>\n</html>\n`;
+		const url = URL.createObjectURL(new Blob([pagina], { type: 'text/html' }));
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = `carga-${estado.estilo}.html`;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	pintarControles();
+	pintar();
+</script>
