@@ -1,0 +1,446 @@
+---
+/**
+ * Editor de favicons: una cuadrícula de 16 × 16 que se pinta píxel a píxel con
+ * lápiz, goma, cubo y cuentagotas. Lo que no se pinta queda transparente. Se
+ * baja en PNG al tamaño que toque, escalado sin suavizar para que cada píxel
+ * siga siendo un cuadrado. Todo pasa en el navegador y lo único que se guarda
+ * es el dibujo, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const HERRAMIENTAS = [
+	{ id: 'lapiz', label: 'Lápiz', icon: 'pencil' },
+	{ id: 'goma', label: 'Goma', icon: 'eraser' },
+	{ id: 'cubo', label: 'Cubo', icon: 'bucket' },
+	{ id: 'gotas', label: 'Cuentagotas', icon: 'color-picker' },
+];
+
+const PALETA = [
+	'#000000', '#ffffff', '#7a6152', '#3b2d24',
+	'#c2410c', '#f97316', '#f5c542', '#fde68a',
+	'#2f7a3b', '#84cc16', '#0891b2', '#2563eb',
+	'#7c3aed', '#db2777', '#b91c3c', '#9ca3af',
+];
+
+const TAMANOS = [16, 32, 48, 64, 180, 512];
+---
+
+<div
+	role="tabpanel"
+	id="favicon"
+	aria-labelledby="tab-favicon"
+	data-panel="favicon"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-3">
+			<canvas
+				data-fv-lienzo
+				width="384"
+				height="384"
+				role="img"
+				aria-label="Cuadrícula de 16 por 16 para dibujar el favicon"
+				class="fv-cuadros aspect-square w-full cursor-crosshair touch-none border border-line"
+			></canvas>
+			<p data-fv-info class="text-xs text-muted" aria-live="polite">Pinta con el ratón o con el dedo.</p>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Herramienta</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						HERRAMIENTAS.map((h, i) => (
+							<button type="button" data-fv-herramienta={h.id} aria-pressed={i === 0 ? 'true' : 'false'} class={OPCION}>
+								<Icon name={h.icon} class="size-4 shrink-0" />
+								{h.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Color</span>
+				<div class="flex flex-wrap items-center gap-3">
+					<input
+						type="color"
+						data-fv-color
+						value="#c2410c"
+						aria-label="Color del lápiz"
+						class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+					/>
+					<code data-fv-hex class="text-sm text-mark">#c2410c</code>
+				</div>
+				<div class="grid w-fit grid-cols-8 gap-1">
+					{
+						PALETA.map((color) => (
+							<button
+								type="button"
+								data-fv-muestra={color}
+								aria-label={`Color ${color}`}
+								title={color}
+								class="size-7 border border-line hover:border-accent"
+								style={`background: ${color};`}
+							/>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-fv-deshacer class={`${BOTON} disabled:opacity-40`}>
+					<Icon name="arrow-back-up" class="size-4 shrink-0" />
+					Deshacer
+				</button>
+				<button type="button" data-fv-rejilla aria-pressed="true" class={OPCION}>
+					<Icon name="grid-4x4" class="size-4 shrink-0" />
+					Rejilla
+				</button>
+				<button type="button" data-fv-limpiar class={BOTON}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Limpiar
+				</button>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Así se ve</span>
+				<div class="flex flex-wrap items-end gap-4">
+					<canvas data-fv-vista="16" width="16" height="16" class="fv-cuadros fv-pixel size-4 border border-line"></canvas>
+					<canvas data-fv-vista="32" width="16" height="16" class="fv-cuadros fv-pixel size-8 border border-line"></canvas>
+					<canvas data-fv-vista="64" width="16" height="16" class="fv-cuadros fv-pixel size-16 border border-line"></canvas>
+					<div class="flex max-w-56 items-center gap-2 border border-b-0 border-line bg-panel px-3 py-2 text-xs">
+						<canvas data-fv-vista="pestana" width="16" height="16" class="fv-pixel size-4 shrink-0"></canvas>
+						<span class="truncate">Mi web</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<span class="sr-only">Tamaño del PNG</span>
+					<select
+						data-fv-tamano
+						class="border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent"
+					>
+						{TAMANOS.map((t) => <option value={t} selected={t === 32}>{`${t}×${t}`}</option>)}
+					</select>
+				</label>
+				<button type="button" data-fv-png class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .png
+				</button>
+				<button type="button" data-fv-probar class={BOTON}>
+					<Icon name="favicon" class="size-4 shrink-0" />
+					<span data-fv-probar-texto>Probar en esta pestaña</span>
+				</button>
+			</div>
+			<p class="text-xs text-muted">
+				En tu web: <code class="text-mark">&lt;link rel="icon" type="image/png" href="/favicon.png" /&gt;</code>
+			</p>
+		</div>
+	</div>
+</div>
+
+<style>
+	/* Los cuadros de fondo marcan lo transparente, como en cualquier editor. */
+	.fv-cuadros {
+		background-color: var(--color-bg);
+		background-image: conic-gradient(var(--color-line) 25%, transparent 0 50%, var(--color-line) 0 75%, transparent 0);
+		background-size: 12.5% 12.5%;
+	}
+	.fv-pixel {
+		image-rendering: pixelated;
+	}
+	[data-fv-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-fv-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-fv-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+</style>
+
+<script>
+	type Herramienta = 'lapiz' | 'goma' | 'cubo' | 'gotas';
+
+	const LADO = 16;
+	const CLAVE = 'tuweb:favicon';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const MAX_DESHACER = 50;
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="favicon"]');
+	const lienzo = panel?.querySelector<HTMLCanvasElement>('[data-fv-lienzo]');
+	const ctx = lienzo?.getContext('2d');
+	const colorInput = panel?.querySelector<HTMLInputElement>('[data-fv-color]');
+	const hexTexto = panel?.querySelector<HTMLElement>('[data-fv-hex]');
+	const info = panel?.querySelector<HTMLElement>('[data-fv-info]');
+	const deshacerBoton = panel?.querySelector<HTMLButtonElement>('[data-fv-deshacer]');
+	const rejillaBoton = panel?.querySelector<HTMLButtonElement>('[data-fv-rejilla]');
+	const tamano = panel?.querySelector<HTMLSelectElement>('[data-fv-tamano]');
+	const probarTexto = panel?.querySelector<HTMLElement>('[data-fv-probar-texto]');
+	const herramientas = panel?.querySelectorAll<HTMLButtonElement>('[data-fv-herramienta]') ?? [];
+	const vistas = panel?.querySelectorAll<HTMLCanvasElement>('[data-fv-vista]') ?? [];
+
+	// Un color por celda, de izquierda a derecha y de arriba abajo; '' es transparente.
+	let pixeles: string[] = cargar();
+	let herramienta: Herramienta = 'lapiz';
+	let color = colorInput?.value ?? '#c2410c';
+	let rejilla = true;
+	const historia: string[][] = [];
+
+	function cargar() {
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (Array.isArray(guardado) && guardado.length === LADO * LADO) {
+				return guardado.map((c: unknown) => (typeof c === 'string' && HEX.test(c) ? c.toLowerCase() : ''));
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza en blanco.
+		}
+		return Array<string>(LADO * LADO).fill('');
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(pixeles));
+		} catch {
+			// Sin almacenamiento: se sigue pintando igual.
+		}
+	}
+
+	function pintarEn(destino: CanvasRenderingContext2D, escala: number) {
+		destino.clearRect(0, 0, LADO * escala, LADO * escala);
+		pixeles.forEach((c, i) => {
+			if (!c) return;
+			destino.fillStyle = c;
+			destino.fillRect((i % LADO) * escala, Math.floor(i / LADO) * escala, escala, escala);
+		});
+	}
+
+	function pintar() {
+		if (!lienzo || !ctx) return;
+		const celda = lienzo.width / LADO;
+		pintarEn(ctx, celda);
+		if (rejilla) {
+			ctx.strokeStyle = getComputedStyle(lienzo).borderTopColor || '#e8d9c8';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			for (let i = 1; i < LADO; i++) {
+				const p = i * celda + 0.5;
+				ctx.moveTo(p, 0);
+				ctx.lineTo(p, lienzo.height);
+				ctx.moveTo(0, p);
+				ctx.lineTo(lienzo.width, p);
+			}
+			ctx.stroke();
+		}
+		vistas.forEach((vista) => {
+			const c = vista.getContext('2d');
+			if (c) pintarEn(c, 1);
+		});
+		if (deshacerBoton) deshacerBoton.disabled = historia.length === 0;
+	}
+
+	function apuntar() {
+		historia.push([...pixeles]);
+		if (historia.length > MAX_DESHACER) historia.shift();
+	}
+
+	function ponerColor(valor: string) {
+		color = valor.toLowerCase();
+		if (colorInput) colorInput.value = color;
+		if (hexTexto) hexTexto.textContent = color;
+	}
+
+	function elegir(h: Herramienta) {
+		herramienta = h;
+		herramientas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fvHerramienta === h)));
+	}
+
+	// Relleno por contigüidad: las cuatro vecinas del mismo color que la de partida.
+	function rellenar(inicio: number) {
+		const objetivo = pixeles[inicio];
+		if (objetivo === color) return;
+		const pila = [inicio];
+		while (pila.length) {
+			const i = pila.pop()!;
+			if (pixeles[i] !== objetivo) continue;
+			pixeles[i] = color;
+			const x = i % LADO;
+			if (x > 0) pila.push(i - 1);
+			if (x < LADO - 1) pila.push(i + 1);
+			if (i >= LADO) pila.push(i - LADO);
+			if (i < LADO * (LADO - 1)) pila.push(i + LADO);
+		}
+	}
+
+	function celdaDe(evento: PointerEvent) {
+		if (!lienzo) return -1;
+		const caja = lienzo.getBoundingClientRect();
+		const x = Math.floor(((evento.clientX - caja.left) / caja.width) * LADO);
+		const y = Math.floor(((evento.clientY - caja.top) / caja.height) * LADO);
+		if (x < 0 || y < 0 || x >= LADO || y >= LADO) return -1;
+		return y * LADO + x;
+	}
+
+	let pintando = false;
+	let ultima = -1;
+
+	function aplicar(i: number) {
+		if (i < 0 || i === ultima) return;
+		ultima = i;
+		if (herramienta === 'lapiz') pixeles[i] = color;
+		else if (herramienta === 'goma') pixeles[i] = '';
+		pintar();
+	}
+
+	lienzo?.addEventListener('pointerdown', (evento) => {
+		const i = celdaDe(evento);
+		if (i < 0) return;
+		evento.preventDefault();
+		if (herramienta === 'gotas') {
+			if (pixeles[i]) {
+				ponerColor(pixeles[i]);
+				elegir('lapiz');
+			}
+			return;
+		}
+		apuntar();
+		if (herramienta === 'cubo') {
+			rellenar(i);
+			pintar();
+			guardar();
+			return;
+		}
+		pintando = true;
+		ultima = -1;
+		lienzo.setPointerCapture(evento.pointerId);
+		aplicar(i);
+	});
+
+	lienzo?.addEventListener('pointermove', (evento) => {
+		const i = celdaDe(evento);
+		if (info) {
+			info.textContent = i < 0 ? 'Pinta con el ratón o con el dedo.' : `x ${i % LADO} · y ${Math.floor(i / LADO)}`;
+		}
+		if (pintando) aplicar(i);
+	});
+
+	function soltar() {
+		if (!pintando) return;
+		pintando = false;
+		ultima = -1;
+		guardar();
+	}
+
+	lienzo?.addEventListener('pointerup', soltar);
+	lienzo?.addEventListener('pointercancel', soltar);
+
+	herramientas.forEach((b) => {
+		b.addEventListener('click', () => elegir((b.dataset.fvHerramienta as Herramienta) ?? 'lapiz'));
+	});
+
+	colorInput?.addEventListener('input', () => {
+		ponerColor(colorInput.value);
+		if (herramienta === 'goma' || herramienta === 'gotas') elegir('lapiz');
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-fv-muestra]').forEach((b) => {
+		b.addEventListener('click', () => {
+			ponerColor(b.dataset.fvMuestra ?? color);
+			if (herramienta === 'goma' || herramienta === 'gotas') elegir('lapiz');
+		});
+	});
+
+	deshacerBoton?.addEventListener('click', () => {
+		const anterior = historia.pop();
+		if (!anterior) return;
+		pixeles = anterior;
+		pintar();
+		guardar();
+	});
+
+	rejillaBoton?.addEventListener('click', () => {
+		rejilla = !rejilla;
+		rejillaBoton.setAttribute('aria-pressed', String(rejilla));
+		pintar();
+	});
+
+	panel?.querySelector('[data-fv-limpiar]')?.addEventListener('click', () => {
+		if (pixeles.every((c) => !c)) return;
+		apuntar();
+		pixeles = Array<string>(LADO * LADO).fill('');
+		pintar();
+		guardar();
+	});
+
+	// El PNG sale a su tamaño con cada píxel convertido en un bloque: sin
+	// suavizado, que un favicon borroso no es un favicon.
+	function png(lado: number) {
+		const canvas = document.createElement('canvas');
+		canvas.width = lado;
+		canvas.height = lado;
+		const c = canvas.getContext('2d');
+		if (!c) return null;
+		const escala = lado / LADO;
+		pixeles.forEach((p, i) => {
+			if (!p) return;
+			c.fillStyle = p;
+			const x0 = Math.round((i % LADO) * escala);
+			const y0 = Math.round(Math.floor(i / LADO) * escala);
+			const x1 = Math.round(((i % LADO) + 1) * escala);
+			const y1 = Math.round((Math.floor(i / LADO) + 1) * escala);
+			c.fillRect(x0, y0, x1 - x0, y1 - y0);
+		});
+		return canvas;
+	}
+
+	panel?.querySelector('[data-fv-png]')?.addEventListener('click', () => {
+		const lado = Number(tamano?.value) || 32;
+		const canvas = png(lado);
+		canvas?.toBlob((blob) => {
+			if (!blob) return;
+			const url = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `favicon-${lado}.png`;
+			enlace.click();
+			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		}, 'image/png');
+	});
+
+	// Cambia el icono de esta pestaña por el dibujo hasta que recargues.
+	panel?.querySelector('[data-fv-probar]')?.addEventListener('click', () => {
+		const canvas = png(32);
+		if (!canvas) return;
+		let icono = document.querySelector<HTMLLinkElement>('link[data-fv-icono]');
+		if (!icono) {
+			document.querySelectorAll('link[rel~="icon"]').forEach((l) => l.remove());
+			icono = document.createElement('link');
+			icono.rel = 'icon';
+			icono.type = 'image/png';
+			icono.dataset.fvIcono = '';
+			document.head.append(icono);
+		}
+		icono.href = canvas.toDataURL('image/png');
+		if (probarTexto) probarTexto.textContent = 'Mira la pestaña';
+		setTimeout(() => {
+			if (probarTexto) probarTexto.textContent = 'Probar en esta pestaña';
+		}, 2000);
+	});
+
+	ponerColor(color);
+	pintar();
+</script>
