@@ -32,6 +32,7 @@ import ScatterTool from './ScatterTool.astro';
 import SequenceTool from './SequenceTool.astro';
 import ShadowTool from './ShadowTool.astro';
 import SimonTool from './SimonTool.astro';
+import SiteTool from './SiteTool.astro';
 import SoundTool from './SoundTool.astro';
 import SvgAnimTool from './SvgAnimTool.astro';
 import ThemeTool from './ThemeTool.astro';
@@ -62,6 +63,7 @@ const tools = [
 	{ id: 'parallax', label: 'Parallax', icon: 'stack-2' },
 	{ id: 'maquetador', label: 'Maquetador', icon: 'layout-board' },
 	{ id: 'responsivo', label: 'Responsivo', icon: 'devices' },
+	{ id: 'sitios', label: 'Sitios estáticos', icon: 'world-www' },
 	{ id: 'cartas', label: 'Cartas', icon: 'layout-cards' },
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
 	{ id: 'superposicion', label: 'Superposición', icon: 'layers-difference' },
@@ -242,6 +244,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<LayoutTool />
 
 	<ResponsiveTool />
+
+	<SiteTool />
 
 	<CardTool />
 

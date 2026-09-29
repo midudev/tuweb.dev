@@ -1,0 +1,692 @@
+---
+/**
+ * Generador de sitios estáticos: eliges una plantilla (portada, portfolio,
+ * artículo o página de enlaces), cambias textos, colores y letra, y la vista
+ * previa se repinta al momento en un iframe sin scripts. Se baja el index.html
+ * con su estilos.css, o todo en un solo .html. Todo pasa en el navegador y lo
+ * único que se guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const PLANTILLAS = [
+	{ id: 'portada', label: 'Portada' },
+	{ id: 'portfolio', label: 'Portfolio' },
+	{ id: 'articulo', label: 'Artículo' },
+	{ id: 'enlaces', label: 'Enlaces' },
+];
+
+const PALETAS = [
+	{ id: 'claro', label: 'Claro', colores: ['#ffffff', '#1a1a1a', '#2563eb'] },
+	{ id: 'oscuro', label: 'Oscuro', colores: ['#111111', '#ededed', '#f5c542'] },
+	{ id: 'papel', label: 'Papel', colores: ['#f4efe6', '#2b2622', '#c2410c'] },
+	{ id: 'bosque', label: 'Bosque', colores: ['#0f2a1f', '#e6f2ea', '#5ee39a'] },
+];
+
+const TEXTOS = [
+	{ id: 'nombre', label: 'Nombre del sitio' },
+	{ id: 'titulo', label: 'Título' },
+	{ id: 'subtitulo', label: 'Subtítulo' },
+	{ id: 'boton', label: 'Botón' },
+	{ id: 'pie', label: 'Pie' },
+];
+
+const COLORES = [
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'texto', label: 'Texto' },
+	{ id: 'acento', label: 'Acento' },
+];
+---
+
+<div role="tabpanel" id="sitios" aria-labelledby="tab-sitios" data-panel="sitios" hidden class="flex flex-col gap-6">
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Plantilla</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						PLANTILLAS.map((plantilla, i) => (
+							<button type="button" data-st-plantilla={plantilla.id} aria-pressed={i === 0 ? 'true' : 'false'} class={OPCION}>
+								{plantilla.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				{
+					TEXTOS.map((campo) => (
+						<label class="flex flex-col gap-1">
+							<span class="text-sm text-muted">{campo.label}</span>
+							<input type="text" data-st-texto={campo.id} maxlength="200" spellcheck="false" class={CAMPO} />
+						</label>
+					))
+				}
+				<label class="flex flex-col gap-1">
+					<span data-st-lineas-ayuda class="text-sm text-muted">Líneas</span>
+					<textarea data-st-texto="lineas" rows="6" maxlength="4000" spellcheck="false" class={`${CAMPO} resize-y`}></textarea>
+				</label>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<span class="text-sm text-muted">Colores</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						PALETAS.map((paleta) => (
+							<button type="button" data-st-paleta={paleta.id} class={`${BOTON} px-2`}>
+								<span class="flex">
+									{paleta.colores.map((color) => (
+										<span class="size-3 border border-line" style={`background: ${color}`} />
+									))}
+								</span>
+								{paleta.label}
+							</button>
+						))
+					}
+				</div>
+				{
+					COLORES.map((color) => (
+						<label class="flex items-center gap-2">
+							<input
+								type="color"
+								data-st-color={color.id}
+								class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+							/>
+							<span class="text-sm text-muted">{color.label}</span>
+						</label>
+					))
+				}
+			</div>
+
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Letra</span>
+				<select data-st-letra class={CAMPO}>
+					<option value="sans">Sans (del sistema)</option>
+					<option value="serif">Serif</option>
+					<option value="mono">Monoespaciada</option>
+				</select>
+			</label>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-st-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-st-ancho="100%" aria-pressed="true" class={OPCION}>Escritorio</button>
+				<button type="button" data-st-ancho="375px" aria-pressed="false" class={OPCION}>Móvil</button>
+			</div>
+			<div class="flex justify-center border border-line bg-panel">
+				<iframe
+					data-st-vista
+					title="Vista previa del sitio"
+					sandbox=""
+					class="h-[32rem] w-full max-w-full bg-bg"></iframe>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-st-codigo="html" aria-pressed="true" class={`${OPCION} inline-flex items-center gap-2`}>
+						<Icon name="file-type-html" class="size-4 shrink-0" />
+						index.html
+					</button>
+					<button type="button" data-st-codigo="css" aria-pressed="false" class={`${OPCION} inline-flex items-center gap-2`}>
+						<Icon name="file-type-css" class="size-4 shrink-0" />
+						estilos.css
+					</button>
+				</div>
+				<pre data-st-salida class="max-h-72 overflow-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-st-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-st-copiar-texto aria-live="polite">Copiar</span>
+				</button>
+				<button type="button" data-st-bajar="html" class={BOTON}>
+					<Icon name="file-type-html" class="size-4 shrink-0" />
+					Descargar index.html
+				</button>
+				<button type="button" data-st-bajar="css" class={BOTON}>
+					<Icon name="file-type-css" class="size-4 shrink-0" />
+					Descargar estilos.css
+				</button>
+				<button type="button" data-st-bajar="todo" class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Todo en un .html
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-st-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-st-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-st-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-st-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-st-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-st-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-st-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-st-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Plantilla = 'portada' | 'portfolio' | 'articulo' | 'enlaces';
+	type Textos = { nombre: string; titulo: string; subtitulo: string; boton: string; pie: string; lineas: string };
+	type Colores = { fondo: string; texto: string; acento: string };
+	type Letra = 'sans' | 'serif' | 'mono';
+	type Estado = { plantilla: Plantilla; textos: Record<Plantilla, Textos>; colores: Colores; letra: Letra };
+
+	const PLANTILLAS: Plantilla[] = ['portada', 'portfolio', 'articulo', 'enlaces'];
+	const CAMPOS: (keyof Textos)[] = ['nombre', 'titulo', 'subtitulo', 'boton', 'pie', 'lineas'];
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const CLAVE = 'tuweb:sitios';
+
+	const AYUDA: Record<Plantilla, string> = {
+		portada: 'Ventajas (una por línea: título | texto)',
+		portfolio: 'Proyectos (uno por línea: nombre | descripción)',
+		articulo: 'Párrafos (uno por línea)',
+		enlaces: 'Enlaces (uno por línea: texto | url)',
+	};
+
+	const PALETAS: Record<string, Colores> = {
+		claro: { fondo: '#ffffff', texto: '#1a1a1a', acento: '#2563eb' },
+		oscuro: { fondo: '#111111', texto: '#ededed', acento: '#f5c542' },
+		papel: { fondo: '#f4efe6', texto: '#2b2622', acento: '#c2410c' },
+		bosque: { fondo: '#0f2a1f', texto: '#e6f2ea', acento: '#5ee39a' },
+	};
+
+	const LETRAS: Record<Letra, string> = {
+		sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+		serif: 'Georgia, "Times New Roman", serif',
+		mono: 'ui-monospace, Menlo, Consolas, monospace',
+	};
+
+	const TEXTOS_INICIALES: Record<Plantilla, Textos> = {
+		portada: {
+			nombre: 'Mi proyecto',
+			titulo: 'Hazlo simple',
+			subtitulo: 'Una página rápida, sin dependencias y lista para subir a cualquier hosting.',
+			boton: 'Empezar',
+			pie: '© 2026 Mi proyecto',
+			lineas: 'Rápida | HTML y CSS, nada más.\nLigera | Pesa menos que una foto.\nTuya | Cámbiala como quieras.',
+		},
+		portfolio: {
+			nombre: 'Ana Pérez',
+			titulo: 'Diseño y desarrollo web',
+			subtitulo: 'Hago webs que cargan rápido y se entienden a la primera.',
+			boton: 'Escríbeme',
+			pie: 'hola@ejemplo.com',
+			lineas: 'Tienda local | Catálogo y pedidos para una librería.\nFestival | Web del programa y las entradas.\nEstudio | Portfolio de un estudio de arquitectura.',
+		},
+		articulo: {
+			nombre: 'Mi blog',
+			titulo: 'Por qué las webs estáticas siguen ganando',
+			subtitulo: 'Publicado el 29 de septiembre',
+			boton: 'Volver al inicio',
+			pie: 'Escrito a mano',
+			lineas: 'Una web estática es un puñado de ficheros: se sirve rápido, casi no se rompe y cuesta poco mantenerla.\nNo hace falta base de datos ni servidor propio. Cualquier hosting sirve.\nY si un día necesitas más, se le añade encima.',
+		},
+		enlaces: {
+			nombre: '@miusuario',
+			titulo: 'Todo lo mío, en un sitio',
+			subtitulo: 'Diseño, código y alguna cosa más.',
+			boton: 'Contacto',
+			pie: 'Hecho con HTML y CSS',
+			lineas: 'Mi web | https://ejemplo.com\nBlog | https://ejemplo.com/blog\nCorreo | mailto:hola@ejemplo.com',
+		},
+	};
+
+	const INICIAL: Estado = {
+		plantilla: 'portada',
+		textos: TEXTOS_INICIALES,
+		colores: PALETAS.claro,
+		letra: 'sans',
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="sitios"]');
+	const vista = panel?.querySelector<HTMLIFrameElement>('[data-st-vista]');
+	const salida = panel?.querySelector<HTMLElement>('[data-st-salida]');
+	const ayuda = panel?.querySelector<HTMLElement>('[data-st-lineas-ayuda]');
+	const letra = panel?.querySelector<HTMLSelectElement>('[data-st-letra]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-st-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-st-copiar-texto]');
+	const campos = panel?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-st-texto]') ?? [];
+	const colores = panel?.querySelectorAll<HTMLInputElement>('[data-st-color]') ?? [];
+	const plantillas = panel?.querySelectorAll<HTMLButtonElement>('[data-st-plantilla]') ?? [];
+	const anchos = panel?.querySelectorAll<HTMLButtonElement>('[data-st-ancho]') ?? [];
+	const codigos = panel?.querySelectorAll<HTMLButtonElement>('[data-st-codigo]') ?? [];
+	let codigo: 'html' | 'css' = 'html';
+
+	function cargar(): Estado {
+		const estado = structuredClone(INICIAL);
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!guardado || typeof guardado !== 'object') return estado;
+			if (PLANTILLAS.includes(guardado.plantilla)) estado.plantilla = guardado.plantilla;
+			if (guardado.letra in LETRAS) estado.letra = guardado.letra;
+			for (const clave of ['fondo', 'texto', 'acento'] as const) {
+				if (HEX.test(String(guardado.colores?.[clave]))) estado.colores[clave] = String(guardado.colores[clave]);
+			}
+			for (const plantilla of PLANTILLAS) {
+				for (const campo of CAMPOS) {
+					const valor = guardado.textos?.[plantilla]?.[campo];
+					if (typeof valor === 'string') estado.textos[plantilla][campo] = valor.slice(0, 4000);
+				}
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return estado;
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	// ——— Generar ———
+	// Todo lo que escribe la persona pasa por aquí antes de entrar en el HTML.
+	const esc = (texto: string) =>
+		texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+	// Solo enlaces normales: nada de javascript: ni cosas raras en el href.
+	function url(texto: string) {
+		const limpio = texto.trim();
+		return /^(https?:\/\/|mailto:|\/|#)/i.test(limpio) ? esc(limpio) : '#';
+	}
+
+	function lineas(texto: string) {
+		return texto
+			.split('\n')
+			.map((linea) => linea.trim())
+			.filter(Boolean)
+			.slice(0, 30)
+			.map((linea) => {
+				const [a, ...resto] = linea.split('|');
+				return { a: a.trim(), b: resto.join('|').trim() };
+			});
+	}
+
+	function cuerpo() {
+		const t = estado.textos[estado.plantilla];
+		const items = lineas(t.lineas);
+		const cabecera = `  <header class="cabecera">\n    <a class="marca" href="#">${esc(t.nombre)}</a>\n  </header>`;
+		const pie = `  <footer class="pie">${esc(t.pie)}</footer>`;
+
+		if (estado.plantilla === 'portfolio') {
+			const proyectos = items
+				.map((p) => `      <article class="tarjeta">\n        <h3>${esc(p.a)}</h3>\n        <p>${esc(p.b)}</p>\n      </article>`)
+				.join('\n');
+			return `${cabecera}\n  <main>\n    <section class="intro">\n      <h1>${esc(t.titulo)}</h1>\n      <p>${esc(t.subtitulo)}</p>\n      <a class="boton" href="#contacto">${esc(t.boton)}</a>\n    </section>\n    <section class="rejilla">\n${proyectos}\n    </section>\n  </main>\n${pie.replace('<footer', '<footer id="contacto"')}`;
+		}
+
+		if (estado.plantilla === 'articulo') {
+			const parrafos = items.map((p) => `      <p>${esc(p.b ? `${p.a} | ${p.b}` : p.a)}</p>`).join('\n');
+			return `${cabecera}\n  <main>\n    <article class="articulo">\n      <p class="fecha">${esc(t.subtitulo)}</p>\n      <h1>${esc(t.titulo)}</h1>\n${parrafos}\n      <a class="volver" href="#">${esc(t.boton)}</a>\n    </article>\n  </main>\n${pie}`;
+		}
+
+		if (estado.plantilla === 'enlaces') {
+			const enlaces = items.map((p) => `      <li><a href="${url(p.b)}">${esc(p.a)}</a></li>`).join('\n');
+			return `  <main class="enlaces">\n    <p class="marca">${esc(t.nombre)}</p>\n    <h1>${esc(t.titulo)}</h1>\n    <p>${esc(t.subtitulo)}</p>\n    <ul>\n${enlaces}\n    </ul>\n    <a class="boton" href="#">${esc(t.boton)}</a>\n  </main>\n${pie}`;
+		}
+
+		const ventajas = items
+			.map((p) => `      <div class="ventaja">\n        <h3>${esc(p.a)}</h3>\n        <p>${esc(p.b)}</p>\n      </div>`)
+			.join('\n');
+		return `${cabecera}\n  <main>\n    <section class="heroe">\n      <h1>${esc(t.titulo)}</h1>\n      <p>${esc(t.subtitulo)}</p>\n      <a class="boton" href="#">${esc(t.boton)}</a>\n    </section>\n    <section class="rejilla">\n${ventajas}\n    </section>\n  </main>\n${pie}`;
+	}
+
+	const CSS_PLANTILLA: Record<Plantilla, string> = {
+		portada: `.heroe {
+  padding: 5rem 0 3rem;
+  text-align: center;
+}
+.heroe h1 {
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  margin: 0 0 1rem;
+}
+.heroe p {
+  max-width: 36rem;
+  margin: 0 auto 2rem;
+  opacity: 0.8;
+}`,
+		portfolio: `.intro {
+  padding: 4rem 0 2rem;
+}
+.intro h1 {
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  margin: 0 0 1rem;
+}
+.intro p {
+  max-width: 34rem;
+  margin: 0 0 2rem;
+  opacity: 0.8;
+}`,
+		articulo: `.articulo {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 0;
+  line-height: 1.7;
+  font-size: 1.1rem;
+}
+.articulo h1 {
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  line-height: 1.2;
+  margin: 0 0 2rem;
+}
+.fecha {
+  color: var(--acento);
+  font-size: 0.9rem;
+}
+.volver {
+  display: inline-block;
+  margin-top: 2rem;
+}`,
+		enlaces: `.enlaces {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 4rem 0 2rem;
+  text-align: center;
+}
+.enlaces h1 {
+  font-size: 1.8rem;
+  margin: 0.5rem 0;
+}
+.enlaces p {
+  opacity: 0.8;
+}
+.enlaces ul {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.enlaces li a {
+  display: block;
+  padding: 0.9rem 1rem;
+  border: 2px solid var(--acento);
+  color: var(--texto);
+  text-decoration: none;
+}
+.enlaces li a:hover {
+  background: var(--acento);
+  color: var(--fondo);
+}`,
+	};
+
+	function css() {
+		const { fondo, texto, acento } = estado.colores;
+		return `:root {
+  --fondo: ${fondo};
+  --texto: ${texto};
+  --acento: ${acento};
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 64rem;
+  padding: 0 1.5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: ${LETRAS[estado.letra]};
+  line-height: 1.5;
+}
+
+main {
+  flex: 1;
+}
+
+a {
+  color: var(--acento);
+}
+
+.cabecera {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--texto) 15%, transparent);
+}
+
+.marca {
+  font-weight: 700;
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.boton {
+  display: inline-block;
+  padding: 0.8rem 1.6rem;
+  background: var(--acento);
+  color: var(--fondo);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  padding: 2rem 0 4rem;
+}
+
+.ventaja,
+.tarjeta {
+  padding: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--texto) 15%, transparent);
+}
+
+.ventaja h3,
+.tarjeta h3 {
+  margin: 0 0 0.5rem;
+  color: var(--acento);
+}
+
+.ventaja p,
+.tarjeta p {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.pie {
+  padding: 2rem 0;
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+${CSS_PLANTILLA[estado.plantilla]}
+`;
+	}
+
+	function html(estilos: string) {
+		const t = estado.textos[estado.plantilla];
+		return `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${esc(t.titulo || t.nombre)}</title>
+  ${estilos}
+</head>
+<body>
+${cuerpo()}
+</body>
+</html>
+`;
+	}
+
+	const conEnlace = () => html('<link rel="stylesheet" href="estilos.css">');
+	const todoEnUno = () => html(`<style>\n${css()}</style>`);
+
+	function pintar() {
+		if (vista) vista.srcdoc = todoEnUno();
+		if (salida) salida.textContent = codigo === 'html' ? conEnlace() : css();
+	}
+
+	function actualizar() {
+		pintar();
+		guardar();
+	}
+
+	function pintarControles() {
+		const t = estado.textos[estado.plantilla];
+		plantillas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.stPlantilla === estado.plantilla)));
+		codigos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.stCodigo === codigo)));
+		campos.forEach((campo) => {
+			campo.value = t[campo.dataset.stTexto as keyof Textos] ?? '';
+		});
+		colores.forEach((campo) => {
+			campo.value = estado.colores[campo.dataset.stColor as keyof Colores];
+		});
+		if (letra) letra.value = estado.letra;
+		if (ayuda) ayuda.textContent = AYUDA[estado.plantilla];
+	}
+
+	function bajar(contenido: string, tipo: string, nombre: string) {
+		const enlace = document.createElement('a');
+		const direccion = URL.createObjectURL(new Blob([contenido], { type: tipo }));
+		enlace.href = direccion;
+		enlace.download = nombre;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(direccion), 1000);
+	}
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-st-bajar]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const que = boton.dataset.stBajar;
+			if (que === 'css') bajar(css(), 'text/css', 'estilos.css');
+			else if (que === 'todo') bajar(todoEnUno(), 'text/html', `${estado.plantilla}.html`);
+			else bajar(conEnlace(), 'text/html', 'index.html');
+		});
+	});
+
+	campos.forEach((campo) => {
+		campo.addEventListener('input', () => {
+			estado.textos[estado.plantilla][campo.dataset.stTexto as keyof Textos] = campo.value;
+			actualizar();
+		});
+	});
+
+	colores.forEach((campo) => {
+		campo.addEventListener('input', () => {
+			estado.colores[campo.dataset.stColor as keyof Colores] = campo.value.toLowerCase();
+			actualizar();
+		});
+	});
+
+	letra?.addEventListener('change', () => {
+		if (letra.value in LETRAS) estado.letra = letra.value as Letra;
+		actualizar();
+	});
+
+	plantillas.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegida = PLANTILLAS.find((p) => p === boton.dataset.stPlantilla);
+			if (!elegida) return;
+			estado.plantilla = elegida;
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-st-paleta]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const paleta = PALETAS[boton.dataset.stPaleta ?? ''];
+			if (!paleta) return;
+			estado.colores = { ...paleta };
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	anchos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			anchos.forEach((b) => b.setAttribute('aria-pressed', String(b === boton)));
+			if (vista) vista.style.width = boton.dataset.stAncho ?? '100%';
+		});
+	});
+
+	codigos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			codigo = boton.dataset.stCodigo === 'css' ? 'css' : 'html';
+			pintarControles();
+			pintar();
+		});
+	});
+
+	// Restablecer solo toca la plantilla que está abierta; los colores vuelven a los de inicio.
+	panel?.querySelector('[data-st-reset]')?.addEventListener('click', () => {
+		estado.textos[estado.plantilla] = structuredClone(TEXTOS_INICIALES[estado.plantilla]);
+		estado.colores = { ...INICIAL.colores };
+		estado.letra = INICIAL.letra;
+		pintarControles();
+		actualizar();
+	});
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	pintarControles();
+	pintar();
+</script>
