@@ -121,7 +121,7 @@ const RANGOS = [
 				aria-label="Gráfica de las funciones"
 			>
 				<g data-fn-rejilla></g>
-				<g data-fn-curvas fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></g>
+				<g data-fn-curvas fill="none" stroke-linejoin="round" stroke-linecap="round"></g>
 				<g data-fn-cursor></g>
 			</svg>
 			<p data-fn-lectura class="min-h-[1.5em] text-xs text-muted">Pasa el ratón por la gráfica para leer los valores.</p>
@@ -159,6 +159,21 @@ const RANGOS = [
 				>
 					<Icon name="trash" class="size-4 shrink-0" />
 				</button>
+			</div>
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-2 pl-12 text-xs text-muted">
+				<label class="inline-flex items-center gap-2">
+					Grosor
+					<input type="range" min="1" max="8" step="0.5" data-fn-grosor class="w-24 accent-accent" />
+					<span data-fn-grosor-valor class="w-6 text-fg"></span>
+				</label>
+				<label class="inline-flex items-center gap-2">
+					Línea
+					<select data-fn-trazo class="border border-line bg-panel px-2 py-1 text-xs text-fg outline-none focus-visible:border-accent">
+						<option value="continua">Continua</option>
+						<option value="discontinua">Discontinua</option>
+						<option value="puntos">Puntos</option>
+					</select>
+				</label>
 			</div>
 			<p data-fn-error class="text-xs text-heart" hidden></p>
 		</div>
@@ -350,15 +365,16 @@ const RANGOS = [
 	}
 
 	// ——— La herramienta ———
-	type Curva = { expr: string; color: string; visible: boolean };
+	type Trazo = 'continua' | 'discontinua' | 'puntos';
+	type Curva = { expr: string; color: string; visible: boolean; grosor: number; trazo: Trazo };
 	type Estado = { curvas: Curva[]; xmin: number; xmax: number; ymin: number; ymax: number; cuadricula: boolean };
 
 	const CLAVE = 'tuweb:funciones';
 	const PALETA = ['#c2410c', '#2563eb', '#2f7a3b', '#9333ea', '#b91c3c', '#0e7490', '#8a5a00'];
 	const INICIAL: Estado = {
 		curvas: [
-			{ expr: 'sin(x)', color: PALETA[0], visible: true },
-			{ expr: 'x^2/4 - 2', color: PALETA[1], visible: true },
+			{ expr: 'sin(x)', color: PALETA[0], visible: true, grosor: 2, trazo: 'continua' },
+			{ expr: 'x^2/4 - 2', color: PALETA[1], visible: true, grosor: 2, trazo: 'discontinua' },
 		],
 		xmin: -10,
 		xmax: 10,
@@ -366,6 +382,7 @@ const RANGOS = [
 		ymax: 6,
 		cuadricula: true,
 	};
+	const TRAZOS: Trazo[] = ['continua', 'discontinua', 'puntos'];
 	const ANCHO = 800;
 	const ALTO = 560;
 	const NS = 'http://www.w3.org/2000/svg';
@@ -394,6 +411,8 @@ const RANGOS = [
 						expr: String(c.expr ?? '').slice(0, 200),
 						color: /^#[0-9a-f]{6}$/i.test(String(c.color)) ? String(c.color) : PALETA[i % PALETA.length],
 						visible: c.visible !== false,
+						grosor: Math.min(Math.max(num(c.grosor, 2), 1), 8),
+						trazo: TRAZOS.includes(c.trazo as Trazo) ? (c.trazo as Trazo) : 'continua',
 					})),
 					xmin: num(guardado.xmin, INICIAL.xmin),
 					xmax: num(guardado.xmax, INICIAL.xmax),
@@ -538,8 +557,20 @@ const RANGOS = [
 			const f = compiladas[i];
 			if (!f || !curva.visible) return;
 			const d = trazado(f);
-			if (d) capaCurvas.append(elemento('path', { d, stroke: curva.color }));
+			if (!d) return;
+			const atributos: Record<string, string | number> = { d, stroke: curva.color, 'stroke-width': curva.grosor };
+			const guion = patron(curva);
+			if (guion) atributos['stroke-dasharray'] = guion;
+			capaCurvas.append(elemento('path', atributos));
 		});
+	}
+
+	// Los huecos crecen con el grosor para que el dibujo no se empaste. Un guion
+	// casi nulo con la punta redonda se ve como un punto.
+	function patron({ grosor, trazo }: Curva) {
+		if (trazo === 'discontinua') return `${r2(grosor * 5)} ${r2(grosor * 3)}`;
+		if (trazo === 'puntos') return `0.01 ${r2(grosor * 2.5)}`;
+		return '';
 	}
 
 	function pintar() {
@@ -593,6 +624,23 @@ const RANGOS = [
 			expr.placeholder = 'x^2 + 1';
 			color.value = curva.color;
 			visible.checked = curva.visible;
+			const grosor = fila.querySelector<HTMLInputElement>('[data-fn-grosor]')!;
+			const grosorValor = fila.querySelector<HTMLElement>('[data-fn-grosor-valor]')!;
+			const trazo = fila.querySelector<HTMLSelectElement>('[data-fn-trazo]')!;
+			grosor.value = String(curva.grosor);
+			grosorValor.textContent = String(curva.grosor);
+			trazo.value = curva.trazo;
+			grosor.addEventListener('input', () => {
+				curva.grosor = Number(grosor.value);
+				grosorValor.textContent = grosor.value;
+				pintar();
+				guardar();
+			});
+			trazo.addEventListener('change', () => {
+				curva.trazo = TRAZOS.includes(trazo.value as Trazo) ? (trazo.value as Trazo) : 'continua';
+				pintar();
+				guardar();
+			});
 			expr.addEventListener('input', () => {
 				curva.expr = expr.value;
 				actualizar();
@@ -627,7 +675,7 @@ const RANGOS = [
 		if (estado.curvas.length >= 12) return;
 		const usados = new Set(estado.curvas.map((c) => c.color));
 		const color = PALETA.find((c) => !usados.has(c)) ?? PALETA[estado.curvas.length % PALETA.length];
-		estado.curvas.push({ expr, color, visible: true });
+		estado.curvas.push({ expr, color, visible: true, grosor: 2, trazo: 'continua' });
 		pintarFilas();
 		actualizar();
 		const campos = lista?.querySelectorAll<HTMLInputElement>('[data-fn-expr]');
