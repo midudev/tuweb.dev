@@ -1,0 +1,394 @@
+---
+/**
+ * Infografías: se elige plantilla, se añaden secciones (cifras, texto, pasos,
+ * barras) y se tocan colores y letra. Se ve al momento y se baja en PNG, PDF o
+ * SVG. Todo se pinta en el navegador; no se guarda ni se envía nada.
+ */
+import { ANCHOS, MAX_SECCIONES, PLANTILLAS, TIPOS } from '../lib/infografia';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-40';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const COLOR = 'h-9 w-12 shrink-0 cursor-pointer border border-line bg-panel p-0.5';
+const MINI = 'inline-flex items-center p-1 text-muted hover:text-accent disabled:opacity-30 disabled:hover:text-muted';
+
+const TEXTOS = [
+	{ id: 'titulo', label: 'Título' },
+	{ id: 'subtitulo', label: 'Subtítulo' },
+	{ id: 'pie', label: 'Pie' },
+];
+const COLORES = [
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'texto', label: 'Texto' },
+	{ id: 'acento', label: 'Acento' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="infografias"
+	aria-labelledby="tab-infografias"
+	data-panel="infografias"
+	hidden
+	class="grid gap-7 md:grid-cols-2"
+>
+	<div class="flex min-w-0 flex-col gap-6">
+		<div class="flex flex-col gap-3">
+			<h3 id="info-plantilla" class="text-sm text-muted">Plantilla</h3>
+			<div role="group" aria-labelledby="info-plantilla" class="flex flex-wrap gap-2">
+				{
+					PLANTILLAS.map((plantilla) => (
+						<button type="button" data-info-plantilla={plantilla.id} aria-pressed="false" class={OPCION}>
+							<Icon name="template" class="size-4 shrink-0" />
+							{plantilla.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			{
+				TEXTOS.map((campo) => (
+					<label class="flex flex-col gap-1">
+						<span class="text-sm text-muted">{campo.label}</span>
+						<input type="text" data-info-texto={campo.id} maxlength="120" class={CAMPO} />
+					</label>
+				))
+			}
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Estilo</h3>
+			<div class="flex flex-wrap gap-4">
+				{
+					COLORES.map((color) => (
+						<label class="flex items-center gap-2 text-sm text-muted">
+							<input type="color" data-info-color={color.id} class={COLOR} />
+							{color.label}
+						</label>
+					))
+				}
+			</div>
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-info-fuente="pixel" aria-pressed="false" class={OPCION}>Titulares pixel</button>
+				<button type="button" data-info-fuente="mono" aria-pressed="false" class={OPCION}>Titulares mono</button>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Ancho
+					<select data-info-ancho class="border border-line bg-panel px-2 py-2 text-sm outline-none focus-visible:border-accent">
+						{ANCHOS.map((ancho) => <option value={ancho}>{ancho} px</option>)}
+					</select>
+				</label>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<input type="checkbox" data-info-separadores class="size-4 accent-accent" />
+					Separadores
+				</label>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Secciones</h3>
+			<ol data-info-lista class="flex flex-col gap-3"></ol>
+			<div class="flex flex-wrap gap-2">
+				{
+					TIPOS.map((tipo) => (
+						<button type="button" data-info-nueva={tipo.id} class={OPCION}>
+							<Icon name="plus" class="size-4 shrink-0" />
+							{tipo.label}
+						</button>
+					))
+				}
+			</div>
+			<p class="text-sm text-muted">
+				Hasta {MAX_SECCIONES} secciones. Las cifras seguidas se ponen en fila, de tres en tres.
+			</p>
+		</div>
+	</div>
+
+	<div class="flex min-w-0 flex-col gap-4 md:sticky md:top-6 md:self-start">
+		<span class="text-sm text-muted">Así queda</span>
+		<div data-info-previo class="max-h-[75vh] overflow-auto border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-info-baja="png" class={OPCION}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+			<button type="button" data-info-baja="pdf" class={OPCION}>
+				<Icon name="file-type-pdf" class="size-4 shrink-0" />
+				Descargar .pdf
+			</button>
+			<button type="button" data-info-baja="svg" class={OPCION}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+		</div>
+		<p data-info-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+	</div>
+
+	<template data-info-molde>
+		<li class="flex flex-col gap-2 border border-line p-3">
+			<div class="flex items-center gap-2">
+				<select data-campo="tipo" aria-label="Tipo de sección" class="border border-line bg-panel px-2 py-1 text-sm outline-none focus-visible:border-accent">
+					{TIPOS.map((tipo) => <option value={tipo.id}>{tipo.label}</option>)}
+				</select>
+				<span class="flex-1"></span>
+				<button type="button" data-accion="sube" aria-label="Subir" title="Subir" class={MINI}>
+					<Icon name="arrow-up" class="size-4 shrink-0" />
+				</button>
+				<button type="button" data-accion="baja" aria-label="Bajar" title="Bajar" class={MINI}>
+					<Icon name="arrow-down" class="size-4 shrink-0" />
+				</button>
+				<button type="button" data-accion="quita" aria-label="Quitar" title="Quitar" class={MINI}>
+					<Icon name="trash" class="size-4 shrink-0" />
+				</button>
+			</div>
+			<input type="text" data-campo="titulo" maxlength="80" class={CAMPO} />
+			<textarea data-campo="cuerpo" rows="3" maxlength="600" class={`${CAMPO} resize-y`}></textarea>
+		</li>
+	</template>
+</div>
+
+<script>
+	import { MAX_SECCIONES, PLANTILLAS, TIPOS, construye, pdfDesdeJpeg, type Fuente, type Infografia, type Tipo } from '../lib/infografia';
+
+	const previo = document.querySelector<HTMLElement>('[data-info-previo]');
+	const lista = document.querySelector<HTMLOListElement>('[data-info-lista]');
+	const molde = document.querySelector<HTMLTemplateElement>('[data-info-molde]');
+	const aviso = document.querySelector<HTMLElement>('[data-info-aviso]');
+	const ancho = document.querySelector<HTMLSelectElement>('[data-info-ancho]');
+	const separadores = document.querySelector<HTMLInputElement>('[data-info-separadores]');
+
+	type Texto = 'titulo' | 'subtitulo' | 'pie';
+	type Color = 'fondo' | 'texto' | 'acento';
+
+	let plantilla = PLANTILLAS[0].id;
+	let info: Infografia = structuredClone(PLANTILLAS[0].info);
+
+	function pinta() {
+		if (previo) previo.innerHTML = construye(info).svg;
+	}
+
+	function pistas(item: HTMLElement, tipo: Tipo) {
+		const datos = TIPOS.find((t) => t.id === tipo) ?? TIPOS[0];
+		item.querySelector('[data-campo="titulo"]')?.setAttribute('placeholder', datos.titulo);
+		item.querySelector('[data-campo="titulo"]')?.setAttribute('aria-label', datos.titulo);
+		item.querySelector('[data-campo="cuerpo"]')?.setAttribute('placeholder', datos.cuerpo);
+		item.querySelector('[data-campo="cuerpo"]')?.setAttribute('aria-label', datos.cuerpo);
+	}
+
+	/** La lista se rehace solo cuando cambia su forma; al escribir, se toca el estado y ya. */
+	function pintaLista() {
+		if (!lista || !molde) return;
+		const items = info.secciones.map((seccion, i) => {
+			const item = (molde.content.cloneNode(true) as DocumentFragment).firstElementChild as HTMLElement;
+			item.dataset.indice = String(i);
+			item.querySelector<HTMLSelectElement>('[data-campo="tipo"]')!.value = seccion.tipo;
+			item.querySelector<HTMLInputElement>('[data-campo="titulo"]')!.value = seccion.titulo;
+			item.querySelector<HTMLTextAreaElement>('[data-campo="cuerpo"]')!.value = seccion.cuerpo;
+			item.querySelector<HTMLButtonElement>('[data-accion="sube"]')!.disabled = i === 0;
+			item.querySelector<HTMLButtonElement>('[data-accion="baja"]')!.disabled = i === info.secciones.length - 1;
+			pistas(item, seccion.tipo);
+			return item;
+		});
+		lista.replaceChildren(...items);
+		document.querySelectorAll<HTMLButtonElement>('[data-info-nueva]').forEach((button) => {
+			button.disabled = info.secciones.length >= MAX_SECCIONES;
+		});
+	}
+
+	function pintaControles() {
+		document.querySelectorAll<HTMLButtonElement>('[data-info-plantilla]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.infoPlantilla === plantilla));
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-info-texto]').forEach((input) => {
+			input.value = info[input.dataset.infoTexto as Texto];
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-info-color]').forEach((input) => {
+			input.value = info.estilo[input.dataset.infoColor as Color];
+		});
+		document.querySelectorAll<HTMLButtonElement>('[data-info-fuente]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.infoFuente === info.estilo.fuente));
+		});
+		if (ancho) ancho.value = String(info.estilo.ancho);
+		if (separadores) separadores.checked = info.estilo.separadores;
+	}
+
+	function todo() {
+		pintaControles();
+		pintaLista();
+		pinta();
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-info-plantilla]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const elegida = PLANTILLAS.find((p) => p.id === button.dataset.infoPlantilla);
+			if (!elegida) return;
+			plantilla = elegida.id;
+			info = structuredClone(elegida.info);
+			todo();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-info-texto]').forEach((input) => {
+		input.addEventListener('input', () => {
+			info[input.dataset.infoTexto as Texto] = input.value;
+			pinta();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-info-color]').forEach((input) => {
+		input.addEventListener('input', () => {
+			info.estilo[input.dataset.infoColor as Color] = input.value;
+			pinta();
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-info-fuente]').forEach((button) => {
+		button.addEventListener('click', () => {
+			info.estilo.fuente = button.dataset.infoFuente as Fuente;
+			pintaControles();
+			pinta();
+		});
+	});
+
+	ancho?.addEventListener('change', () => {
+		info.estilo.ancho = Number(ancho.value);
+		pinta();
+	});
+
+	separadores?.addEventListener('change', () => {
+		info.estilo.separadores = separadores.checked;
+		pinta();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-info-nueva]').forEach((button) => {
+		button.addEventListener('click', () => {
+			if (info.secciones.length >= MAX_SECCIONES) return;
+			info.secciones.push({ tipo: button.dataset.infoNueva as Tipo, titulo: '', cuerpo: '' });
+			pintaLista();
+			pinta();
+			lista?.querySelector<HTMLInputElement>('li:last-child [data-campo="titulo"]')?.focus();
+		});
+	});
+
+	lista?.addEventListener('input', (event) => {
+		const campo = event.target as HTMLInputElement;
+		const item = campo.closest<HTMLElement>('li');
+		const seccion = info.secciones[Number(item?.dataset.indice)];
+		if (!item || !seccion) return;
+		if (campo.dataset.campo === 'tipo') {
+			seccion.tipo = campo.value as Tipo;
+			pistas(item, seccion.tipo);
+		} else if (campo.dataset.campo === 'titulo') seccion.titulo = campo.value;
+		else if (campo.dataset.campo === 'cuerpo') seccion.cuerpo = campo.value;
+		else return;
+		pinta();
+	});
+
+	lista?.addEventListener('click', (event) => {
+		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-accion]');
+		const i = Number(button?.closest<HTMLElement>('li')?.dataset.indice);
+		if (!button || button.disabled || !info.secciones[i]) return;
+		const accion = button.dataset.accion;
+		if (accion === 'quita') info.secciones.splice(i, 1);
+		else {
+			const j = accion === 'sube' ? i - 1 : i + 1;
+			if (!info.secciones[j]) return;
+			[info.secciones[i], info.secciones[j]] = [info.secciones[j], info.secciones[i]];
+		}
+		pintaLista();
+		pinta();
+	});
+
+	function nombre(extension: string) {
+		const base = info.titulo
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `${base || 'infografia'}.${extension}`;
+	}
+
+	function bajar(fichero: Blob, name: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = name;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/*
+	 * Un SVG pintado como imagen no ve las fuentes de la página, así que para el
+	 * PNG y el PDF van dentro. Son las mismas que sirve la web.
+	 */
+	const FUENTES = [
+		['Geist Mono Variable', '/fonts/geist-mono-latin-wght-normal.woff2', '100 900'],
+		['Geist Pixel', '/fonts/geist-pixel-latin-400-normal.woff2', '400'],
+	];
+	let fuentesCss: Promise<string> | null = null;
+
+	function fuentes() {
+		fuentesCss ??= Promise.all(
+			FUENTES.map(async ([family, url, weight]) => {
+				const blob = await (await fetch(url)).blob();
+				const data = await new Promise<string>((resolve, reject) => {
+					const lector = new FileReader();
+					lector.onload = () => resolve(String(lector.result));
+					lector.onerror = () => reject(lector.error);
+					lector.readAsDataURL(blob);
+				});
+				return `@font-face{font-family:'${family}';font-weight:${weight};src:url(${data}) format('woff2');}`;
+			}),
+		)
+			.then((reglas) => reglas.join(''))
+			.catch(() => '');
+		return fuentesCss;
+	}
+
+	async function lienzo(tipo: 'image/png' | 'image/jpeg') {
+		const { svg, width, height } = construye(info, { fontCss: await fuentes() });
+		const imagen = new Image();
+		imagen.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+		await imagen.decode();
+		// Al doble, para que se vea nítido en pantallas densas y al imprimir.
+		const canvas = document.createElement('canvas');
+		canvas.width = width * 2;
+		canvas.height = height * 2;
+		canvas.getContext('2d')?.drawImage(imagen, 0, 0, canvas.width, canvas.height);
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, tipo, 0.92));
+		if (!blob) throw new Error('sin imagen');
+		return { blob, width, height, pixelesAncho: canvas.width, pixelesAlto: canvas.height };
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-info-baja]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			const formato = button.dataset.infoBaja;
+			if (formato === 'svg') {
+				bajar(new Blob([construye(info).svg], { type: 'image/svg+xml' }), nombre('svg'));
+				return;
+			}
+			button.disabled = true;
+			try {
+				if (formato === 'png') {
+					bajar((await lienzo('image/png')).blob, nombre('png'));
+				} else {
+					const hecho = await lienzo('image/jpeg');
+					const jpeg = new Uint8Array(await hecho.blob.arrayBuffer());
+					bajar(pdfDesdeJpeg(jpeg, hecho.width, hecho.height, hecho.pixelesAncho, hecho.pixelesAlto), nombre('pdf'));
+				}
+				if (aviso) aviso.textContent = '';
+			} catch {
+				if (aviso) aviso.textContent = `No se pudo sacar el ${formato?.toUpperCase()}. Prueba con el SVG.`;
+			} finally {
+				button.disabled = false;
+			}
+		});
+	});
+
+	todo();
+</script>
