@@ -73,7 +73,9 @@ export function buildBars(d: Diseno, options: { fontCss?: string } = {}) {
 		top += 56;
 	}
 
+	// `i` es el sitio en la lista, que no cambia al ordenar: con él la barra pinchada encuentra su campo.
 	const barras = d.bars.map((b, i) => ({
+		i,
 		label: b.label.trim() || `Barra ${i + 1}`,
 		value: parseNumber(b.value),
 		color: safe(b.color, t.muted),
@@ -121,7 +123,7 @@ export function buildBars(d: Diseno, options: { fontCss?: string } = {}) {
 				const left = X(Math.min(b.value, 0));
 				const right = X(Math.max(b.value, 0));
 				out.push(
-					`<rect x="${r1(left)}" y="${r1(cy - alto / 2)}" width="${r1(right - left)}" height="${r1(Math.max(alto, 1))}" fill="${b.color}">${tip(b, b.value)}</rect>`,
+					`<rect data-barra="${b.i}" x="${r1(left)}" y="${r1(cy - alto / 2)}" width="${r1(right - left)}" height="${r1(Math.max(alto, 1))}" fill="${b.color}">${tip(b, b.value)}</rect>`,
 				);
 				if (d.showValues) {
 					const negativo = b.value < 0;
@@ -154,7 +156,7 @@ export function buildBars(d: Diseno, options: { fontCss?: string } = {}) {
 				const arriba = Y(Math.max(b.value, 0));
 				const abajo = Y(Math.min(b.value, 0));
 				out.push(
-					`<rect x="${r1(cx - ancho / 2)}" y="${r1(arriba)}" width="${r1(ancho)}" height="${r1(abajo - arriba)}" fill="${b.color}">${tip(b, b.value)}</rect>`,
+					`<rect data-barra="${b.i}" x="${r1(cx - ancho / 2)}" y="${r1(arriba)}" width="${r1(ancho)}" height="${r1(abajo - arriba)}" fill="${b.color}">${tip(b, b.value)}</rect>`,
 				);
 				const etiqueta = valor(b.value);
 				// Si el número no cabe encima de su barra, mejor no ponerlo que pisar a la vecina.

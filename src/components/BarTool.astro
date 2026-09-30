@@ -114,6 +114,10 @@ const ORDENES = [
 	<div class="flex min-w-0 flex-col gap-4 md:sticky md:top-6 md:self-start">
 		<span class="text-sm text-muted">Así queda</span>
 		<div data-bar-previo class="border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+		<p class="flex min-h-6 items-center gap-2 text-sm" aria-live="polite">
+			<Icon name="pointer" class="size-4 shrink-0 text-muted" />
+			<output data-bar-dato class="text-mark">Pasa por una barra para ver su valor; púlsala para editarla.</output>
+		</p>
 		<div class="flex flex-wrap items-center gap-2">
 			<button type="button" data-bar-baja="svg" class={OPCION}>
 				<Icon name="file-type-svg" class="size-4 shrink-0" />
@@ -126,12 +130,34 @@ const ORDENES = [
 		</div>
 		<p data-bar-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
 		<p class="text-sm text-muted">
-			Hasta {MAX_BARS} barras. Admite negativos y decimales con coma. Pasa el ratón por encima para ver cada valor.
+			Hasta {MAX_BARS} barras. Admite negativos y decimales con coma. Con el teclado, Tab recorre las barras.
 		</p>
 	</div>
 
 	<template data-bar-icono><Icon name="x" class="size-4 shrink-0" /></template>
 </div>
+
+<style>
+	/* El SVG entra con innerHTML, así que sus reglas van sin el ámbito del componente. */
+	[data-bar-previo] :global(rect[data-barra]) {
+		cursor: pointer;
+		outline: none;
+		transition: opacity 150ms;
+	}
+	/* La barra señalada se queda y las demás se apagan. */
+	[data-bar-previo] :global(svg:has(rect[data-barra]:is(:hover, :focus-visible)) rect[data-barra]:not(:hover, :focus-visible)) {
+		opacity: 0.35;
+	}
+	[data-bar-previo] :global(rect[data-barra]:focus-visible) {
+		stroke: var(--color-fg);
+		stroke-width: 2;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		[data-bar-previo] :global(rect[data-barra]) {
+			transition: none;
+		}
+	}
+</style>
 
 <script>
 	import { DEFAULT_DISENO, MAX_BARS, buildBars, type Diseno, type Order, type Orientation } from '../lib/bars';
@@ -224,9 +250,51 @@ const ORDENES = [
 		if (todasColor) todasColor.value = PALETTE[diseno.theme][0];
 	}
 
+	const dato = document.querySelector<HTMLOutputElement>('[data-bar-dato]');
+	const AYUDA = dato?.value ?? '';
+
 	function pinta() {
-		if (previo) previo.innerHTML = buildBars(diseno).svg;
+		if (!previo) return;
+		previo.innerHTML = buildBars(diseno).svg;
+		// El tabindex solo va en la vista previa: el fichero que se baja sale limpio.
+		previo.querySelectorAll('rect[data-barra]').forEach((rect) => {
+			rect.setAttribute('tabindex', '0');
+			rect.setAttribute('aria-label', rect.querySelector('title')?.textContent ?? '');
+		});
+		if (dato) dato.value = AYUDA;
 	}
+
+	const barraDe = (event: Event) => (event.target as Element).closest?.('rect[data-barra]') ?? null;
+
+	function senala(event: Event) {
+		const rect = barraDe(event);
+		if (dato) dato.value = rect?.querySelector('title')?.textContent ?? AYUDA;
+	}
+
+	previo?.addEventListener('pointerover', senala);
+	previo?.addEventListener('focusin', senala);
+	previo?.addEventListener('pointerleave', () => {
+		if (dato && !previo?.contains(document.activeElement)) dato.value = AYUDA;
+	});
+	previo?.addEventListener('focusout', () => {
+		if (dato) dato.value = AYUDA;
+	});
+
+	function edita(event: Event) {
+		const rect = barraDe(event);
+		if (!rect) return;
+		const campo = lista?.querySelector<HTMLInputElement>(`[data-bar-valor="${rect.getAttribute('data-barra')}"]`);
+		campo?.focus();
+		campo?.select();
+	}
+
+	previo?.addEventListener('click', edita);
+	previo?.addEventListener('keydown', (event) => {
+		if (event.key !== 'Enter' && event.key !== ' ') return;
+		if (!barraDe(event)) return;
+		event.preventDefault();
+		edita(event);
+	});
 
 	document.querySelectorAll<HTMLButtonElement>('[data-bar-orientacion]').forEach((b) => {
 		b.addEventListener('click', () => {
