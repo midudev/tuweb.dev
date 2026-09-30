@@ -1,6 +1,6 @@
 /**
- * Infografías: una columna de secciones (cifras, texto, pasos y barras) que se
- * pinta como SVG. Las cifras seguidas se ponen en fila, de tres en tres. De
+ * Infografías: una columna de secciones (cifras, texto, pasos y barras), cada
+ * una con su icono si se quiere, que se pinta como SVG. Las cifras seguidas se ponen en fila, de tres en tres. De
  * aquí salen el SVG, el PNG (vía canvas) y un PDF de una página hecho a mano.
  */
 import { MONO, esc, parseNumber } from './chart';
@@ -12,7 +12,12 @@ export interface Seccion {
 	tipo: Tipo;
 	titulo: string;
 	cuerpo: string;
+	/** Nombre de un icono de ICONOS, o vacío. */
+	icono: string;
 }
+
+/** Cuerpo SVG de cada icono de Tabler (24×24), por nombre. */
+export type Iconos = Record<string, string>;
 
 export interface Estilo {
 	fondo: string;
@@ -38,6 +43,41 @@ export const TIPOS: { id: Tipo; label: string; icon: string; titulo: string; cue
 	{ id: 'barras', label: 'Barras', icon: 'chart-bar', titulo: 'Titular', cuerpo: 'Una por línea: Nombre: valor' },
 ];
 
+export const ICONOS: { id: string; label: string }[] = [
+	{ id: 'users', label: 'Personas' },
+	{ id: 'user', label: 'Persona' },
+	{ id: 'device-mobile', label: 'Móvil' },
+	{ id: 'device-desktop', label: 'Ordenador' },
+	{ id: 'clock', label: 'Reloj' },
+	{ id: 'calendar', label: 'Calendario' },
+	{ id: 'world', label: 'Mundo' },
+	{ id: 'map-pin', label: 'Lugar' },
+	{ id: 'chart-line', label: 'Gráfico' },
+	{ id: 'chart-pie', label: 'Tarta' },
+	{ id: 'trending-up', label: 'Sube' },
+	{ id: 'trending-down', label: 'Baja' },
+	{ id: 'coin', label: 'Dinero' },
+	{ id: 'shopping-cart', label: 'Compra' },
+	{ id: 'bulb', label: 'Idea' },
+	{ id: 'rocket', label: 'Cohete' },
+	{ id: 'target', label: 'Objetivo' },
+	{ id: 'trophy', label: 'Trofeo' },
+	{ id: 'star', label: 'Estrella' },
+	{ id: 'heart', label: 'Corazón' },
+	{ id: 'check', label: 'Hecho' },
+	{ id: 'alert-triangle', label: 'Aviso' },
+	{ id: 'bolt', label: 'Rayo' },
+	{ id: 'shield', label: 'Escudo' },
+	{ id: 'message', label: 'Mensaje' },
+	{ id: 'mail', label: 'Correo' },
+	{ id: 'code', label: 'Código' },
+	{ id: 'database', label: 'Datos' },
+	{ id: 'school', label: 'Estudios' },
+	{ id: 'leaf', label: 'Hoja' },
+	{ id: 'home', label: 'Casa' },
+	{ id: 'tools', label: 'Herramientas' },
+];
+
 export const ANCHOS = [600, 800, 1080];
 export const MAX_SECCIONES = 12;
 
@@ -51,10 +91,15 @@ export const PLANTILLAS: { id: string; label: string; info: Infografia }[] = [
 			pie: 'Fuente: tus datos',
 			estilo: { fondo: '#fdf6ef', texto: '#3b2d24', acento: '#c2410c', fuente: 'pixel', ancho: 800, separadores: true },
 			secciones: [
-				{ tipo: 'cifra', titulo: '12 k', cuerpo: 'visitas al mes' },
-				{ tipo: 'cifra', titulo: '48 %', cuerpo: 'llegan desde el móvil' },
-				{ tipo: 'cifra', titulo: '3 min', cuerpo: 'de media por visita' },
-				{ tipo: 'barras', titulo: 'De dónde llegan', cuerpo: 'Buscadores: 42\nRedes: 27\nDirecto: 18\nOtros: 9' },
+				{ tipo: 'cifra', titulo: '12 k', cuerpo: 'visitas al mes', icono: 'users' },
+				{ tipo: 'cifra', titulo: '48 %', cuerpo: 'llegan desde el móvil', icono: 'device-mobile' },
+				{ tipo: 'cifra', titulo: '3 min', cuerpo: 'de media por visita', icono: 'clock' },
+				{
+					tipo: 'barras',
+					titulo: 'De dónde llegan',
+					cuerpo: 'Buscadores: 42\nRedes: 27\nDirecto: 18\nOtros: 9',
+					icono: 'world',
+				},
 			],
 		},
 	},
@@ -67,11 +112,17 @@ export const PLANTILLAS: { id: string; label: string; info: Infografia }[] = [
 			pie: 'tuweb.dev',
 			estilo: { fondo: '#17110d', texto: '#f3e7db', acento: '#fc784b', fuente: 'pixel', ancho: 600, separadores: false },
 			secciones: [
-				{ tipo: 'texto', titulo: 'La regla', cuerpo: 'Cada idea es interfaz: todo se resuelve en el navegador.' },
+				{
+					tipo: 'texto',
+					titulo: 'La regla',
+					cuerpo: 'Cada idea es interfaz: todo se resuelve en el navegador.',
+					icono: 'bulb',
+				},
 				{
 					tipo: 'pasos',
 					titulo: 'Los pasos',
 					cuerpo: 'Alguien propone una idea\nLa gente vota\nSe cierra la ventana\nLa ganadora se implementa',
+					icono: 'rocket',
 				},
 			],
 		},
@@ -85,9 +136,14 @@ export const PLANTILLAS: { id: string; label: string; info: Infografia }[] = [
 			pie: 'Datos de ejemplo',
 			estilo: { fondo: '#f1f7f2', texto: '#17301f', acento: '#008300', fuente: 'mono', ancho: 800, separadores: true },
 			secciones: [
-				{ tipo: 'barras', titulo: 'Reparto', cuerpo: 'TypeScript: 48\nCSS: 22\nAstro: 16\nSQL: 14' },
-				{ tipo: 'cifra', titulo: '4', cuerpo: 'lenguajes en uso' },
-				{ tipo: 'texto', titulo: 'Conclusión', cuerpo: 'Casi la mitad es TypeScript. El SQL va a mano, sin ORM.' },
+				{ tipo: 'barras', titulo: 'Reparto', cuerpo: 'TypeScript: 48\nCSS: 22\nAstro: 16\nSQL: 14', icono: 'code' },
+				{ tipo: 'cifra', titulo: '4', cuerpo: 'lenguajes en uso', icono: '' },
+				{
+					tipo: 'texto',
+					titulo: 'Conclusión',
+					cuerpo: 'Casi la mitad es TypeScript. El SQL va a mano, sin ORM.',
+					icono: 'check',
+				},
 			],
 		},
 	},
@@ -131,6 +187,16 @@ interface Ctx {
 	acento: string;
 	fondo: string;
 	titular: string;
+	iconos: Iconos;
+}
+
+/** Un icono de Tabler en el color de acento, con la esquina de arriba en (x, y). */
+function icono(nombre: string, x: number, y: number, size: number, ctx: Ctx) {
+	// Solo se pintan cuerpos del paquete de iconos, nunca texto de quien usa la herramienta.
+	const cuerpo = nombre && Object.hasOwn(ctx.iconos, nombre) ? ctx.iconos[nombre] : '';
+	if (!cuerpo) return '';
+	const escala = Math.round((size / 24) * 1000) / 1000;
+	return `<g transform="translate(${r1(x)} ${r1(y)}) scale(${escala})" color="${ctx.acento}">${cuerpo}</g>`;
 }
 
 /** Un bloque de líneas desde `y` (arriba). Devuelve el SVG y lo que ocupa. */
@@ -152,10 +218,12 @@ function cifras(grupo: Seccion[], x: number, y: number, ancho: number, ctx: Ctx)
 	const svg = grupo
 		.map((seccion, i) => {
 			const cx = x + i * (celda + hueco);
-			const cifra = bloque(cx, y, lineas(seccion.titulo, size, celda), size, size * 1.1, ctx.acento, ctx.titular);
-			const texto = bloque(cx, y + cifra.alto + 8, lineas(seccion.cuerpo, 15, celda), 15, 22, ctx.tinta, MONO, ' fill-opacity="0.75"');
-			alto = Math.max(alto, cifra.alto + 8 + texto.alto);
-			return cifra.svg + texto.svg;
+			const dibujo = icono(seccion.icono, cx, y, 36, ctx);
+			const cy = dibujo ? y + 48 : y;
+			const cifra = bloque(cx, cy, lineas(seccion.titulo, size, celda), size, size * 1.1, ctx.acento, ctx.titular);
+			const texto = bloque(cx, cy + cifra.alto + 8, lineas(seccion.cuerpo, 15, celda), 15, 22, ctx.tinta, MONO, ' fill-opacity="0.75"');
+			alto = Math.max(alto, cy - y + cifra.alto + 8 + texto.alto);
+			return dibujo + cifra.svg + texto.svg;
 		})
 		.join('');
 	return { svg, alto };
@@ -164,11 +232,15 @@ function cifras(grupo: Seccion[], x: number, y: number, ancho: number, ctx: Ctx)
 function seccion(s: Seccion, x: number, y: number, ancho: number, ctx: Ctx) {
 	const partes: string[] = [];
 	let cy = y;
+	// El icono va a la izquierda del titular; sin titular, encima del cuerpo.
+	const dibujo = icono(s.icono, x, cy, 28, ctx);
+	partes.push(dibujo);
+	const sangria = dibujo ? 40 : 0;
 	if (s.titulo.trim()) {
-		const cabeza = bloque(x, cy, lineas(s.titulo, 22, ancho), 22, 29, ctx.tinta, ctx.titular);
+		const cabeza = bloque(x + sangria, cy, lineas(s.titulo, 22, ancho - sangria), 22, 29, ctx.tinta, ctx.titular);
 		partes.push(cabeza.svg);
-		cy += cabeza.alto + 14;
-	}
+		cy += Math.max(cabeza.alto, dibujo ? 28 : 0) + 14;
+	} else if (dibujo) cy += 28 + 14;
 
 	if (s.tipo === 'texto') {
 		const cuerpo = bloque(x, cy, lineas(s.cuerpo, 16, ancho), 16, 25, ctx.tinta, MONO, ' fill-opacity="0.85"');
@@ -236,9 +308,10 @@ function agrupa(secciones: Seccion[]) {
 	return grupos;
 }
 
-export function construye(info: Infografia, opciones: { fontCss?: string } = {}) {
+export function construye(info: Infografia, opciones: { fontCss?: string; iconos?: Iconos } = {}) {
 	const e = info.estilo;
 	const ctx: Ctx = {
+		iconos: opciones.iconos ?? {},
 		fondo: safe(e.fondo, '#fdf6ef'),
 		tinta: safe(e.texto, '#3b2d24'),
 		acento: safe(e.acento, '#c2410c'),
