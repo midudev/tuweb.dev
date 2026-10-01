@@ -197,10 +197,37 @@ export function paleta(datos: Uint8ClampedArray, cuantos: number): ColorDominant
 		.sort((a, b) => b.peso - a.peso);
 }
 
+const rgbDe = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Pixel;
+
 /** Negro o blanco, el que se lea mejor encima. */
 export function tinta(hex: string) {
-	const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+	const [r, g, b] = rgbDe(hex);
 	return luma(r, g, b) > 140 ? '#000000' : '#ffffff';
+}
+
+/*
+ * Otras paletas de la misma imagen. Se sacan muchos candidatos por corte de la
+ * mediana y se quedan los que mejor encajan: los más vivos, los más claros o
+ * los más oscuros. Los que apenas ocupan nada no cuentan, que son ruido.
+ */
+export type Estilo = 'dominante' | 'viva' | 'clara' | 'oscura';
+
+export function paletaDe(datos: Uint8ClampedArray, cuantos: number, estilo: Estilo): ColorDominante[] {
+	if (estilo === 'dominante') return paleta(datos, cuantos);
+	const brillo = (c: ColorDominante) => luma(...rgbDe(c.hex)) / 255;
+	const nota = (c: ColorDominante) => {
+		const [r, g, b] = rgbDe(c.hex);
+		const max = Math.max(r, g, b);
+		const viveza = max ? ((max - Math.min(r, g, b)) / max) * (max / 255) : 0;
+		if (estilo === 'viva') return viveza;
+		return estilo === 'clara' ? brillo(c) : 1 - brillo(c);
+	};
+	const candidatos = paleta(datos, Math.max(32, cuantos * 4));
+	const utiles = candidatos.filter((c) => c.peso >= 0.003);
+	return (utiles.length >= cuantos ? utiles : candidatos)
+		.sort((a, b) => nota(b) - nota(a))
+		.slice(0, cuantos)
+		.sort((a, b) => brillo(a) - brillo(b));
 }
 
 /** El contorno de un canal para un SVG de 256 × alto, en escala lineal o raíz. */

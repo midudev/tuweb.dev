@@ -1,7 +1,8 @@
 ---
 /**
- * Análisis de imagen: se sube una imagen y salen su histograma, la paleta
- * dominante y medidas de brillo y contraste. Se lee en un canvas del navegador
+ * Análisis de imagen: se sube una imagen y salen su histograma, su paleta
+ * —dominante, viva, clara u oscura, para copiar o bajar en CSS o en PNG— y
+ * medidas de brillo y contraste. Se lee en un canvas del navegador
  * y no se envía a ningún sitio. La lógica está en src/lib/imagen.ts.
  */
 import Icon from './Icon.astro';
@@ -12,6 +13,13 @@ const CANALES = [
 	{ id: 'r', label: 'Rojo' },
 	{ id: 'g', label: 'Verde' },
 	{ id: 'b', label: 'Azul' },
+];
+
+const ESTILOS = [
+	{ id: 'dominante', label: 'Dominante', ayuda: 'Los colores que más imagen ocupan.' },
+	{ id: 'viva', label: 'Viva', ayuda: 'Los colores más saturados de la imagen.' },
+	{ id: 'clara', label: 'Clara', ayuda: 'Los tonos más claros de la imagen.' },
+	{ id: 'oscura', label: 'Oscura', ayuda: 'Los tonos más oscuros de la imagen.' },
 ];
 
 const BOTON =
@@ -97,15 +105,26 @@ const ELIGE =
 
 	<div class="flex flex-col gap-3">
 		<div class="flex flex-wrap items-center justify-between gap-3">
-			<h3 class={ROTULO}>Paleta dominante</h3>
-			<div role="group" aria-label="Número de colores" class="flex flex-wrap gap-2">
-				{
-					[4, 6, 8, 12].map((n) => (
-						<button type="button" data-img-cuantos={n} aria-pressed={n === 6 ? 'true' : 'false'} class={ELIGE}>
-							{n}
-						</button>
-					))
-				}
+			<h3 class={ROTULO}>Paleta de la imagen</h3>
+			<div class="flex flex-wrap gap-2">
+				<div role="group" aria-label="Estilo de paleta" class="flex flex-wrap gap-2">
+					{
+						ESTILOS.map((estilo, i) => (
+							<button type="button" data-img-estilo={estilo.id} aria-pressed={i === 0 ? 'true' : 'false'} class={ELIGE} title={estilo.ayuda}>
+								{estilo.label}
+							</button>
+						))
+					}
+				</div>
+				<div role="group" aria-label="Número de colores" class="flex flex-wrap gap-2">
+					{
+						[4, 6, 8, 12].map((n) => (
+							<button type="button" data-img-cuantos={n} aria-pressed={n === 6 ? 'true' : 'false'} class={ELIGE}>
+								{n}
+							</button>
+						))
+					}
+				</div>
 			</div>
 		</div>
 		<div data-img-tira class="flex h-6 border border-line empty:hidden" aria-hidden="true"></div>
@@ -115,6 +134,14 @@ const ELIGE =
 			<button type="button" data-img-copia-css disabled class={BOTON}>
 				<Icon name="copy" class="size-4 shrink-0" />
 				Copiar como CSS
+			</button>
+			<button type="button" data-img-baja-css disabled class={BOTON}>
+				<Icon name="file-type-css" class="size-4 shrink-0" />
+				Bajar .css
+			</button>
+			<button type="button" data-img-baja-png disabled class={BOTON}>
+				<Icon name="photo-down" class="size-4 shrink-0" />
+				Bajar en PNG
 			</button>
 			<span data-img-aviso class="text-sm text-muted" aria-live="polite"></span>
 		</div>
@@ -129,7 +156,18 @@ const ELIGE =
 </style>
 
 <script>
-	import { type ColorDominante, type Histograma, cssDe, histograma, medidas, paleta, tinta, trazo, veredicto } from '../lib/imagen';
+	import {
+		type ColorDominante,
+		type Estilo,
+		type Histograma,
+		cssDe,
+		histograma,
+		medidas,
+		paletaDe,
+		tinta,
+		trazo,
+		veredicto,
+	} from '../lib/imagen';
 
 	const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector);
 	const $$ = <T extends Element>(selector: string) => document.querySelectorAll<T>(selector);
@@ -149,6 +187,8 @@ const ELIGE =
 	const listaPaleta = $<HTMLElement>('[data-img-paleta]');
 	const copiaCss = $<HTMLButtonElement>('[data-img-copia-css]');
 	const aviso = $<HTMLElement>('[data-img-aviso]');
+	const bajaCss = $<HTMLButtonElement>('[data-img-baja-css]');
+	const bajaPng = $<HTMLButtonElement>('[data-img-baja-png]');
 
 	const NOTA = nota?.textContent?.trim() ?? '';
 	/** Lado largo del lienzo de análisis: más que esto no cambia los números y tarda. */
@@ -163,6 +203,7 @@ const ELIGE =
 	let canal = 'l';
 	let raiz = false;
 	let cuantos = 6;
+	let estilo: Estilo = 'dominante';
 
 	function crea<K extends keyof HTMLElementTagNameMap>(etiqueta: K, clase = '', texto = '') {
 		const elemento = document.createElement(etiqueta);
@@ -255,7 +296,7 @@ const ELIGE =
 	}
 
 	function pintaPaleta() {
-		colores = datos ? paleta(datos, cuantos) : [];
+		colores = datos ? paletaDe(datos, cuantos, estilo) : [];
 		tira?.replaceChildren(
 			...colores.map((c) => {
 				const trozo = crea('span');
@@ -280,7 +321,7 @@ const ELIGE =
 				return li;
 			}),
 		);
-		if (copiaCss) copiaCss.disabled = !colores.length;
+		for (const boton of [copiaCss, bajaCss, bajaPng]) if (boton) boton.disabled = !colores.length;
 	}
 
 	function pintaTodo() {
@@ -431,11 +472,80 @@ const ELIGE =
 		});
 	});
 
+	$$<HTMLButtonElement>('[data-img-estilo]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estilo = (boton.dataset.imgEstilo as Estilo) ?? 'dominante';
+			$$<HTMLButtonElement>('[data-img-estilo]').forEach((b) => b.setAttribute('aria-pressed', String(b === boton)));
+			pintaPaleta();
+		});
+	});
+
 	let avisoTimer: number | undefined;
-	copiaCss?.addEventListener('click', async () => {
-		if (!colores.length || !aviso) return;
-		aviso.textContent = (await copia(cssDe(colores))) ? 'CSS copiado.' : 'No se pudo copiar.';
+	function avisa(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
 		clearTimeout(avisoTimer);
 		avisoTimer = window.setTimeout(() => (aviso.textContent = ''), 2500);
+	}
+
+	copiaCss?.addEventListener('click', async () => {
+		if (!colores.length) return;
+		avisa((await copia(cssDe(colores))) ? 'CSS copiado.' : 'No se pudo copiar.');
+	});
+
+	function bajar(fichero: Blob, nombre: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = crea('a');
+		enlace.href = url;
+		enlace.download = nombre;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	bajaCss?.addEventListener('click', () => {
+		if (!colores.length) return;
+		bajar(new Blob([cssDe(colores)], { type: 'text/css' }), `paleta-${estilo}.css`);
+		avisa('CSS bajado.');
+	});
+
+	/*
+	 * La paleta en PNG: una franja por color, de ancho fijo, con su hex y su
+	 * tanto por ciento abajo, y una línea al pie con el estilo y la firma.
+	 */
+	bajaPng?.addEventListener('click', () => {
+		if (!colores.length) return;
+		const franja = 200;
+		const [ancho, alto, pie] = [franja * colores.length, 420, 56];
+		const c = crea('canvas');
+		c.width = ancho;
+		c.height = alto + pie;
+		const ctx = c.getContext('2d');
+		if (!ctx) return;
+		const letra = getComputedStyle(document.body).fontFamily;
+		colores.forEach((color, i) => {
+			const x = i * franja;
+			ctx.fillStyle = color.hex;
+			ctx.fillRect(x, 0, franja, alto);
+			ctx.fillStyle = tinta(color.hex);
+			ctx.font = `600 24px ${letra}`;
+			ctx.fillText(color.hex, x + 20, alto - 48);
+			ctx.font = `18px ${letra}`;
+			ctx.fillText(pct(color.peso), x + 20, alto - 20);
+		});
+		ctx.fillStyle = '#fdf6ef';
+		ctx.fillRect(0, alto, ancho, pie);
+		ctx.fillStyle = '#3b2d24';
+		ctx.font = `18px ${letra}`;
+		const nombre = $<HTMLElement>(`[data-img-estilo="${estilo}"]`)?.textContent?.trim() ?? '';
+		ctx.fillText(`Paleta ${nombre.toLowerCase()} · ${colores.length} colores`, 20, alto + 35);
+		ctx.textAlign = 'right';
+		ctx.fillStyle = '#c2410c';
+		ctx.fillText('tuweb.dev', ancho - 20, alto + 35);
+		c.toBlob((png) => {
+			if (!png) return avisa('No se pudo bajar.');
+			bajar(png, `paleta-${estilo}.png`);
+			avisa('PNG bajado.');
+		}, 'image/png');
 	});
 </script>
