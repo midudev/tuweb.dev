@@ -577,9 +577,24 @@ const OPCIONES = [
 		if (codigo) codigo.textContent = generarCodigo(diseno);
 	}
 
+	// Las variaciones a la vista. Comparten el contenido con la principal, así
+	// que lo que se escribe arriba se ve también en todas al momento.
+	let tanda: { d: Diseno; carta: HTMLElement }[] = [];
+	const CONTENIDO = ['etiqueta', 'titulo', 'texto', 'boton', 'imagen'] as const;
+
+	function conContenido(d: Diseno): Diseno {
+		const copia = { ...d };
+		CONTENIDO.forEach((k) => ((copia as Record<string, unknown>)[k] = diseno[k]));
+		return copia;
+	}
+
 	function actualizar() {
 		pintarControles();
 		pintar();
+		tanda.forEach((v) => {
+			v.d = conContenido(v.d);
+			pintarCarta(v.carta, v.d);
+		});
 		guardar();
 	}
 
@@ -607,11 +622,13 @@ const OPCIONES = [
 	function generarVariaciones() {
 		if (!variaciones) return;
 		variaciones.replaceChildren();
+		tanda = [];
 		for (let i = 0; i < 6; i++) {
-			const d = variar(diseno);
 			const carta = crearCarta();
 			if (!carta) return;
-			pintarCarta(carta, d);
+			const entrada = { d: variar(diseno), carta };
+			pintarCarta(carta, entrada.d);
+			tanda.push(entrada);
 
 			const caja = document.createElement('div');
 			caja.className = 'flex flex-col items-start gap-3 border border-line p-4';
@@ -623,7 +640,7 @@ const OPCIONES = [
 			usar.className = 'border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
 			usar.textContent = `Usar la ${i + 1}`;
 			usar.addEventListener('click', () => {
-				diseno = d;
+				diseno = conContenido(entrada.d);
 				actualizar();
 				lienzo?.scrollIntoView({ block: 'nearest' });
 			});
@@ -679,6 +696,7 @@ const OPCIONES = [
 
 	panel?.querySelector('[data-cd-reset]')?.addEventListener('click', () => {
 		diseno = structuredClone(INICIAL);
+		tanda = [];
 		variaciones?.replaceChildren();
 		actualizar();
 	});
