@@ -15,6 +15,7 @@ import {
 	MAX_PANELS,
 	MAX_TEXT,
 	MAX_TITLE,
+	TEMPLATES,
 	characterSvg,
 } from '../lib/comic';
 import Icon from './Icon.astro';
@@ -46,6 +47,10 @@ const LADOS = [
 				<Icon name="download" class="size-4 shrink-0" />
 				Descargar .png
 			</button>
+			<button type="button" data-comic-pdf class={BOTON}>
+				<Icon name="file-type-pdf" class="size-4 shrink-0" />
+				Descargar .pdf
+			</button>
 			<button type="button" data-comic-copia class={BOTON}>
 				<Icon name="clipboard" class="size-4 shrink-0" />
 				Copiar imagen
@@ -60,6 +65,20 @@ const LADOS = [
 	</div>
 
 	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-2">
+			<span id="comic-plantilla" class="text-sm text-muted">Plantilla</span>
+			<div role="group" aria-labelledby="comic-plantilla" class="flex flex-wrap gap-2">
+				{
+					TEMPLATES.map((plantilla) => (
+						<button type="button" data-comic-plantilla={plantilla.id} class={BOTON}>
+							<Icon name={plantilla.icon} class="size-4 shrink-0" />
+							{plantilla.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
 		<label class="flex flex-col gap-2">
 			<span class="text-sm text-muted">Título (opcional)</span>
 			<input
@@ -74,19 +93,25 @@ const LADOS = [
 
 		<div class="flex flex-col gap-2">
 			<span id="comic-vinetas" class="text-sm text-muted">Viñetas</span>
-			<div role="group" aria-labelledby="comic-vinetas" class="flex flex-wrap">
-				{
-					LAYOUTS.map((layout, index) => (
-						<button
-							type="button"
-							data-comic-vinetas={layout.n}
-							aria-pressed="false"
-							class={`${BOTON} ${index ? '-ml-px' : ''}`}
-						>
-							{layout.n}
-						</button>
-					))
-				}
+			<div class="flex flex-wrap items-center gap-3">
+				<div role="group" aria-labelledby="comic-vinetas" class="flex flex-wrap">
+					{
+						LAYOUTS.map((layout, index) => (
+							<button
+								type="button"
+								data-comic-vinetas={layout.n}
+								aria-pressed="false"
+								class={`${BOTON} ${index ? '-ml-px' : ''}`}
+							>
+								{layout.n}
+							</button>
+						))
+					}
+				</div>
+				<button type="button" data-comic-escena class={BOTON}>
+					<Icon name="plus" class="size-4 shrink-0" />
+					Añadir escena
+				</button>
 			</div>
 		</div>
 
@@ -193,7 +218,18 @@ const LADOS = [
 </section>
 
 <script>
-	import { FONT_SPECS, type Comic, type Slot, cleanComic, comicSize, defaultComic, drawComic } from '../lib/comic';
+	import {
+		FONT_SPECS,
+		LAYOUTS,
+		TEMPLATES,
+		type Comic,
+		type Slot,
+		cleanComic,
+		comicSize,
+		defaultComic,
+		drawComic,
+	} from '../lib/comic';
+	import { pdfDesdeJpeg } from '../lib/infografia';
 
 	const CLAVE = 'tuweb:comic';
 
@@ -214,7 +250,13 @@ const LADOS = [
 		return defaultComic();
 	}
 
+	const escena = document.querySelector<HTMLButtonElement>('[data-comic-escena]');
+
 	let comic = leer();
+
+	function siguiente() {
+		return LAYOUTS.find((layout) => layout.n > comic.vinetas) ?? null;
+	}
 	/** La viñeta que se está editando. */
 	let actual = 0;
 
@@ -249,6 +291,7 @@ const LADOS = [
 		const panel = comic.paneles[actual];
 
 		pulsado('[data-comic-vinetas]', (b) => Number(b.dataset.comicVinetas) === comic.vinetas);
+		if (escena) escena.disabled = !siguiente();
 		document.querySelectorAll<HTMLButtonElement>('[data-comic-panel]').forEach((button) => {
 			const i = Number(button.dataset.comicPanel);
 			button.hidden = i >= comic.vinetas;
@@ -304,6 +347,28 @@ const LADOS = [
 		});
 	});
 
+	// Una escena más es el siguiente reparto de viñetas, y se edita la primera nueva.
+	escena?.addEventListener('click', () => {
+		const layout = siguiente();
+		if (!layout) return;
+		actual = comic.vinetas;
+		comic.vinetas = layout.n;
+		guardar();
+		render(true);
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-comic-plantilla]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const plantilla = TEMPLATES.find((t) => t.id === button.dataset.comicPlantilla);
+			if (!plantilla) return;
+			comic = plantilla.make();
+			actual = 0;
+			guardar();
+			avisar(`Plantilla «${plantilla.label}» puesta.`);
+			render(true);
+		});
+	});
+
 	document.querySelectorAll<HTMLButtonElement>('[data-comic-panel]').forEach((button) => {
 		button.addEventListener('click', () => {
 			actual = Number(button.dataset.comicPanel);
@@ -347,35 +412,56 @@ const LADOS = [
 	});
 
 	/** La imagen se arma en el momento desde el lienzo; no pasa por ningún sitio. */
-	function conImagen(hacer: (blob: Blob) => void) {
-		lienzo?.toBlob((blob) => {
-			if (!blob) {
-				avisar('No se pudo generar la imagen.');
-				return;
-			}
-			hacer(blob);
-		}, 'image/png');
+	function conImagen(hacer: (blob: Blob) => void, tipo = 'image/png') {
+		lienzo?.toBlob(
+			(blob) => {
+				if (!blob) {
+					avisar('No se pudo generar la imagen.');
+					return;
+				}
+				hacer(blob);
+			},
+			tipo,
+			0.92,
+		);
 	}
 
-	function nombre() {
+	function nombre(extension: string) {
 		const base = comic.titulo
 			.trim()
 			.toLowerCase()
 			.replace(/[^\p{L}\d]+/gu, '-')
 			.replace(/^-+|-+$/g, '');
-		return `${base || 'comic'}.png`;
+		return `${base || 'comic'}.${extension}`;
+	}
+
+	function bajar(blob: Blob, archivo: string) {
+		const salida = URL.createObjectURL(blob);
+		const enlace = document.createElement('a');
+		enlace.href = salida;
+		enlace.download = archivo;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(salida), 1000);
 	}
 
 	document.querySelector<HTMLButtonElement>('[data-comic-descarga]')?.addEventListener('click', () => {
-		conImagen((blob) => {
-			const salida = URL.createObjectURL(blob);
-			const enlace = document.createElement('a');
-			enlace.href = salida;
-			enlace.download = nombre();
-			enlace.click();
-			// Soltar la URL en el mismo tick corta la descarga en algún navegador.
-			setTimeout(() => URL.revokeObjectURL(salida), 1000);
-		});
+		conImagen((blob) => bajar(blob, nombre('png')));
+	});
+
+	// El PDF lleva la tira dentro como JPEG, a media escala para que la página
+	// tenga un tamaño de papel y no de cartel.
+	document.querySelector<HTMLButtonElement>('[data-comic-pdf]')?.addEventListener('click', () => {
+		if (!lienzo) return;
+		const { width, height } = lienzo;
+		conImagen(async (blob) => {
+			try {
+				const jpeg = new Uint8Array(await blob.arrayBuffer());
+				bajar(pdfDesdeJpeg(jpeg, width / 2, height / 2, width, height), nombre('pdf'));
+			} catch {
+				avisar('No se pudo sacar el PDF. Prueba con el PNG.');
+			}
+		}, 'image/jpeg');
 	});
 
 	document.querySelector<HTMLButtonElement>('[data-comic-copia]')?.addEventListener('click', () => {

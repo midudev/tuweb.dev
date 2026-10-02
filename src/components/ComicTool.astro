@@ -1,0 +1,15 @@
+---
+/**
+ * El creador de cómics como pestaña de Herramientas. Es el mismo de /comics:
+ * plantillas, escenas, personajes y bocadillos, con la tira pintándose al
+ * momento y salida en PNG o PDF. Comparten lo guardado en este navegador.
+ */
+import ComicMaker from './ComicMaker.astro';
+---
+
+<div role="tabpanel" id="comic" aria-labelledby="tab-comic" data-panel="comic" hidden class="flex flex-col gap-4">
+	<p class="text-sm text-muted">
+		Elige una plantilla, añade escenas y pon a quien quieras a hablar. La tira se pinta mientras la editas.
+	</p>
+	<ComicMaker />
+</div>

@@ -396,6 +396,63 @@ export function defaultComic(): Comic {
 	return { titulo: 'El viernes', vinetas: 3, paneles };
 }
 
+/** Rellena hasta MAX_PANELS con viñetas vacías. */
+function completa(titulo: string, vinetas: number, paneles: Panel[]): Comic {
+	while (paneles.length < MAX_PANELS) paneles.push(blankPanel());
+	return { titulo, vinetas, paneles };
+}
+
+function escena(fondo: string, rotulo: string, a: Slot, b: Slot): Panel {
+	return { fondo, rotulo, slots: [a, b] };
+}
+
+/** Puntos de partida: cuántas viñetas, qué escenas y quién sale. El texto es tuyo. */
+export const TEMPLATES: readonly { id: string; label: string; icon: string; make: () => Comic }[] = [
+	{ id: 'ejemplo', label: 'El viernes', icon: 'book', make: defaultComic },
+	{
+		id: 'blanco',
+		label: 'En blanco',
+		icon: 'square',
+		make: () => completa('', 3, []),
+	},
+	{
+		id: 'chiste',
+		label: 'Chiste en 4',
+		icon: 'layout-grid',
+		make: () =>
+			completa('', 4, [
+				escena('campo', '', slot('dev', 'Hola'), slot('gata')),
+				escena('campo', '', slot('dev', '¿Me oyes?'), slot('gata')),
+				escena('campo', '', slot('dev', '...', 'piensa'), slot('gata')),
+				escena('campo', '', slot('dev'), slot('gata', 'Miau.', 'grita')),
+			]),
+	},
+	{
+		id: 'reunion',
+		label: 'Reunión',
+		icon: 'building',
+		make: () =>
+			completa('La reunión', 2, [
+				escena('oficina', '10:00', slot('jefa', '¿Cuánto falta?'), slot('dev', 'Dos días.')),
+				escena('oficina', '10:01', slot('jefa'), slot('dev', 'Dos semanas.', 'piensa')),
+			]),
+	},
+	{
+		id: 'noche',
+		label: 'Noche de miedo',
+		icon: 'ghost',
+		make: () =>
+			completa('Noche de miedo', 6, [
+				escena('ciudad', 'Al anochecer', slot('dev'), slot('gata')),
+				escena('noche', '', slot('dev', '¿Has oído eso?'), slot('gata')),
+				escena('noche', '', slot(''), slot('fantasma', 'Buuu', 'grita')),
+				escena('noche', '', slot('dev', '¡Aaah!', 'grita'), slot('')),
+				escena('playa', 'A la mañana siguiente', slot('fantasma', 'Solo quería un café.'), slot('robot')),
+				escena('playa', '', slot('fantasma'), slot('robot', 'Yo tampoco duermo.')),
+			]),
+	},
+];
+
 function text(value: unknown, max: number) {
 	return typeof value === 'string' ? value.slice(0, max) : '';
 }

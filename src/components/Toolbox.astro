@@ -11,6 +11,7 @@ import ChessTool from './ChessTool.astro';
 import ColorLab from './ColorLab.astro';
 import ChartTool from './ChartTool.astro';
 import ColorTool from './ColorTool.astro';
+import ComicTool from './ComicTool.astro';
 import ConfigTool from './ConfigTool.astro';
 import EffectsTool from './EffectsTool.astro';
 import FaviconTool from './FaviconTool.astro';
@@ -81,6 +82,7 @@ const tools = [
 	{ id: 'diagramas', label: 'Diagramas', icon: 'sitemap' },
 	{ id: 'infografias', label: 'Infografías', icon: 'chart-infographic' },
 	{ id: 'ascii', label: 'ASCII art', icon: 'typography' },
+	{ id: 'comic', label: 'Cómics', icon: 'layout-collage' },
 	{ id: 'calendario', label: 'Calendario', icon: 'calendar-month' },
 	{ id: 'interacciones', label: 'Interacciones', icon: 'hand-click' },
 	{ id: 'ajedrez', label: 'Ajedrez', icon: 'chess' },
@@ -280,6 +282,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<InfographicTool />
 
 	<AsciiTool />
+
+	<ComicTool />
 
 	<CalendarTool />
 
