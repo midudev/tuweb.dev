@@ -61,8 +61,22 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 
 		<div class="flex flex-col gap-3">
 			<h3 class="text-sm text-muted">Series</h3>
-			<p class="text-sm text-muted">Un punto por línea: <code class="text-mark">x; y</code>. Los clics en el gráfico van a la serie marcada.</p>
+			<p class="text-sm text-muted">Un punto por línea: <code class="text-mark">x; y</code>. Los clics en el gráfico y el par de abajo van a la serie marcada.</p>
 			<ol data-dis-lista class="flex flex-col gap-4"></ol>
+			<form data-dis-par class="flex flex-wrap items-end gap-2">
+				<label class="flex w-24 flex-col gap-1">
+					<span class="text-sm text-muted">x</span>
+					<input type="text" inputmode="decimal" data-dis-par-x required class={CAMPO} />
+				</label>
+				<label class="flex w-24 flex-col gap-1">
+					<span class="text-sm text-muted">y</span>
+					<input type="text" inputmode="decimal" data-dis-par-y required class={CAMPO} />
+				</label>
+				<button type="submit" class={OPCION}>
+					<Icon name="point" class="size-4 shrink-0" />
+					Añadir punto
+				</button>
+			</form>
 			<div class="flex flex-wrap items-center gap-2">
 				<button type="button" data-dis-nueva class={OPCION}>
 					<Icon name="plus" class="size-4 shrink-0" />
@@ -108,6 +122,7 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 		MAX_SERIES_XY,
 		ajusta,
 		buildScatter,
+		parseLine,
 		parsePoints,
 		type Ajuste,
 		type Dispersion,
@@ -336,14 +351,45 @@ const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none
 		const py = (event.clientY - caja.top) * escala;
 		const { x0, x1, y0, y1, xlo, xhi, ylo, yhi } = marco;
 		if (px < x0 || px > x1 || py < y0 || py > y1) return;
-		if (parsePoints(serie.points).puntos.length >= MAX_POINTS) return;
 		const x = redondea(xlo + ((px - x0) / (x1 - x0)) * (xhi - xlo), xlo, xhi);
 		const y = redondea(yhi - ((py - y0) / (y1 - y0)) * (yhi - ylo), ylo, yhi);
+		anade(x, y);
+	});
+
+	/** Un punto más al final de la serie marcada, en el gráfico y en su caja. */
+	function anade(x: number, y: number) {
+		const serie = diseno.series[activa];
+		if (!serie) return false;
+		if (parsePoints(serie.points).puntos.length >= MAX_POINTS) return false;
 		const linea = `${fmt(x)}; ${fmt(y)}`;
 		serie.points = serie.points.trim() ? `${serie.points.replace(/\s+$/, '')}\n${linea}` : linea;
 		const area = lista?.querySelector<HTMLTextAreaElement>(`[data-dis-puntos="${activa}"]`);
 		if (area) area.value = serie.points;
 		pinta();
+		return true;
+	}
+
+	// El par a mano, campo a campo: Intro en la y lo añade y vuelve a la x.
+	const par = document.querySelector<HTMLFormElement>('[data-dis-par]');
+	const parX = document.querySelector<HTMLInputElement>('[data-dis-par-x]');
+	const parY = document.querySelector<HTMLInputElement>('[data-dis-par-y]');
+
+	par?.addEventListener('submit', (event) => {
+		event.preventDefault();
+		if (!parX || !parY) return;
+		const punto = parseLine(`${parX.value}; ${parY.value}`);
+		if (!punto) {
+			if (aviso) aviso.textContent = 'Ese par no son dos números.';
+			return;
+		}
+		if (!anade(punto.x, punto.y)) {
+			if (aviso) aviso.textContent = `La serie ya tiene ${MAX_POINTS} puntos.`;
+			return;
+		}
+		if (aviso) aviso.textContent = '';
+		parX.value = '';
+		parY.value = '';
+		parX.focus();
 	});
 
 	function nombre(extension: string) {
