@@ -1,7 +1,7 @@
 ---
 /**
  * El mural ASCII: un lienzo de letras que se pinta con un carácter de pincel o
- * escribiendo encima. Va en directo entre las pestañas de tu navegador con
+ * escribiendo encima, o a golpe de comando desde la terminal de debajo. Va en directo entre las pestañas de tu navegador con
  * BroadcastChannel, y para pasárselo a otra persona el mural entero viaja en el
  * enlace, con las firmas de quien ha pintado. No hay servidor: no se envía nada.
  */
@@ -51,6 +51,34 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 				>
 				</div>
 			</div>
+		</div>
+
+		<div class="flex flex-col border border-line bg-bg">
+			<div class="flex items-center justify-between gap-2 border-b border-line px-3 py-2 text-xs text-muted">
+				<span class="flex items-center gap-2">
+					<Icon name="terminal-2" class="size-4 shrink-0 text-accent" />
+					Terminal
+				</span>
+				<span data-ascii-posicion class="font-mono">x — · y —</span>
+			</div>
+			<pre
+				data-ascii-salida
+				aria-live="polite"
+				class="m-0 h-40 overflow-y-auto px-3 py-2 font-mono text-xs leading-[1.4] whitespace-pre-wrap text-muted"></pre>
+			<form data-ascii-terminal class="flex items-center gap-2 border-t border-line px-3 py-2">
+				<label for="ascii-comando" class="font-mono text-accent">$</label>
+				<input
+					id="ascii-comando"
+					type="text"
+					data-ascii-comando
+					autocomplete="off"
+					autocapitalize="off"
+					spellcheck="false"
+					maxlength="200"
+					placeholder="caja 2 2 20 6 #   ·   ayuda"
+					class="min-w-0 flex-1 bg-transparent font-mono text-sm text-fg outline-none placeholder:text-muted"
+				/>
+			</form>
 		</div>
 
 		<div class="flex flex-wrap items-center gap-3">
@@ -349,6 +377,11 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 		pendientes.push([i, c]);
 	}
 
+	/** Lo que cae fuera del lienzo se ignora, para que nada dé la vuelta a la fila de al lado. */
+	function ponerEn(x: number, y: number, c: string) {
+		if (x >= 0 && y >= 0 && x < COLUMNAS && y < FILAS) poner(y * COLUMNAS + x, c);
+	}
+
 	/** Una línea de celda a celda, para que un trazo rápido no deje huecos. */
 	function linea(x0: number, y0: number, x1: number, y1: number, c: string) {
 		const dx = Math.abs(x1 - x0);
@@ -357,7 +390,7 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 		const sy = y0 < y1 ? 1 : -1;
 		let error = dx + dy;
 		for (;;) {
-			poner(y0 * COLUMNAS + x0, c);
+			ponerEn(x0, y0, c);
 			if (x0 === x1 && y0 === y1) return;
 			const e2 = 2 * error;
 			if (e2 >= dy) {
@@ -588,14 +621,17 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 		});
 	});
 
-	raiz?.querySelector('[data-ascii-vaciar]')?.addEventListener('click', () => {
-		if (celdas.every((c) => c === ' ')) return;
+	function vaciar() {
+		if (celdas.every((c) => c === ' ')) return false;
 		apuntar();
 		celdas = Array(TOTAL).fill(' ');
 		pintar();
 		guardar();
 		enviarTodo();
-	});
+		return true;
+	}
+
+	raiz?.querySelector('[data-ascii-vaciar]')?.addEventListener('click', vaciar);
 
 	deshacerBoton?.addEventListener('click', deshacer);
 	rehacerBoton?.addEventListener('click', rehacer);
@@ -607,6 +643,194 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 			guardar();
 		});
 	}
+
+	// --- Terminal ---
+
+	const salida = raiz?.querySelector<HTMLElement>('[data-ascii-salida]');
+	const comando = raiz?.querySelector<HTMLInputElement>('[data-ascii-comando]');
+	const posicion = raiz?.querySelector<HTMLElement>('[data-ascii-posicion]');
+	const MAX_LINEAS = 200;
+	const MAX_MEDIDA = 200;
+
+	const AYUDA = [
+		`x va de 0 a ${COLUMNAS - 1} y y de 0 a ${FILAS - 1}, desde arriba a la izquierda.`,
+		'El carácter del final es opcional: si no lo pones, va el pincel.',
+		'  punto x y [c]',
+		'  linea x1 y1 x2 y2 [c]',
+		'  caja x y ancho alto [c]       solo el borde',
+		'  rellenar x y ancho alto [c]',
+		'  circulo x y radio [c]',
+		'  texto x y lo que quieras',
+		'  borrar x y ancho alto',
+		'  pincel c · firma nombre · enlace',
+		'  deshacer · rehacer · vaciar · limpiar',
+		'Flechas arriba y abajo: los comandos de antes.',
+	];
+
+	function decir(texto: string, color = 'text-muted') {
+		if (!salida) return;
+		const fila = document.createElement('span');
+		fila.className = `block ${color}`;
+		fila.textContent = texto;
+		salida.append(fila);
+		while (salida.childElementCount > MAX_LINEAS) salida.firstElementChild?.remove();
+		salida.scrollTop = salida.scrollHeight;
+	}
+
+	/** Todo un comando cuenta como un paso de deshacer y sale al momento en las otras pestañas. */
+	function dibujar(trazar: () => void) {
+		apuntar();
+		const antes = celdas.join('');
+		trazar();
+		emitir();
+		const cambia = antes !== celdas.join('');
+		if (!cambia) historial.pop();
+		pintar();
+		guardar();
+		return cambia;
+	}
+
+	function caja(x: number, y: number, ancho: number, alto: number, c: string, llena: boolean) {
+		for (let j = 0; j < alto; j++) {
+			for (let i = 0; i < ancho; i++) {
+				const borde = i === 0 || j === 0 || i === ancho - 1 || j === alto - 1;
+				if (llena || borde) ponerEn(x + i, y + j, c);
+			}
+		}
+	}
+
+	/** Las celdas son el doble de altas que de anchas: el radio se estira en x para que salga redondo. */
+	function circulo(cx: number, cy: number, r: number, c: string) {
+		for (let j = -r; j <= r; j++) {
+			for (let i = -2 * r; i <= 2 * r; i++) {
+				if (Math.abs(Math.hypot(i / 2, j) - r) < 0.5) ponerEn(cx + i, cy + j, c);
+			}
+		}
+	}
+
+	/** Los números que pide cada comando y, detrás, el carácter si lo hay. */
+	function argumentos(partes: string[], cuantos: number, conCaracter: boolean) {
+		const numeros = partes.slice(0, cuantos);
+		const resto = partes.slice(cuantos);
+		if (numeros.length < cuantos || !numeros.every((n) => /^-?\d{1,4}$/.test(n))) return null;
+		if (resto.length > (conCaracter ? 1 : 0)) return null;
+		const c = resto[0] ?? pincel;
+		if (!imprimible(c)) return null;
+		return { n: numeros.map(Number), c };
+	}
+
+	const USOS = new Map<string, [number, string]>([
+		['punto', [2, 'punto x y [c]']],
+		['linea', [4, 'linea x1 y1 x2 y2 [c]']],
+		['caja', [4, 'caja x y ancho alto [c]']],
+		['rellenar', [4, 'rellenar x y ancho alto [c]']],
+		['circulo', [3, 'circulo x y radio [c]']],
+		['borrar', [4, 'borrar x y ancho alto']],
+	]);
+
+	function ejecutar(entrada: string) {
+		const partes = entrada.trim().split(/\s+/);
+		const orden = (partes.shift() ?? '')
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '');
+
+		if (orden === 'ayuda' || orden === 'help') return AYUDA.forEach((l) => decir(l));
+		if (orden === 'limpiar' || orden === 'clear') {
+			if (salida) salida.textContent = '';
+			return;
+		}
+		if (orden === 'deshacer' || orden === 'rehacer') {
+			const pila = orden === 'deshacer' ? historial : futuro;
+			if (!pila.length) return decir(`No hay nada que ${orden}.`);
+			if (orden === 'deshacer') deshacer();
+			else rehacer();
+			return decir('Hecho.');
+		}
+		if (orden === 'vaciar') return decir(vaciar() ? 'Mural en blanco. Deshacer lo devuelve.' : 'Ya estaba en blanco.');
+		if (orden === 'enlace') {
+			raiz?.querySelector<HTMLButtonElement>('[data-ascii-enlace]')?.click();
+			return decir('Enlace listo: mira el aviso de arriba.');
+		}
+		if (orden === 'pincel') {
+			const c = partes[0];
+			if (partes.length !== 1 || !imprimible(c) || c === ' ') return decir('Uso: pincel c', 'text-mark');
+			pincel = c;
+			herramienta = 'lapiz';
+			pintarControles();
+			guardar();
+			return decir(`Pincel: ${c}`);
+		}
+		if (orden === 'firma') {
+			firma = limpiarFirma(partes.join(' '));
+			if (firmaCampo) firmaCampo.value = firma;
+			guardar();
+			return decir(firma ? `Firmas como ${firma}.` : 'Sin firma.');
+		}
+		if (orden === 'texto') {
+			const partido = /^\S+\s+(-?\d{1,4})\s+(-?\d{1,4})\s(.+)$/.exec(entrada.trim());
+			if (!partido) return decir('Uso: texto x y lo que quieras', 'text-mark');
+			const [x, y] = [Number(partido[1]), Number(partido[2])];
+			const letras = [...partido[3]].map((c) => (imprimible(c) ? c : '?'));
+			const cambia = dibujar(() => letras.forEach((c, i) => ponerEn(x + i, y, c)));
+			return decir(cambia ? 'Escrito.' : 'No cambia nada: fuera del lienzo o ya estaba.');
+		}
+
+		const uso = USOS.get(orden);
+		if (!uso) return decir(`No conozco «${orden}». Escribe ayuda.`, 'text-mark');
+		const args = argumentos(partes, uso[0], orden !== 'borrar');
+		if (!args) return decir(`Uso: ${uso[1]}`, 'text-mark');
+		const { n, c } = args;
+		const medidas = orden === 'punto' || orden === 'linea' ? [] : n.slice(2);
+		if (medidas.some((m) => m < 1 || m > MAX_MEDIDA)) {
+			return decir(`Las medidas van de 1 a ${MAX_MEDIDA}.`, 'text-mark');
+		}
+
+		const cambia = dibujar(() => {
+			if (orden === 'punto') ponerEn(n[0], n[1], c);
+			else if (orden === 'linea') linea(n[0], n[1], n[2], n[3], c);
+			else if (orden === 'caja') caja(n[0], n[1], n[2], n[3], c, false);
+			else if (orden === 'rellenar') caja(n[0], n[1], n[2], n[3], c, true);
+			else if (orden === 'borrar') caja(n[0], n[1], n[2], n[3], ' ', true);
+			else if (orden === 'circulo') circulo(n[0], n[1], n[2], c);
+		});
+		decir(cambia ? 'Hecho.' : 'No cambia nada: fuera del lienzo o ya estaba.');
+	}
+
+	const anteriores: string[] = [];
+	let vuelta = 0;
+
+	raiz?.querySelector<HTMLFormElement>('[data-ascii-terminal]')?.addEventListener('submit', (evento) => {
+		evento.preventDefault();
+		if (!comando) return;
+		const entrada = comando.value.trim();
+		comando.value = '';
+		if (!entrada) return;
+		if (anteriores.at(-1) !== entrada) anteriores.push(entrada);
+		if (anteriores.length > 50) anteriores.shift();
+		vuelta = anteriores.length;
+		decir(`$ ${entrada}`, 'text-fg');
+		ejecutar(entrada);
+	});
+
+	comando?.addEventListener('keydown', (evento) => {
+		if (evento.key !== 'ArrowUp' && evento.key !== 'ArrowDown') return;
+		evento.preventDefault();
+		vuelta = Math.min(anteriores.length, Math.max(0, vuelta + (evento.key === 'ArrowUp' ? -1 : 1)));
+		comando.value = anteriores[vuelta] ?? '';
+	});
+
+	/** Dónde está el ratón, para saber qué escribir en la terminal. */
+	const SIN_POSICION = 'x — · y —';
+
+	lienzo?.addEventListener('pointermove', (evento) => {
+		const punto = celda(evento);
+		if (posicion) posicion.textContent = punto ? `x ${punto[0]} · y ${punto[1]}` : SIN_POSICION;
+	});
+
+	lienzo?.addEventListener('pointerleave', () => {
+		if (posicion) posicion.textContent = SIN_POSICION;
+	});
 
 	// --- Arranque ---
 
@@ -626,6 +850,7 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 		history.replaceState(null, '', '/ascii');
 	}
 
+	decir('Escribe ayuda para ver los comandos.');
 	enviar({ tipo: 'hola' });
 	pintarPestanas();
 	pintarControles();
