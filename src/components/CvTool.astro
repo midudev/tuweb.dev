@@ -1,0 +1,393 @@
+---
+/**
+ * Currículum: se elige plantilla, se rellenan los datos, se añaden secciones y
+ * se tocan colores y letra. Se ve al momento en una hoja A4 y se baja en PDF,
+ * PNG o SVG. Se pinta en el navegador y lo que escribes se queda en él.
+ */
+import { CUERPOS, MAX_SECCIONES, NUEVAS, PLANTILLAS } from '../lib/cv';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-40';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const COLOR = 'h-9 w-12 shrink-0 cursor-pointer border border-line bg-panel p-0.5';
+const MINI = 'inline-flex items-center p-1 text-muted hover:text-accent disabled:opacity-30 disabled:hover:text-muted';
+
+const COLORES = [
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'texto', label: 'Texto' },
+	{ id: 'acento', label: 'Acento' },
+];
+---
+
+<div role="tabpanel" id="cv" aria-labelledby="tab-cv" data-panel="cv" hidden class="grid gap-7 md:grid-cols-2">
+	<div class="flex min-w-0 flex-col gap-6">
+		<div class="flex flex-col gap-3">
+			<h3 id="cv-plantilla" class="text-sm text-muted">Plantilla</h3>
+			<div role="group" aria-labelledby="cv-plantilla" class="flex flex-wrap gap-2">
+				{
+					PLANTILLAS.map((plantilla) => (
+						<button type="button" data-cv-plantilla={plantilla.id} aria-pressed="false" class={OPCION}>
+							<Icon name="template" class="size-4 shrink-0" />
+							{plantilla.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Datos</h3>
+			<input type="text" data-cv-campo="nombre" maxlength="80" placeholder="Nombre" aria-label="Nombre" class={CAMPO} />
+			<input type="text" data-cv-campo="puesto" maxlength="80" placeholder="Puesto" aria-label="Puesto" class={CAMPO} />
+			<textarea
+				data-cv-campo="contacto"
+				rows="3"
+				maxlength="300"
+				placeholder="Correo, teléfono, web, ciudad: uno por línea"
+				aria-label="Contacto"
+				class={`${CAMPO} resize-y`}></textarea>
+			<textarea
+				data-cv-campo="resumen"
+				rows="3"
+				maxlength="800"
+				placeholder="Quién eres en dos líneas"
+				aria-label="Resumen"
+				class={`${CAMPO} resize-y`}></textarea>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Estilo</h3>
+			<div class="flex flex-wrap gap-4">
+				{
+					COLORES.map((color) => (
+						<label class="flex items-center gap-2 text-sm text-muted">
+							<input type="color" data-cv-color={color.id} class={COLOR} />
+							{color.label}
+						</label>
+					))
+				}
+			</div>
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-cv-fuente="pixel" aria-pressed="false" class={OPCION}>Titulares pixel</button>
+				<button type="button" data-cv-fuente="mono" aria-pressed="false" class={OPCION}>Titulares mono</button>
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Letra
+					<select data-cv-cuerpo class="border border-line bg-panel px-2 py-2 text-sm outline-none focus-visible:border-accent">
+						{CUERPOS.map((cuerpo) => <option value={cuerpo.id}>{cuerpo.label}</option>)}
+					</select>
+				</label>
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Secciones</h3>
+			<ol data-cv-lista class="flex flex-col gap-3"></ol>
+			<div class="flex flex-wrap gap-2">
+				{
+					NUEVAS.map((nueva, i) => (
+						<button type="button" data-cv-nueva={i} class={OPCION}>
+							<Icon name="plus" class="size-4 shrink-0" />
+							{nueva.titulo}
+						</button>
+					))
+				}
+			</div>
+			<p class="text-sm text-muted">
+				Hasta {MAX_SECCIONES} secciones. Una entrada por línea: «Puesto | 2021 - hoy» pone la fecha a la derecha y
+				«- algo» hace una viñeta.
+			</p>
+		</div>
+	</div>
+
+	<div class="flex min-w-0 flex-col gap-4 md:sticky md:top-6 md:self-start">
+		<span class="text-sm text-muted">Así queda</span>
+		<div data-cv-previo class="max-h-[75vh] overflow-auto border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-cv-baja="pdf" class={OPCION}>
+				<Icon name="file-type-pdf" class="size-4 shrink-0" />
+				Descargar .pdf
+			</button>
+			<button type="button" data-cv-baja="png" class={OPCION}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+			<button type="button" data-cv-baja="svg" class={OPCION}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-cv-reinicia class={OPCION}>
+				<Icon name="refresh" class="size-4 shrink-0" />
+				Empezar de nuevo
+			</button>
+		</div>
+		<p data-cv-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+		<p class="text-sm text-muted">Lo que escribes se queda en tu navegador. No se envía nada.</p>
+	</div>
+
+	<template data-cv-molde>
+		<li class="flex flex-col gap-2 border border-line p-3">
+			<div class="flex items-center gap-2">
+				<input type="text" data-campo="titulo" maxlength="60" placeholder="Título" aria-label="Título de la sección" class={CAMPO} />
+				<button type="button" data-accion="sube" aria-label="Subir" title="Subir" class={MINI}>
+					<Icon name="arrow-up" class="size-4 shrink-0" />
+				</button>
+				<button type="button" data-accion="baja" aria-label="Bajar" title="Bajar" class={MINI}>
+					<Icon name="arrow-down" class="size-4 shrink-0" />
+				</button>
+				<button type="button" data-accion="quita" aria-label="Quitar" title="Quitar" class={MINI}>
+					<Icon name="trash" class="size-4 shrink-0" />
+				</button>
+			</div>
+			<textarea data-campo="cuerpo" rows="4" maxlength="2000" aria-label="Contenido de la sección" class={`${CAMPO} resize-y`}></textarea>
+		</li>
+	</template>
+</div>
+
+<script>
+	import { CLAVE, EJEMPLO, MAX_SECCIONES, NUEVAS, construye, sanea, type Cuerpo, type Cv, type Fuente, type Plantilla } from '../lib/cv';
+	import { pdfDesdeJpeg } from '../lib/infografia';
+
+	const previo = document.querySelector<HTMLElement>('[data-cv-previo]');
+	const lista = document.querySelector<HTMLOListElement>('[data-cv-lista]');
+	const molde = document.querySelector<HTMLTemplateElement>('[data-cv-molde]');
+	const aviso = document.querySelector<HTMLElement>('[data-cv-aviso]');
+	const cuerpo = document.querySelector<HTMLSelectElement>('[data-cv-cuerpo]');
+
+	type Campo = 'nombre' | 'puesto' | 'contacto' | 'resumen';
+	type Color = 'fondo' | 'texto' | 'acento';
+
+	let cv: Cv = structuredClone(EJEMPLO);
+	try {
+		const guardado = localStorage.getItem(CLAVE);
+		if (guardado) cv = sanea(JSON.parse(guardado));
+	} catch {
+		cv = structuredClone(EJEMPLO);
+	}
+
+	let guardaTimer: number | undefined;
+
+	function guarda() {
+		clearTimeout(guardaTimer);
+		guardaTimer = window.setTimeout(() => {
+			try {
+				localStorage.setItem(CLAVE, JSON.stringify(cv));
+			} catch {
+				// Sin almacenamiento (modo privado o lleno): se sigue editando igual.
+			}
+		}, 300);
+	}
+
+	function pinta() {
+		if (previo) previo.innerHTML = construye(cv).svg;
+		guarda();
+	}
+
+	/** La lista se rehace solo cuando cambia su forma; al escribir, se toca el estado y ya. */
+	function pintaLista() {
+		if (!lista || !molde) return;
+		const items = cv.secciones.map((seccion, i) => {
+			const item = (molde.content.cloneNode(true) as DocumentFragment).firstElementChild as HTMLElement;
+			item.dataset.indice = String(i);
+			item.querySelector<HTMLInputElement>('[data-campo="titulo"]')!.value = seccion.titulo;
+			item.querySelector<HTMLTextAreaElement>('[data-campo="cuerpo"]')!.value = seccion.cuerpo;
+			item.querySelector<HTMLButtonElement>('[data-accion="sube"]')!.disabled = i === 0;
+			item.querySelector<HTMLButtonElement>('[data-accion="baja"]')!.disabled = i === cv.secciones.length - 1;
+			return item;
+		});
+		lista.replaceChildren(...items);
+		document.querySelectorAll<HTMLButtonElement>('[data-cv-nueva]').forEach((button) => {
+			button.disabled = cv.secciones.length >= MAX_SECCIONES;
+		});
+	}
+
+	function pintaControles() {
+		document.querySelectorAll<HTMLButtonElement>('[data-cv-plantilla]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.cvPlantilla === cv.plantilla));
+		});
+		document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-cv-campo]').forEach((input) => {
+			input.value = cv[input.dataset.cvCampo as Campo];
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-cv-color]').forEach((input) => {
+			input.value = cv[input.dataset.cvColor as Color];
+		});
+		document.querySelectorAll<HTMLButtonElement>('[data-cv-fuente]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.cvFuente === cv.fuente));
+		});
+		if (cuerpo) cuerpo.value = cv.cuerpo;
+	}
+
+	function todo() {
+		pintaControles();
+		pintaLista();
+		pinta();
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-cv-plantilla]').forEach((button) => {
+		button.addEventListener('click', () => {
+			cv.plantilla = button.dataset.cvPlantilla as Plantilla;
+			pintaControles();
+			pinta();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-cv-campo]').forEach((input) => {
+		input.addEventListener('input', () => {
+			cv[input.dataset.cvCampo as Campo] = input.value;
+			pinta();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-cv-color]').forEach((input) => {
+		input.addEventListener('input', () => {
+			cv[input.dataset.cvColor as Color] = input.value;
+			pinta();
+		});
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-cv-fuente]').forEach((button) => {
+		button.addEventListener('click', () => {
+			cv.fuente = button.dataset.cvFuente as Fuente;
+			pintaControles();
+			pinta();
+		});
+	});
+
+	cuerpo?.addEventListener('change', () => {
+		cv.cuerpo = cuerpo.value as Cuerpo;
+		pinta();
+	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-cv-nueva]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const nueva = NUEVAS[Number(button.dataset.cvNueva)];
+			if (!nueva || cv.secciones.length >= MAX_SECCIONES) return;
+			cv.secciones.push({ ...nueva });
+			pintaLista();
+			pinta();
+			lista?.querySelector<HTMLInputElement>('li:last-child [data-campo="titulo"]')?.focus();
+		});
+	});
+
+	lista?.addEventListener('input', (event) => {
+		const campo = event.target as HTMLInputElement;
+		const seccion = cv.secciones[Number(campo.closest<HTMLElement>('li')?.dataset.indice)];
+		if (!seccion) return;
+		if (campo.dataset.campo === 'titulo') seccion.titulo = campo.value;
+		else if (campo.dataset.campo === 'cuerpo') seccion.cuerpo = campo.value;
+		else return;
+		pinta();
+	});
+
+	lista?.addEventListener('click', (event) => {
+		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-accion]');
+		const i = Number(button?.closest<HTMLElement>('li')?.dataset.indice);
+		if (!button || button.disabled || !cv.secciones[i]) return;
+		const accion = button.dataset.accion;
+		if (accion === 'quita') cv.secciones.splice(i, 1);
+		else {
+			const j = accion === 'sube' ? i - 1 : i + 1;
+			if (!cv.secciones[j]) return;
+			[cv.secciones[i], cv.secciones[j]] = [cv.secciones[j], cv.secciones[i]];
+		}
+		pintaLista();
+		pinta();
+	});
+
+	document.querySelector('[data-cv-reinicia]')?.addEventListener('click', () => {
+		if (!confirm('¿Borrar lo que llevas y volver al ejemplo?')) return;
+		cv = structuredClone(EJEMPLO);
+		todo();
+	});
+
+	function nombre(extension: string) {
+		const base = cv.nombre
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `cv-${base || 'sin-nombre'}.${extension}`;
+	}
+
+	function bajar(fichero: Blob, name: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = name;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/*
+	 * Un SVG pintado como imagen no ve las fuentes de la página, así que para el
+	 * PNG y el PDF van dentro. Son las mismas que sirve la web.
+	 */
+	const FUENTES = [
+		['Geist Mono Variable', '/fonts/geist-mono-latin-wght-normal.woff2', '100 900'],
+		['Geist Pixel', '/fonts/geist-pixel-latin-400-normal.woff2', '400'],
+	];
+	let fuentesCss: Promise<string> | null = null;
+
+	function fuentes() {
+		fuentesCss ??= Promise.all(
+			FUENTES.map(async ([family, url, weight]) => {
+				const blob = await (await fetch(url)).blob();
+				const data = await new Promise<string>((resolve, reject) => {
+					const lector = new FileReader();
+					lector.onload = () => resolve(String(lector.result));
+					lector.onerror = () => reject(lector.error);
+					lector.readAsDataURL(blob);
+				});
+				return `@font-face{font-family:'${family}';font-weight:${weight};src:url(${data}) format('woff2');}`;
+			}),
+		)
+			.then((reglas) => reglas.join(''))
+			.catch(() => '');
+		return fuentesCss;
+	}
+
+	async function lienzo(tipo: 'image/png' | 'image/jpeg') {
+		const { svg, width, height } = construye(cv, { fontCss: await fuentes() });
+		const imagen = new Image();
+		imagen.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+		await imagen.decode();
+		// Al doble, para que la letra salga nítida al imprimir.
+		const canvas = document.createElement('canvas');
+		canvas.width = width * 2;
+		canvas.height = height * 2;
+		canvas.getContext('2d')?.drawImage(imagen, 0, 0, canvas.width, canvas.height);
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, tipo, 0.92));
+		if (!blob) throw new Error('sin imagen');
+		return { blob, width, height, pixelesAncho: canvas.width, pixelesAlto: canvas.height };
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-cv-baja]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			const formato = button.dataset.cvBaja;
+			if (formato === 'svg') {
+				bajar(new Blob([construye(cv).svg], { type: 'image/svg+xml' }), nombre('svg'));
+				return;
+			}
+			button.disabled = true;
+			try {
+				if (formato === 'png') {
+					bajar((await lienzo('image/png')).blob, nombre('png'));
+				} else {
+					const hecho = await lienzo('image/jpeg');
+					const jpeg = new Uint8Array(await hecho.blob.arrayBuffer());
+					bajar(pdfDesdeJpeg(jpeg, hecho.width, hecho.height, hecho.pixelesAncho, hecho.pixelesAlto), nombre('pdf'));
+				}
+				if (aviso) aviso.textContent = '';
+			} catch {
+				if (aviso) aviso.textContent = `No se pudo sacar el ${formato?.toUpperCase()}. Prueba con el SVG.`;
+			} finally {
+				button.disabled = false;
+			}
+		});
+	});
+
+	todo();
+</script>
