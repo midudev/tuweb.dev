@@ -1,0 +1,442 @@
+---
+/**
+ * Diseñador de líneas: varias series con sus valores, su color y su trazo, y
+ * la tendencia de cada una. El SVG se rehace a cada tecla y se baja en SVG o
+ * PNG. Todo se pinta en el navegador; no se guarda ni se envía nada.
+ */
+import { MAX_LINEAS, MAX_PUNTOS } from '../lib/lines';
+import Icon from './Icon.astro';
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-40';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+
+const CHECKS = [
+	{ id: 'smooth', label: 'Curva' },
+	{ id: 'showPoints', label: 'Puntos' },
+	{ id: 'fillArea', label: 'Área' },
+	{ id: 'showTrend', label: 'Tendencia' },
+	{ id: 'showGrid', label: 'Rejilla' },
+	{ id: 'showLegend', label: 'Leyenda' },
+];
+---
+
+<div role="tabpanel" id="lineas" aria-labelledby="tab-lineas" data-panel="lineas" hidden class="grid gap-7 md:grid-cols-2">
+	<div class="flex min-w-0 flex-col gap-6">
+		<div class="grid gap-3 sm:grid-cols-[1fr_8rem]">
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Título</span>
+				<input type="text" data-lin-texto="title" maxlength="80" class={CAMPO} />
+			</label>
+			<label class="flex flex-col gap-1">
+				<span class="text-sm text-muted">Unidad</span>
+				<input type="text" data-lin-texto="unit" maxlength="8" placeholder="€, %, kg…" class={CAMPO} />
+			</label>
+		</div>
+
+		<label class="flex flex-col gap-1">
+			<span class="text-sm text-muted">Eje horizontal, separado por comas</span>
+			<input type="text" data-lin-texto="labels" maxlength="600" placeholder="Ene, Feb, Mar…" class={CAMPO} />
+		</label>
+
+		<div class="flex flex-col gap-3">
+			<h3 class="text-sm text-muted">Series</h3>
+			<ol data-lin-lista class="flex flex-col gap-4"></ol>
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-lin-nueva class={OPCION}>
+					<Icon name="plus" class="size-4 shrink-0" />
+					Serie
+				</button>
+				<button type="button" data-lin-paleta class={OPCION}>
+					<Icon name="palette" class="size-4 shrink-0" />
+					Paleta
+				</button>
+			</div>
+		</div>
+
+		<label class="flex flex-col gap-2">
+			<span class="flex justify-between text-sm text-muted">
+				Grosor de la línea
+				<output data-lin-grosor-valor class="text-mark"></output>
+			</span>
+			<input type="range" data-lin-grosor min="1" max="8" step="1" class="w-full accent-accent" />
+		</label>
+
+		<div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
+			{
+				CHECKS.map((c) => (
+					<label class="inline-flex items-center gap-2">
+						<input type="checkbox" data-lin-check={c.id} class="size-4 accent-accent" />
+						{c.label}
+					</label>
+				))
+			}
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" data-lin-oscuro class="size-4 accent-accent" />
+				Fondo oscuro
+			</label>
+		</div>
+	</div>
+
+	<div class="flex min-w-0 flex-col gap-4 md:sticky md:top-6 md:self-start">
+		<span class="text-sm text-muted">Así queda</span>
+		<div data-lin-previo class="border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+		<p class="flex min-h-6 items-center gap-2 text-sm" aria-live="polite">
+			<Icon name="pointer" class="size-4 shrink-0 text-muted" />
+			<output data-lin-dato class="text-mark">Pasa por un punto para ver su valor; púlsalo para editar su serie.</output>
+		</p>
+		<ul data-lin-resumen class="flex flex-col gap-1 text-sm empty:hidden"></ul>
+		<div class="flex flex-wrap items-center gap-2">
+			<button type="button" data-lin-baja="svg" class={OPCION}>
+				<Icon name="file-type-svg" class="size-4 shrink-0" />
+				Descargar .svg
+			</button>
+			<button type="button" data-lin-baja="png" class={OPCION}>
+				<Icon name="file-type-png" class="size-4 shrink-0" />
+				Descargar .png
+			</button>
+		</div>
+		<p data-lin-aviso class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+		<p class="text-sm text-muted">
+			Hasta {MAX_LINEAS} series de {MAX_PUNTOS} puntos. Los valores van separados por espacios o punto y coma, con
+			decimales con coma; lo que no sea un número deja un hueco en la línea.
+		</p>
+	</div>
+
+	<template data-lin-icono><Icon name="x" class="size-4 shrink-0" /></template>
+</div>
+
+<style>
+	/* El SVG entra con innerHTML, así que sus reglas van sin el ámbito del componente. */
+	[data-lin-previo] :global(circle[data-punto]) {
+		cursor: pointer;
+		outline: none;
+	}
+	[data-lin-previo] :global(circle[data-punto]:is(:hover, :focus-visible)) {
+		stroke: var(--color-fg);
+		stroke-width: 2;
+	}
+</style>
+
+<script>
+	import { PALETTE, fmt, type Theme } from '../lib/chart';
+	import {
+		DASHES,
+		DEFAULT_LINEAS,
+		MAX_LINEAS,
+		buildLines,
+		tendencia,
+		valoresDe,
+		type Dash,
+		type DisenoLineas,
+	} from '../lib/lines';
+
+	const previo = document.querySelector<HTMLElement>('[data-lin-previo]');
+	const lista = document.querySelector<HTMLOListElement>('[data-lin-lista]');
+	const resumen = document.querySelector<HTMLUListElement>('[data-lin-resumen]');
+	const aviso = document.querySelector<HTMLElement>('[data-lin-aviso]');
+	const grosor = document.querySelector<HTMLInputElement>('[data-lin-grosor]');
+	const grosorValor = document.querySelector<HTMLOutputElement>('[data-lin-grosor-valor]');
+	const oscuro = document.querySelector<HTMLInputElement>('[data-lin-oscuro]');
+	const nueva = document.querySelector<HTMLButtonElement>('[data-lin-nueva]');
+	const icono = document.querySelector<HTMLTemplateElement>('[data-lin-icono]');
+	const dato = document.querySelector<HTMLOutputElement>('[data-lin-dato]');
+	const AYUDA = dato?.value ?? '';
+
+	const CAMPO = 'min-w-0 border border-line bg-panel px-2 py-1 text-sm outline-none focus-visible:border-accent';
+
+	type Texto = 'title' | 'unit' | 'labels';
+	type Check = 'smooth' | 'showPoints' | 'fillArea' | 'showTrend' | 'showGrid' | 'showLegend';
+
+	let diseno: DisenoLineas = structuredClone(DEFAULT_LINEAS);
+	// Arranca con el fondo de la web: quien la lee de noche, se lo encuentra oscuro.
+	if (document.documentElement.dataset.modo === 'oscuro') diseno = recolorea(diseno, 'oscuro');
+
+	/** Los colores de la paleta pasan a su paso del otro fondo; los elegidos a mano se quedan. */
+	function recolorea(d: DisenoLineas, theme: Theme): DisenoLineas {
+		const paso = (color: string) => {
+			const i = PALETTE[d.theme].indexOf(color);
+			return i >= 0 ? PALETTE[theme][i] : color;
+		};
+		return { ...d, theme, series: d.series.map((s) => ({ ...s, color: paso(s.color) })) };
+	}
+
+	function campo(type: string, value: string, data: Record<string, string>, label: string) {
+		const input = document.createElement('input');
+		input.type = type;
+		input.value = value;
+		input.setAttribute('aria-label', label);
+		Object.assign(input.dataset, data);
+		return input;
+	}
+
+	/** La lista se rehace solo cuando cambia su forma; al escribir, se toca el estado y ya. */
+	function pintaLista() {
+		if (!lista) return;
+		lista.replaceChildren(
+			...diseno.series.map((serie, j) => {
+				const li = document.createElement('li');
+				li.className = 'flex flex-col gap-2 border-l-2 border-line pl-3';
+				const fila = document.createElement('div');
+				fila.className = 'flex items-center gap-2';
+				const color = campo('color', serie.color, { linColor: String(j) }, `Color de la serie ${j + 1}`);
+				color.className = 'h-8 w-9 shrink-0 cursor-pointer border border-line bg-panel p-0.5';
+				const nombre = campo('text', serie.name, { linNombre: String(j) }, `Nombre de la serie ${j + 1}`);
+				nombre.maxLength = 40;
+				nombre.className = `${CAMPO} flex-1`;
+				const trazo = document.createElement('select');
+				trazo.setAttribute('aria-label', `Trazo de la serie ${j + 1}`);
+				trazo.dataset.linTrazo = String(j);
+				trazo.className = `${CAMPO} w-32`;
+				trazo.append(...DASHES.map((d) => new Option(d.label, d.id, false, d.id === serie.dash)));
+				const quitar = document.createElement('button');
+				quitar.type = 'button';
+				quitar.className = 'inline-flex shrink-0 items-center p-1 text-muted hover:text-accent disabled:opacity-30';
+				quitar.disabled = diseno.series.length <= 1;
+				quitar.title = 'Quitar serie';
+				quitar.setAttribute('aria-label', 'Quitar serie');
+				quitar.dataset.linQuita = String(j);
+				if (icono) quitar.append(icono.content.cloneNode(true));
+				fila.append(color, nombre, trazo, quitar);
+				const valores = campo('text', serie.values, { linValores: String(j) }, `Valores de la serie ${j + 1}`);
+				valores.maxLength = 1200;
+				valores.inputMode = 'decimal';
+				valores.placeholder = '12 15 14,5 20…';
+				valores.className = `${CAMPO} w-full`;
+				li.append(fila, valores);
+				return li;
+			}),
+		);
+		if (nueva) nueva.disabled = diseno.series.length >= MAX_LINEAS;
+	}
+
+	function pintaControles() {
+		document.querySelectorAll<HTMLInputElement>('[data-lin-texto]').forEach((input) => {
+			input.value = diseno[input.dataset.linTexto as Texto];
+		});
+		document.querySelectorAll<HTMLInputElement>('[data-lin-check]').forEach((input) => {
+			input.checked = diseno[input.dataset.linCheck as Check];
+		});
+		if (grosor) grosor.value = String(diseno.stroke);
+		if (grosorValor) grosorValor.value = `${diseno.stroke} px`;
+		if (oscuro) oscuro.checked = diseno.theme === 'oscuro';
+	}
+
+	/** Por serie: cuánto sube o baja por paso y cuánto va del primer valor al último. */
+	function pintaResumen() {
+		if (!resumen) return;
+		resumen.replaceChildren(
+			...diseno.series.flatMap((serie, j) => {
+				const valores = valoresDe(serie.values);
+				const tr = tendencia(valores);
+				if (!tr) return [];
+				const numeros = valores.filter((v): v is number => v !== null);
+				const primero = numeros[0];
+				const ultimo = numeros[numeros.length - 1];
+				const rumbo = Math.abs(tr.pendiente) < 1e-9 ? 'plana' : tr.pendiente > 0 ? 'sube' : 'baja';
+				const cambio = primero ? ` · ${ultimo >= primero ? '+' : ''}${fmt(((ultimo - primero) / Math.abs(primero)) * 100)} % de punta a punta` : '';
+				const li = document.createElement('li');
+				li.className = 'flex items-center gap-2';
+				const marca = document.createElement('span');
+				marca.className = 'inline-block h-0.5 w-4 shrink-0';
+				marca.style.background = serie.color;
+				const texto = document.createElement('span');
+				texto.className = 'text-muted';
+				texto.textContent = `${serie.name.trim() || `Serie ${j + 1}`}: ${rumbo}${rumbo === 'plana' ? '' : ` ${fmt(Math.abs(tr.pendiente))}${diseno.unit} por paso`}${cambio}`;
+				li.append(marca, texto);
+				return [li];
+			}),
+		);
+	}
+
+	function pinta() {
+		if (!previo) return;
+		previo.innerHTML = buildLines(diseno).svg;
+		// El tabindex solo va en la vista previa: el fichero que se baja sale limpio.
+		previo.querySelectorAll('circle[data-punto]').forEach((punto) => {
+			punto.setAttribute('tabindex', '0');
+			punto.setAttribute('aria-label', punto.querySelector('title')?.textContent ?? '');
+		});
+		if (dato) dato.value = AYUDA;
+		pintaResumen();
+	}
+
+	const puntoDe = (event: Event) => (event.target as Element).closest?.('circle[data-punto]') ?? null;
+
+	function senala(event: Event) {
+		if (dato) dato.value = puntoDe(event)?.querySelector('title')?.textContent ?? AYUDA;
+	}
+
+	previo?.addEventListener('pointerover', senala);
+	previo?.addEventListener('focusin', senala);
+	previo?.addEventListener('pointerleave', () => {
+		if (dato && !previo?.contains(document.activeElement)) dato.value = AYUDA;
+	});
+	previo?.addEventListener('focusout', () => {
+		if (dato) dato.value = AYUDA;
+	});
+
+	function edita(event: Event) {
+		const punto = puntoDe(event);
+		if (!punto) return;
+		lista?.querySelector<HTMLInputElement>(`[data-lin-valores="${punto.getAttribute('data-punto')}"]`)?.focus();
+	}
+
+	previo?.addEventListener('click', edita);
+	previo?.addEventListener('keydown', (event) => {
+		if (event.key !== 'Enter' && event.key !== ' ') return;
+		if (!puntoDe(event)) return;
+		event.preventDefault();
+		edita(event);
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-lin-texto]').forEach((input) => {
+		input.addEventListener('input', () => {
+			diseno[input.dataset.linTexto as Texto] = input.value;
+			pinta();
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-lin-check]').forEach((input) => {
+		input.addEventListener('change', () => {
+			diseno[input.dataset.linCheck as Check] = input.checked;
+			pinta();
+		});
+	});
+
+	grosor?.addEventListener('input', () => {
+		diseno.stroke = Number(grosor.value);
+		if (grosorValor) grosorValor.value = `${diseno.stroke} px`;
+		pinta();
+	});
+
+	oscuro?.addEventListener('change', () => {
+		diseno = recolorea(diseno, oscuro.checked ? 'oscuro' : 'claro');
+		pintaControles();
+		pintaLista();
+		pinta();
+	});
+
+	function cambia(event: Event) {
+		const input = event.target as HTMLInputElement | HTMLSelectElement;
+		const { linColor, linNombre, linValores, linTrazo } = input.dataset;
+		if (linColor) diseno.series[Number(linColor)].color = input.value;
+		else if (linNombre) diseno.series[Number(linNombre)].name = input.value;
+		else if (linValores) diseno.series[Number(linValores)].values = input.value;
+		else if (linTrazo) diseno.series[Number(linTrazo)].dash = input.value as Dash;
+		else return;
+		pinta();
+	}
+
+	lista?.addEventListener('input', cambia);
+	lista?.addEventListener('change', cambia);
+
+	lista?.addEventListener('click', (event) => {
+		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-lin-quita]');
+		if (!button || button.disabled) return;
+		diseno.series.splice(Number(button.dataset.linQuita), 1);
+		pintaLista();
+		pinta();
+	});
+
+	nueva?.addEventListener('click', () => {
+		if (diseno.series.length >= MAX_LINEAS) return;
+		const paleta = PALETTE[diseno.theme];
+		const usados = diseno.series.map((s) => s.color);
+		const color = paleta.find((c) => !usados.includes(c)) ?? paleta[diseno.series.length % paleta.length];
+		diseno.series.push({ name: `Serie ${diseno.series.length + 1}`, values: '', color, dash: 'solida' });
+		pintaLista();
+		pinta();
+		lista?.querySelector<HTMLInputElement>('li:last-child [data-lin-valores]')?.focus();
+	});
+
+	document.querySelector('[data-lin-paleta]')?.addEventListener('click', () => {
+		const paleta = PALETTE[diseno.theme];
+		diseno.series.forEach((s, j) => (s.color = paleta[j % paleta.length]));
+		pintaLista();
+		pinta();
+	});
+
+	function nombre(extension: string) {
+		const base = diseno.title
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 40);
+		return `${base || 'lineas'}.${extension}`;
+	}
+
+	function bajar(fichero: Blob, name: string) {
+		const url = URL.createObjectURL(fichero);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = name;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	/* Un SVG pintado como imagen no ve las fuentes de la página: para el PNG van dentro. */
+	const FUENTES = [
+		['Geist Mono Variable', '/fonts/geist-mono-latin-wght-normal.woff2', '100 900'],
+		['Geist Pixel', '/fonts/geist-pixel-latin-400-normal.woff2', '400'],
+	];
+	let fuentesCss: Promise<string> | null = null;
+
+	function fuentes() {
+		fuentesCss ??= Promise.all(
+			FUENTES.map(async ([family, url, weight]) => {
+				const blob = await (await fetch(url)).blob();
+				const data = await new Promise<string>((resolve, reject) => {
+					const lector = new FileReader();
+					lector.onload = () => resolve(String(lector.result));
+					lector.onerror = () => reject(lector.error);
+					lector.readAsDataURL(blob);
+				});
+				return `@font-face{font-family:'${family}';font-weight:${weight};src:url(${data}) format('woff2');}`;
+			}),
+		)
+			.then((reglas) => reglas.join(''))
+			.catch(() => '');
+		return fuentesCss;
+	}
+
+	async function png() {
+		const { svg, width, height } = buildLines(diseno, { fontCss: await fuentes() });
+		const imagen = new Image();
+		imagen.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+		await imagen.decode();
+		// Al doble, para que se vea nítido en pantallas densas.
+		const lienzo = document.createElement('canvas');
+		lienzo.width = width * 2;
+		lienzo.height = height * 2;
+		lienzo.getContext('2d')?.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+		const blob = await new Promise<Blob | null>((resolve) => lienzo.toBlob(resolve, 'image/png'));
+		if (!blob) throw new Error('sin PNG');
+		bajar(blob, nombre('png'));
+	}
+
+	document.querySelectorAll<HTMLButtonElement>('[data-lin-baja]').forEach((button) => {
+		button.addEventListener('click', async () => {
+			if (button.dataset.linBaja === 'svg') {
+				bajar(new Blob([buildLines(diseno).svg], { type: 'image/svg+xml' }), nombre('svg'));
+				return;
+			}
+			button.disabled = true;
+			try {
+				await png();
+				if (aviso) aviso.textContent = '';
+			} catch {
+				if (aviso) aviso.textContent = 'No se pudo sacar el PNG. Prueba con el SVG.';
+			} finally {
+				button.disabled = false;
+			}
+		});
+	});
+
+	pintaControles();
+	pintaLista();
+	pinta();
+</script>
