@@ -1,7 +1,9 @@
 ---
 /**
  * De datos a gráfico: se escriben en la tabla o se pega un CSV, se elige el
- * tipo y la plantilla y sale el SVG al momento, listo para bajar en SVG o PNG.
+ * tipo, la plantilla y el estilo (rejilla, curvas, grosor, anillo) y sale el
+ * SVG al momento, listo para bajar en SVG o PNG. Al señalar una pieza sale su
+ * valor en una etiqueta.
  * Todo se pinta en el navegador; no se guarda ni se envía nada.
  */
 import { MAX_ROWS, MAX_SERIES, TEMPLATES, TYPES } from '../lib/chart';
@@ -15,6 +17,11 @@ const TEXTOS = [
 	{ id: 'title', label: 'Título' },
 	{ id: 'subtitle', label: 'Subtítulo' },
 	{ id: 'note', label: 'Nota al pie' },
+];
+
+const RANGOS = [
+	{ id: 'stroke', label: 'Grosor de línea', min: 1, max: 8, step: 0.5, pista: 'Líneas, áreas y radial.' },
+	{ id: 'donut', label: 'Hueco central', min: 0, max: 80, step: 5, pista: 'De tarta a anillo.' },
 ];
 ---
 
@@ -75,9 +82,39 @@ const TEXTOS = [
 				Leyenda
 			</label>
 			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" data-graf-check="showGrid" class="size-4 accent-accent" />
+				Rejilla
+			</label>
+			<label class="inline-flex items-center gap-2">
+				<input type="checkbox" data-graf-check="smooth" class="size-4 accent-accent" />
+				Curvas suaves
+			</label>
+			<label class="inline-flex items-center gap-2">
 				<input type="checkbox" data-graf-oscuro class="size-4 accent-accent" />
 				Fondo oscuro
 			</label>
+		</div>
+
+		<div class="grid gap-4 sm:grid-cols-2">
+			{
+				RANGOS.map((rango) => (
+					<label class="flex flex-col gap-1">
+						<span class="flex justify-between text-sm text-muted">
+							{rango.label}
+							<output data-graf-valor={rango.id} class="text-fg" />
+						</span>
+						<input
+							type="range"
+							data-graf-rango={rango.id}
+							min={rango.min}
+							max={rango.max}
+							step={rango.step}
+							class="w-full accent-accent"
+						/>
+						<span class="text-xs text-muted">{rango.pista}</span>
+					</label>
+				))
+			}
 		</div>
 
 		<div class="flex flex-col gap-3">
@@ -120,7 +157,14 @@ const TEXTOS = [
 
 	<div class="flex min-w-0 flex-col gap-4 md:sticky md:top-6 md:self-start">
 		<span class="text-sm text-muted">Así queda</span>
-		<div data-graf-previo class="border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+		<div class="relative">
+			<div data-graf-previo class="border border-line [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"></div>
+			<p
+				data-graf-tip
+				hidden
+				class="pointer-events-none absolute z-10 max-w-64 border border-accent bg-panel px-3 py-2 text-sm text-fg"
+			></p>
+		</div>
 		<div class="flex flex-wrap items-center gap-2">
 			<button type="button" data-graf-baja="svg" class={OPCION}>
 				<Icon name="file-type-svg" class="size-4 shrink-0" />
@@ -132,13 +176,28 @@ const TEXTOS = [
 			</button>
 		</div>
 		<p class="text-sm text-muted">
-			Hasta {MAX_ROWS} filas y {MAX_SERIES} series. La tarta usa la primera serie. Pasa el ratón por
-			encima para ver cada valor.
+			Hasta {MAX_ROWS} filas y {MAX_SERIES} series. La tarta usa la primera serie. Pasa el ratón o el
+			dedo por encima para ver cada valor.
 		</p>
 	</div>
 
 	<template data-graf-icono="x"><Icon name="x" class="size-4 shrink-0" /></template>
 </div>
+
+<style>
+	/* Al señalar una pieza, las demás se apagan un poco. El SVG entra por innerHTML: de ahí el :global. */
+	[data-graf-previo][data-foco] :global([data-tip]:not([data-activo])) {
+		opacity: 0.45;
+	}
+	[data-graf-previo] :global([data-tip]) {
+		transition: opacity 120ms;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		[data-graf-previo] :global([data-tip]) {
+			transition: none;
+		}
+	}
+</style>
 
 <script>
 	import { DEFAULT_CHART, MAX_ROWS, MAX_SERIES, PALETTE, type Chart, type ChartType, type Template, type Theme, buildSvg, fromCsv, toCsv } from '../lib/chart';
@@ -156,7 +215,10 @@ const TEXTOS = [
 	const QUITAR = 'inline-flex shrink-0 items-center p-1 text-muted hover:text-accent disabled:opacity-30 disabled:hover:text-muted';
 
 	type Texto = 'title' | 'subtitle' | 'note';
-	type Check = 'showValues' | 'showLegend';
+	type Check = 'showValues' | 'showLegend' | 'showGrid' | 'smooth';
+	type Rango = 'stroke' | 'donut';
+	const UNIDAD: Record<Rango, string> = { stroke: ' px', donut: ' %' };
+	const tip = document.querySelector<HTMLElement>('[data-graf-tip]');
 
 	// Arranca con el fondo de la web: quien la lee de noche, se lo encuentra oscuro.
 	const deNoche = document.documentElement.dataset.modo === 'oscuro';
@@ -280,13 +342,66 @@ const TEXTOS = [
 		document.querySelectorAll<HTMLInputElement>('[data-graf-check]').forEach((input) => {
 			input.checked = grafico[input.dataset.grafCheck as Check];
 		});
+		document.querySelectorAll<HTMLInputElement>('[data-graf-rango]').forEach((input) => {
+			input.value = String(grafico[input.dataset.grafRango as Rango]);
+		});
+		pintaValores();
 		if (oscuro) oscuro.checked = grafico.theme === 'oscuro';
 	}
 
+	function pintaValores() {
+		document.querySelectorAll<HTMLOutputElement>('[data-graf-valor]').forEach((output) => {
+			const id = output.dataset.grafValor as Rango;
+			output.textContent = `${String(grafico[id]).replace('.', ',')}${UNIDAD[id]}`;
+		});
+	}
+
 	function pinta({ conCsv = true } = {}) {
-		if (previo) previo.innerHTML = buildSvg(grafico).svg;
+		if (previo) {
+			previo.innerHTML = buildSvg(grafico).svg;
+			// En la vista previa el <title> de cada pieza pasa a data-tip: así sale
+			// nuestra etiqueta y no la del navegador. Lo que se descarga lo conserva.
+			previo.querySelectorAll('svg > :not(title) > title').forEach((title) => {
+				const pieza = title.parentElement;
+				if (pieza) pieza.dataset.tip = title.textContent ?? '';
+				title.remove();
+			});
+			suelta();
+		}
 		if (conCsv && csv) csv.value = toCsv(grafico);
 	}
+
+	function suelta() {
+		if (tip) tip.hidden = true;
+		previo?.removeAttribute('data-foco');
+		previo?.querySelector('[data-activo]')?.removeAttribute('data-activo');
+	}
+
+	function apunta(event: PointerEvent) {
+		if (!previo || !tip) return;
+		const pieza = (event.target as Element).closest<SVGElement>('[data-tip]');
+		if (!pieza) return suelta();
+		if (!pieza.hasAttribute('data-activo')) {
+			previo.querySelector('[data-activo]')?.removeAttribute('data-activo');
+			pieza.setAttribute('data-activo', '');
+			previo.setAttribute('data-foco', '');
+			tip.textContent = pieza.dataset.tip ?? '';
+			tip.hidden = false;
+		}
+		// Junto al puntero, pero sin salirse de la caja del gráfico.
+		const caja = previo.getBoundingClientRect();
+		const x = event.clientX - caja.left + 14;
+		const y = event.clientY - caja.top + 14;
+		tip.style.left = `${Math.max(0, Math.min(x, caja.width - tip.offsetWidth))}px`;
+		tip.style.top = `${y + tip.offsetHeight > caja.height ? y - tip.offsetHeight - 28 : y}px`;
+	}
+
+	previo?.addEventListener('pointermove', apunta);
+	previo?.addEventListener('pointerdown', apunta);
+	// Con el dedo, la etiqueta se queda hasta que se toca otra cosa.
+	previo?.addEventListener('pointerleave', (event) => {
+		if (event.pointerType === 'mouse') suelta();
+	});
 
 	function todo() {
 		pintaControles();
@@ -323,6 +438,14 @@ const TEXTOS = [
 	document.querySelectorAll<HTMLInputElement>('[data-graf-check]').forEach((input) => {
 		input.addEventListener('change', () => {
 			grafico[input.dataset.grafCheck as Check] = input.checked;
+			pinta({ conCsv: false });
+		});
+	});
+
+	document.querySelectorAll<HTMLInputElement>('[data-graf-rango]').forEach((input) => {
+		input.addEventListener('input', () => {
+			grafico[input.dataset.grafRango as Rango] = Number(input.value);
+			pintaValores();
 			pinta({ conCsv: false });
 		});
 	});

@@ -29,6 +29,14 @@ export interface Chart {
 	note: string;
 	showValues: boolean;
 	showLegend: boolean;
+	/** La rejilla de fondo de barras, líneas y áreas. */
+	showGrid: boolean;
+	/** Líneas y áreas con curva en vez de quiebros. */
+	smooth: boolean;
+	/** Grosor del trazo de líneas, áreas y radial, en px. */
+	stroke: number;
+	/** El hueco del centro de la tarta, en % del radio: 0 es tarta, más es anillo. */
+	donut: number;
 	labelHeader: string;
 	series: Serie[];
 	rows: Fila[];
@@ -93,6 +101,10 @@ export const DEFAULT_CHART: Chart = {
 	note: 'Datos de ejemplo. Cámbialos en la tabla.',
 	showValues: true,
 	showLegend: true,
+	showGrid: true,
+	smooth: false,
+	stroke: 2,
+	donut: 0,
 	labelHeader: 'Mes',
 	series: [
 		{ name: '2025', color: PALETTE.claro[0] },
@@ -304,6 +316,23 @@ function porciones(chart: Chart, valores: (number | null)[][], t: Colores): Porc
 	return [...todas.slice(0, 7), { label: 'Otros', value: resto, color: t.muted }];
 }
 
+/** El grosor elegido, entre 1 y 8; lo que no sea número vuelve a 2. */
+const trazoDe = (chart: Chart) => (Number.isFinite(chart.stroke) ? Math.min(8, Math.max(1, chart.stroke)) : 2);
+
+/** Una curva que pasa por todos los puntos (Catmull-Rom pasada a Bézier). */
+function curva(p: [number, number][]) {
+	if (p.length < 3) return p.map(([x, y], k) => `${k ? 'L' : 'M'}${r1(x)} ${r1(y)}`).join('');
+	let d = `M${r1(p[0][0])} ${r1(p[0][1])}`;
+	for (let k = 0; k < p.length - 1; k++) {
+		const [x0, y0] = p[k - 1] ?? p[k];
+		const [x1, y1] = p[k];
+		const [x2, y2] = p[k + 1];
+		const [x3, y3] = p[k + 2] ?? p[k + 1];
+		d += `C${r1(x1 + (x2 - x0) / 6)} ${r1(y1 + (y2 - y0) / 6)} ${r1(x2 - (x3 - x1) / 6)} ${r1(y2 - (y3 - y1) / 6)} ${r1(x2)} ${r1(y2)}`;
+	}
+	return d;
+}
+
 function drawCartesian(chart: Chart, valores: (number | null)[][], box: Caja, t: Colores) {
 	const n = chart.rows.length;
 	const s = chart.series.length;
@@ -323,7 +352,10 @@ function drawCartesian(chart: Chart, valores: (number | null)[][], box: Caja, t:
 
 	ticks.forEach((tick, i) => {
 		const ty = r1(Y(tick));
-		out.push(`<line x1="${r1(px)}" x2="${r1(px + pw)}" y1="${ty}" y2="${ty}" stroke="${tick === 0 ? t.axis : t.line}"/>`);
+		// Sin rejilla se queda la línea del cero, que es la que sujeta el gráfico.
+		if (chart.showGrid || tick === 0) {
+			out.push(`<line x1="${r1(px)}" x2="${r1(px + pw)}" y1="${ty}" y2="${ty}" stroke="${tick === 0 ? t.axis : t.line}"/>`);
+		}
 		out.push(text(px - 10, ty + 4, tickLabels[i], { size: 13, fill: t.muted, anchor: 'end' }));
 	});
 
@@ -377,7 +409,8 @@ function drawCartesian(chart: Chart, valores: (number | null)[][], box: Caja, t:
 		if (tramo.length) lista.push(tramo);
 		return lista;
 	});
-	const trazo = (p: [number, number][]) => p.map(([x, y], k) => `${k ? 'L' : 'M'}${r1(x)} ${r1(y)}`).join('');
+	const trazo = (p: [number, number][]) => (chart.smooth ? curva(p) : p.map(([x, y], k) => `${k ? 'L' : 'M'}${r1(x)} ${r1(y)}`).join(''));
+	const grosor = trazoDe(chart);
 
 	if (chart.type === 'areas') {
 		tramos.forEach((lista, j) => {
@@ -391,7 +424,7 @@ function drawCartesian(chart: Chart, valores: (number | null)[][], box: Caja, t:
 	tramos.forEach((lista, j) => {
 		const stroke = safe(chart.series[j].color, t.muted);
 		for (const p of lista) {
-			out.push(`<path d="${trazo(p)}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+			out.push(`<path d="${trazo(p)}" fill="none" stroke="${stroke}" stroke-width="${grosor}" stroke-linejoin="round" stroke-linecap="round"/>`);
 		}
 	});
 	chart.series.forEach((serie, j) => {
@@ -401,7 +434,7 @@ function drawCartesian(chart: Chart, valores: (number | null)[][], box: Caja, t:
 			const v = valores[i][j];
 			if (v === null) return;
 			if (n <= 31) {
-				out.push(`<circle cx="${r1(cx(i))}" cy="${r1(Y(v))}" r="4" fill="${fill}" stroke="${t.bg}" stroke-width="2">${tip(i, j, v)}</circle>`);
+				out.push(`<circle cx="${r1(cx(i))}" cy="${r1(Y(v))}" r="${r1(grosor + 2)}" fill="${fill}" stroke="${t.bg}" stroke-width="2">${tip(i, j, v)}</circle>`);
 			}
 			// Con pocas filas, todos los valores; con muchas, solo el último de cada serie.
 			if (chart.showValues && (n <= 12 || i === ultimo)) {
@@ -420,6 +453,8 @@ function drawPie(chart: Chart, slices: Porcion[], box: Caja, t: Colores) {
 	const cx = box.x + box.w / 2;
 	const cy = box.y + box.h / 2;
 	const r = box.h / 2 - 28;
+	const hueco = Number.isFinite(chart.donut) ? Math.min(80, Math.max(0, chart.donut)) : 0;
+	const ri = r1((r * hueco) / 100);
 	const pt = (a: number, radio = r) => [r1(cx + Math.cos(a) * radio), r1(cy + Math.sin(a) * radio)];
 	let angle = -Math.PI / 2;
 
@@ -428,12 +463,21 @@ function drawPie(chart: Chart, slices: Porcion[], box: Caja, t: Colores) {
 		const end = angle + frac * Math.PI * 2;
 		const tip = `<title>${esc(`${p.label}: ${fmt(p.value)} (${pct(frac)})`)}</title>`;
 		if (slices.length === 1) {
-			out.push(`<circle cx="${r1(cx)}" cy="${r1(cy)}" r="${r}" fill="${p.color}">${tip}</circle>`);
+			// Un trozo solo es el círculo entero; con hueco, dos círculos y evenodd.
+			const anillo = ri > 0 ? `M${r1(cx)} ${r1(cy - ri)}a${ri} ${ri} 0 1 0 0.01 0Z` : '';
+			out.push(
+				`<path d="M${r1(cx)} ${r1(cy - r)}a${r} ${r} 0 1 0 0.01 0Z${anillo}" fill-rule="evenodd" fill="${p.color}">${tip}</path>`,
+			);
 		} else {
+			const large = frac > 0.5 ? 1 : 0;
 			const [x0, y0] = pt(angle);
 			const [x1, y1] = pt(end);
+			const dentro =
+				ri > 0
+					? `L${pt(end, ri).join(' ')}A${ri} ${ri} 0 ${large} 0 ${pt(angle, ri).join(' ')}`
+					: `L${r1(cx)} ${r1(cy)}`;
 			out.push(
-				`<path d="M${r1(cx)} ${r1(cy)}L${x0} ${y0}A${r} ${r} 0 ${frac > 0.5 ? 1 : 0} 1 ${x1} ${y1}Z" fill="${p.color}" stroke="${t.bg}" stroke-width="2" stroke-linejoin="bevel">${tip}</path>`,
+				`<path d="M${x0} ${y0}A${r} ${r} 0 ${large} 1 ${x1} ${y1}${dentro}Z" fill="${p.color}" stroke="${t.bg}" stroke-width="2" stroke-linejoin="bevel">${tip}</path>`,
 			);
 		}
 		if (chart.showValues && frac >= 0.03) {
@@ -443,6 +487,12 @@ function drawPie(chart: Chart, slices: Porcion[], box: Caja, t: Colores) {
 			out.push(text(lx, ly + 5, pct(frac), { size: 13, fill: t.fg, anchor: cos > 0.2 ? 'start' : cos < -0.2 ? 'end' : 'middle' }));
 		}
 		angle = end;
+	}
+	// En el anillo, el total va en el hueco si cabe.
+	const suma = fmt(total);
+	if (ri >= 60 && suma.length * 28 * CHAR <= ri * 1.6) {
+		out.push(text(cx, cy + 6, suma, { size: 28, fill: t.fg, anchor: 'middle', pixel: true }));
+		out.push(text(cx, cy + 30, 'total', { size: 13, fill: t.muted, anchor: 'middle' }));
 	}
 	return out;
 }
@@ -462,7 +512,8 @@ function drawRadar(chart: Chart, valores: (number | null)[][], box: Caja, t: Col
 	const pt = (i: number, v: number) => [r1(cx + (Math.cos(ang(i)) * R * v) / hi), r1(cy + (Math.sin(ang(i)) * R * v) / hi)];
 	const puntos = (fn: (i: number) => number) => chart.rows.map((_, i) => pt(i, fn(i)).join(',')).join(' ');
 
-	for (const tick of ticks.filter((v) => v > 0)) {
+	// Sin rejilla queda solo el contorno de fuera, para saber dónde acaba la escala.
+	for (const tick of ticks.filter((v) => v > 0 && (chart.showGrid || v === ticks.at(-1)))) {
 		out.push(`<polygon points="${puntos(() => tick)}" fill="none" stroke="${t.line}"/>`);
 		out.push(text(cx + 4, cy - (R * tick) / hi - 4, fmtEje(tick), { size: 12, fill: t.muted }));
 	}
@@ -480,7 +531,7 @@ function drawRadar(chart: Chart, valores: (number | null)[][], box: Caja, t: Col
 		const color = safe(serie.color, t.muted);
 		const valor = (i: number) => Math.max(0, valores[i][j] ?? 0);
 		out.push(
-			`<polygon points="${puntos(valor)}" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`,
+			`<polygon points="${puntos(valor)}" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="${trazoDe(chart)}" stroke-linejoin="round"/>`,
 		);
 		chart.rows.forEach((row, i) => {
 			const v = valores[i][j];
