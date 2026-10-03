@@ -17,6 +17,17 @@ const SLIDERS = [
 	{ id: 'opacity', label: 'Opacidad', min: 0.05, max: 1, step: 0.01 },
 ];
 
+const SEGUNDA = [
+	{ id: 'secondScale', label: 'Tamaño', min: 0.05, max: 1, step: 0.01 },
+	{ id: 'secondOpacity', label: 'Opacidad', min: 0.05, max: 1, step: 0.01 },
+];
+
+/** Medidas del fichero que se descarga, en píxeles. */
+const FICHERO = [
+	{ id: 'ancho', label: 'Ancho', value: 1200 },
+	{ id: 'alto', label: 'Alto', value: 800 },
+];
+
 const TEXTURA = [{ id: 'textureAmount', label: 'Intensidad', min: 0, max: 1, step: 0.01 }];
 
 const MOVIMIENTO = [{ id: 'speed', label: 'Velocidad', min: 0, max: 120, step: 1 }];
@@ -69,6 +80,33 @@ const OPCION =
 			</div>
 
 			<PatternSliders sliders={SLIDERS} />
+
+			<div class="flex flex-col gap-3">
+				<h3 id="trama-segunda" class="text-sm text-muted">Segunda figura</h3>
+				<div role="group" aria-labelledby="trama-segunda" class="flex flex-wrap gap-2">
+					<button type="button" data-trama-segunda="" aria-pressed="false" class={OPCION}>
+						<Icon name="square-off" class="size-4 shrink-0" />
+						Ninguna
+					</button>
+					{
+						SHAPES.map((shape) => (
+							<button type="button" data-trama-segunda={shape.id} aria-pressed="false" class={OPCION}>
+								<Icon name={shape.icon} class="size-4 shrink-0" />
+								{shape.label}
+							</button>
+						))
+					}
+				</div>
+				<PatternSliders sliders={SEGUNDA} />
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					Color
+					<input
+						type="color"
+						data-trama-color="secondColor"
+						class="h-9 w-14 cursor-pointer border border-line bg-panel p-1 disabled:opacity-40"
+					/>
+				</label>
+			</div>
 
 			<div class="flex flex-col gap-3">
 				<h3 id="trama-colores" class="text-sm text-muted">Colores</h3>
@@ -205,6 +243,22 @@ const OPCION =
 			</div>
 
 			<div class="flex flex-wrap items-center gap-3">
+				{
+					FICHERO.map((medida) => (
+						<label class="inline-flex items-center gap-2 text-sm text-muted">
+							{medida.label}
+							<input
+								type="number"
+								data-trama-medida={medida.id}
+								value={medida.value}
+								min="16"
+								max="4000"
+								step="1"
+								class="w-24 border border-line bg-panel px-3 py-2 text-sm text-fg outline-none focus-visible:border-accent"
+							/>
+						</label>
+					))
+				}
 				<button
 					type="button"
 					data-trama-descarga
@@ -323,8 +377,20 @@ const OPCION =
 		| 'speed'
 		| 'pulse'
 		| 'cycle'
-		| 'textureAmount';
-	type Tinta = 'fill' | 'border' | 'background' | 'shiftColor' | 'textureColor';
+		| 'textureAmount'
+		| 'secondScale'
+		| 'secondOpacity';
+	type Tinta = 'fill' | 'border' | 'background' | 'shiftColor' | 'textureColor' | 'secondColor';
+
+	const medidas = document.querySelectorAll<HTMLInputElement>('[data-trama-medida]');
+
+	/** Las medidas del fichero, metidas entre 16 y 4000 px. */
+	function medida(id: string, porDefecto: number) {
+		const campo = document.querySelector<HTMLInputElement>(`[data-trama-medida="${id}"]`);
+		const valor = Math.round(Number(campo?.value));
+		if (!Number.isFinite(valor) || valor <= 0) return porDefecto;
+		return Math.min(4000, Math.max(16, valor));
+	}
 
 	/** Las figuras de línea no tienen relleno: solo se ven si el borde tiene grosor. */
 	const GROSOR_MINIMO = 1.5;
@@ -361,6 +427,7 @@ const OPCION =
 			const valor = trama[clave];
 			rango.value = String(valor);
 			if (clave === 'textureAmount') rango.disabled = !textura.noise;
+			if (clave === 'secondScale' || clave === 'secondOpacity') rango.disabled = !trama.second;
 			const salida = document.querySelector<HTMLElement>(`[data-trama-valor="${clave}"]`);
 			if (salida) salida.textContent = mostrar(clave, valor);
 		});
@@ -374,7 +441,12 @@ const OPCION =
 				(clave === 'fill' && Boolean(figura.line)) ||
 				(clave === 'background' && trama.transparent) ||
 				(clave === 'shiftColor' && !trama.shift) ||
-				(clave === 'textureColor' && !textura.noise);
+				(clave === 'textureColor' && !textura.noise) ||
+				(clave === 'secondColor' && !trama.second);
+		});
+
+		document.querySelectorAll<HTMLButtonElement>('[data-trama-segunda]').forEach((button) => {
+			button.setAttribute('aria-pressed', String(button.dataset.tramaSegunda === trama.second));
 		});
 
 		const direccion = directionOf(trama.direction);
@@ -410,9 +482,10 @@ const OPCION =
 		}
 		if (pausaTexto) pausaTexto.textContent = pausado ? 'Mover' : 'Pausar';
 		if (fichero) {
+			const caja = `${medida('ancho', 1200)}×${medida('alto', 800)}`;
 			fichero.textContent = animada
-				? 'El fichero sale a 1200×800 y se mueve igual.'
-				: 'El fichero sale a 1200×800.';
+				? `El fichero sale a ${caja} y se mueve igual.`
+				: `El fichero sale a ${caja}.`;
 		}
 
 		const css = document.querySelector<HTMLTextAreaElement>('[data-trama-salida="css"]');
@@ -455,6 +528,12 @@ const OPCION =
 	document.querySelectorAll<HTMLButtonElement>('[data-trama-textura]').forEach((button) => {
 		button.addEventListener('click', () => cambiar({ texture: button.dataset.tramaTextura ?? '' }));
 	});
+
+	document.querySelectorAll<HTMLButtonElement>('[data-trama-segunda]').forEach((button) => {
+		button.addEventListener('click', () => cambiar({ second: button.dataset.tramaSegunda ?? '' }));
+	});
+
+	medidas.forEach((campo) => campo.addEventListener('input', render));
 
 	transparente?.addEventListener('change', () => cambiar({ transparent: transparente.checked }));
 	cambio?.addEventListener('change', () => cambiar({ shift: cambio.checked }));
@@ -503,13 +582,19 @@ const OPCION =
 			texture: alAzar(TEXTURES).id,
 			textureAmount: entre(0.15, 0.6, 0.05),
 			textureColor: alAzar(PALETA),
+			// Una de cada dos, con segunda figura.
+			second: Math.random() < 0.5 ? alAzar(SHAPES).id : '',
+			secondColor: alAzar(PALETA),
+			secondScale: entre(0.1, 0.5, 0.05),
+			secondOpacity: entre(0.4, 1, 0.05),
 		});
 	});
 
 	document.querySelector<HTMLButtonElement>('[data-trama-descarga]')?.addEventListener('click', () => {
 		// El fichero lleva medidas de verdad: un SVG al 100% queda raro fuera del
 		// navegador. Se arma aquí mismo, sin pasar por ningún sitio.
-		const fichero = new Blob([buildSvg(trama, { width: 1200, height: 800 })], {
+		const caja = { width: medida('ancho', 1200), height: medida('alto', 800) };
+		const fichero = new Blob([buildSvg(trama, caja)], {
 			type: 'image/svg+xml',
 		});
 		const url = URL.createObjectURL(fichero);

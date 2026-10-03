@@ -43,6 +43,12 @@ export interface Pattern {
 	/** Cuánto se nota la textura, de 0 a 1. */
 	textureAmount: number;
 	textureColor: string;
+	/** Segunda figura, puesta a media baldosa de la primera; '' es ninguna. */
+	second: string;
+	secondColor: string;
+	/** Tamaño de la segunda figura dentro de la baldosa, de 0 a 1. */
+	secondScale: number;
+	secondOpacity: number;
 }
 
 interface Shape {
@@ -296,6 +302,10 @@ export const DEFAULT_PATTERN: Pattern = {
 	texture: 'ninguna',
 	textureAmount: 0.35,
 	textureColor: '#3b2d24',
+	second: '',
+	secondColor: '#7a6152',
+	secondScale: 0.15,
+	secondOpacity: 1,
 };
 
 /** Recetas para arrancar con algo puesto en vez de con la baldosa vacía. */
@@ -359,6 +369,19 @@ export const RECIPES: readonly { label: string; pattern: Pattern }[] = [
 			texture: 'papel',
 			textureAmount: 0.45,
 			textureColor: '#7c4a21',
+		},
+	},
+	{
+		label: 'Confeti',
+		pattern: {
+			...DEFAULT_PATTERN,
+			size: 40,
+			scale: 0.25,
+			second: 'cruces',
+			secondColor: '#7a6152',
+			secondScale: 0.3,
+			secondOpacity: 0.7,
+			stroke: 0,
 		},
 	},
 	{
@@ -449,6 +472,42 @@ function cycles(pattern: Pattern, line: boolean, stroke: number) {
 }
 
 /**
+ * La segunda figura va a media baldosa de la primera. Se dibuja cuatro veces,
+ * una por esquina, para que lo que se sale por un lado entre por el otro y la
+ * trama no tenga cortes. Las de línea toman el grosor del borde, con un mínimo
+ * para que se vean.
+ */
+function secondLayer(pattern: Pattern, size: number, stroke: number) {
+	if (!pattern.second) return '';
+	const shape = SHAPES.find((item) => item.id === pattern.second);
+	if (!shape) return '';
+
+	const color = safeColor(pattern.secondColor, DEFAULT_PATTERN.secondColor);
+	const scale = Math.min(1, Math.max(0.05, pattern.secondScale));
+	const opacity = Math.min(1, Math.max(0, pattern.secondOpacity));
+	const paint = [
+		shape.line
+			? `fill="none" stroke="${color}" stroke-width="${n(Math.max(1.5, stroke))}" stroke-linecap="round"`
+			: `fill="${color}"`,
+		opacity < 1 ? `opacity="${n(opacity)}"` : '',
+	]
+		.filter(Boolean)
+		.join(' ');
+
+	const drawn = shape.draw(size, scale, 0);
+	const half = size / 2;
+	const copies = [
+		[-half, -half],
+		[half, -half],
+		[-half, half],
+		[half, half],
+	]
+		.map(([x, y]) => `<g transform="translate(${n(x)} ${n(y)})">${drawn}</g>`)
+		.join('');
+	return `\n\t\t\t<g ${paint}>${copies}</g>`;
+}
+
+/**
  * El SVG entero. Sin medidas sale a 100%, que es lo que quiere un
  * background-image; con medidas sale un fichero de ese tamaño para descargar.
  * Con «still» sale quieto aunque la trama lleve animación.
@@ -475,6 +534,7 @@ export function buildSvg(pattern: Pattern, box?: { width: number; height: number
 	const effects = animated ? cycles(pattern, Boolean(shape.line), stroke) : '';
 	const drawn = shape.draw(size, pattern.scale, stroke);
 	const tile = effects ? `<g ${paint}>${drawn}${effects}\n\t\t\t</g>` : `<g ${paint}>${drawn}</g>`;
+	const extra = secondLayer(pattern, size, stroke);
 	const moving = animated ? motion(pattern, size) : '';
 	const measures = box ? `width="${box.width}" height="${box.height}"` : 'width="100%" height="100%"';
 	const floor = pattern.transparent ? '' : `\n\t<rect width="100%" height="100%" fill="${background}"/>`;
@@ -483,7 +543,7 @@ export function buildSvg(pattern: Pattern, box?: { width: number; height: number
 	return `<svg xmlns="http://www.w3.org/2000/svg" ${measures}>
 \t<defs>
 \t\t<pattern id="trama" width="${n(size)}" height="${n(size)}" patternUnits="userSpaceOnUse"${turn}>
-\t\t\t${tile}${moving}
+\t\t\t${tile}${extra}${moving}
 \t\t</pattern>${texture.filter}
 \t</defs>${floor}
 \t<rect width="100%" height="100%" fill="url(#trama)"/>${texture.layer}
