@@ -13,6 +13,20 @@ export interface Step {
 	side: Side;
 	/** En milisegundos. */
 	duration: number;
+	/** La curva de este paso; vacía, la de toda la secuencia. */
+	timing: string;
+	/** Cuánto se mueve, en tanto por ciento: 100 es el efecto tal cual. */
+	intensity: number;
+}
+
+/** Un fotograma con la curva que le toca hasta el siguiente, si no es la general. */
+type StepFrame = Frame & { easing?: string };
+
+export const INTENSITY = { min: 25, max: 200, step: 25 };
+
+/** Los efectos en los que la intensidad cambia algo. */
+export function hasIntensity(effect: StepEffect) {
+	return effect !== 'pause' && effect !== 'fade';
 }
 
 export interface SequenceOptions {
@@ -31,10 +45,10 @@ export const STEP_EFFECTS: readonly { id: StepEffect; label: string; name: strin
 
 export const DEFAULT_SEQUENCE: SequenceOptions = {
 	steps: [
-		{ effect: 'slide', side: 'left', duration: 600 },
-		{ effect: 'bounce', side: 'left', duration: 800 },
-		{ effect: 'pause', side: 'left', duration: 400 },
-		{ effect: 'shake', side: 'left', duration: 500 },
+		{ effect: 'slide', side: 'left', duration: 600, timing: 'ease-out', intensity: 100 },
+		{ effect: 'bounce', side: 'left', duration: 800, timing: '', intensity: 150 },
+		{ effect: 'pause', side: 'left', duration: 400, timing: '', intensity: 100 },
+		{ effect: 'shake', side: 'left', duration: 500, timing: '', intensity: 100 },
 	],
 	timing: 'ease-in-out',
 	loop: true,
@@ -61,30 +75,61 @@ function same(a: Record<string, string>, b: Record<string, string>) {
 	return a.transform === b.transform && a.opacity === b.opacity;
 }
 
+/**
+ * Estira o encoge los números de un transform: las distancias y los giros se
+ * multiplican, y las escalas se alejan o se acercan a 1.
+ */
+function scaleTransform(value: string, factor: number) {
+	if (factor === 1) return value;
+	return value.replace(/(translate[XY]?|rotate|scale)\(([^)]*)\)/g, (_, fn: string, args: string) => {
+		const scaled = args.split(',').map((arg) => {
+			const match = arg.trim().match(/^(-?\d*\.?\d+)([a-z%]*)$/);
+			if (!match) return arg.trim();
+			const number = Number(match[1]);
+			const next = fn === 'scale' ? Math.max(0, 1 + (number - 1) * factor) : number * factor;
+			return `${Number(next.toFixed(2))}${match[2]}`;
+		});
+		return `${fn}(${scaled.join(', ')})`;
+	});
+}
+
+function stepFrames(step: Step): Frame[] {
+	if (step.effect === 'pause') {
+		return [
+			{ offset: 0, props: {} },
+			{ offset: 1, props: {} },
+		];
+	}
+	const factor = step.intensity / 100;
+	return framesOf(step.effect, step.side).map((frame) => {
+		const props = { ...frame.props };
+		if (props.transform) props.transform = scaleTransform(props.transform, factor);
+		return { offset: frame.offset, props };
+	});
+}
+
 /** Los fotogramas de todos los pasos, colocados en su trozo de la línea de tiempo. */
-export function sequenceFrames(options: SequenceOptions): Frame[] {
+export function sequenceFrames(options: SequenceOptions): StepFrame[] {
 	const total = totalDuration(options) || 1;
-	const frames: Frame[] = [];
+	const frames: StepFrame[] = [];
 	let start = 0;
 	for (const step of options.steps) {
-		const own =
-			step.effect === 'pause'
-				? [
-						{ offset: 0, props: {} },
-						{ offset: 1, props: {} },
-					]
-				: framesOf(step.effect, step.side);
-		own.forEach((frame, index) => {
+		const easing = step.timing || undefined;
+		stepFrames(step).forEach((frame, index) => {
 			const props = { ...REST, ...frame.props };
 			let offset = round((start + frame.offset * step.duration) / total);
 			const last = frames.at(-1);
 			if (index === 0 && last) {
 				// El paso empieza donde acabó el anterior: si todo sigue igual sobra el
-				// fotograma, y si no, va un pelo después para que el salto se vea.
-				if (same(last.props, props)) return;
+				// fotograma —y el tramo que sigue ya va con la curva de este paso—, y si
+				// no, va un pelo después para que el salto se vea.
+				if (same(last.props, props)) {
+					last.easing = easing;
+					return;
+				}
 				offset = Math.max(offset, round(last.offset + GAP));
 			}
-			frames.push({ offset: Math.min(offset, 1), props });
+			frames.push({ offset: Math.min(offset, 1), props, easing });
 		});
 		start += step.duration;
 	}
@@ -101,16 +146,24 @@ function ms(value: number) {
 
 export function stepLabel(step: Step) {
 	const effect = STEP_EFFECTS.find((item) => item.id === step.effect) ?? STEP_EFFECTS[0];
-	if (step.effect !== 'slide') return effect.name;
-	const side = SIDES.find((item) => item.id === step.side) ?? SIDES[0];
-	return `${effect.name} desde ${side.label.toLowerCase()}`;
+	let label = effect.name;
+	if (step.effect === 'slide') {
+		const side = SIDES.find((item) => item.id === step.side) ?? SIDES[0];
+		label = `${label} desde ${side.label.toLowerCase()}`;
+	}
+	if (hasIntensity(step.effect) && step.intensity !== 100) label = `${label} al ${step.intensity}%`;
+	if (step.timing && step.effect !== 'pause') {
+		label = `${label}, ${TIMINGS.find((item) => item.id === step.timing)?.label ?? step.timing}`;
+	}
+	return label;
 }
 
 /** El CSS entero: un comentario con los pasos, los @keyframes y la regla. */
 export function sequenceCss(options: SequenceOptions) {
 	const groups = new Map<string, number[]>();
 	for (const frame of sequenceFrames(options)) {
-		const body = Object.entries(frame.props)
+		const props = frame.easing ? { ...frame.props, 'animation-timing-function': frame.easing } : frame.props;
+		const body = Object.entries(props)
 			.map(([key, value]) => `${key}: ${value};`)
 			.join(' ');
 		groups.set(body, [...(groups.get(body) ?? []), frame.offset]);
@@ -138,7 +191,11 @@ export function sequenceCss(options: SequenceOptions) {
  * el CSS (tramo a tramo) y no sobre la animación entera.
  */
 export function sequenceWebFrames(options: SequenceOptions): Keyframe[] {
-	return sequenceFrames(options).map((frame) => ({ offset: frame.offset, easing: options.timing, ...frame.props }));
+	return sequenceFrames(options).map((frame) => ({
+		offset: frame.offset,
+		easing: frame.easing ?? options.timing,
+		...frame.props,
+	}));
 }
 
 export function sequenceWebTiming(options: SequenceOptions): KeyframeAnimationOptions {
@@ -165,6 +222,8 @@ export function toStep(data: unknown): Step {
 		effect: pick(raw.effect, STEP_EFFECTS, 'fade'),
 		side: pick(raw.side, SIDES, 'left'),
 		duration: clamp(raw.duration, DURATION.min, DURATION.max, 600),
+		timing: pick(raw.timing, TIMINGS, ''),
+		intensity: clamp(raw.intensity, INTENSITY.min, INTENSITY.max, 100),
 	};
 }
 

@@ -1,12 +1,13 @@
 ---
 /**
  * Secuencias de animaciones CSS: pones pasos en fila (deslizar, rebotar, una
- * pausa, sacudir...), le das a cada uno su duración y lo ves moverse al momento.
+ * pausa, sacudir...), le das a cada uno su duración, su intensidad y su curva y
+ * lo ves moverse al momento.
  * Todo sale en un solo @keyframes para copiar. El cálculo está en
  * src/lib/sequence.ts; aquí solo están los mandos. Se guarda en localStorage.
  */
 import { DURATION, SELECTOR_MAX, SIDES, TIMINGS } from '../lib/animation';
-import { STEP_EFFECTS, STEPS_MAX } from '../lib/sequence';
+import { INTENSITY, STEP_EFFECTS, STEPS_MAX } from '../lib/sequence';
 import Icon from './Icon.astro';
 
 const BOTON =
@@ -93,7 +94,7 @@ const CAMPO = 'border border-line bg-bg px-2 py-1 text-sm text-fg outline-none f
 		</div>
 
 		<div class="flex flex-col gap-2">
-			<span id="seq-timing" class="text-sm text-muted">Función de tiempo</span>
+			<span id="seq-timing" class="text-sm text-muted">Función de tiempo de la secuencia</span>
 			<div role="group" aria-labelledby="seq-timing" class="flex flex-wrap gap-2">
 				{
 					TIMINGS.map((item) => (
@@ -161,6 +162,26 @@ const CAMPO = 'border border-line bg-bg px-2 py-1 text-sm text-fg outline-none f
 			/>
 			<output data-seq-ms class="w-16 shrink-0 text-right text-mark"></output>
 		</label>
+		<label data-seq-fuerza class="flex items-center gap-3 text-sm text-muted">
+			<Icon name="arrows-diagonal" class="size-4 shrink-0" />
+			<input
+				type="range"
+				data-seq-intensidad
+				aria-label="Intensidad del paso"
+				min={INTENSITY.min}
+				max={INTENSITY.max}
+				step={INTENSITY.step}
+				class="w-full accent-accent"
+			/>
+			<output data-seq-pct class="w-16 shrink-0 text-right text-mark"></output>
+		</label>
+		<label data-seq-curva-fila class="flex items-center gap-3 text-sm text-muted">
+			<Icon name="vector-bezier-2" class="size-4 shrink-0" />
+			<select data-seq-curva aria-label="Curva del paso" class={`${CAMPO} min-w-0 flex-1`}>
+				<option value="">La de la secuencia</option>
+				{TIMINGS.map((item) => <option value={item.id}>{item.label}</option>)}
+			</select>
+		</label>
 	</li>
 </template>
 
@@ -169,6 +190,7 @@ const CAMPO = 'border border-line bg-bg px-2 py-1 text-sm text-fg outline-none f
 		DEFAULT_SEQUENCE,
 		STEPS_MAX,
 		type SequenceOptions,
+		hasIntensity,
 		loadSequence,
 		saveSequence,
 		sequenceCss,
@@ -287,6 +309,16 @@ const CAMPO = 'border border-line bg-bg px-2 py-1 text-sm text-fg outline-none f
 			}
 			if (duracion) duracion.value = String(paso.duration);
 			if (salida) salida.textContent = ms(paso.duration);
+			const fuerza = fila.querySelector<HTMLElement>('[data-seq-fuerza]');
+			if (fuerza) fuerza.hidden = !hasIntensity(paso.effect);
+			const intensidad = fila.querySelector<HTMLInputElement>('[data-seq-intensidad]');
+			if (intensidad) intensidad.value = String(paso.intensity);
+			const pct = fila.querySelector<HTMLOutputElement>('[data-seq-pct]');
+			if (pct) pct.textContent = `${paso.intensity}%`;
+			const curvaFila = fila.querySelector<HTMLElement>('[data-seq-curva-fila]');
+			if (curvaFila) curvaFila.hidden = paso.effect === 'pause';
+			const curva = fila.querySelector<HTMLSelectElement>('[data-seq-curva]');
+			if (curva) curva.value = paso.timing;
 			fila.querySelector<HTMLButtonElement>('[data-seq-mover="-1"]')?.toggleAttribute('disabled', indice === 0);
 			fila
 				.querySelector<HTMLButtonElement>('[data-seq-mover="1"]')
@@ -332,17 +364,25 @@ const CAMPO = 'border border-line bg-bg px-2 py-1 text-sm text-fg outline-none f
 			editarPaso(indice, { effect: campo.value }, true);
 		} else if (campo instanceof HTMLSelectElement && campo.matches('[data-seq-lado]')) {
 			editarPaso(indice, { side: campo.value });
+		} else if (campo instanceof HTMLSelectElement && campo.matches('[data-seq-curva]')) {
+			editarPaso(indice, { timing: campo.value });
 		}
 	});
 
 	lista?.addEventListener('input', (evento) => {
 		const campo = evento.target as HTMLElement;
-		if (!(campo instanceof HTMLInputElement) || !campo.matches('[data-seq-duracion]')) return;
+		if (!(campo instanceof HTMLInputElement)) return;
 		const indice = indiceDe(campo);
 		if (indice < 0) return;
-		const salida = campo.closest('li')?.querySelector('[data-seq-ms]');
-		if (salida) salida.textContent = ms(Number(campo.value));
-		editarPaso(indice, { duration: Number(campo.value) });
+		if (campo.matches('[data-seq-duracion]')) {
+			const salida = campo.closest('li')?.querySelector('[data-seq-ms]');
+			if (salida) salida.textContent = ms(Number(campo.value));
+			editarPaso(indice, { duration: Number(campo.value) });
+		} else if (campo.matches('[data-seq-intensidad]')) {
+			const salida = campo.closest('li')?.querySelector('[data-seq-pct]');
+			if (salida) salida.textContent = `${campo.value}%`;
+			editarPaso(indice, { intensity: Number(campo.value) });
+		}
 	});
 
 	lista?.addEventListener('click', (evento) => {
@@ -363,7 +403,10 @@ const CAMPO = 'border border-line bg-bg px-2 py-1 text-sm text-fg outline-none f
 
 	anadir?.addEventListener('click', () => {
 		if (opciones.steps.length >= STEPS_MAX) return;
-		cambiar({ steps: [...opciones.steps, { effect: 'fade', side: 'left', duration: 600 }] }, true);
+		cambiar(
+			{ steps: [...opciones.steps, { effect: 'fade', side: 'left', duration: 600, timing: '', intensity: 100 }] },
+			true,
+		);
 	});
 
 	panel?.querySelectorAll<HTMLButtonElement>('[data-seq-timing]').forEach((boton) => {
