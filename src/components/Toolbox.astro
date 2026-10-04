@@ -39,6 +39,7 @@ import ShadowTool from './ShadowTool.astro';
 import SimonTool from './SimonTool.astro';
 import SiteTool from './SiteTool.astro';
 import SoundTool from './SoundTool.astro';
+import StyleTool from './StyleTool.astro';
 import SvgAnimTool from './SvgAnimTool.astro';
 import ThemeTool from './ThemeTool.astro';
 import TransitionTool from './TransitionTool.astro';
@@ -77,6 +78,7 @@ const tools = [
 	{ id: 'flechas', label: 'Flechas CSS', icon: 'arrows-right' },
 	{ id: 'favicon', label: 'Favicon', icon: 'favicon' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
+	{ id: 'estilos-texto', label: 'Estilos de texto', icon: 'letter-case' },
 	{ id: 'graficos', label: 'Gráficos', icon: 'chart-bar' },
 	{ id: 'barras', label: 'Barras', icon: 'chart-histogram' },
 	{ id: 'lineas', label: 'Líneas', icon: 'chart-line' },
@@ -272,6 +274,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<FaviconTool />
 
 	<TypeTool />
+
+	<StyleTool />
 
 	<ChartTool />
 

@@ -1,0 +1,423 @@
+---
+/**
+ * Estilos de texto: un texto propio con fuente, tamaño, colores, cursiva,
+ * subrayado, mayúsculas, sombra y contorno, en vivo. Debajo, el mismo texto en
+ * todas las fuentes para comparar. Todo en el navegador; no se envía nada.
+ */
+import { FUENTES } from '../lib/fuentes';
+import Icon from './Icon.astro';
+
+const PESOS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+
+const MANDOS = [
+	{ id: 'tamano', label: 'Tamaño', min: 10, max: 140, step: 1, unidad: 'px', valor: 56 },
+	{ id: 'interlineado', label: 'Interlineado', min: 0.8, max: 2.4, step: 0.05, unidad: '', valor: 1.2 },
+	{ id: 'espaciado', label: 'Espaciado', min: -0.1, max: 0.4, step: 0.005, unidad: 'em', valor: 0 },
+	{ id: 'sombra', label: 'Sombra', min: 0, max: 20, step: 1, unidad: 'px', valor: 0 },
+	{ id: 'contorno', label: 'Contorno', min: 0, max: 6, step: 0.5, unidad: 'px', valor: 0 },
+];
+
+const COLORES = [
+	{ id: 'color', label: 'Texto', valor: '#3b2d24' },
+	{ id: 'fondo', label: 'Fondo', valor: '#fdf6ef' },
+	{ id: 'sombra-color', label: 'Sombra', valor: '#c2410c' },
+	{ id: 'contorno-color', label: 'Contorno', valor: '#1e1b4b' },
+];
+
+const CASOS = [
+	{ id: 'none', label: 'Normal' },
+	{ id: 'uppercase', label: 'MAYÚSCULAS' },
+	{ id: 'lowercase', label: 'minúsculas' },
+	{ id: 'capitalize', label: 'Cada Palabra' },
+	{ id: 'small-caps', label: 'Versalitas' },
+];
+
+const ESTILOS = [
+	{ id: 'cursiva', label: 'Cursiva', icon: 'italic' },
+	{ id: 'subrayado', label: 'Subrayado', icon: 'underline' },
+	{ id: 'tachado', label: 'Tachado', icon: 'strikethrough' },
+];
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const ACCION = 'inline-flex items-center gap-2 text-sm text-accent hover:underline';
+---
+
+<div
+	role="tabpanel"
+	id="estilos-texto"
+	aria-labelledby="tab-estilos-texto"
+	data-panel="estilos-texto"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<script type="application/json" data-estilo-datos set:html={JSON.stringify(FUENTES)}></script>
+
+	<form data-estilo-form class="grid gap-6 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Tu texto</span>
+				<textarea data-estilo-campo="texto" rows="3" maxlength="500" class={`${CAMPO} resize-y`}
+					>Escribe aquí y mira cómo cambia</textarea
+				>
+			</label>
+
+			<div class="flex gap-4">
+				<label class="flex flex-1 flex-col gap-2">
+					<span class="text-sm text-muted">Fuente</span>
+					<select data-estilo-campo="fuente" class={CAMPO}>
+						{FUENTES.map((fuente) => (
+							<option value={fuente.id} selected={fuente.id === 'georgia'}>
+								{fuente.nombre}
+							</option>
+						))}
+					</select>
+				</label>
+				<label class="flex w-24 flex-col gap-2">
+					<span class="text-sm text-muted">Peso</span>
+					<select data-estilo-campo="peso" class={CAMPO}>
+						{PESOS.map((peso) => (
+							<option value={peso} selected={peso === 400}>
+								{peso}
+							</option>
+						))}
+					</select>
+				</label>
+			</div>
+
+			{
+				MANDOS.map((mando) => (
+					<div class="flex flex-col gap-1">
+						<label for={`estilo-${mando.id}`} class="flex items-center justify-between gap-3 text-sm text-muted">
+							{mando.label}
+							<span data-estilo-valor={mando.id} data-unidad={mando.unidad} class="text-mark">
+								{mando.valor}
+								{mando.unidad}
+							</span>
+						</label>
+						<input
+							type="range"
+							id={`estilo-${mando.id}`}
+							data-estilo-campo={mando.id}
+							min={mando.min}
+							max={mando.max}
+							step={mando.step}
+							value={mando.valor}
+							class="w-full accent-accent"
+						/>
+					</div>
+				))
+			}
+
+			<div class="grid grid-cols-4 gap-3">
+				{
+					COLORES.map((color) => (
+						<label class="flex flex-col gap-2">
+							<span class="text-sm text-muted">{color.label}</span>
+							<input
+								type="color"
+								data-estilo-campo={color.id}
+								value={color.valor}
+								class="h-9 w-full cursor-pointer border border-line bg-panel p-1"
+							/>
+						</label>
+					))
+				}
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Estilo</span>
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Estilo">
+					{
+						ESTILOS.map((estilo) => (
+							<button
+								type="button"
+								data-estilo-toggle={estilo.id}
+								aria-pressed="false"
+								aria-label={estilo.label}
+								title={estilo.label}
+								class={OPCION}
+							>
+								<Icon name={estilo.icon} class="size-4 shrink-0" />
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Mayúsculas</span>
+				<select data-estilo-campo="caso" class={CAMPO}>
+					{CASOS.map((caso) => <option value={caso.id}>{caso.label}</option>)}
+				</select>
+			</label>
+
+			<span class="flex flex-wrap gap-4">
+				<button type="button" data-estilo-azar class={ACCION}>
+					<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+					Al azar
+				</button>
+				<button type="reset" class={ACCION}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</span>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-2 lg:sticky lg:top-6 lg:self-start">
+			<span class="text-sm text-muted">Vista previa</span>
+			<div data-estilo-lienzo class="flex min-h-64 items-center overflow-hidden border border-line p-8">
+				<p data-estilo-muestra class="w-full whitespace-pre-line"></p>
+			</div>
+			<p class="text-sm text-muted">
+				Si una fuente no está en tu equipo, se ve la siguiente de su pila. Nada se carga de fuera.
+			</p>
+		</div>
+	</form>
+
+	<div class="flex flex-col gap-2">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<span class="text-sm text-muted">CSS</span>
+			<button type="button" data-estilo-copia class={ACCION}>
+				<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+				<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+				<span data-estilo-copia-texto aria-live="polite">Copiar CSS</span>
+			</button>
+		</div>
+		<textarea
+			data-estilo-css
+			rows="8"
+			readonly
+			spellcheck="false"
+			aria-label="CSS generado"
+			class="w-full resize-y border border-line bg-panel p-4 text-sm text-mark outline-none"></textarea>
+	</div>
+
+	<div class="flex flex-col gap-2">
+		<span class="text-sm text-muted">Tu texto en todas las fuentes (pulsa una para usarla)</span>
+		<ul data-estilo-muestrario class="flex flex-col border-t border-line"></ul>
+	</div>
+</div>
+
+<style>
+	[data-estilo-copia] [data-icon='check'] {
+		display: none;
+	}
+	[data-estilo-copia][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-estilo-copia][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-estilo-copia][data-state='error'] {
+		color: var(--color-heart);
+	}
+	[data-estilo-muestra] {
+		overflow-wrap: anywhere;
+	}
+</style>
+
+<script>
+	type Fuente = { id: string; nombre: string; pila: string };
+	type Campo = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+	const datos = document.querySelector<HTMLScriptElement>('[data-estilo-datos]');
+	const form = document.querySelector<HTMLFormElement>('[data-estilo-form]');
+	const lienzo = document.querySelector<HTMLElement>('[data-estilo-lienzo]');
+	const muestra = document.querySelector<HTMLElement>('[data-estilo-muestra]');
+	const salida = document.querySelector<HTMLTextAreaElement>('[data-estilo-css]');
+	const muestrario = document.querySelector<HTMLUListElement>('[data-estilo-muestrario]');
+
+	if (datos && form && lienzo && muestra && salida && muestrario) {
+		const fuentes: Fuente[] = JSON.parse(datos.textContent ?? '[]');
+		const campos = [...form.querySelectorAll<Campo>('[data-estilo-campo]')];
+		const toggles = [...form.querySelectorAll<HTMLButtonElement>('[data-estilo-toggle]')];
+
+		const campo = (clave: string) => campos.find((c) => c.dataset.estiloCampo === clave);
+		const val = (clave: string) => campo(clave)?.value ?? '';
+		const num = (clave: string) => Number(val(clave));
+		const activo = (clave: string) =>
+			toggles.find((b) => b.dataset.estiloToggle === clave)?.getAttribute('aria-pressed') === 'true';
+		const fuente = () => fuentes.find((f) => f.id === val('fuente')) ?? fuentes[0];
+		// Sin la cola de decimales de coma flotante: 0.1 + 0.2 no pinta bien en CSS.
+		const corto = (n: number) => String(Number(n.toFixed(3)));
+
+		// Las propiedades salen de aquí tanto para la vista previa como para el CSS.
+		function reglas(): [string, string][] {
+			const decoracion = [activo('subrayado') && 'underline', activo('tachado') && 'line-through'].filter(Boolean);
+			const caso = val('caso');
+			const sombra = num('sombra');
+			const contorno = num('contorno');
+			return [
+				['font-family', fuente().pila],
+				['font-size', `${num('tamano')}px`],
+				['font-weight', val('peso')],
+				['line-height', corto(num('interlineado'))],
+				['letter-spacing', `${corto(num('espaciado'))}em`],
+				['color', val('color')],
+				...(activo('cursiva') ? [['font-style', 'italic'] as [string, string]] : []),
+				...(decoracion.length ? [['text-decoration-line', decoracion.join(' ')] as [string, string]] : []),
+				...(caso === 'small-caps'
+					? [['font-variant-caps', 'small-caps'] as [string, string]]
+					: caso !== 'none'
+						? [['text-transform', caso] as [string, string]]
+						: []),
+				...(sombra
+					? [['text-shadow', `${corto(sombra / 4)}px ${corto(sombra / 4)}px ${sombra}px ${val('sombra-color')}`] as [string, string]]
+					: []),
+				...(contorno ? [['-webkit-text-stroke', `${corto(contorno)}px ${val('contorno-color')}`] as [string, string]] : []),
+			];
+		}
+
+		function aplicar(el: HTMLElement, lista: [string, string][]) {
+			el.removeAttribute('style');
+			lista.forEach(([prop, valor]) => el.style.setProperty(prop, valor));
+		}
+
+		function css() {
+			return [
+				'/* Estilos de texto · tuweb.dev */',
+				'.texto {',
+				`  background: ${val('fondo')};`,
+				...reglas().map(([prop, valor]) => `  ${prop}: ${valor};`),
+				'}',
+			].join('\n');
+		}
+
+		const texto = () => val('texto').trim() || 'Escribe algo para verlo aquí.';
+
+		function pintarMuestrario() {
+			const actual = fuente().id;
+			// El muestrario va a tamaño fijo: si no, a 140px no se compara nada.
+			const lista = reglas().filter(([prop]) => !['font-family', 'font-size', 'line-height'].includes(prop));
+			muestrario!.replaceChildren(
+				...fuentes.map((f) => {
+					const fila = document.createElement('li');
+					const boton = document.createElement('button');
+					boton.type = 'button';
+					boton.setAttribute('aria-pressed', String(f.id === actual));
+					boton.className =
+						'flex w-full flex-col gap-1 border-b border-line px-4 py-3 text-left hover:bg-panel aria-pressed:bg-panel';
+
+					const nombre = document.createElement('span');
+					nombre.className = 'text-sm text-muted';
+					nombre.textContent = f.id === actual ? `${f.nombre} · en uso` : f.nombre;
+
+					const linea = document.createElement('span');
+					linea.className = 'truncate';
+					linea.textContent = texto().replace(/\s+/g, ' ');
+					aplicar(linea, lista);
+					linea.style.fontFamily = f.pila;
+					linea.style.fontSize = '26px';
+					linea.style.lineHeight = '1.3';
+
+					boton.append(nombre, linea);
+					boton.addEventListener('click', () => {
+						campo('fuente')!.value = f.id;
+						pintar();
+						lienzo!.scrollIntoView({ block: 'nearest' });
+					});
+					fila.append(boton);
+					return fila;
+				}),
+			);
+		}
+
+		function pintar() {
+			document.querySelectorAll<HTMLElement>('[data-estilo-valor]').forEach((el) => {
+				el.textContent = `${corto(num(el.dataset.estiloValor ?? ''))}${el.dataset.unidad ?? ''}`;
+			});
+			lienzo!.style.background = val('fondo');
+			aplicar(muestra!, reglas());
+			muestra!.textContent = texto();
+			salida!.value = css();
+			pintarMuestrario();
+		}
+
+		form.addEventListener('input', pintar);
+		form.addEventListener('change', pintar);
+		form.addEventListener('submit', (event) => event.preventDefault());
+		// El reset cambia los campos después de lanzar el evento: se pinta al siguiente tick.
+		form.addEventListener('reset', () => {
+			toggles.forEach((b) => b.setAttribute('aria-pressed', 'false'));
+			setTimeout(pintar);
+		});
+
+		toggles.forEach((b) =>
+			b.addEventListener('click', () => {
+				b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+				pintar();
+			}),
+		);
+
+		const azar = (min: number, max: number) => min + Math.random() * (max - min);
+		function elige<T>(lista: T[]): T {
+			return lista[Math.floor(Math.random() * lista.length)];
+		}
+		const hex = (l: number) => {
+			// Un tono al azar y la luz que pida: así texto y fondo siempre contrastan.
+			const h = Math.random() * 360;
+			const s = 0.5;
+			const f = (n: number) => {
+				const k = (n + h / 30) % 12;
+				const c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+				return Math.round(c * 255).toString(16).padStart(2, '0');
+			};
+			return `#${f(0)}${f(8)}${f(4)}`;
+		};
+
+		form.querySelector('[data-estilo-azar]')?.addEventListener('click', () => {
+			const oscuro = Math.random() < 0.5;
+			campo('fuente')!.value = elige(fuentes).id;
+			campo('peso')!.value = elige(['300', '400', '500', '700', '800', '900']);
+			campo('tamano')!.value = String(Math.round(azar(28, 96)));
+			campo('interlineado')!.value = String(Number(azar(1, 1.6).toFixed(2)));
+			campo('espaciado')!.value = String(Number(azar(-0.03, 0.15).toFixed(3)));
+			campo('color')!.value = hex(oscuro ? 0.85 : 0.2);
+			campo('fondo')!.value = hex(oscuro ? 0.12 : 0.94);
+			campo('sombra')!.value = Math.random() < 0.3 ? String(Math.round(azar(2, 12))) : '0';
+			campo('sombra-color')!.value = hex(0.5);
+			campo('contorno')!.value = '0';
+			campo('caso')!.value = elige(['none', 'none', 'uppercase', 'small-caps']);
+			toggles.forEach((b) =>
+				b.setAttribute('aria-pressed', String(b.dataset.estiloToggle === 'cursiva' && Math.random() < 0.3)),
+			);
+			pintar();
+		});
+
+		// Copiar
+
+		const copia = document.querySelector<HTMLButtonElement>('[data-estilo-copia]');
+		const copiaTexto = copia?.querySelector('[data-estilo-copia-texto]');
+		let reloj: number | undefined;
+
+		async function copiar(contenido: string) {
+			try {
+				await navigator.clipboard.writeText(contenido);
+				return true;
+			} catch {
+				// Sin portapapeles (o sin permiso): el truco del textarea de siempre.
+				try {
+					salida!.select();
+					return document.execCommand('copy');
+				} catch {
+					return false;
+				}
+			}
+		}
+
+		copia?.addEventListener('click', async () => {
+			const hecho = await copiar(css());
+			copia.dataset.state = hecho ? 'done' : 'error';
+			if (copiaTexto) copiaTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				copia.removeAttribute('data-state');
+				if (copiaTexto) copiaTexto.textContent = 'Copiar CSS';
+			}, 2000);
+		});
+
+		pintar();
+	}
+</script>
