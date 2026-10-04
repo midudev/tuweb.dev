@@ -1,9 +1,10 @@
 ---
 /**
  * Transiciones CSS: qué propiedades cambian al pasar el ratón (color, tamaño,
- * transformación, opacidad), cuánto dura, cuánto espera y con qué curva. La
- * curva cubic-bezier se edita arrastrando sus dos puntos de control. La vista
- * previa es el propio CSS aplicado a un cuadro de prueba. Todo pasa en el
+ * transformación, opacidad, sombra, desenfoque), cuánto dura, cuánto espera y
+ * con qué curva. La curva cubic-bezier se edita arrastrando sus dos puntos de
+ * control. La vista previa es el propio CSS aplicado a un cuadro de prueba, con
+ * el ratón encima o en bucle, yendo y volviendo solo. Todo pasa en el
  * navegador y lo único que se guarda es el estado, en localStorage.
  */
 import Icon from './Icon.astro';
@@ -22,6 +23,8 @@ const MEDIDAS = [
 	{ id: 'escala', grupo: 'transform', label: 'Escala', min: 50, max: 200, step: 1, unidad: '%' },
 	{ id: 'mover', grupo: 'transform', label: 'Desplazamiento Y', min: -80, max: 80, step: 1, unidad: 'px' },
 	{ id: 'opacidad', grupo: 'opacidad', label: 'Opacidad final', min: 0, max: 100, step: 1, unidad: '%' },
+	{ id: 'sombra', grupo: 'sombra', label: 'Difuminado', min: 0, max: 48, step: 1, unidad: 'px' },
+	{ id: 'blur', grupo: 'desenfoque', label: 'Desenfoque final', min: 0, max: 20, step: 1, unidad: 'px' },
 ];
 
 const PROPIEDADES = [
@@ -29,6 +32,8 @@ const PROPIEDADES = [
 	{ id: 'tamano', label: 'Tamaño', css: 'width, height' },
 	{ id: 'transform', label: 'Transformación', css: 'transform' },
 	{ id: 'opacidad', label: 'Opacidad', css: 'opacity' },
+	{ id: 'sombra', label: 'Sombra', css: 'box-shadow' },
+	{ id: 'desenfoque', label: 'Desenfoque', css: 'filter' },
 ];
 
 const CURVAS = [
@@ -154,7 +159,7 @@ const PUNTOS = [
 
 		<div class="flex min-w-0 flex-col gap-6">
 			<div class="flex flex-col gap-2">
-				<span class="text-sm text-muted">Vista previa: pasa el ratón por el recuadro</span>
+				<span class="text-sm text-muted">Vista previa: pasa el ratón por el recuadro o déjalo en bucle</span>
 				<div
 					data-tr-escena
 					tabindex="0"
@@ -168,6 +173,11 @@ const PUNTOS = [
 						<Icon name="player-play" class="size-4 shrink-0" />
 						Dejarlo en el estado final
 					</button>
+					<button type="button" data-tr-bucle aria-pressed="false" class={BOTON}>
+						<Icon name="repeat" class="size-4 shrink-0" />
+						En bucle
+					</button>
+					<span data-tr-fase aria-live="polite" class="self-center text-sm text-muted"></span>
 				</div>
 			</div>
 
@@ -286,8 +296,8 @@ const PUNTOS = [
 </style>
 
 <script>
-	type Prop = 'color' | 'tamano' | 'transform' | 'opacidad';
-	type Medida = 'duracion' | 'retraso' | 'tamano' | 'giro' | 'escala' | 'mover' | 'opacidad';
+	type Prop = 'color' | 'tamano' | 'transform' | 'opacidad' | 'sombra' | 'desenfoque';
+	type Medida = 'duracion' | 'retraso' | 'tamano' | 'giro' | 'escala' | 'mover' | 'opacidad' | 'sombra' | 'blur';
 	type Curva = [number, number, number, number];
 	type Estado = Record<Medida, number> & {
 		props: Record<Prop, boolean>;
@@ -299,7 +309,7 @@ const PUNTOS = [
 	const CLAVE = 'tuweb:transiciones';
 	const HEX = /^#[0-9a-f]{6}$/i;
 	const LADO = 112;
-	const PROPS: Prop[] = ['color', 'tamano', 'transform', 'opacidad'];
+	const PROPS: Prop[] = ['color', 'tamano', 'transform', 'opacidad', 'sombra', 'desenfoque'];
 	const RANGOS: Record<Medida, [number, number]> = {
 		duracion: [0, 3000],
 		retraso: [0, 2000],
@@ -308,7 +318,11 @@ const PUNTOS = [
 		escala: [50, 200],
 		mover: [-80, 80],
 		opacidad: [0, 100],
+		sombra: [0, 48],
+		blur: [0, 20],
 	};
+	// Lo que se queda quieto el bucle en cada extremo antes de dar la vuelta.
+	const PAUSA = 600;
 	const MEDIDAS = Object.keys(RANGOS) as Medida[];
 
 	// Las cinco con nombre en CSS salen con su palabra; el resto, con sus números.
@@ -326,7 +340,7 @@ const PUNTOS = [
 	const CON_NOMBRE = ['ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out'];
 
 	const INICIAL: Estado = {
-		props: { color: true, tamano: false, transform: true, opacidad: false },
+		props: { color: true, tamano: false, transform: true, opacidad: false, sombra: false, desenfoque: false },
 		duracion: 400,
 		retraso: 0,
 		tamano: 160,
@@ -334,6 +348,8 @@ const PUNTOS = [
 		escala: 120,
 		mover: -12,
 		opacidad: 50,
+		sombra: 24,
+		blur: 4,
 		inicio: '#c2410c',
 		fin: '#3b2d24',
 		curva: [...CURVAS.ease] as Curva,
@@ -351,6 +367,8 @@ const PUNTOS = [
 	const escena = panel?.querySelector<HTMLElement>('[data-tr-escena]');
 	const cuadro = panel?.querySelector<HTMLElement>('[data-tr-cuadro]');
 	const probar = panel?.querySelector<HTMLButtonElement>('[data-tr-probar]');
+	const bucle = panel?.querySelector<HTMLButtonElement>('[data-tr-bucle]');
+	const faseTexto = panel?.querySelector<HTMLElement>('[data-tr-fase]');
 	const inicio = panel?.querySelector<HTMLInputElement>('[data-tr-inicio]');
 	const fin = panel?.querySelector<HTMLInputElement>('[data-tr-fin]');
 	const lienzo = panel?.querySelector<SVGSVGElement>('[data-tr-lienzo]');
@@ -390,6 +408,9 @@ const PUNTOS = [
 	let estado = cargar();
 	let encima = false;
 	let fijo = false;
+	let enBucle = false;
+	let fase = false;
+	let relojBucle: number | undefined;
 
 	function guardar() {
 		try {
@@ -421,6 +442,8 @@ const PUNTOS = [
 		if (estado.props.tamano) lista.push('width', 'height');
 		if (estado.props.transform) lista.push('transform');
 		if (estado.props.opacidad) lista.push('opacity');
+		if (estado.props.sombra) lista.push('box-shadow');
+		if (estado.props.desenfoque) lista.push('filter');
 		return lista;
 	}
 
@@ -438,6 +461,10 @@ const PUNTOS = [
 		if (estado.props.tamano) pares.push(['width', `${estado.tamano}px`], ['height', `${estado.tamano}px`]);
 		if (estado.props.transform) pares.push(['transform', transformCss()]);
 		if (estado.props.opacidad) pares.push(['opacity', String(estado.opacidad / 100)]);
+		if (estado.props.sombra) {
+			pares.push(['box-shadow', `0 ${Math.round(estado.sombra / 2)}px ${estado.sombra}px rgba(0, 0, 0, 0.45)`]);
+		}
+		if (estado.props.desenfoque) pares.push(['filter', `blur(${estado.blur}px)`]);
 		return pares;
 	}
 
@@ -449,6 +476,8 @@ const PUNTOS = [
 			`  background-color: ${estado.inicio};`,
 			...(estado.props.transform ? ['  transform: none;'] : []),
 			...(estado.props.opacidad ? ['  opacity: 1;'] : []),
+			...(estado.props.sombra ? ['  box-shadow: 0 0 0 rgba(0, 0, 0, 0);'] : []),
+			...(estado.props.desenfoque ? ['  filter: blur(0);'] : []),
 			t.includes('\n') ? `  transition:\n    ${t};` : `  transition: ${t};`,
 		];
 		const hover = final().map(([p, v]) => `  ${p}: ${v};`);
@@ -459,13 +488,17 @@ const PUNTOS = [
 
 	function pintarCuadro() {
 		if (!cuadro) return;
-		const activo = encima || fijo;
+		const activo = encima || fijo || (enBucle && fase);
 		cuadro.style.transition = transicion().replace(/\n\s*/g, ' ');
 		cuadro.style.width = `${LADO}px`;
 		cuadro.style.height = `${LADO}px`;
 		cuadro.style.backgroundColor = estado.inicio;
 		cuadro.style.transform = 'none';
 		cuadro.style.opacity = '1';
+		// Sombra y filtro parten de su valor «vacío» y no de none: si no, el
+		// navegador no tiene entre qué interpolar y salta de golpe.
+		cuadro.style.boxShadow = '0 0 0 rgba(0, 0, 0, 0)';
+		cuadro.style.filter = 'blur(0)';
 		if (!activo) return;
 		final().forEach(([p, v]) => cuadro.style.setProperty(p, v));
 	}
@@ -576,10 +609,40 @@ const PUNTOS = [
 	escena?.addEventListener('focus', () => ponerEncima(true));
 	escena?.addEventListener('blur', () => ponerEncima(false));
 
+	// El bucle va y vuelve solo: cada media vuelta dura lo que la transición más
+	// su retraso, y espera un poco en cada extremo para que se vea dónde acaba.
+	// Lee el estado en cada paso, así que cambiar la duración se nota al momento.
+	function paso() {
+		fase = !fase;
+		if (faseTexto) faseTexto.textContent = fase ? 'Hacia el final' : 'De vuelta';
+		pintarCuadro();
+		relojBucle = window.setTimeout(paso, estado.duracion + estado.retraso + PAUSA);
+	}
+
+	function ponerBucle(valor: boolean) {
+		enBucle = valor;
+		bucle?.setAttribute('aria-pressed', String(valor));
+		clearTimeout(relojBucle);
+		fase = false;
+		if (faseTexto) faseTexto.textContent = '';
+		if (valor) paso();
+		else pintarCuadro();
+	}
+
 	probar?.addEventListener('click', () => {
+		// Fijarlo en el final y el bucle se pisan: uno apaga al otro.
+		if (enBucle) ponerBucle(false);
 		fijo = !fijo;
 		probar.setAttribute('aria-pressed', String(fijo));
 		pintarCuadro();
+	});
+
+	bucle?.addEventListener('click', () => {
+		if (fijo && probar) {
+			fijo = false;
+			probar.setAttribute('aria-pressed', 'false');
+		}
+		ponerBucle(!enBucle);
 	});
 
 	function ponerPunto(i: number, x: number, y: number) {
