@@ -51,7 +51,7 @@ export const GROUPS: Group[] = [
 		icon: 'messages',
 		card: 'Donde se junta la gente: hablar, con nombre o sin él, y el reto de la semana.',
 		intro:
-			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número—, un mural ASCII que se pasa de mano en mano y los retos semanales: tres de la casa cada lunes, los que propone la gente y un tablón de soluciones para cada uno. En los chats sale el reto de la semana, por si quieres hablar de él.',
+			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número—, un mural ASCII que se pasa de mano en mano y los retos semanales: tres de la casa cada lunes, los que propone la gente, un tablón de soluciones para cada uno y votos con insignia para el que gana. En los chats sale el reto de la semana, por si quieres hablar de él.',
 	},
 	{
 		id: 'proceso',
@@ -353,9 +353,9 @@ export const SECTIONS: Section[] = [
 		title: 'Retos semanales',
 		icon: 'target-arrow',
 		group: 'canales',
-		card: 'Tres retos de la casa cada lunes, más los que propone la gente.',
+		card: 'Tres retos de la casa cada lunes, los que propone la gente, votos e insignias para el que gana.',
 		intro:
-			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propone la gente con su cuenta de GitHub: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas; abajo, tus últimas semanas. Lo que marcas se queda en tu navegador, y el lunes el tablero vuelve a empezar.',
+			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propone la gente con su cuenta de GitHub: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas. Reparte cinco votos entre los retos y al que va ganando hazle una insignia —nombre, icono, color y forma— que queda en tu vitrina y te llevas en SVG o PNG. Lo que marcas, votas y entregas se queda en tu navegador, y el lunes el tablero vuelve a empezar.',
 	},
 	{
 		href: '/ideas',

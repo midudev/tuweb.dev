@@ -4,13 +4,33 @@
  * casa, rotando el catálogo, y los demás los propone la gente con su cuenta de
  * GitHub y los ve todo el mundo. Lo que marcas como hecho es tuyo y se queda en
  * tu navegador; el lunes vuelve a estar todo por hacer. Cada reto tiene además su
- * tablón de soluciones con votos, que también vive en el navegador.
+ * tablón de soluciones con votos, que también vive en el navegador. Los retos
+ * se votan, y al que va ganando le haces una insignia que queda en tu vitrina.
  */
+import { icons } from '@iconify-json/tabler';
 import GitHubLogin from './GitHubLogin.astro';
 import Icon from './Icon.astro';
 import { getSessionUser } from '../lib/auth';
+import { COLORES, FORMAS, ICONOS, NOMBRE_MAX } from '../lib/insignias';
 import { DETAIL_MAX, NIVELES, TEMAS, TITLE_MAX } from '../lib/retos';
 import { FIRMA_MAX as SOL_FIRMA_MAX, TEXT_MAX as SOL_TEXT_MAX } from '../lib/soluciones';
+
+// Los cuerpos de los iconos de la insignia, para dibujarla en SVG en el navegador.
+const CUERPOS = Object.fromEntries(ICONOS.map((name) => [name, icons.icons[name]?.body ?? '']));
+const ICONO_LABEL: Record<string, string> = {
+	trophy: 'Copa',
+	crown: 'Corona',
+	medal: 'Medalla',
+	award: 'Galardón',
+	star: 'Estrella',
+	flame: 'Llama',
+	bolt: 'Rayo',
+	rocket: 'Cohete',
+	code: 'Código',
+	bug: 'Bicho',
+	brain: 'Cerebro',
+	heart: 'Corazón',
+};
 
 // Con sesión sale el formulario; sin ella, el enlace para entrar. El script lo
 // corrige si la sesión cambia mientras la página está abierta.
@@ -46,6 +66,9 @@ const DATO = 'inline-flex items-center gap-2';
 			</span>
 			<span class={DATO}>
 				Racha <span data-streak class="tabular-nums text-fg"></span>
+			</span>
+			<span class={DATO}>
+				Votos <span data-votos-usados class="tabular-nums text-fg"></span>
 			</span>
 		</p>
 	</div>
@@ -135,6 +158,26 @@ const DATO = 'inline-flex items-center gap-2';
 				</span>
 			</p>
 
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+				<button type="button" data-vote-up class={`${ENLACE} disabled:pointer-events-none disabled:opacity-40`}>
+					<Icon name="arrow-big-up" class="size-4 shrink-0" />
+					Votar
+				</button>
+				<span data-votos class="text-sm tabular-nums text-fg"></span>
+				<button
+					type="button"
+					data-vote-down
+					aria-label="Quitar un voto"
+					class={`${ENLACE} disabled:pointer-events-none disabled:opacity-40`}
+				>
+					<Icon name="arrow-big-down" class="size-4 shrink-0" />
+				</button>
+				<span data-ganando class="inline-flex items-center gap-1 text-xs text-mark">
+					<Icon name="crown" class="size-4 shrink-0" />
+					Va ganando
+				</span>
+			</div>
+
 			<div data-tools class="flex flex-wrap items-center gap-5 border-t border-line pt-3">
 				<button type="button" data-remove class={ENLACE}>
 					<Icon name="trash" class="size-4 shrink-0" />
@@ -221,6 +264,137 @@ const DATO = 'inline-flex items-center gap-2';
 		</li>
 	</template>
 
+	<div
+		data-insignia
+		data-cuerpos={JSON.stringify(CUERPOS)}
+		class="flex flex-col gap-4 border border-line bg-panel p-4"
+	>
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="award" class="size-5 shrink-0 text-mark" />
+			Insignia de la semana
+		</h2>
+		<p data-ins-ganador class="text-sm text-muted" aria-live="polite"></p>
+
+		<div class="grid gap-5 md:grid-cols-[1fr_12rem] md:items-start">
+			<div class="flex flex-col gap-4">
+				<label class="flex flex-col gap-2">
+					<span class="text-sm text-muted">Nombre de la insignia</span>
+					<input
+						type="text"
+						data-ins-nombre
+						maxlength={NOMBRE_MAX}
+						autocomplete="off"
+						placeholder="Reto de la semana"
+						class={FIELD}
+					/>
+				</label>
+
+				<div class="flex flex-col gap-2">
+					<span id="ins-icono" class="text-sm text-muted">Icono</span>
+					<div role="group" aria-labelledby="ins-icono" class="flex flex-wrap gap-2">
+						{
+							ICONOS.map((name) => (
+								<button
+									type="button"
+									data-ins-icono={name}
+									aria-pressed="false"
+									aria-label={ICONO_LABEL[name] ?? name}
+									title={ICONO_LABEL[name] ?? name}
+									class="border border-line bg-bg p-2 text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent"
+								>
+									<Icon name={name} class="size-5" />
+								</button>
+							))
+						}
+					</div>
+				</div>
+
+				<div class="flex flex-col gap-2">
+					<span id="ins-color" class="text-sm text-muted">Color</span>
+					<div role="group" aria-labelledby="ins-color" class="flex flex-wrap gap-2">
+						{
+							COLORES.map((color) => (
+								<button
+									type="button"
+									data-ins-color={color.id}
+									aria-pressed="false"
+									aria-label={color.label}
+									title={color.label}
+									class="size-9 border-2 border-line aria-pressed:border-fg"
+									style={`background: var(--color-${color.id})`}
+								/>
+							))
+						}
+					</div>
+				</div>
+
+				<div class="flex flex-col gap-2">
+					<span id="ins-forma" class="text-sm text-muted">Forma</span>
+					<div role="group" aria-labelledby="ins-forma" class="flex flex-wrap gap-2">
+						{
+							FORMAS.map((forma) => (
+								<button
+									type="button"
+									data-ins-forma={forma.id}
+									aria-pressed="false"
+									class={`${BOTON} aria-pressed:border-accent aria-pressed:text-accent`}
+								>
+									{forma.label}
+								</button>
+							))
+						}
+					</div>
+				</div>
+
+				<div class="flex flex-wrap items-center gap-3">
+					<button type="button" data-ins-entregar class={`${BOTON} border-accent text-accent`}>
+						<Icon name="trophy" class="size-4 shrink-0" />
+						Entregar la insignia
+					</button>
+					<button type="button" data-ins-svg class={BOTON}>
+						<Icon name="download" class="size-4 shrink-0" />
+						SVG
+					</button>
+					<button type="button" data-ins-png class={BOTON}>
+						<Icon name="photo" class="size-4 shrink-0" />
+						PNG
+					</button>
+				</div>
+				<p data-ins-error role="status" class="text-sm text-heart"></p>
+			</div>
+
+			<div data-ins-vista class="mx-auto w-48" role="img" aria-label="Vista previa de la insignia"></div>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="medal" class="size-5 shrink-0 text-accent" />
+			Tu vitrina
+		</h2>
+		<ul data-vitrina class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"></ul>
+		<p data-vitrina-vacia class="text-sm text-muted">
+			Vacía. Vota retos y entrega la insignia al que gane: aquí se queda una por semana.
+		</p>
+	</div>
+
+	<template data-vitrina-item>
+		<li class="flex flex-col gap-2 border border-line bg-bg p-3">
+			<div data-vit-svg role="img"></div>
+			<span data-vit-semana class="text-xs text-muted"></span>
+			<div class="flex flex-wrap items-center gap-4">
+				<button type="button" data-vit-svg-bajar class={ENLACE}>
+					<Icon name="download" class="size-4 shrink-0" />
+					SVG
+				</button>
+				<button type="button" data-vit-quitar class={ENLACE}>
+					<Icon name="trash" class="size-4 shrink-0" />
+					Quitar
+				</button>
+			</div>
+		</li>
+	</template>
+
 	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
 		<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
 			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
@@ -247,8 +421,8 @@ const DATO = 'inline-flex items-center gap-2';
 
 	<p class="text-sm text-muted">
 		Los tres retos de la casa cambian cada lunes, y los que propone la gente duran lo que dura la
-		semana. Lo que marcas como hecho, los puntos, la racha, las soluciones y sus votos solo están en
-		tu navegador.
+		semana. Lo que marcas como hecho, los puntos, la racha, las soluciones, los votos y las
+		insignias solo están en tu navegador.
 	</p>
 </section>
 
@@ -290,6 +464,22 @@ const DATO = 'inline-flex items-center gap-2';
 	}
 	#retos [data-sol-vote][aria-pressed='true'] {
 		color: var(--color-mark);
+	}
+
+	/* El que va ganando se enmarca en el color de lo que destaca; el canto sigue siendo del tema. */
+	#retos [data-item][data-ganador='si'] {
+		border-top-color: var(--color-mark);
+		border-right-color: var(--color-mark);
+		border-bottom-color: var(--color-mark);
+	}
+	#retos [data-item]:not([data-ganador='si']) [data-ganando] {
+		display: none;
+	}
+	#retos [data-ins-vista] svg,
+	#retos [data-vit-svg] svg {
+		display: block;
+		width: 100%;
+		height: auto;
 	}
 
 	/* La semana en curso se marca en el canto; las vacías se apagan. */
@@ -337,6 +527,30 @@ const DATO = 'inline-flex items-center gap-2';
 		solucionesOf,
 		toggleVoto,
 	} from '../lib/soluciones';
+	import {
+		COLORES,
+		FORMAS,
+		ICONOS,
+		VOTOS_RETO,
+		VOTOS_SEMANA,
+		type Forma,
+		type Insignia,
+		type Votos,
+		entregar,
+		ganadorOf,
+		insigniaSvg,
+		quitarInsignia,
+		readVitrina,
+		readVotos,
+		saveVitrina,
+		saveVotos,
+		soloVivos,
+		tintaFija,
+		tintaViva,
+		usadosOf,
+		votar,
+		votosDe,
+	} from '../lib/insignias';
 
 	const section = document.querySelector<HTMLElement>('#retos');
 	const form = section?.querySelector<HTMLFormElement>('[data-form]');
@@ -358,6 +572,11 @@ const DATO = 'inline-flex items-center gap-2';
 	const histList = section?.querySelector<HTMLElement>('[data-historial]');
 	const histTotal = section?.querySelector<HTMLElement>('[data-hist-total]');
 	const semanaTemplate = section?.querySelector<HTMLTemplateElement>('[data-semana]');
+	const votosOut = section?.querySelector<HTMLElement>('[data-votos-usados]');
+	const insPanel = section?.querySelector<HTMLElement>('[data-insignia]');
+	const vitList = section?.querySelector<HTMLElement>('[data-vitrina]');
+	const vitVacia = section?.querySelector<HTMLElement>('[data-vitrina-vacia]');
+	const vitTemplate = section?.querySelector<HTMLTemplateElement>('[data-vitrina-item]');
 
 	/** Las semanas que se enseñan en «Tus semanas», la de ahora incluida. */
 	const HIST_WEEKS = 8;
@@ -424,6 +643,17 @@ const DATO = 'inline-flex items-center gap-2';
 		const borradores = new Map<string, { text: string; firma: string }>();
 		/** El reto cuyo cuadro de texto recupera el foco al repintar. */
 		let enfocar = '';
+		let votos: Votos = readVotos();
+		let vitrina: Insignia[] = readVitrina();
+		let ganador: Reto | null = null;
+		/** La insignia que se está diseñando. */
+		const diseno = { nombre: '', icono: ICONOS[0] as string, color: COLORES[0].id, forma: 'escudo' as Forma };
+		let cuerpos: Record<string, string> = {};
+		try {
+			cuerpos = JSON.parse(insPanel?.dataset.cuerpos ?? '{}');
+		} catch {
+			// Sin iconos, la insignia sale igual: forma y letras.
+		}
 
 		function field(name: string) {
 			return form!.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`);
@@ -513,6 +743,7 @@ const DATO = 'inline-flex items-center gap-2';
 			});
 
 			solucionesDe(node, reto);
+			votosEn(node, reto);
 
 			if (!reto.mine) return node;
 
@@ -665,11 +896,152 @@ const DATO = 'inline-flex items-center gap-2';
 				histTotal.textContent = `${total} ${total === 1 ? 'reto' : 'retos'} en ${activas} de ${HIST_WEEKS} semanas`;
 		}
 
+		/** Los votos de un reto: cuántos lleva y los dos botones para moverlos. */
+		function votosEn(node: HTMLElement, reto: Reto) {
+			const n = votosDe(votos, week, reto.id);
+			node.dataset.ganador = ganador?.id === reto.id ? 'si' : 'no';
+			node.querySelector('[data-votos]')!.textContent = n === 1 ? '1 voto' : `${n} votos`;
+
+			const up = node.querySelector<HTMLButtonElement>('[data-vote-up]')!;
+			const down = node.querySelector<HTMLButtonElement>('[data-vote-down]')!;
+			up.disabled = n >= VOTOS_RETO || usadosOf(votos, week) >= VOTOS_SEMANA;
+			down.disabled = n === 0;
+			up.addEventListener('click', () => cambiarVoto(reto.id, 1));
+			down.addEventListener('click', () => cambiarVoto(reto.id, -1));
+		}
+
+		function cambiarVoto(id: string, cambio: 1 | -1) {
+			const next = votar(votos, week, id, cambio);
+			if (typeof next === 'string') {
+				aviso(next);
+				return;
+			}
+			aviso('');
+			votos = next;
+			saveVotos(votos, week);
+			render();
+		}
+
+		function para(reto: Reto | null) {
+			if (!reto) return 'quien gane';
+			if (reto.house) return 'la casa';
+			if (reto.mine) return 'ti';
+			return reto.author || 'alguien';
+		}
+
+		/** Lo que lleva la insignia que se está diseñando, con el ganador de ahora. */
+		function borrador() {
+			return {
+				...diseno,
+				nombre: diseno.nombre || 'Reto de la semana',
+				reto: ganador?.title ?? 'El reto ganador',
+				para: para(ganador),
+				semana: weekLabel(start),
+			};
+		}
+
+		const svgDe = (ins: Omit<Insignia, 'week' | 'at'>, viva: boolean) =>
+			insigniaSvg(ins, cuerpos[ins.icono] ?? '', viva ? tintaViva(ins.color) : tintaFija(ins.color));
+
+		function archivo(nombre: string, ext: string) {
+			const slug = nombre
+				.toLowerCase()
+				.normalize('NFD')
+				.replace(/[^a-z0-9]+/g, '-')
+				.replace(/^-+|-+$/g, '');
+			return `insignia-${slug || 'semana'}.${ext}`;
+		}
+
+		function bajar(blob: Blob, nombre: string) {
+			const url = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = nombre;
+			enlace.click();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		}
+
+		const bajarSvg = (svg: string, nombre: string) =>
+			bajar(new Blob([svg], { type: 'image/svg+xml' }), nombre);
+
+		/** El PNG sale de pintar el SVG en un canvas, al doble de tamaño. */
+		function bajarPng(svg: string, nombre: string) {
+			const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+			const img = new Image();
+			img.onload = () => {
+				const canvas = document.createElement('canvas');
+				canvas.width = 480;
+				canvas.height = 600;
+				canvas.getContext('2d')?.drawImage(img, 0, 0, 480, 600);
+				URL.revokeObjectURL(url);
+				canvas.toBlob((blob) => blob && bajar(blob, nombre), 'image/png');
+			};
+			img.onerror = () => URL.revokeObjectURL(url);
+			img.src = url;
+		}
+
+		function insignia() {
+			if (!insPanel) return;
+			const n = ganador ? votosDe(votos, week, ganador.id) : 0;
+			const entregada = vitrina.find((item) => item.week === week);
+			let texto = ganador
+				? `Va ganando «${ganador.title}», de ${para(ganador)}, con ${n} ${n === 1 ? 'voto' : 'votos'}.`
+				: `Nadie va ganando todavía. Reparte tus ${VOTOS_SEMANA} votos —${VOTOS_RETO} como mucho por reto— y el que más sume se lleva la insignia.`;
+			if (entregada) texto += ` Esta semana ya entregaste «${entregada.nombre}»; otra la cambia.`;
+			insPanel.querySelector('[data-ins-ganador]')!.textContent = texto;
+
+			insPanel.querySelector('[data-ins-vista]')!.innerHTML = svgDe(borrador(), true);
+			insPanel.querySelector<HTMLButtonElement>('[data-ins-entregar]')!.disabled = !ganador;
+
+			const pulsado = (attr: string, valor: string) =>
+				insPanel.querySelectorAll<HTMLButtonElement>(`[data-ins-${attr}]`).forEach((b) => {
+					b.setAttribute('aria-pressed', String(b.getAttribute(`data-ins-${attr}`) === valor));
+				});
+			pulsado('icono', diseno.icono);
+			pulsado('color', diseno.color);
+			pulsado('forma', diseno.forma);
+		}
+
+		function pintarVitrina() {
+			if (!vitList || !vitTemplate) return;
+			vitList.replaceChildren(
+				...vitrina.map((item) => {
+					const node = vitTemplate.content.firstElementChild!.cloneNode(true) as HTMLElement;
+					const dibujo = node.querySelector<HTMLElement>('[data-vit-svg]')!;
+					dibujo.innerHTML = svgDe(item, true);
+					dibujo.setAttribute('aria-label', `${item.nombre}: ${item.reto}, para ${item.para}`);
+					node.querySelector('[data-vit-semana]')!.textContent = item.semana;
+					node
+						.querySelector('[data-vit-svg-bajar]')!
+						.addEventListener('click', () => bajarSvg(svgDe(item, false), archivo(item.nombre, 'svg')));
+					node.querySelector('[data-vit-quitar]')!.addEventListener('click', () => {
+						vitrina = quitarInsignia(vitrina, item.week);
+						saveVitrina(vitrina);
+						render();
+					});
+					return node;
+				}),
+			);
+			if (vitVacia) vitVacia.hidden = vitrina.length > 0;
+		}
+
 		function render() {
 			const tablero = board();
+			// Hasta que lleguen los de la gente no se sabe qué retos siguen: no se poda.
+			if (loaded) {
+				const vivos = soloVivos(votos, week, tablero.map((reto) => reto.id));
+				if (vivos !== votos) {
+					votos = vivos;
+					saveVotos(votos, week);
+				}
+			}
+			ganador = ganadorOf(votos, week, tablero);
 			list!.replaceChildren(...tablero.map(card));
 			destacadas(tablero);
 			historial(tablero);
+			insignia();
+			pintarVitrina();
+			if (votosOut) votosOut.textContent = `${usadosOf(votos, week)} / ${VOTOS_SEMANA}`;
 
 			if (enfocar) {
 				const index = tablero.findIndex((reto) => reto.id === enfocar);
@@ -814,6 +1186,58 @@ const DATO = 'inline-flex items-center gap-2';
 			render();
 			void cargar();
 		}, 30_000);
+
+		if (insPanel) {
+			const nombre = insPanel.querySelector<HTMLInputElement>('[data-ins-nombre]');
+			const error = insPanel.querySelector<HTMLElement>('[data-ins-error]');
+			nombre?.addEventListener('input', () => {
+				diseno.nombre = nombre.value.replace(/\s+/g, ' ').trim();
+				insignia();
+			});
+
+			insPanel.querySelectorAll<HTMLButtonElement>('[data-ins-icono]').forEach((b) =>
+				b.addEventListener('click', () => {
+					const icono = ICONOS.find((item) => item === b.dataset.insIcono);
+					if (icono) diseno.icono = icono;
+					insignia();
+				}),
+			);
+			insPanel.querySelectorAll<HTMLButtonElement>('[data-ins-color]').forEach((b) =>
+				b.addEventListener('click', () => {
+					const color = COLORES.find((item) => item.id === b.dataset.insColor);
+					if (color) diseno.color = color.id;
+					insignia();
+				}),
+			);
+			insPanel.querySelectorAll<HTMLButtonElement>('[data-ins-forma]').forEach((b) =>
+				b.addEventListener('click', () => {
+					const forma = FORMAS.find((item) => item.id === b.dataset.insForma);
+					if (forma) diseno.forma = forma.id;
+					insignia();
+				}),
+			);
+
+			insPanel.querySelector('[data-ins-entregar]')?.addEventListener('click', () => {
+				if (error) error.textContent = '';
+				if (!ganador) return;
+				const next = entregar(vitrina, { ...borrador(), week });
+				if (typeof next === 'string') {
+					if (error) error.textContent = next;
+					return;
+				}
+				vitrina = next;
+				saveVitrina(vitrina);
+				render();
+			});
+			insPanel
+				.querySelector('[data-ins-svg]')
+				?.addEventListener('click', () =>
+					bajarSvg(svgDe(borrador(), false), archivo(borrador().nombre, 'svg')),
+				);
+			insPanel
+				.querySelector('[data-ins-png]')
+				?.addEventListener('click', () => bajarPng(svgDe(borrador(), false), archivo(borrador().nombre, 'png')));
+		}
 
 		render();
 		void cargar();
