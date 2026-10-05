@@ -31,6 +31,7 @@ import OverlayTool from './OverlayTool.astro';
 import ParallaxTool from './ParallaxTool.astro';
 import PatternTool from './PatternTool.astro';
 import PhpTool from './PhpTool.astro';
+import PieTool from './PieTool.astro';
 import RandomPaletteTool from './RandomPaletteTool.astro';
 import ResponsiveTool from './ResponsiveTool.astro';
 import ScatterTool from './ScatterTool.astro';
@@ -82,6 +83,7 @@ const tools = [
 	{ id: 'graficos', label: 'Gráficos', icon: 'chart-bar' },
 	{ id: 'barras', label: 'Barras', icon: 'chart-histogram' },
 	{ id: 'lineas', label: 'Líneas', icon: 'chart-line' },
+	{ id: 'tarta', label: 'Tarta', icon: 'chart-pie' },
 	{ id: 'dispersion', label: 'Dispersión', icon: 'chart-dots' },
 	{ id: 'funciones', label: 'Funciones', icon: 'math-function' },
 	{ id: 'diagramas', label: 'Diagramas', icon: 'sitemap' },
@@ -282,6 +284,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<BarTool />
 
 	<LineTool />
+
+	<PieTool />
 
 	<ScatterTool />
 
