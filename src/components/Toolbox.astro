@@ -46,6 +46,7 @@ import ThemeTool from './ThemeTool.astro';
 import TransitionTool from './TransitionTool.astro';
 import TypeTool from './TypeTool.astro';
 import UnitTool from './UnitTool.astro';
+import WallpaperTool from './WallpaperTool.astro';
 
 // El id de cada herramienta es también su sitio en la URL:
 // tuweb.dev/herramientas#cron abre esa pestaña directamente. Por eso el panel
@@ -61,6 +62,7 @@ const tools = [
 	{ id: 'obras', label: 'Paletas de obras', icon: 'artboard' },
 	{ id: 'paletas-azar', label: 'Paletas al azar', icon: 'arrows-shuffle' },
 	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
+	{ id: 'fondos', label: 'Fondos de pantalla', icon: 'wallpaper' },
 	{ id: 'sombras', label: 'Sombras', icon: 'shadow' },
 	{ id: 'botones', label: 'Botones CSS', icon: 'click' },
 	{ id: 'hover', label: 'Efectos hover', icon: 'pointer' },
@@ -241,6 +243,7 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 
 	<GradientTool />
 
+	<WallpaperTool />
 	<ShadowTool />
 
 	<ButtonTool />

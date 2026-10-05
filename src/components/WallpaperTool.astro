@@ -1,0 +1,644 @@
+---
+/**
+ * Generador de fondos de pantalla: degradados suaves que se mueven solos. Se
+ * elige el estilo, la paleta y el tamaño, se para en el momento que guste y se
+ * baja en PNG a la resolución de la pantalla. Cada composición sale de una
+ * semilla, así que la misma semilla y los mismos colores dan siempre el mismo
+ * fondo. Todo pasa en el navegador; solo se guarda el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const ESTILOS = [
+	{ id: 'malla', label: 'Malla', icon: 'blur' },
+	{ id: 'ondas', label: 'Ondas', icon: 'wave-sine' },
+	{ id: 'diagonal', label: 'Diagonal', icon: 'color-filter' },
+];
+
+const PALETAS = [
+	{ id: 'casa', label: 'Casa', colores: ['#fdf6ef', '#c2410c', '#f5c542', '#7a6152'] },
+	{ id: 'atardecer', label: 'Atardecer', colores: ['#2b1b3d', '#e4572e', '#f3a712', '#a8327d'] },
+	{ id: 'oceano', label: 'Océano', colores: ['#0b1d3a', '#1f6feb', '#4fd1c5', '#cfe8ff'] },
+	{ id: 'bosque', label: 'Bosque', colores: ['#14251b', '#2f7a3b', '#a3c45e', '#e9e4c9'] },
+	{ id: 'lavanda', label: 'Lavanda', colores: ['#f4effa', '#b8a1e3', '#f2b5d4', '#7f6bb3'] },
+	{ id: 'noche', label: 'Noche', colores: ['#17110d', '#fc784b', '#382b21', '#d9a441'] },
+];
+
+const TAMANOS = [
+	{ id: '1920x1080', label: '1920×1080 (Full HD)' },
+	{ id: '2560x1440', label: '2560×1440 (QHD)' },
+	{ id: '3840x2160', label: '3840×2160 (4K)' },
+	{ id: '5120x2880', label: '5120×2880 (5K)' },
+	{ id: '1179x2556', label: '1179×2556 (móvil)' },
+	{ id: '1440x3200', label: '1440×3200 (móvil grande)' },
+	{ id: '2048x2732', label: '2048×2732 (tableta)' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="fondos"
+	aria-labelledby="tab-fondos"
+	data-panel="fondos"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<p class="text-sm text-muted">
+		Fondos de pantalla minimalistas con degradados que se mueven. Para el movimiento donde te guste y bájalo en alta
+		resolución.
+	</p>
+
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Estilo</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						ESTILOS.map((estilo, i) => (
+							<button
+								type="button"
+								data-fp-estilo={estilo.id}
+								aria-pressed={i === 0 ? 'true' : 'false'}
+								class={`${OPCION} inline-flex items-center gap-2`}
+							>
+								<Icon name={estilo.icon} class="size-4 shrink-0" />
+								{estilo.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Paletas</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						PALETAS.map((paleta) => (
+							<button
+								type="button"
+								data-fp-paleta={paleta.id}
+								data-colores={paleta.colores.join(',')}
+								class="inline-flex items-center gap-2 border border-line px-2 py-2 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								<span class="flex" aria-hidden="true">
+									{paleta.colores.map((color) => <span class="size-3" style={`background: ${color}`} />)}
+								</span>
+								{paleta.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<span class="text-sm text-muted">Colores (el primero es el fondo)</span>
+				<div data-fp-lista class="flex flex-col gap-2"></div>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-fp-nuevo class={BOTON}>
+						<Icon name="plus" class="size-4 shrink-0" />
+						Otro color
+					</button>
+					<button type="button" data-fp-azar-colores class={BOTON}>
+						<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+						Colores al azar
+					</button>
+				</div>
+			</div>
+
+			<label class="flex flex-col gap-2">
+				<span class="flex justify-between text-sm text-muted">Suavidad <span data-fp-suavidad-texto></span></span>
+				<input type="range" min="0" max="100" step="1" data-fp-suavidad class="w-full accent-accent" />
+			</label>
+
+			<label class="flex flex-col gap-2">
+				<span class="flex justify-between text-sm text-muted">Grano <span data-fp-grano-texto></span></span>
+				<input type="range" min="0" max="100" step="1" data-fp-grano class="w-full accent-accent" />
+			</label>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="border border-line bg-panel p-2">
+				<canvas
+					data-fp-vista
+					width="960"
+					height="540"
+					role="img"
+					aria-label="Vista previa del fondo de pantalla"
+					class="mx-auto block h-auto max-h-[32rem] w-auto max-w-full"></canvas>
+			</div>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-fp-mover aria-pressed="true" class={`${OPCION} inline-flex items-center gap-2`}>
+					<span data-icon="pausa" class="inline-flex"><Icon name="player-pause" class="size-4 shrink-0" /></span>
+					<span data-icon="play" class="inline-flex"><Icon name="player-play" class="size-4 shrink-0" /></span>
+					<span data-fp-mover-texto>Pausar</span>
+				</button>
+				<button type="button" data-fp-semilla class={BOTON}>
+					<Icon name="dice-5" class="size-4 shrink-0" />
+					Otra composición
+				</button>
+				<button type="button" data-fp-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<span class="sr-only">Tamaño</span>
+					<select data-fp-tamano class={`${CAMPO} w-auto`}>
+						<option value="pantalla" data-fp-pantalla>Tu pantalla</option>
+						{TAMANOS.map((tamano) => <option value={tamano.id}>{tamano.label}</option>)}
+					</select>
+				</label>
+				<button type="button" data-fp-png class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .png
+				</button>
+			</div>
+			<p data-fp-estado aria-live="polite" class="min-h-6 text-sm text-mark"></p>
+		</div>
+	</div>
+
+	<template data-fp-plantilla>
+		<div class="flex items-center gap-2">
+			<input
+				type="color"
+				data-fp-color
+				class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+			/>
+			<input
+				type="text"
+				data-fp-hex
+				spellcheck="false"
+				autocomplete="off"
+				maxlength="7"
+				class="w-24 shrink-0 border border-line bg-panel px-2 py-2 text-sm outline-none focus-visible:border-accent"
+			/>
+			<span data-fp-papel class="text-xs text-muted"></span>
+			<button
+				type="button"
+				data-fp-quitar
+				class="ml-auto shrink-0 border border-line p-2 text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted"
+			>
+				<Icon name="trash" class="size-4 shrink-0" />
+			</button>
+		</div>
+	</template>
+</div>
+
+<style>
+	[data-fp-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-fp-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-fp-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-fp-mover] [data-icon='play'],
+	[data-fp-mover][aria-pressed='false'] [data-icon='pausa'] {
+		display: none;
+	}
+	[data-fp-mover][aria-pressed='false'] [data-icon='play'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	type Estilo = 'malla' | 'ondas' | 'diagonal';
+	type Estado = {
+		estilo: Estilo;
+		colores: string[];
+		suavidad: number;
+		grano: number;
+		semilla: number;
+		tiempo: number;
+		tamano: string;
+	};
+
+	const ESTILOS: Estilo[] = ['malla', 'ondas', 'diagonal'];
+	const CLAVE = 'tuweb:fondos';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const MIN_COLORES = 2;
+	const MAX_COLORES = 5;
+	const INICIAL: Estado = {
+		estilo: 'malla',
+		colores: ['#fdf6ef', '#c2410c', '#f5c542', '#7a6152'],
+		suavidad: 60,
+		grano: 12,
+		semilla: 7,
+		tiempo: 0,
+		tamano: 'pantalla',
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="fondos"]');
+	const vista = panel?.querySelector<HTMLCanvasElement>('[data-fp-vista]');
+	const lista = panel?.querySelector<HTMLElement>('[data-fp-lista]');
+	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-fp-plantilla]');
+	const suavidad = panel?.querySelector<HTMLInputElement>('[data-fp-suavidad]');
+	const suavidadTexto = panel?.querySelector<HTMLElement>('[data-fp-suavidad-texto]');
+	const grano = panel?.querySelector<HTMLInputElement>('[data-fp-grano]');
+	const granoTexto = panel?.querySelector<HTMLElement>('[data-fp-grano-texto]');
+	const tamano = panel?.querySelector<HTMLSelectElement>('[data-fp-tamano]');
+	const opcionPantalla = panel?.querySelector<HTMLOptionElement>('[data-fp-pantalla]');
+	const mover = panel?.querySelector<HTMLButtonElement>('[data-fp-mover]');
+	const moverTexto = panel?.querySelector<HTMLElement>('[data-fp-mover-texto]');
+	const aviso = panel?.querySelector<HTMLElement>('[data-fp-estado]');
+	const estilos = panel?.querySelectorAll<HTMLButtonElement>('[data-fp-estilo]') ?? [];
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+
+	function cargar(): Estado {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && Array.isArray(g.colores) && g.colores.length >= MIN_COLORES) {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				return {
+					estilo: ESTILOS.includes(g.estilo) ? g.estilo : INICIAL.estilo,
+					colores: g.colores
+						.slice(0, MAX_COLORES)
+						.map((c: unknown) => (HEX.test(String(c)) ? String(c).toLowerCase() : '#000000')),
+					suavidad: limitar(num(g.suavidad, INICIAL.suavidad), 0, 100),
+					grano: limitar(num(g.grano, INICIAL.grano), 0, 100),
+					semilla: limitar(num(g.semilla, INICIAL.semilla), 0, 999999),
+					tiempo: Math.max(0, num(g.tiempo, 0)),
+					tamano: typeof g.tamano === 'string' ? g.tamano : INICIAL.tamano,
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return structuredClone(INICIAL);
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento: la herramienta sigue igual.
+		}
+	}
+
+	// ——— Medidas ———
+	// «Tu pantalla» son los píxeles de verdad: los CSS por la densidad.
+	function pantalla() {
+		const dpr = window.devicePixelRatio || 1;
+		return { ancho: Math.round(screen.width * dpr), alto: Math.round(screen.height * dpr) };
+	}
+
+	function medidas() {
+		if (estado.tamano === 'pantalla') return pantalla();
+		const [ancho, alto] = (estado.tamano.match(/^(\d+)x(\d+)$/)?.slice(1) ?? ['1920', '1080']).map(Number);
+		return { ancho, alto };
+	}
+
+	// ——— Dibujo ———
+	// Un generador con semilla: la misma semilla, la misma composición.
+	function azar(semilla: number) {
+		let a = semilla >>> 0 || 1;
+		return () => {
+			a = (a + 0x6d2b79f5) >>> 0;
+			let t = Math.imul(a ^ (a >>> 15), 1 | a);
+			t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+	}
+
+	// Todo se mide en proporción al lienzo, así la vista pequeña y el PNG grande
+	// salen iguales. El tiempo va en segundos.
+	function dibujar(ctx: CanvasRenderingContext2D, w: number, h: number) {
+		const rng = azar(estado.semilla);
+		const colores = estado.colores;
+		const n = colores.length;
+		const t = estado.tiempo;
+		const lado = Math.max(w, h);
+		const suave = estado.suavidad / 100;
+
+		ctx.save();
+		ctx.fillStyle = colores[0];
+		ctx.fillRect(0, 0, w, h);
+
+		if (estado.estilo === 'malla') {
+			// Manchas grandes de cada color que se desvanecen y van a la deriva.
+			const manchas = Math.max(4, (n - 1) * 2);
+			for (let i = 0; i < manchas; i++) {
+				const color = colores[1 + (i % (n - 1))];
+				const fase = rng() * Math.PI * 2;
+				const vel = 0.15 + rng() * 0.2;
+				const x = (rng() + Math.cos(t * vel + fase) * 0.12) * w;
+				const y = (rng() + Math.sin(t * vel * 0.8 + fase) * 0.12) * h;
+				const r = lado * (0.2 + rng() * 0.2) * (0.6 + suave);
+				const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+				g.addColorStop(0, `${color}e6`);
+				g.addColorStop(1, `${color}00`);
+				ctx.fillStyle = g;
+				ctx.fillRect(0, 0, w, h);
+			}
+		} else if (estado.estilo === 'ondas') {
+			// Capas de ondas apiladas de arriba abajo, cada una de su color.
+			ctx.filter = `blur(${Math.round(Math.min(w, h) * 0.04 * suave)}px)`;
+			for (let i = 1; i < n; i++) {
+				const base = h * (0.25 + ((i - 1) / Math.max(1, n - 1)) * 0.6);
+				const amp = h * (0.04 + rng() * 0.08);
+				const frec = 0.6 + rng() * 1.4;
+				const fase = rng() * Math.PI * 2;
+				const vel = 0.2 + rng() * 0.3;
+				ctx.beginPath();
+				ctx.moveTo(-w * 0.1, h * 1.1);
+				for (let k = 0; k <= 64; k++) {
+					const x = -w * 0.1 + (k / 64) * w * 1.2;
+					ctx.lineTo(x, base + Math.sin((x / w) * Math.PI * 2 * frec + fase + t * vel) * amp);
+				}
+				ctx.lineTo(w * 1.1, h * 1.1);
+				ctx.closePath();
+				const g = ctx.createLinearGradient(0, base - amp, 0, h);
+				g.addColorStop(0, colores[i]);
+				g.addColorStop(1, `${colores[i]}${n > 2 ? '99' : 'ff'}`);
+				ctx.fillStyle = g;
+				ctx.fill();
+			}
+			ctx.filter = 'none';
+		} else {
+			// Un degradado lineal con todos los colores que gira despacio.
+			const angulo = rng() * Math.PI * 2 + t * 0.08;
+			const dx = Math.cos(angulo);
+			const dy = Math.sin(angulo);
+			const medio = (Math.abs(w * dx) + Math.abs(h * dy)) / 2;
+			const g = ctx.createLinearGradient(w / 2 - dx * medio, h / 2 - dy * medio, w / 2 + dx * medio, h / 2 + dy * medio);
+			// Con más suavidad los colores se funden; con menos, se marcan las franjas.
+			colores.forEach((color, i) => {
+				const centro = i / (n - 1);
+				const media = (0.5 - suave * 0.5) / (n - 1) / 2;
+				g.addColorStop(Math.max(0, centro - media), color);
+				g.addColorStop(Math.min(1, centro + media), color);
+			});
+			ctx.fillStyle = g;
+			ctx.fillRect(0, 0, w, h);
+		}
+		ctx.restore();
+
+		// El grano rompe las bandas que salen en los degradados largos.
+		if (estado.grano > 0) {
+			const datos = ctx.getImageData(0, 0, w, h);
+			const px = datos.data;
+			const fuerza = estado.grano * 0.5;
+			const ruido = azar(estado.semilla + 1);
+			for (let i = 0; i < px.length; i += 4) {
+				const d = (ruido() - 0.5) * fuerza;
+				px[i] += d;
+				px[i + 1] += d;
+				px[i + 2] += d;
+			}
+			ctx.putImageData(datos, 0, 0);
+		}
+	}
+
+	// La vista se pinta pequeña, con la proporción del tamaño elegido.
+	function pintar() {
+		if (!vista) return;
+		const { ancho, alto } = medidas();
+		const escala = 960 / Math.max(ancho, alto);
+		const w = Math.max(1, Math.round(ancho * escala));
+		const h = Math.max(1, Math.round(alto * escala));
+		if (vista.width !== w || vista.height !== h) {
+			vista.width = w;
+			vista.height = h;
+		}
+		const ctx = vista.getContext('2d', { willReadFrequently: true });
+		if (ctx) dibujar(ctx, w, h);
+	}
+
+	function actualizar() {
+		pintar();
+		guardar();
+	}
+
+	// ——— Movimiento ———
+	// Solo corre con el panel a la vista. Quien pide menos movimiento empieza parado.
+	let moviendo = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+	let anterior = 0;
+
+	function paso(ahora: number) {
+		if (!moviendo) return;
+		if (panel && !panel.hidden && anterior) {
+			estado.tiempo += Math.min(0.1, (ahora - anterior) / 1000);
+			pintar();
+		}
+		anterior = ahora;
+		requestAnimationFrame(paso);
+	}
+
+	function ponerMovimiento(valor: boolean) {
+		moviendo = valor;
+		mover?.setAttribute('aria-pressed', String(valor));
+		if (moverTexto) moverTexto.textContent = valor ? 'Pausar' : 'Mover';
+		if (valor) {
+			anterior = 0;
+			requestAnimationFrame(paso);
+		} else guardar();
+	}
+
+	mover?.addEventListener('click', () => ponerMovimiento(!moviendo));
+
+	// ——— Controles ———
+	function pintarControles() {
+		estilos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fpEstilo === estado.estilo)));
+		if (suavidad) suavidad.value = String(estado.suavidad);
+		if (suavidadTexto) suavidadTexto.textContent = `${estado.suavidad}%`;
+		if (grano) grano.value = String(estado.grano);
+		if (granoTexto) granoTexto.textContent = `${estado.grano}%`;
+		if (tamano) {
+			if (![...tamano.options].some((o) => o.value === estado.tamano)) estado.tamano = INICIAL.tamano;
+			tamano.value = estado.tamano;
+		}
+	}
+
+	function pintarFilas() {
+		if (!lista || !plantilla) return;
+		lista.replaceChildren();
+		estado.colores.forEach((valor, i) => {
+			const fila = plantilla.content.firstElementChild?.cloneNode(true) as HTMLElement;
+			const color = fila.querySelector<HTMLInputElement>('[data-fp-color]')!;
+			const hex = fila.querySelector<HTMLInputElement>('[data-fp-hex]')!;
+			const papel = fila.querySelector<HTMLElement>('[data-fp-papel]')!;
+			const quitar = fila.querySelector<HTMLButtonElement>('[data-fp-quitar]')!;
+			const nombre = i === 0 ? 'Fondo' : `Color ${i}`;
+
+			color.value = valor;
+			hex.value = valor;
+			color.setAttribute('aria-label', `${nombre}: selector`);
+			hex.setAttribute('aria-label', `${nombre} en hexadecimal`);
+			quitar.setAttribute('aria-label', `Quitar ${nombre.toLowerCase()}`);
+			papel.textContent = i === 0 ? 'fondo' : '';
+			quitar.disabled = estado.colores.length <= MIN_COLORES;
+
+			color.addEventListener('input', () => {
+				estado.colores[i] = color.value.toLowerCase();
+				hex.value = estado.colores[i];
+				actualizar();
+			});
+			hex.addEventListener('input', () => {
+				let v = hex.value.trim();
+				if (!v.startsWith('#')) v = `#${v}`;
+				if (/^#[0-9a-f]{3}$/i.test(v)) v = `#${[...v.slice(1)].map((c) => c + c).join('')}`;
+				if (!HEX.test(v)) return;
+				estado.colores[i] = v.toLowerCase();
+				color.value = estado.colores[i];
+				actualizar();
+			});
+			hex.addEventListener('blur', () => {
+				hex.value = estado.colores[i];
+			});
+			quitar.addEventListener('click', () => {
+				if (estado.colores.length <= MIN_COLORES) return;
+				estado.colores.splice(i, 1);
+				pintarFilas();
+				actualizar();
+			});
+			lista.append(fila);
+		});
+		const nuevo = panel?.querySelector<HTMLButtonElement>('[data-fp-nuevo]');
+		if (nuevo) nuevo.disabled = estado.colores.length >= MAX_COLORES;
+	}
+
+	function hsl(h: number, s: number, l: number) {
+		const f = (k0: number) => {
+			const k = (k0 + h / 30) % 12;
+			const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+			return Math.round(v * 255).toString(16).padStart(2, '0');
+		};
+		return `#${f(0)}${f(8)}${f(4)}`;
+	}
+
+	// Un fondo muy claro o muy oscuro y tonos vecinos encima: minimalista y sin estridencias.
+	function coloresAlAzar() {
+		const base = Math.random() * 360;
+		const salto = 20 + Math.random() * 50;
+		const oscuro = Math.random() < 0.5;
+		const n = estado.colores.length;
+		estado.colores = [
+			hsl(base, 0.3, oscuro ? 0.08 : 0.95),
+			...Array.from({ length: n - 1 }, (_, i) =>
+				hsl((base + salto * (i + 1)) % 360, 0.55 + Math.random() * 0.3, 0.45 + Math.random() * 0.25),
+			),
+		];
+		pintarFilas();
+		actualizar();
+	}
+
+	panel?.querySelector('[data-fp-nuevo]')?.addEventListener('click', () => {
+		if (estado.colores.length >= MAX_COLORES) return;
+		const ultimo = estado.colores.at(-1) ?? '#c2410c';
+		estado.colores.push(ultimo);
+		pintarFilas();
+		actualizar();
+	});
+	panel?.querySelector('[data-fp-azar-colores]')?.addEventListener('click', coloresAlAzar);
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-fp-paleta]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const colores = (boton.dataset.colores ?? '').split(',').filter((c) => HEX.test(c));
+			if (colores.length < MIN_COLORES) return;
+			estado.colores = colores;
+			pintarFilas();
+			actualizar();
+		});
+	});
+
+	estilos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegido = ESTILOS.find((e) => e === boton.dataset.fpEstilo);
+			if (!elegido) return;
+			estado.estilo = elegido;
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	suavidad?.addEventListener('input', () => {
+		estado.suavidad = limitar(Number(suavidad.value), 0, 100);
+		pintarControles();
+		actualizar();
+	});
+	grano?.addEventListener('input', () => {
+		estado.grano = limitar(Number(grano.value), 0, 100);
+		pintarControles();
+		actualizar();
+	});
+	tamano?.addEventListener('change', () => {
+		estado.tamano = tamano.value;
+		actualizar();
+	});
+
+	panel?.querySelector('[data-fp-semilla]')?.addEventListener('click', () => {
+		estado.semilla = Math.floor(Math.random() * 999999);
+		actualizar();
+	});
+	panel?.querySelector('[data-fp-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		pintarControles();
+		pintarFilas();
+		actualizar();
+	});
+
+	// ——— Exportar ———
+	function bajar(contenido: Blob, nombre: string) {
+		const url = URL.createObjectURL(contenido);
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = nombre;
+		enlace.click();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	const botonPng = panel?.querySelector<HTMLButtonElement>('[data-fp-png]');
+	botonPng?.addEventListener('click', () => {
+		const { ancho, alto } = medidas();
+		const nombre = `fondo-${estado.estilo}-${ancho}x${alto}.png`;
+		if (aviso) aviso.textContent = `Generando ${ancho}×${alto}…`;
+		botonPng.disabled = true;
+		// Un respiro para que se vea el aviso antes del trabajo pesado.
+		setTimeout(() => {
+			const lienzo = document.createElement('canvas');
+			lienzo.width = ancho;
+			lienzo.height = alto;
+			const ctx = lienzo.getContext('2d', { willReadFrequently: true });
+			if (!ctx) {
+				if (aviso) aviso.textContent = 'Tu navegador no deja pintar a ese tamaño.';
+				botonPng.disabled = false;
+				return;
+			}
+			dibujar(ctx, ancho, alto);
+			lienzo.toBlob((blob) => {
+				botonPng.disabled = false;
+				if (!blob) {
+					if (aviso) aviso.textContent = 'No se pudo generar. Prueba un tamaño menor.';
+					return;
+				}
+				bajar(blob, nombre);
+				if (aviso) aviso.textContent = `Listo: ${nombre}`;
+			}, 'image/png');
+		}, 30);
+	});
+
+	if (opcionPantalla) {
+		const { ancho, alto } = pantalla();
+		opcionPantalla.textContent = `${ancho}×${alto} (tu pantalla)`;
+	}
+
+	pintarControles();
+	pintarFilas();
+	pintar();
+	ponerMovimiento(moviendo);
+</script>
