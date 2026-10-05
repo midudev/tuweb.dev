@@ -15,6 +15,7 @@ const FILAS = 28;
 
 const HERRAMIENTAS = [
 	{ id: 'lapiz', label: 'Lápiz', icon: 'pencil' },
+	{ id: 'pixel', label: 'Píxel', icon: 'brightness-half' },
 	{ id: 'goma', label: 'Goma', icon: 'eraser' },
 	{ id: 'texto', label: 'Texto', icon: 'typography' },
 ];
@@ -147,7 +148,8 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 				}
 			</div>
 			<p class="text-xs text-muted">
-				Con el lápiz, cualquier tecla sirve de pincel. Con el texto, haz clic y escribe: Enter baja de línea, las flechas mueven y Esc suelta.
+				Con el lápiz, cualquier tecla sirve de pincel. Con el píxel, cada pasada oscurece la celda un tono, de
+				<span class="font-mono text-fg">.</span> a <span class="font-mono text-fg">@</span>. Con el texto, haz clic y escribe: Enter baja de línea, las flechas mueven y Esc suelta.
 			</p>
 		</div>
 
@@ -175,7 +177,7 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 </section>
 
 <script>
-	type Herramienta = 'lapiz' | 'goma' | 'texto';
+	type Herramienta = 'lapiz' | 'pixel' | 'goma' | 'texto';
 	type Cambio = [number, string];
 
 	const raiz = document.querySelector<HTMLElement>('#ascii');
@@ -185,7 +187,11 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 	const CLAVE = 'tuweb:ascii';
 	const MAX_HISTORIAL = 60;
 	const MAX_FIRMAS = 24;
-	const HERRAMIENTAS: Herramienta[] = ['lapiz', 'goma', 'texto'];
+	const HERRAMIENTAS: Herramienta[] = ['lapiz', 'pixel', 'goma', 'texto'];
+	/** Los tonos del píxel, de claro a oscuro. */
+	const TONOS = ' .:-=+*#%@';
+	/** El carácter que, en un trazo de píxel, quiere decir «sube un tono». */
+	const SUBIR = '';
 	const YO = Math.random().toString(36).slice(2, 10);
 
 	const lienzo = raiz?.querySelector<HTMLPreElement>('[data-ascii-lienzo]');
@@ -371,7 +377,17 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 
 	// --- Lápiz y goma ---
 
+	/** Las celdas que ya ha oscurecido el trazo de píxel en curso: una pasada, un tono. */
+	const tocadas = new Set<number>();
+
 	function poner(i: number, c: string) {
+		if (c === SUBIR) {
+			if (tocadas.has(i)) return;
+			tocadas.add(i);
+			const tono = TONOS.indexOf(celdas[i]);
+			// Lo que no es un tono, una letra suelta, vuelve a empezar por el más claro.
+			c = TONOS[tono < 0 ? 1 : Math.min(TONOS.length - 1, tono + 1)];
+		}
 		if (celdas[i] === c) return;
 		celdas[i] = c;
 		pendientes.push([i, c]);
@@ -432,8 +448,10 @@ const PINCELES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\
 			mover(i);
 			return;
 		}
-		const c = evento.button === 2 || herramienta === 'goma' ? ' ' : pincel;
+		const c =
+			evento.button === 2 || herramienta === 'goma' ? ' ' : herramienta === 'pixel' ? SUBIR : pincel;
 		apuntar();
+		tocadas.clear();
 		trazo = { x, y, c };
 		poner(i, c);
 		emitir();

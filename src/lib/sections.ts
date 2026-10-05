@@ -346,7 +346,7 @@ export const SECTIONS: Section[] = [
 		group: 'canales',
 		card: 'Un lienzo de letras que se pinta entre varios, a mano o con comandos: en directo y pasándose el enlace.',
 		intro:
-			'Un lienzo de 64 × 28 celdas que se pinta con letras: lápiz con el carácter que elijas, goma y texto para escribir encima. O desde la terminal de debajo, con comandos sencillos —linea, caja, circulo, texto— para levantar un mural en cuatro órdenes; escribe ayuda para verlos. Se ve en directo en todas las pestañas que tengas abiertas. Para pintarlo entre varios, pasa el enlace: el mural va dentro, con la firma de quien ha pasado por él, y quien lo abre sigue donde lo dejaste. Te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
+			'Un lienzo de 64 × 28 celdas que se pinta con letras: lápiz con el carácter que elijas, píxel que oscurece la celda un tono a cada pasada —de . a @—, goma y texto para escribir encima. O desde la terminal de debajo, con comandos sencillos —linea, caja, circulo, texto— para levantar un mural en cuatro órdenes; escribe ayuda para verlos. Se ve en directo en todas las pestañas que tengas abiertas. Para pintarlo entre varios, pasa el enlace: el mural va dentro, con la firma de quien ha pasado por él, y quien lo abre sigue donde lo dejaste. Te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/retos',
