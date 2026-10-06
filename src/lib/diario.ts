@@ -16,10 +16,20 @@ export const DIFICULTADES: Record<Dificultad, { label: string; xp: number }> = {
 	dificil: { label: 'Difícil', xp: 30 },
 };
 
+/** De qué va: las rarezas del lenguaje o la lógica y los algoritmos. */
+export type Tema = 'lenguaje' | 'algoritmos';
+
+export const TEMAS: Record<Tema, { label: string; icon: string }> = {
+	lenguaje: { label: 'JavaScript', icon: 'brand-javascript' },
+	algoritmos: { label: 'Algoritmos', icon: 'binary-tree' },
+};
+
 export interface Reto {
 	id: string;
 	kind: Kind;
 	dificultad: Dificultad;
+	/** Sin tema, es de lenguaje. */
+	tema?: Tema;
 	/** El código, línea a línea. */
 	code: string[];
 	/** Las opciones, en los de «salida». */
@@ -262,7 +272,166 @@ export const CATALOGO: readonly Reto[] = [
 		accept: ['a+b'],
 		why: 'El segundo argumento de split corta la lista: se queda en ["a", "b"].',
 	},
+
+	/* Lógica y algoritmos: el código es JavaScript, pero lo que cuenta es la idea. */
+	{
+		id: 'busqueda-binaria',
+		kind: 'respuesta',
+		dificultad: 'medio',
+		tema: 'algoritmos',
+		code: [
+			'let lo = 0, hi = 15, pasos = 0',
+			'while (lo <= hi) {',
+			'  const mid = Math.floor((lo + hi) / 2)',
+			'  pasos++',
+			'  if (mid === 13) break',
+			'  if (mid < 13) lo = mid + 1',
+			'  else hi = mid - 1',
+			'}',
+			'console.log(pasos)',
+		],
+		accept: ['3'],
+		why: 'Cada paso parte el trozo por la mitad: mira el 7, luego el 11 y luego el 13. Con 16 casillas nunca hacen falta más de cinco.',
+	},
+	{
+		id: 'fibonacci',
+		kind: 'respuesta',
+		dificultad: 'facil',
+		tema: 'algoritmos',
+		code: ['let a = 0, b = 1', 'for (let i = 0; i < 7; i++) [a, b] = [b, a + b]', 'console.log(a)'],
+		accept: ['13'],
+		why: 'Cada vuelta avanza un puesto en Fibonacci: 1, 1, 2, 3, 5, 8, 13. Dos variables bastan, sin guardar la lista entera.',
+	},
+	{
+		id: 'mcd',
+		kind: 'salida',
+		dificultad: 'facil',
+		tema: 'algoritmos',
+		code: ['function mcd(a, b) {', '  return b === 0 ? a : mcd(b, a % b)', '}', 'console.log(mcd(48, 18))'],
+		options: ['6', '2', '3', '18'],
+		answer: 0,
+		why: 'Euclides: 48 % 18 = 12, 18 % 12 = 6 y 12 % 6 = 0. El último resto que no es cero es el máximo común divisor.',
+	},
+	{
+		id: 'burbuja',
+		kind: 'respuesta',
+		dificultad: 'medio',
+		tema: 'algoritmos',
+		code: [
+			'const a = [3, 1, 2]',
+			'let cambios = 0',
+			'for (let i = 0; i < a.length; i++)',
+			'  for (let j = 0; j < a.length - 1 - i; j++)',
+			'    if (a[j] > a[j + 1]) { [a[j], a[j + 1]] = [a[j + 1], a[j]]; cambios++ }',
+			'console.log(cambios)',
+		],
+		accept: ['2'],
+		why: 'La burbuja hace un cambio por cada pareja desordenada. Aquí hay dos: el 3 va antes del 1 y antes del 2.',
+	},
+	{
+		id: 'recursion-doble',
+		kind: 'salida',
+		dificultad: 'medio',
+		tema: 'algoritmos',
+		code: [
+			'function cuenta(n) {',
+			'  if (n <= 1) return 1',
+			'  return cuenta(n - 1) + cuenta(n - 2)',
+			'}',
+			'console.log(cuenta(5))',
+		],
+		options: ['8', '5', '13', '120'],
+		answer: 0,
+		why: 'Es Fibonacci desplazado: 1, 1, 2, 3, 5, 8. Y es lento porque repite las mismas cuentas una y otra vez.',
+	},
+	{
+		id: 'pila',
+		kind: 'respuesta',
+		dificultad: 'medio',
+		tema: 'algoritmos',
+		code: [
+			'const pila = []',
+			"for (const c of '(()(()))(') {",
+			"  if (c === '(') pila.push(c)",
+			'  else pila.pop()',
+			'}',
+			'console.log(pila.length)',
+		],
+		accept: ['1'],
+		why: 'Cada ( entra en la pila y cada ) saca una. Hay cinco que abren y cuatro que cierran: queda una sin pareja.',
+	},
+	{
+		id: 'dos-sumas',
+		kind: 'salida',
+		dificultad: 'medio',
+		tema: 'algoritmos',
+		code: [
+			'const vistos = new Map()',
+			'const nums = [2, 7, 11, 15]',
+			'for (let i = 0; i < nums.length; i++) {',
+			'  if (vistos.has(9 - nums[i])) console.log(vistos.get(9 - nums[i]), i)',
+			'  vistos.set(nums[i], i)',
+			'}',
+		],
+		options: ['0 1', '1 0', '2 7', '0 3'],
+		answer: 0,
+		why: 'El Map recuerda lo ya visto: al llegar al 7 busca el 2 que le falta para 9 y lo encuentra en el índice 0. Una sola pasada.',
+	},
+	{
+		id: 'logaritmico',
+		kind: 'respuesta',
+		dificultad: 'facil',
+		tema: 'algoritmos',
+		code: ['let n = 0', 'for (let i = 1; i < 64; i *= 2) n++', 'console.log(n)'],
+		accept: ['6'],
+		why: 'i se dobla en cada vuelta: 1, 2, 4, 8, 16 y 32. Es un bucle logarítmico: para 64 bastan seis vueltas.',
+	},
+	{
+		id: 'primos',
+		kind: 'salida',
+		dificultad: 'medio',
+		tema: 'algoritmos',
+		code: [
+			'let primos = 0',
+			'for (let n = 2; n <= 20; n++) {',
+			'  let es = true',
+			'  for (let d = 2; d * d <= n; d++) if (n % d === 0) es = false',
+			'  if (es) primos++',
+			'}',
+			'console.log(primos)',
+		],
+		options: ['8', '9', '10', '7'],
+		answer: 0,
+		why: 'Basta probar divisores hasta la raíz: si hubiera uno mayor, habría otro menor. Salen 2, 3, 5, 7, 11, 13, 17 y 19.',
+	},
+	{
+		id: 'hanoi',
+		kind: 'respuesta',
+		dificultad: 'medio',
+		tema: 'algoritmos',
+		code: ['function hanoi(n) {', '  return n === 0 ? 0 : 2 * hanoi(n - 1) + 1', '}', 'console.log(hanoi(5))'],
+		accept: ['31'],
+		why: 'Para mover n discos mueves n - 1 a un lado, el grande a su sitio y otra vez n - 1 encima: 2^n - 1.',
+	},
+	{
+		id: 'monedas',
+		kind: 'respuesta',
+		dificultad: 'dificil',
+		tema: 'algoritmos',
+		code: [
+			'const formas = [1, 0, 0, 0, 0, 0]',
+			'for (const m of [1, 2, 5])',
+			'  for (let v = m; v <= 5; v++) formas[v] += formas[v - m]',
+			'console.log(formas[5])',
+		],
+		accept: ['4'],
+		why: 'Programación dinámica: formas[v] cuenta cómo llegar a v con las monedas vistas. Para 5: 5, 2+2+1, 2+1+1+1 y 1+1+1+1+1.',
+	},
 ];
+
+export function retoPorId(id: string) {
+	return CATALOGO.find((reto) => reto.id === id);
+}
 
 /* ---------- El día ---------- */
 
@@ -422,6 +591,8 @@ export interface Stats {
 	solved: number;
 	firstTry: number;
 	hard: number;
+	/** Los de lógica y algoritmos resueltos. */
+	algo: number;
 	streak: number;
 	best: number;
 	level: number;
@@ -435,6 +606,7 @@ export function statsOf(progress: Progress, today: string): Stats {
 		solved: days.filter((dia) => dia.ok).length,
 		firstTry: days.filter((dia) => dia.ok && dia.tries === 1).length,
 		hard: days.filter((dia) => dia.ok && dia.dificultad === 'dificil').length,
+		algo: days.filter((dia) => dia.ok && retoPorId(dia.reto)?.tema === 'algoritmos').length,
 		streak: currentStreak(progress, today),
 		best: bestStreak(progress),
 		level: levelOf(xp).index + 1,
@@ -456,8 +628,111 @@ export const INSIGNIAS: readonly Insignia[] = [
 	{ key: 'treinta', title: 'Treinta retos', detail: 'Resuelves treinta retos.', icon: 'award', goal: 30, count: (s) => s.solved },
 	{ key: 'certero', title: 'A la primera', detail: 'Cinco retos sin fallar ni una.', icon: 'target-arrow', goal: 5, count: (s) => s.firstTry },
 	{ key: 'duro', title: 'Sin miedo', detail: 'Resuelves un reto difícil.', icon: 'stairs-up', goal: 1, count: (s) => s.hard },
+	{ key: 'algoritmos', title: 'Cabeza fría', detail: 'Cinco retos de algoritmos.', icon: 'binary-tree', goal: 5, count: (s) => s.algo },
 	{ key: 'racha-3', title: 'Tres seguidos', detail: 'Racha de tres días.', icon: 'flame', goal: 3, count: (s) => s.best },
 	{ key: 'racha-7', title: 'Una semana', detail: 'Racha de siete días.', icon: 'calendar-check', goal: 7, count: (s) => s.best },
 	{ key: 'racha-30', title: 'Un mes', detail: 'Racha de treinta días.', icon: 'trophy', goal: 30, count: (s) => s.best },
 	{ key: 'nivel-4', title: 'Mid', detail: 'Llegas al nivel 4.', icon: 'badge', goal: 4, count: (s) => s.level },
 ];
+
+/* ---------- La clasificación ---------- */
+
+/*
+ * No hay tabla en el servidor: la clasificación se arma con códigos. Cada uno
+ * comparte el suyo y pega los de quien quiera. Un código dice lo que dice quien
+ * lo pasa, así que es una liga entre gente que se fía, no un récord oficial.
+ */
+
+export interface Marca {
+	nombre: string;
+	xp: number;
+	resueltos: number;
+	mejor: number;
+}
+
+export interface Liga {
+	/** Tu nombre en los códigos. */
+	nombre: string;
+	rivales: Marca[];
+}
+
+export const NOMBRE_MAX = 20;
+/** Una liga de amigos, no un censo. */
+export const RIVALES_MAX = 30;
+
+const LIGA_KEY = 'tuweb:reto-liga';
+const CODIGO = /^reto\.([\p{L}\p{N}_-]{1,20})\.(\d{1,6})\.(\d{1,5})\.(\d{1,5})$/u;
+
+/** Letras, números, guion y guion bajo: lo demás rompería el código. */
+export function limpiaNombre(text: string) {
+	return text.replace(/[^\p{L}\p{N}_-]+/gu, '').slice(0, NOMBRE_MAX);
+}
+
+export function codigoDe(nombre: string, stats: Stats) {
+	return `reto.${nombre || 'anon'}.${stats.xp}.${stats.solved}.${stats.best}`;
+}
+
+/** Un código pegado, o null si no cuadra. Lo imposible tampoco entra. */
+export function leeCodigo(text: string): Marca | null {
+	const match = CODIGO.exec(text.trim());
+	if (!match) return null;
+	const [, nombre, xp, resueltos, mejor] = match;
+	const marca = { nombre, xp: Number(xp), resueltos: Number(resueltos), mejor: Number(mejor) };
+	if (marca.xp > marca.resueltos * DIFICULTADES.dificil.xp || marca.mejor > marca.resueltos) return null;
+	return marca;
+}
+
+export function readLiga(): Liga {
+	try {
+		const raw = JSON.parse(localStorage.getItem(LIGA_KEY) ?? '{}') as Partial<Liga>;
+		const rivales = Array.isArray(raw.rivales)
+			? raw.rivales
+					.map((item) =>
+						item && typeof item === 'object'
+							? leeCodigo(`reto.${item.nombre}.${item.xp}.${item.resueltos}.${item.mejor}`)
+							: null,
+					)
+					.filter((item): item is Marca => item !== null)
+					.slice(0, RIVALES_MAX)
+			: [];
+		return { nombre: limpiaNombre(String(raw.nombre ?? '')), rivales };
+	} catch {
+		return { nombre: '', rivales: [] };
+	}
+}
+
+export function saveLiga(liga: Liga) {
+	try {
+		localStorage.setItem(LIGA_KEY, JSON.stringify(liga));
+	} catch {
+		// Sin almacenamiento, la liga dura lo que dure la visita.
+	}
+}
+
+/** Mete o actualiza a alguien: un nombre, una fila. Devuelve la liga nueva o el motivo. */
+export function addRival(liga: Liga, marca: Marca): Liga | string {
+	if (marca.nombre.toLowerCase() === (liga.nombre || 'anon').toLowerCase()) return 'Ese código es el tuyo.';
+	const otros = liga.rivales.filter((item) => item.nombre.toLowerCase() !== marca.nombre.toLowerCase());
+	if (otros.length >= RIVALES_MAX) return `La liga ya tiene ${RIVALES_MAX} personas. Quita a alguien.`;
+	return { ...liga, rivales: [...otros, marca] };
+}
+
+export interface Puesto extends Marca {
+	position: number;
+	yo: boolean;
+}
+
+/** Tú y los demás, por puntos; luego resueltos y mejor racha. Mismo todo, mismo puesto. */
+export function clasificacion(liga: Liga, stats: Stats): Puesto[] {
+	const yo = { nombre: liga.nombre || 'anon', xp: stats.xp, resueltos: stats.solved, mejor: stats.best };
+	const filas = [{ ...yo, yo: true }, ...liga.rivales.map((item) => ({ ...item, yo: false }))].sort(
+		(a, b) => b.xp - a.xp || b.resueltos - a.resueltos || b.mejor - a.mejor || Number(b.yo) - Number(a.yo),
+	);
+	let position = 0;
+	return filas.map((fila, i) => {
+		const antes = filas[i - 1];
+		if (!antes || antes.xp !== fila.xp || antes.resueltos !== fila.resueltos || antes.mejor !== fila.mejor)
+			position = i + 1;
+		return { ...fila, position };
+	});
+}

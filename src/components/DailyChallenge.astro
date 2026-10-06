@@ -5,7 +5,7 @@
  * la respuesta escrita a mano. El reto que toca depende de tu fecha, así que lo
  * pinta el script; la racha, el nivel y las insignias se quedan en tu navegador.
  */
-import { INSIGNIAS, TRIES } from '../lib/diario';
+import { INSIGNIAS, NOMBRE_MAX, TEMAS, TRIES } from '../lib/diario';
 import Icon from './Icon.astro';
 
 const MARCADOR = [
@@ -56,7 +56,13 @@ const BOTON =
 		<div class="flex min-w-0 grow flex-col gap-4">
 			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
 				<span class="inline-flex items-center gap-2 text-muted">
-					<Icon name="brand-javascript" class="size-4 shrink-0 text-accent" />
+					{
+						Object.entries(TEMAS).map(([id, tema]) => (
+							<span data-tema-icono={id} hidden={id !== 'lenguaje'}>
+								<Icon name={tema.icon} class="size-4 shrink-0 text-accent" />
+							</span>
+						))
+					}
 					<span data-titulo>Reto del día</span>
 				</span>
 				<span data-dificultad class="tabular-nums text-mark"></span>
@@ -131,6 +137,68 @@ const BOTON =
 			> se ganan con ideas.
 		</p>
 	</div>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+			<h2 class="font-pixel text-lg">Clasificación</h2>
+			<span data-liga-cuenta class="text-sm tabular-nums text-muted"></span>
+		</div>
+
+		<p class="max-w-[62ch] text-sm text-muted">
+			Tu marca cabe en un código. Pásaselo a quien quieras y pega aquí los suyos: la tabla se ordena
+			por puntos, luego por resueltos y luego por racha.
+		</p>
+
+		<div class="grid gap-3 md:grid-cols-2">
+			<div class="flex flex-col gap-2 border border-line p-3">
+				<label for="liga-nombre" class="text-sm text-muted">Tu nombre en la tabla</label>
+				<input
+					id="liga-nombre"
+					data-liga-nombre
+					type="text"
+					autocomplete="off"
+					spellcheck="false"
+					maxlength={NOMBRE_MAX}
+					placeholder="anon"
+					class="border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-accent"
+				/>
+				<div class="flex flex-wrap items-center gap-2">
+					<code data-liga-codigo class="min-w-0 grow truncate bg-panel px-3 py-2 text-sm"></code>
+					<button type="button" data-liga-copiar class={BOTON}>
+						<Icon name="copy" class="size-4 shrink-0" />
+						<span>Copiar</span>
+					</button>
+				</div>
+			</div>
+
+			<form data-liga-pegar class="flex flex-col gap-2 border border-line p-3">
+				<label for="liga-codigo" class="text-sm text-muted">El código de otra persona</label>
+				<input
+					id="liga-codigo"
+					type="text"
+					autocomplete="off"
+					spellcheck="false"
+					maxlength="60"
+					placeholder="reto.nombre.120.8.3"
+					class="border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-accent"
+				/>
+				<div class="flex flex-wrap items-center gap-2">
+					<button type="submit" class={BOTON}>
+						<Icon name="user-plus" class="size-4 shrink-0" />
+						Añadir a la tabla
+					</button>
+					<span data-liga-aviso class="text-sm text-heart"></span>
+				</div>
+			</form>
+		</div>
+
+		<ol data-liga class="flex flex-col"></ol>
+
+		<p class="text-sm text-muted">
+			La tabla vive en este navegador y cada código dice lo que dice quien lo pasa: es una liga entre
+			gente que se fía. Si alguien te pasa uno nuevo, se actualiza su fila.
+		</p>
+	</div>
 </section>
 
 <style is:global>
@@ -198,14 +266,23 @@ const BOTON =
 	import {
 		DIFICULTADES,
 		INSIGNIAS,
+		TEMAS,
 		TRIES,
+		addRival,
+		clasificacion,
+		codigoDe,
 		dayKey,
 		isClosed,
 		isRight,
 		lastDays,
+		leeCodigo,
 		levelOf,
+		limpiaNombre,
+		readLiga,
 		readProgress,
 		retoDelDia,
+		retoPorId,
+		saveLiga,
 		saveProgress,
 		solution,
 		statsOf,
@@ -224,9 +301,15 @@ const BOTON =
 		const entrada = escribir.querySelector('input')!;
 		const resultado = $('[data-resultado]');
 
-		let hoy = dayKey(new Date());
-		let reto = retoDelDia(hoy);
 		let progreso: Progress = readProgress();
+		let liga = readLiga();
+		let hoy = dayKey(new Date());
+		let reto = retoDeHoy();
+
+		/** Si hoy ya jugaste, sigue siendo ese reto aunque el catálogo haya crecido. */
+		function retoDeHoy() {
+			return retoPorId(progreso[hoy]?.reto ?? '') ?? retoDelDia(hoy);
+		}
 
 		const fecha = (key: string) =>
 			new Date(`${key}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
@@ -273,7 +356,104 @@ const BOTON =
 				fila.querySelector('[data-avance]')!.textContent = hecha ? 'hecha' : `${lleva}/${insignia.goal}`;
 			});
 			$('[data-insignias-cuenta]').textContent = `${hechas} de ${INSIGNIAS.length}`;
+			pintarLiga();
 		}
+
+		/* ---------- La clasificación ---------- */
+
+		const nombre = $('[data-liga-nombre]') as HTMLInputElement;
+		const pegar = $('[data-liga-pegar]') as HTMLFormElement;
+		const pegado = pegar.querySelector('input')!;
+		const aviso = $('[data-liga-aviso]');
+		const copiar = $('[data-liga-copiar]') as HTMLButtonElement;
+		nombre.value = liga.nombre;
+
+		function pintarLiga() {
+			const stats = statsOf(progreso, hoy);
+			$('[data-liga-codigo]').textContent = codigoDe(liga.nombre, stats);
+
+			const filas = clasificacion(liga, stats);
+			$('[data-liga-cuenta]').textContent = `${filas.length} ${filas.length === 1 ? 'persona' : 'personas'}`;
+			$('[data-liga]').replaceChildren(
+				...filas.map((fila) => {
+					const li = document.createElement('li');
+					li.className =
+						'grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-4 border-t border-line py-2.5 text-sm last:border-b';
+					if (fila.yo) li.classList.add('bg-panel');
+
+					const puesto = document.createElement('span');
+					puesto.className = `font-pixel tabular-nums ${fila.position <= 3 ? 'text-accent' : 'text-muted'}`;
+					puesto.textContent = String(fila.position);
+
+					const quien = document.createElement('span');
+					quien.className = 'flex min-w-0 flex-col';
+					const titulo = document.createElement('span');
+					titulo.className = 'truncate';
+					titulo.textContent = fila.yo ? `${fila.nombre} (tú)` : fila.nombre;
+					const detalle = document.createElement('span');
+					detalle.className = 'text-muted';
+					detalle.textContent = `${levelOf(fila.xp).current.title} · ${fila.resueltos} resueltos · racha ${fila.mejor}`;
+					quien.append(titulo, detalle);
+
+					const lado = document.createElement('span');
+					lado.className = 'flex items-baseline gap-3';
+					const puntos = document.createElement('span');
+					puntos.className = 'font-pixel tabular-nums';
+					puntos.textContent = String(fila.xp);
+					lado.append(puntos);
+					if (!fila.yo) {
+						const quitar = document.createElement('button');
+						quitar.type = 'button';
+						quitar.className = 'text-muted hover:text-heart';
+						quitar.textContent = 'quitar';
+						quitar.setAttribute('aria-label', `Quitar a ${fila.nombre}`);
+						quitar.addEventListener('click', () => {
+							liga = { ...liga, rivales: liga.rivales.filter((item) => item.nombre !== fila.nombre) };
+							saveLiga(liga);
+							pintarLiga();
+						});
+						lado.append(quitar);
+					}
+
+					li.append(puesto, quien, lado);
+					return li;
+				}),
+			);
+		}
+
+		nombre.addEventListener('input', () => {
+			const limpio = limpiaNombre(nombre.value);
+			if (limpio !== nombre.value) nombre.value = limpio;
+			liga = { ...liga, nombre: limpio };
+			saveLiga(liga);
+			pintarLiga();
+		});
+
+		pegar.addEventListener('submit', (event) => {
+			event.preventDefault();
+			const marca = leeCodigo(pegado.value);
+			const nueva = marca ? addRival(liga, marca) : 'Ese código no cuadra. Tiene que ser como reto.nombre.120.8.3.';
+			if (typeof nueva === 'string') {
+				aviso.textContent = nueva;
+				return;
+			}
+			aviso.textContent = '';
+			pegado.value = '';
+			liga = nueva;
+			saveLiga(liga);
+			pintarLiga();
+		});
+
+		copiar.addEventListener('click', async () => {
+			const texto = copiar.querySelector('span')!;
+			try {
+				await navigator.clipboard.writeText($('[data-liga-codigo]').textContent ?? '');
+				texto.textContent = 'Copiado';
+			} catch {
+				texto.textContent = 'Cópialo a mano';
+			}
+			setTimeout(() => (texto.textContent = 'Copiar'), 1500);
+		});
 
 		function pintarResultado() {
 			const dia = progreso[hoy];
@@ -335,7 +515,11 @@ const BOTON =
 
 		function pintarReto() {
 			const dificultad = DIFICULTADES[reto.dificultad];
-			$('[data-titulo]').textContent = `Reto del ${fecha(hoy)}`;
+			const tema = reto.tema ?? 'lenguaje';
+			raiz!.querySelectorAll<HTMLElement>('[data-tema-icono]').forEach((icono) => {
+				icono.hidden = icono.dataset.temaIcono !== tema;
+			});
+			$('[data-titulo]').textContent = `Reto del ${fecha(hoy)} · ${TEMAS[tema].label}`;
 			$('[data-dificultad]').textContent = `${dificultad.label} · ${dificultad.xp} puntos`;
 			$('[data-pregunta]').textContent =
 				reto.kind === 'salida' ? '¿Qué sale por consola?' : 'Escribe lo que sale por consola, tal cual.';
@@ -389,8 +573,8 @@ const BOTON =
 			const ahora = new Date();
 			if (dayKey(ahora) !== hoy) {
 				hoy = dayKey(ahora);
-				reto = retoDelDia(hoy);
 				progreso = readProgress();
+				reto = retoDeHoy();
 				pintarReto();
 			}
 			const manana = new Date(ahora);

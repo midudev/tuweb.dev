@@ -272,9 +272,9 @@ export const SECTIONS: Section[] = [
 		title: 'Reto diario',
 		icon: 'calendar-code',
 		group: 'juegos',
-		card: 'Un reto de JavaScript al día: qué sale por consola. Racha, niveles e insignias.',
+		card: 'Un reto al día de JavaScript, lógica y algoritmos. Racha, niveles, insignias y clasificación.',
 		intro:
-			'Cada día, un fragmento de JavaScript y una pregunta: qué sale por consola. Unas veces eliges entre cuatro y otras lo escribes tal cual. Dos intentos, y el segundo vale la mitad. Acierta días seguidos para llevar la racha, suma puntos para subir de nivel y ve ganando insignias. Aquí no se ejecuta nada: las respuestas están escritas a mano y lo que llevas se queda en tu navegador.',
+			'Cada día, un fragmento de código y una pregunta: qué sale por consola. Unos días van de las rarezas de JavaScript y otros de lógica y algoritmos: búsquedas, recursión, pilas, programación dinámica. Dos intentos, y el segundo vale la mitad. Acierta días seguidos para llevar la racha, suma puntos para subir de nivel, gana insignias y compara tu marca en la clasificación con códigos. Aquí no se ejecuta nada: las respuestas están escritas a mano y lo que llevas se queda en tu navegador.',
 	},
 	{
 		href: '/chistes',
