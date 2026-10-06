@@ -1,0 +1,493 @@
+---
+/**
+ * Sonidos ambientales para concentrarse: se mezclan capas (lluvia, bosque,
+ * cafetería...) cada una con su volumen. No hay ficheros de audio: todo se
+ * sintetiza con Web Audio a partir de ruido filtrado y pequeños golpes al azar.
+ * Lo único que se guarda es la mezcla, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const CAPAS = [
+	{ id: 'lluvia', label: 'Lluvia', icon: 'cloud-rain' },
+	{ id: 'bosque', label: 'Bosque', icon: 'trees' },
+	{ id: 'cafeteria', label: 'Cafetería', icon: 'coffee' },
+	{ id: 'viento', label: 'Viento', icon: 'wind' },
+	{ id: 'olas', label: 'Olas', icon: 'ripple' },
+	{ id: 'fuego', label: 'Fuego', icon: 'flame' },
+];
+
+const MEZCLAS = [
+	{ id: 'concentracion', label: 'Concentración' },
+	{ id: 'cafe-lluvia', label: 'Café con lluvia' },
+	{ id: 'paseo', label: 'Paseo por el bosque' },
+	{ id: 'cabana', label: 'Cabaña' },
+	{ id: 'playa', label: 'Playa' },
+];
+
+const TEMPORIZADOR = [0, 15, 25, 50];
+---
+
+<div
+	role="tabpanel"
+	id="ambiente"
+	aria-labelledby="tab-ambiente"
+	data-panel="ambiente"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="flex flex-wrap items-center gap-3">
+		<button
+			type="button"
+			data-am-play
+			aria-pressed="false"
+			class="inline-flex items-center gap-2 border border-accent px-4 py-3 text-accent hover:bg-panel"
+		>
+			<span data-am-icon="play" class="inline-flex"><Icon name="player-play" class="size-4 shrink-0" /></span>
+			<span data-am-icon="pause" class="inline-flex"><Icon name="player-pause" class="size-4 shrink-0" /></span>
+			<span data-am-play-label>Reproducir</span>
+		</button>
+		<span data-am-estado class="text-sm text-muted" aria-live="polite"></span>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
+		<div class="grid gap-4 sm:grid-cols-2">
+			{
+				CAPAS.map((capa) => (
+					<label class="flex flex-col gap-2 border border-line bg-panel p-4">
+						<span class="flex items-center justify-between text-sm text-muted">
+							<span class="inline-flex items-center gap-2 text-fg">
+								<Icon name={capa.icon} class="size-4 shrink-0" />
+								{capa.label}
+							</span>
+							<span class="text-mark">
+								<span data-am-valor={capa.id}>0</span> %
+							</span>
+						</span>
+						<input
+							type="range"
+							min="0"
+							max="100"
+							step="1"
+							value="0"
+							data-am-capa={capa.id}
+							class="w-full accent-accent"
+						/>
+					</label>
+				))
+			}
+		</div>
+
+		<div class="flex flex-col gap-5">
+			<label class="flex flex-col gap-2">
+				<span class="flex items-center justify-between text-sm text-muted">
+					<span class="inline-flex items-center gap-2">
+						<Icon name="volume" class="size-4 shrink-0" />
+						Volumen general
+					</span>
+					<span class="text-mark"><span data-am-valor="general">70</span> %</span>
+				</span>
+				<input type="range" min="0" max="100" step="1" value="70" data-am-general class="w-full accent-accent" />
+			</label>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Mezclas listas</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						MEZCLAS.map((m) => (
+							<button type="button" data-am-mezcla={m.id} class={BOTON}>
+								{m.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="inline-flex items-center gap-2 text-sm text-muted">
+					<Icon name="clock" class="size-4 shrink-0" />
+					Parar después de
+				</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						TEMPORIZADOR.map((min) => (
+							<button type="button" data-am-timer={min} aria-pressed={min === 0 ? 'true' : 'false'} class={OPCION}>
+								{min === 0 ? 'Sin límite' : `${min} min`}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<button type="button" data-am-silencio class={`${BOTON} self-start`}>
+				<Icon name="refresh" class="size-4 shrink-0" />
+				Poner todo a cero
+			</button>
+		</div>
+	</div>
+
+	<p class="text-sm text-muted">
+		Todo se genera en tu navegador, sin ficheros de audio. La mezcla se guarda aquí y sigue sonando
+		aunque cambies de pestaña.
+	</p>
+</div>
+
+<style>
+	[data-am-play] [data-am-icon='pause'] {
+		display: none;
+	}
+	[data-am-play][aria-pressed='true'] [data-am-icon='play'] {
+		display: none;
+	}
+	[data-am-play][aria-pressed='true'] [data-am-icon='pause'] {
+		display: inline-flex;
+	}
+</style>
+
+<script>
+	const CLAVE = 'tuweb-ambiente';
+	const IDS = ['lluvia', 'bosque', 'cafeteria', 'viento', 'olas', 'fuego'] as const;
+	type Id = (typeof IDS)[number];
+	type Mezcla = { capas: Record<Id, number>; general: number };
+
+	const CERO: Record<Id, number> = { lluvia: 0, bosque: 0, cafeteria: 0, viento: 0, olas: 0, fuego: 0 };
+	const MEZCLAS: Record<string, Partial<Record<Id, number>>> = {
+		concentracion: { lluvia: 60, viento: 15 },
+		'cafe-lluvia': { cafeteria: 55, lluvia: 35 },
+		paseo: { bosque: 70, viento: 25 },
+		cabana: { fuego: 60, lluvia: 30, viento: 20 },
+		playa: { olas: 70, viento: 25 },
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="ambiente"]');
+	const playBtn = panel?.querySelector<HTMLButtonElement>('[data-am-play]');
+	const playLabel = panel?.querySelector<HTMLElement>('[data-am-play-label]');
+	const estado = panel?.querySelector<HTMLElement>('[data-am-estado]');
+	const general = panel?.querySelector<HTMLInputElement>('[data-am-general]');
+
+	const limitar = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : 0);
+
+	function leer(): Mezcla {
+		const base: Mezcla = { capas: { ...CERO, lluvia: 50 }, general: 70 };
+		try {
+			const datos = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!datos || typeof datos !== 'object') return base;
+			const capas = { ...CERO };
+			IDS.forEach((id) => (capas[id] = limitar(datos.capas?.[id])));
+			return { capas, general: datos.general === undefined ? 70 : limitar(datos.general) };
+		} catch {
+			return base;
+		}
+	}
+
+	let mezcla = leer();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(mezcla));
+		} catch {
+			// Sin almacenamiento suena igual, solo que no se recuerda.
+		}
+	}
+
+	// --- Audio ---
+	let ctx: AudioContext | null = null;
+	let master: GainNode | null = null;
+	const ganancias = {} as Record<Id, GainNode>;
+	const eventos: Partial<Record<Id, { ritmo: number; lanzar: (t: number) => void }>> = {};
+	let ruidos: { blanco: AudioBuffer; rosa: AudioBuffer; marron: AudioBuffer } | null = null;
+
+	// Un buffer de ruido que se repite sin chasquido: se genera un poco más largo
+	// y el principio se funde con lo que vendría después del final.
+	function ruido(c: AudioContext, tipo: 'blanco' | 'rosa' | 'marron') {
+		const largo = c.sampleRate * 8;
+		const fundido = Math.floor(c.sampleRate * 0.5);
+		const crudo = new Float32Array(largo + fundido);
+		let b0 = 0, b1 = 0, b2 = 0, ultimo = 0;
+		for (let i = 0; i < crudo.length; i++) {
+			const w = Math.random() * 2 - 1;
+			if (tipo === 'blanco') crudo[i] = w * 0.5;
+			else if (tipo === 'rosa') {
+				b0 = 0.99765 * b0 + w * 0.099046;
+				b1 = 0.963 * b1 + w * 0.2965164;
+				b2 = 0.57 * b2 + w * 1.0526913;
+				crudo[i] = (b0 + b1 + b2 + w * 0.1848) * 0.12;
+			} else {
+				ultimo = (ultimo + 0.02 * w) / 1.02;
+				crudo[i] = ultimo * 3.5;
+			}
+		}
+		for (let i = 0; i < fundido; i++) {
+			const t = i / fundido;
+			crudo[i] = crudo[i] * t + crudo[largo + i] * (1 - t);
+		}
+		const buffer = c.createBuffer(1, largo, c.sampleRate);
+		buffer.getChannelData(0).set(crudo.subarray(0, largo));
+		return buffer;
+	}
+
+	function fuente(c: AudioContext, buffer: AudioBuffer) {
+		const s = c.createBufferSource();
+		s.buffer = buffer;
+		s.loop = true;
+		s.start(0, Math.random() * buffer.duration);
+		return s;
+	}
+
+	function filtro(c: AudioContext, type: BiquadFilterType, frequency: number, Q = 0.7) {
+		const f = c.createBiquadFilter();
+		f.type = type;
+		f.frequency.value = frequency;
+		f.Q.value = Q;
+		return f;
+	}
+
+	function nivel(c: AudioContext, valor: number) {
+		const g = c.createGain();
+		g.gain.value = valor;
+		return g;
+	}
+
+	// Oscilador lento que mueve un parámetro: el vaivén de olas y viento.
+	function lfo(c: AudioContext, frecuencia: number, profundidad: number, param: AudioParam) {
+		const o = c.createOscillator();
+		o.frequency.value = frecuencia;
+		const g = nivel(c, profundidad);
+		o.connect(g).connect(param);
+		o.start();
+	}
+
+	function cadena(...nodos: AudioNode[]) {
+		nodos.reduce((a, b) => a.connect(b));
+	}
+
+	// Golpe corto de ruido filtrado: gotas, chasquidos del fuego.
+	function golpe(c: AudioContext, destino: AudioNode, t: number, dur: number, tipo: BiquadFilterType, freq: number, Q: number, pico: number) {
+		if (!ruidos) return;
+		const s = c.createBufferSource();
+		s.buffer = ruidos.blanco;
+		const g = nivel(c, 0);
+		g.gain.setValueAtTime(pico, t);
+		g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+		cadena(s, filtro(c, tipo, freq, Q), g, destino);
+		s.start(t, Math.random() * 7);
+		s.stop(t + dur + 0.05);
+	}
+
+	// Tono que se apaga: pájaros y tazas.
+	function tono(c: AudioContext, destino: AudioNode, t: number, desde: number, hasta: number, dur: number, pico: number) {
+		const o = c.createOscillator();
+		o.frequency.setValueAtTime(desde, t);
+		o.frequency.exponentialRampToValueAtTime(hasta, t + dur * 0.6);
+		const g = nivel(c, 0);
+		g.gain.setValueAtTime(0, t);
+		g.gain.linearRampToValueAtTime(pico, t + 0.01);
+		g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+		cadena(o, g, destino);
+		o.start(t);
+		o.stop(t + dur + 0.05);
+	}
+
+	const azar = (a: number, b: number) => a + Math.random() * (b - a);
+
+	function montar(c: AudioContext, n: NonNullable<typeof ruidos>, salida: Record<Id, GainNode>) {
+		// Lluvia: ruido rosa sin graves ni agudos, y gotas sueltas encima.
+		cadena(fuente(c, n.rosa), filtro(c, 'highpass', 400), filtro(c, 'lowpass', 7000), nivel(c, 0.9), salida.lluvia);
+		eventos.lluvia = {
+			ritmo: 10,
+			lanzar: (t) => golpe(c, salida.lluvia, t, azar(0.02, 0.05), 'bandpass', azar(2000, 6000), 6, azar(0.1, 0.35)),
+		};
+
+		// Bosque: hojas que se mueven y pájaros de vez en cuando.
+		const hojas = nivel(c, 0.4);
+		cadena(fuente(c, n.marron), filtro(c, 'lowpass', 900), hojas, salida.bosque);
+		lfo(c, 0.13, 0.15, hojas.gain);
+		eventos.bosque = {
+			ritmo: 0.35,
+			lanzar: (t) => {
+				const f = azar(2500, 4500);
+				const notas = Math.floor(azar(2, 6));
+				for (let i = 0; i < notas; i++) tono(c, salida.bosque, t + i * 0.13, f, f * azar(1.1, 1.4), 0.1, 0.06);
+			},
+		};
+
+		// Cafetería: murmullo en la banda de la voz y alguna taza.
+		const murmullo = nivel(c, 0.8);
+		cadena(fuente(c, n.rosa), filtro(c, 'bandpass', 500, 0.8), murmullo, salida.cafeteria);
+		const voces = nivel(c, 0.35);
+		cadena(fuente(c, n.rosa), filtro(c, 'bandpass', 1200, 1.5), voces, salida.cafeteria);
+		lfo(c, 0.4, 0.2, voces.gain);
+		eventos.cafeteria = {
+			ritmo: 0.3,
+			lanzar: (t) => {
+				const f = azar(2500, 4000);
+				tono(c, salida.cafeteria, t, f, f, 0.4, 0.04);
+				tono(c, salida.cafeteria, t, f * 2.7, f * 2.7, 0.25, 0.015);
+			},
+		};
+
+		// Viento: ruido marrón con un filtro que sube y baja despacio.
+		const rafaga = filtro(c, 'bandpass', 450, 1.2);
+		cadena(fuente(c, n.marron), rafaga, nivel(c, 1.4), salida.viento);
+		lfo(c, 0.07, 280, rafaga.frequency);
+
+		// Olas: graves que crecen y se retiran cada diez segundos o así.
+		const marea = nivel(c, 0.45);
+		cadena(fuente(c, n.marron), filtro(c, 'lowpass', 1000), marea, salida.olas);
+		lfo(c, 0.09, 0.4, marea.gain);
+
+		// Fuego: un fondo grave y chasquidos.
+		cadena(fuente(c, n.marron), filtro(c, 'lowpass', 400), nivel(c, 0.7), salida.fuego);
+		eventos.fuego = {
+			ritmo: 6,
+			lanzar: (t) => golpe(c, salida.fuego, t, azar(0.008, 0.03), 'highpass', azar(1500, 4000), 0.7, azar(0.05, 0.4)),
+		};
+	}
+
+	function arrancar() {
+		if (ctx) return ctx;
+		ctx = new AudioContext();
+		master = nivel(ctx, 0);
+		master.connect(ctx.destination);
+		ruidos = { blanco: ruido(ctx, 'blanco'), rosa: ruido(ctx, 'rosa'), marron: ruido(ctx, 'marron') };
+		IDS.forEach((id) => {
+			ganancias[id] = nivel(ctx!, 0);
+			ganancias[id].connect(master!);
+		});
+		montar(ctx, ruidos, ganancias);
+		return ctx;
+	}
+
+	// Curva al cuadrado: el deslizador se siente más natural que en lineal.
+	const curva = (v: number) => (v / 100) ** 2;
+
+	function aplicar() {
+		if (!ctx || !master) return;
+		const t = ctx.currentTime;
+		master.gain.setTargetAtTime(curva(mezcla.general), t, 0.1);
+		IDS.forEach((id) => ganancias[id].gain.setTargetAtTime(curva(mezcla.capas[id]), t, 0.1));
+	}
+
+	// --- Golpes al azar: cada décima se tira el dado por capa ---
+	let reloj: number | undefined;
+	function programar() {
+		if (!ctx) return;
+		const ahora = ctx.currentTime;
+		IDS.forEach((id) => {
+			const e = eventos[id];
+			if (!e || mezcla.capas[id] === 0) return;
+			const veces = Math.floor(e.ritmo * 0.1 + Math.random());
+			for (let i = 0; i < veces; i++) e.lanzar(ahora + 0.05 + Math.random() * 0.1);
+		});
+	}
+
+	// --- Reproducir y parar ---
+	let sonando = false;
+	let minutos = 0;
+	let fin = 0;
+	let cuenta: number | undefined;
+
+	function pintarEstado() {
+		if (!estado) return;
+		const activas = IDS.filter((id) => mezcla.capas[id] > 0).length;
+		const partes = [sonando ? 'sonando' : 'en pausa', `${activas} ${activas === 1 ? 'capa' : 'capas'}`];
+		if (sonando && fin) {
+			const resto = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+			partes.push(`para en ${Math.floor(resto / 60)}:${String(resto % 60).padStart(2, '0')}`);
+		}
+		estado.textContent = partes.join(' · ');
+	}
+
+	async function reproducir() {
+		const c = arrancar();
+		await c.resume();
+		sonando = true;
+		aplicar();
+		clearInterval(reloj);
+		reloj = window.setInterval(programar, 100);
+		fin = minutos ? Date.now() + minutos * 60_000 : 0;
+		clearInterval(cuenta);
+		cuenta = window.setInterval(() => {
+			if (fin && Date.now() >= fin) pausar();
+			else pintarEstado();
+		}, 1000);
+		pintar();
+	}
+
+	function pausar() {
+		sonando = false;
+		clearInterval(reloj);
+		clearInterval(cuenta);
+		fin = 0;
+		if (ctx && master) {
+			// Se baja suave y luego se suspende, para no cortar en seco.
+			master.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+			const c = ctx;
+			window.setTimeout(() => {
+				if (!sonando) c.suspend();
+			}, 1500);
+		}
+		pintar();
+	}
+
+	// --- Interfaz ---
+	function pintar() {
+		playBtn?.setAttribute('aria-pressed', String(sonando));
+		if (playLabel) playLabel.textContent = sonando ? 'Pausar' : 'Reproducir';
+		IDS.forEach((id) => {
+			const rango = panel?.querySelector<HTMLInputElement>(`[data-am-capa="${id}"]`);
+			const valor = panel?.querySelector<HTMLElement>(`[data-am-valor="${id}"]`);
+			if (rango) rango.value = String(mezcla.capas[id]);
+			if (valor) valor.textContent = String(mezcla.capas[id]);
+		});
+		if (general) general.value = String(mezcla.general);
+		const valorGeneral = panel?.querySelector<HTMLElement>('[data-am-valor="general"]');
+		if (valorGeneral) valorGeneral.textContent = String(mezcla.general);
+		panel?.querySelectorAll<HTMLButtonElement>('[data-am-timer]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(Number(b.dataset.amTimer) === minutos));
+		});
+		pintarEstado();
+	}
+
+	function cambiar(parte: Partial<Mezcla>) {
+		mezcla = { ...mezcla, ...parte };
+		guardar();
+		if (sonando) aplicar();
+		pintar();
+	}
+
+	playBtn?.addEventListener('click', () => (sonando ? pausar() : reproducir()));
+
+	IDS.forEach((id) => {
+		const rango = panel?.querySelector<HTMLInputElement>(`[data-am-capa="${id}"]`);
+		rango?.addEventListener('input', () => cambiar({ capas: { ...mezcla.capas, [id]: limitar(Number(rango.value)) } }));
+	});
+
+	general?.addEventListener('input', () => cambiar({ general: limitar(Number(general.value)) }));
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-am-mezcla]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const elegida = MEZCLAS[b.dataset.amMezcla ?? ''];
+			if (!elegida) return;
+			cambiar({ capas: { ...CERO, ...elegida } });
+			// Elegir una mezcla es querer oírla.
+			if (!sonando) reproducir();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-am-timer]').forEach((b) => {
+		b.addEventListener('click', () => {
+			minutos = Number(b.dataset.amTimer) || 0;
+			fin = sonando && minutos ? Date.now() + minutos * 60_000 : 0;
+			pintar();
+		});
+	});
+
+	panel?.querySelector('[data-am-silencio]')?.addEventListener('click', () => cambiar({ capas: { ...CERO } }));
+
+	pintar();
+</script>

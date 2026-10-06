@@ -1,4 +1,5 @@
 ---
+import AmbientTool from './AmbientTool.astro';
 import ArrowTool from './ArrowTool.astro';
 import ArtPaletteTool from './ArtPaletteTool.astro';
 import AsciiTool from './AsciiTool.astro';
@@ -99,6 +100,7 @@ const tools = [
 	{ id: 'simon', label: 'Simón dice', icon: 'brain' },
 	{ id: 'sonidos', label: 'Sonidos', icon: 'bell-ringing' },
 	{ id: 'efectos', label: 'Efectos de sonido', icon: 'volume' },
+	{ id: 'ambiente', label: 'Sonidos ambientales', icon: 'headphones' },
 	{ id: 'unidades', label: 'Unidades', icon: 'ruler-measure' },
 	{ id: 'tema', label: 'Tema', icon: 'brush' },
 	{ id: 'config', label: 'Config', icon: 'adjustments' },
@@ -315,6 +317,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<SoundTool />
 
 	<EffectsTool />
+
+	<AmbientTool />
 
 	<UnitTool />
 
