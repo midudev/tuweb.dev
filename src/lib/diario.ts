@@ -16,12 +16,13 @@ export const DIFICULTADES: Record<Dificultad, { label: string; xp: number }> = {
 	dificil: { label: 'Difícil', xp: 30 },
 };
 
-/** De qué va: las rarezas del lenguaje o la lógica y los algoritmos. */
-export type Tema = 'lenguaje' | 'algoritmos';
+/** De qué va: las rarezas del lenguaje, la lógica y los algoritmos, o lo que cuesta cada uno. */
+export type Tema = 'lenguaje' | 'algoritmos' | 'optimizacion';
 
 export const TEMAS: Record<Tema, { label: string; icon: string }> = {
 	lenguaje: { label: 'JavaScript', icon: 'brand-javascript' },
 	algoritmos: { label: 'Algoritmos', icon: 'binary-tree' },
+	optimizacion: { label: 'Optimización', icon: 'gauge' },
 };
 
 export interface Reto {
@@ -427,6 +428,135 @@ export const CATALOGO: readonly Reto[] = [
 		accept: ['4'],
 		why: 'Programación dinámica: formas[v] cuenta cómo llegar a v con las monedas vistas. Para 5: 5, 2+2+1, 2+1+1+1 y 1+1+1+1+1.',
 	},
+
+	/* Optimización: no basta con que salga bien, cuenta cuánto trabajo cuesta. */
+	{
+		id: 'coste-bucles',
+		kind: 'salida',
+		dificultad: 'medio',
+		tema: 'optimizacion',
+		code: ['let ops = 0', 'for (let i = 0; i < 10; i++)', '  for (let j = i; j < 10; j++) ops++', 'console.log(ops)'],
+		options: ['55', '100', '45', '10'],
+		answer: 0,
+		why: 'Diez, luego nueve, luego ocho... hasta uno: n(n+1)/2. Es la mitad que 100, pero sigue creciendo como n².',
+	},
+	{
+		id: 'memoria',
+		kind: 'respuesta',
+		dificultad: 'dificil',
+		tema: 'optimizacion',
+		code: [
+			'const memo = new Map()',
+			'let llamadas = 0',
+			'function fib(n) {',
+			'  llamadas++',
+			'  if (n <= 1) return n',
+			'  if (memo.has(n)) return memo.get(n)',
+			'  const r = fib(n - 1) + fib(n - 2)',
+			'  memo.set(n, r)',
+			'  return r',
+			'}',
+			'fib(10)',
+			'console.log(llamadas)',
+		],
+		accept: ['19'],
+		why: 'Con el Map cada valor del 2 al 10 se calcula una vez y llama dos veces: 18, más la primera. Sin memoria serían 177.',
+	},
+	{
+		id: 'lineal',
+		kind: 'salida',
+		dificultad: 'facil',
+		tema: 'optimizacion',
+		code: [
+			'const a = [1, 2, 3, 4, 5, 6, 7, 8]',
+			'let mira = 0',
+			'for (const x of [8, 9])',
+			'  for (const y of a) { mira++; if (y === x) break }',
+			'console.log(mira)',
+		],
+		options: ['16', '2', '9', '10'],
+		answer: 0,
+		why: 'Búsqueda lineal: el 8 está al final y el 9 no está, así que los dos obligan a mirarlo todo. Con un Set serían dos consultas.',
+	},
+	{
+		id: 'mitades',
+		kind: 'respuesta',
+		dificultad: 'facil',
+		tema: 'optimizacion',
+		code: ['let n = 1000, pasos = 0', 'while (n > 0) {', '  n = Math.floor(n / 2)', '  pasos++', '}', 'console.log(pasos)'],
+		accept: ['10'],
+		why: 'Partir por la mitad hasta acabar cuesta log₂ n: con mil elementos, diez pasos. Por eso la búsqueda binaria vuela.',
+	},
+	{
+		id: 'prefijos',
+		kind: 'salida',
+		dificultad: 'medio',
+		tema: 'optimizacion',
+		code: [
+			'const v = [3, 1, 4, 1, 5, 9]',
+			'const p = [0]',
+			'for (const x of v) p.push(p.at(-1) + x)',
+			'console.log(p[5] - p[2])',
+		],
+		options: ['10', '14', '9', '6'],
+		answer: 0,
+		why: 'Sumas prefijas: se calculan una vez y la suma de cualquier tramo cuesta una resta. Aquí 4 + 1 + 5.',
+	},
+	{
+		id: 'dos-punteros',
+		kind: 'respuesta',
+		dificultad: 'dificil',
+		tema: 'optimizacion',
+		code: [
+			'const a = [1, 3, 4, 6, 8, 11]',
+			'let i = 0, j = a.length - 1, pasos = 0',
+			'while (a[i] + a[j] !== 10) {',
+			'  pasos++',
+			'  if (a[i] + a[j] < 10) i++',
+			'  else j--',
+			'}',
+			'console.log(a[i], a[j], pasos)',
+		],
+		accept: ['4 6 4'],
+		why: 'Con la lista ordenada, dos punteros que se acercan desde los extremos: una pasada en vez de probar todas las parejas.',
+	},
+	{
+		id: 'potencia-rapida',
+		kind: 'salida',
+		dificultad: 'medio',
+		tema: 'optimizacion',
+		code: [
+			'let mults = 0',
+			'function pot(b, e) {',
+			'  if (e === 0) return 1',
+			'  const m = pot(b, Math.floor(e / 2))',
+			'  mults++',
+			'  return e % 2 ? m * m * b : m * m',
+			'}',
+			'console.log(pot(2, 16), mults)',
+		],
+		options: ['65536 5', '65536 16', '65536 4', '256 5'],
+		answer: 0,
+		why: 'Exponenciación rápida: elevar al cuadrado parte el exponente. 16, 8, 4, 2 y 1: cinco pasos en vez de dieciséis.',
+	},
+	{
+		id: 'ventana',
+		kind: 'salida',
+		dificultad: 'medio',
+		tema: 'optimizacion',
+		code: [
+			'const v = [2, 1, 5, 1, 3, 2]',
+			'let suma = v[0] + v[1] + v[2], mejor = suma',
+			'for (let i = 3; i < v.length; i++) {',
+			'  suma += v[i] - v[i - 3]',
+			'  mejor = Math.max(mejor, suma)',
+			'}',
+			'console.log(mejor)',
+		],
+		options: ['9', '8', '11', '14'],
+		answer: 0,
+		why: 'Ventana deslizante: entra uno y sale otro, sin volver a sumar los tres. Las ventanas dan 8, 7, 9 y 6.',
+	},
 ];
 
 export function retoPorId(id: string) {
@@ -593,6 +723,8 @@ export interface Stats {
 	hard: number;
 	/** Los de lógica y algoritmos resueltos. */
 	algo: number;
+	/** Los de optimización resueltos. */
+	opt: number;
 	streak: number;
 	best: number;
 	level: number;
@@ -607,6 +739,7 @@ export function statsOf(progress: Progress, today: string): Stats {
 		firstTry: days.filter((dia) => dia.ok && dia.tries === 1).length,
 		hard: days.filter((dia) => dia.ok && dia.dificultad === 'dificil').length,
 		algo: days.filter((dia) => dia.ok && retoPorId(dia.reto)?.tema === 'algoritmos').length,
+		opt: days.filter((dia) => dia.ok && retoPorId(dia.reto)?.tema === 'optimizacion').length,
 		streak: currentStreak(progress, today),
 		best: bestStreak(progress),
 		level: levelOf(xp).index + 1,
@@ -629,6 +762,7 @@ export const INSIGNIAS: readonly Insignia[] = [
 	{ key: 'certero', title: 'A la primera', detail: 'Cinco retos sin fallar ni una.', icon: 'target-arrow', goal: 5, count: (s) => s.firstTry },
 	{ key: 'duro', title: 'Sin miedo', detail: 'Resuelves un reto difícil.', icon: 'stairs-up', goal: 1, count: (s) => s.hard },
 	{ key: 'algoritmos', title: 'Cabeza fría', detail: 'Cinco retos de algoritmos.', icon: 'binary-tree', goal: 5, count: (s) => s.algo },
+	{ key: 'optimiza', title: 'Menos es más', detail: 'Tres retos de optimización.', icon: 'gauge', goal: 3, count: (s) => s.opt },
 	{ key: 'racha-3', title: 'Tres seguidos', detail: 'Racha de tres días.', icon: 'flame', goal: 3, count: (s) => s.best },
 	{ key: 'racha-7', title: 'Una semana', detail: 'Racha de siete días.', icon: 'calendar-check', goal: 7, count: (s) => s.best },
 	{ key: 'racha-30', title: 'Un mes', detail: 'Racha de treinta días.', icon: 'trophy', goal: 30, count: (s) => s.best },
