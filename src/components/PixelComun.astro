@@ -1,0 +1,532 @@
+---
+/**
+ * El lienzo común: un mural de 32 × 32 en el que cada cual pone un píxel por
+ * hora. Va en directo entre las pestañas de tu navegador con BroadcastChannel y,
+ * para sumar a otra gente, el mural viaja en el enlace: quien lo abre lo junta
+ * con el suyo, pone su píxel y lo pasa. No hay servidor: no se envía nada.
+ */
+import Icon from './Icon.astro';
+import { PALETA } from '../lib/mural';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+---
+
+<section id="lienzo" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<div class="flex flex-col gap-1 border border-accent bg-panel px-4 py-3">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="hourglass" class="size-4 shrink-0 text-accent" />
+				Tu píxel
+			</span>
+			<p data-lienzo-espera class="font-pixel text-marca text-mark">…</p>
+			<span class="text-xs text-muted">Uno por hora. Elige la casilla, el color y ponlo: no se puede deshacer.</span>
+		</div>
+
+		<p data-lienzo-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="border border-line bg-panel p-4">
+			<canvas
+				data-lienzo-tela
+				width="512"
+				height="512"
+				role="img"
+				aria-label="El lienzo común"
+				class="mx-auto block aspect-square w-full max-w-[512px] cursor-crosshair touch-none bg-bg [image-rendering:pixelated]"
+			></canvas>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-lienzo-poner class={`${BOTON} border-accent text-accent`}>
+				<Icon name="map-pin" class="size-4 shrink-0" />
+				Poner mi píxel
+			</button>
+			<button type="button" data-lienzo-enlace class={BOTON}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Pasar el enlace
+			</button>
+			<button type="button" data-lienzo-png class={BOTON}>
+				<Icon name="download" class="size-4 shrink-0" />
+				Descargar PNG
+			</button>
+		</div>
+
+		<p class="flex flex-wrap justify-between gap-2 text-sm text-muted">
+			<span data-lienzo-cuenta></span>
+			<span data-lienzo-casilla class="font-mono">x — · y —</span>
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-1">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0 text-accent" />
+				En directo
+			</span>
+			<p data-lienzo-pestanas class="text-sm text-fg">…</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<span id="lienzo-color">Color</span>
+				<span data-lienzo-color-actual class="text-mark"></span>
+			</span>
+			<div role="group" aria-labelledby="lienzo-color" class="grid grid-cols-8 gap-2">
+				{
+					PALETA.map((p, i) => (
+						<button
+							type="button"
+							data-lienzo-color={i}
+							aria-pressed="false"
+							aria-label={p.nombre}
+							title={p.nombre}
+							style={`background:${p.color}`}
+							class="aspect-square w-full border border-line hover:border-accent aria-pressed:outline-2 aria-pressed:outline-offset-2 aria-pressed:outline-accent"
+						/>
+					))
+				}
+			</div>
+		</div>
+
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-lienzo-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+			<span class="text-xs">Va con cada píxel que pones.</span>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="history" class="size-4 shrink-0 text-accent" />
+				Los últimos píxeles
+			</span>
+			<ol data-lienzo-registro class="flex flex-col gap-1 text-xs text-muted"></ol>
+			<p data-lienzo-sin-registro class="text-xs text-muted">Nadie aún. Pon el primero.</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="users-group" class="size-4 shrink-0 text-accent" />
+				Han pintado aquí
+			</span>
+			<p data-lienzo-firmas class="text-sm break-words text-fg"></p>
+		</div>
+	</div>
+</section>
+
+<script>
+	import { PALETA } from '../lib/mural';
+
+	type Paso = [number, string, string, number];
+
+	const LADO = 32;
+	const TOTAL = LADO * LADO;
+	const ESCALA = 16;
+	const HORA = 3_600_000;
+	const CLAVE = 'tuweb:lienzo';
+	const VACIO = '-';
+	const MAX_FIRMAS = 40;
+	const MAX_REGISTRO = 12;
+	const YO = Math.random().toString(36).slice(2, 10);
+
+	const raiz = document.querySelector<HTMLElement>('#lienzo');
+	const tela = raiz?.querySelector<HTMLCanvasElement>('[data-lienzo-tela]');
+	const ctx = tela?.getContext('2d');
+	const espera = raiz?.querySelector<HTMLElement>('[data-lienzo-espera]');
+	const aviso = raiz?.querySelector<HTMLElement>('[data-lienzo-aviso]');
+	const ponerBoton = raiz?.querySelector<HTMLButtonElement>('[data-lienzo-poner]');
+	const firmaCampo = raiz?.querySelector<HTMLInputElement>('[data-lienzo-firma]');
+	const casilla = raiz?.querySelector<HTMLElement>('[data-lienzo-casilla]');
+
+	// --- Validación ---
+
+	const textoValido = (t: unknown): t is string => typeof t === 'string' && t.length === TOTAL && /^[-0-9a-f]*$/.test(t);
+	const colorValido = (c: unknown): c is string => typeof c === 'string' && /^[0-9a-f]$/.test(c);
+	const limpiarFirma = (s: unknown) =>
+		typeof s === 'string' ? s.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 20) : '';
+	const limpiarFirmas = (lista: unknown) =>
+		Array.isArray(lista) ? [...new Set(lista.map(limpiarFirma).filter(Boolean))].slice(-MAX_FIRMAS) : [];
+
+	function limpiarPaso(p: unknown): Paso | null {
+		if (!Array.isArray(p)) return null;
+		const [i, c, f, t] = p;
+		if (!Number.isInteger(i) || i < 0 || i >= TOTAL || !colorValido(c) || !Number.isFinite(t)) return null;
+		return [i, c, limpiarFirma(f), t];
+	}
+
+	/** Junta dos registros sin repetir pasos, del más nuevo al más viejo. */
+	function juntarRegistro(a: Paso[], b: unknown) {
+		const todos = [...a, ...(Array.isArray(b) ? b.map(limpiarPaso).filter((p): p is Paso => !!p) : [])];
+		const vistos = new Map(todos.map((p): [string, Paso] => [`${p[3]}-${p[0]}`, p]));
+		return [...vistos.values()].sort((x, y) => y[3] - x[3]).slice(0, MAX_REGISTRO);
+	}
+
+	// --- Lo guardado ---
+
+	let pixeles: string[] = Array(TOTAL).fill(VACIO);
+	let ultimo = 0;
+	let color = 4;
+	let firma = '';
+	let firmas: string[] = [];
+	let registro: Paso[] = [];
+
+	function leer() {
+		try {
+			const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			return leido && typeof leido === 'object' ? leido : null;
+		} catch {
+			return null;
+		}
+	}
+
+	const guardado = leer();
+	if (guardado) {
+		if (textoValido(guardado.pixeles)) pixeles = [...guardado.pixeles];
+		if (Number.isFinite(guardado.ultimo)) ultimo = guardado.ultimo;
+		if (Number.isInteger(guardado.color) && guardado.color >= 0 && guardado.color < PALETA.length) color = guardado.color;
+		firma = limpiarFirma(guardado.firma);
+		firmas = limpiarFirmas(guardado.firmas);
+		registro = juntarRegistro([], guardado.registro);
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ pixeles: pixeles.join(''), ultimo, color, firma, firmas, registro }));
+		} catch {
+			// Sin almacenamiento se pinta igual; solo que no se guarda.
+		}
+	}
+
+	/** Lo que falta para el siguiente píxel. Un reloj atrasado no deja a nadie esperando más de una hora. */
+	const falta = () => Math.max(0, Math.min(HORA, ultimo + HORA - Date.now()));
+
+	// --- En directo entre pestañas ---
+
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
+	const otras = new Map<string, number>();
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: YO });
+	const enviarTodo = () => enviar({ tipo: 'todo', pixeles: pixeles.join(''), firmas, registro });
+
+	function pintarPestanas() {
+		const nodo = raiz?.querySelector<HTMLElement>('[data-lienzo-pestanas]');
+		if (!nodo) return;
+		if (!canal) nodo.textContent = 'Tu navegador no deja.';
+		else if (!otras.size) nodo.textContent = 'Solo esta pestaña. Lo que pongas sale al momento en las demás.';
+		else nodo.textContent = `${otras.size + 1} pestañas mirando el mismo lienzo.`;
+	}
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, Date.now());
+		if (data.tipo === 'hola') enviar({ tipo: 'aqui' });
+		if (data.tipo === 'pixel') {
+			const paso = limpiarPaso(data.paso);
+			if (paso) {
+				pixeles[paso[0]] = paso[1];
+				registro = juntarRegistro(registro, [paso]);
+				// La otra pestaña es tu mismo navegador: su píxel también es el tuyo.
+				ultimo = Math.max(ultimo, paso[3]);
+				if (paso[2]) firmas = limpiarFirmas([...firmas, paso[2]]);
+				todo();
+			}
+		}
+		if (data.tipo === 'todo' && textoValido(data.pixeles)) {
+			pixeles = [...data.pixeles];
+			firmas = limpiarFirmas(data.firmas);
+			registro = juntarRegistro([], data.registro);
+			todo();
+		}
+		pintarPestanas();
+	});
+
+	setInterval(() => {
+		enviar({ tipo: 'aqui' });
+		const limite = Date.now() - 10_000;
+		otras.forEach((visto, id) => visto < limite && otras.delete(id));
+		pintarPestanas();
+	}, 4_000);
+
+	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// --- Pintado ---
+
+	let elegida: number | null = null;
+	let encima: number | null = null;
+
+	function avisar(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		aviso.hidden = false;
+	}
+
+	const tinta = (nombre: string, otra: string) =>
+		(tela && getComputedStyle(tela).getPropertyValue(nombre).trim()) || otra;
+
+	function marco(i: number, colorBorde: string) {
+		if (!ctx) return;
+		ctx.strokeStyle = colorBorde;
+		ctx.lineWidth = 2;
+		ctx.strokeRect((i % LADO) * ESCALA + 1, Math.floor(i / LADO) * ESCALA + 1, ESCALA - 2, ESCALA - 2);
+	}
+
+	function pintarTela() {
+		if (!ctx || !tela) return;
+		ctx.clearRect(0, 0, tela.width, tela.height);
+		ctx.fillStyle = tinta('--color-line', '#e8d9c8');
+		for (let i = 0; i <= LADO; i++) {
+			ctx.fillRect(i * ESCALA, 0, 1, tela.height);
+			ctx.fillRect(0, i * ESCALA, tela.width, 1);
+		}
+		pixeles.forEach((c, i) => {
+			if (c === VACIO) return;
+			ctx.fillStyle = PALETA[parseInt(c, 16)].color;
+			ctx.fillRect((i % LADO) * ESCALA, Math.floor(i / LADO) * ESCALA, ESCALA, ESCALA);
+		});
+		const acento = tinta('--color-accent', '#c2410c');
+		if (encima !== null && encima !== elegida) marco(encima, acento);
+		if (elegida !== null) {
+			ctx.fillStyle = PALETA[color].color;
+			ctx.fillRect((elegida % LADO) * ESCALA + 4, Math.floor(elegida / LADO) * ESCALA + 4, ESCALA - 8, ESCALA - 8);
+			marco(elegida, acento);
+		}
+	}
+
+	function reloj(ms: number) {
+		const s = Math.ceil(ms / 1000);
+		return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+	}
+
+	function pintarEspera() {
+		const ms = falta();
+		if (espera) espera.textContent = ms ? `El siguiente en ${reloj(ms)}` : 'Listo para poner';
+		if (ponerBoton) ponerBoton.disabled = ms > 0 || elegida === null;
+	}
+
+	function pintarDatos() {
+		const cuenta = raiz?.querySelector<HTMLElement>('[data-lienzo-cuenta]');
+		if (cuenta) cuenta.textContent = `${pixeles.filter((c) => c !== VACIO).length} de ${TOTAL} píxeles puestos`;
+
+		const lista = raiz?.querySelector<HTMLElement>('[data-lienzo-firmas]');
+		if (lista) lista.textContent = firmas.length ? firmas.join(' · ') : 'Nadie aún.';
+
+		const ol = raiz?.querySelector<HTMLOListElement>('[data-lienzo-registro]');
+		const sin = raiz?.querySelector<HTMLElement>('[data-lienzo-sin-registro]');
+		if (sin) sin.hidden = registro.length > 0;
+		if (ol) {
+			ol.replaceChildren(
+				...registro.map(([i, c, f, t]) => {
+					const li = document.createElement('li');
+					li.className = 'flex items-center gap-2';
+					const muestra = document.createElement('span');
+					muestra.className = 'size-3 shrink-0 border border-line';
+					muestra.style.background = PALETA[parseInt(c, 16)].color;
+					const texto = document.createElement('span');
+					const hora = new Date(t).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+					texto.textContent = `${f || 'Sin firma'} · x ${i % LADO} y ${Math.floor(i / LADO)} · ${hora}`;
+					li.append(muestra, texto);
+					return li;
+				}),
+			);
+		}
+
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-lienzo-color]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(Number(b.dataset.lienzoColor) === color));
+		});
+		const actual = raiz?.querySelector<HTMLElement>('[data-lienzo-color-actual]');
+		if (actual) actual.textContent = PALETA[color].nombre;
+	}
+
+	function todo() {
+		pintarTela();
+		pintarEspera();
+		pintarDatos();
+	}
+
+	// --- Elegir y poner ---
+
+	function celda(evento: PointerEvent) {
+		if (!tela) return null;
+		const caja = tela.getBoundingClientRect();
+		if (!caja.width || !caja.height) return null;
+		const x = Math.floor(((evento.clientX - caja.left) / caja.width) * LADO);
+		const y = Math.floor(((evento.clientY - caja.top) / caja.height) * LADO);
+		return x < 0 || y < 0 || x >= LADO || y >= LADO ? null : y * LADO + x;
+	}
+
+	const SIN_CASILLA = 'x — · y —';
+
+	tela?.addEventListener('pointermove', (evento) => {
+		const i = celda(evento);
+		if (i === encima) return;
+		encima = i;
+		if (casilla) casilla.textContent = i === null ? SIN_CASILLA : `x ${i % LADO} · y ${Math.floor(i / LADO)}`;
+		pintarTela();
+	});
+
+	tela?.addEventListener('pointerleave', () => {
+		encima = null;
+		if (casilla) casilla.textContent = SIN_CASILLA;
+		pintarTela();
+	});
+
+	tela?.addEventListener('pointerdown', (evento) => {
+		const i = celda(evento);
+		if (i === null) return;
+		evento.preventDefault();
+		elegida = i;
+		todo();
+	});
+
+	ponerBoton?.addEventListener('click', () => {
+		// Otra pestaña ha podido gastar el píxel de esta hora: manda lo guardado.
+		const leido = leer();
+		if (leido && Number.isFinite(leido.ultimo)) ultimo = Math.max(ultimo, leido.ultimo);
+		const ms = falta();
+		if (ms) {
+			avisar(`Todavía no: te quedan ${reloj(ms)} para el siguiente.`);
+			return todo();
+		}
+		if (elegida === null) return avisar('Elige antes una casilla del lienzo.');
+
+		const ahora = Date.now();
+		const paso: Paso = [elegida, color.toString(16), firma, ahora];
+		pixeles[elegida] = paso[1];
+		ultimo = ahora;
+		registro = juntarRegistro(registro, [paso]);
+		if (firma) firmas = limpiarFirmas([...firmas, firma]);
+		elegida = null;
+		guardar();
+		enviar({ tipo: 'pixel', paso });
+		avisar('Puesto. Pasa el enlace para que se sume alguien más.');
+		todo();
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-lienzo-color]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const i = Number(b.dataset.lienzoColor);
+			if (!Number.isInteger(i) || i < 0 || i >= PALETA.length) return;
+			color = i;
+			guardar();
+			todo();
+		});
+	});
+
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('input', () => {
+			firma = limpiarFirma(firmaCampo.value);
+			guardar();
+		});
+	}
+
+	// --- El enlace ---
+
+	/** Tiradas de un carácter: el carácter, cuántas veces en base 36 y una coma. */
+	function comprimir(texto: string) {
+		let salida = '';
+		for (let i = 0; i < texto.length; ) {
+			let j = i;
+			while (j < texto.length && texto[j] === texto[i]) j++;
+			salida += `${texto[i]}${(j - i).toString(36)},`;
+			i = j;
+		}
+		return salida;
+	}
+
+	function descomprimir(tiradas: string) {
+		let texto = '';
+		let i = 0;
+		while (i < tiradas.length) {
+			const fin = tiradas.indexOf(',', i + 1);
+			const veces = tiradas.slice(i + 1, fin);
+			if (fin < 0 || !/^[0-9a-z]+$/.test(veces)) return null;
+			const n = parseInt(veces, 36);
+			if (n < 1 || texto.length + n > TOTAL) return null;
+			texto += tiradas[i].repeat(n);
+			i = fin + 1;
+		}
+		return textoValido(texto) ? texto : null;
+	}
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	raiz?.querySelector('[data-lienzo-enlace]')?.addEventListener('click', async () => {
+		const url = `${location.origin}/lienzo#l=${aBase64({ p: comprimir(pixeles.join('')), f: firmas, r: registro })}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			avisar('Enlace copiado. Quien lo abra junta este lienzo con el suyo y pone su píxel.');
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	});
+
+	raiz?.querySelector('[data-lienzo-png]')?.addEventListener('click', () => {
+		const lado = LADO * ESCALA;
+		const salida = document.createElement('canvas');
+		salida.width = lado;
+		salida.height = lado;
+		const pincel = salida.getContext('2d');
+		if (!pincel) return;
+		pincel.fillStyle = PALETA[0].color;
+		pincel.fillRect(0, 0, lado, lado);
+		pixeles.forEach((c, i) => {
+			if (c === VACIO) return;
+			pincel.fillStyle = PALETA[parseInt(c, 16)].color;
+			pincel.fillRect((i % LADO) * ESCALA, Math.floor(i / LADO) * ESCALA, ESCALA, ESCALA);
+		});
+		salida.toBlob((blob) => {
+			if (!blob) return;
+			const url = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = 'lienzo-comun.png';
+			enlace.click();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		});
+	});
+
+	// --- Arranque ---
+
+	// Un lienzo que llega en el enlace se junta con el tuyo: donde trae píxel, manda el suyo.
+	const recibido = /^#l=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const datos = deBase64(recibido[1]);
+		const texto = datos && typeof datos.p === 'string' ? descomprimir(datos.p) : null;
+		if (texto) {
+			[...texto].forEach((c, i) => c !== VACIO && (pixeles[i] = c));
+			firmas = limpiarFirmas([...firmas, ...limpiarFirmas(datos.f)]);
+			registro = juntarRegistro(registro, datos.r);
+			guardar();
+			enviarTodo();
+			avisar('Lienzo del enlace juntado con el tuyo. Pon tu píxel y pásalo.');
+		} else avisar('El enlace está roto: sigue el lienzo que tenías.');
+		history.replaceState(null, '', '/lienzo');
+	}
+
+	setInterval(pintarEspera, 1000);
+	// El tema puede cambiar de claro a oscuro: la rejilla sigue sus colores.
+	new MutationObserver(pintarTela).observe(document.documentElement, { attributes: true, attributeFilter: ['data-modo'] });
+
+	enviar({ tipo: 'hola' });
+	pintarPestanas();
+	todo();
+</script>
