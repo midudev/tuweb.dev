@@ -4,13 +4,16 @@
  * Aquí no se ejecuta código: se elige la salida o se escribe, y se compara con
  * la respuesta escrita a mano. El reto que toca depende de tu fecha, así que lo
  * pinta el script; la racha, el nivel y las insignias se quedan en tu navegador.
+ * El reloj arranca al darle a empezar y acertar rápido da puntos extra.
  */
-import { INSIGNIAS, NOMBRE_MAX, TEMAS, TRIES } from '../lib/diario';
+import { INSIGNIAS, NOMBRE_MAX, RAPIDEZ, TEMAS, TRIES, tiempo } from '../lib/diario';
 import Icon from './Icon.astro';
 
 const MARCADOR = [
 	{ id: 'nivel', label: 'nivel', icon: 'stairs-up' },
 	{ id: 'xp', label: 'puntos', icon: 'coin' },
+	{ id: 'mes', label: 'puntos del mes', icon: 'calendar-month' },
+	{ id: 'record', label: 'mejor tiempo', icon: 'stopwatch' },
 	{ id: 'racha', label: 'racha', icon: 'flame' },
 	{ id: 'mejor', label: 'mejor racha', icon: 'trophy' },
 	{ id: 'resueltos', label: 'resueltos', icon: 'circle-check' },
@@ -65,7 +68,25 @@ const BOTON =
 					}
 					<span data-titulo>Reto del día</span>
 				</span>
-				<span data-dificultad class="tabular-nums text-mark"></span>
+				<span class="inline-flex items-center gap-3">
+					<span data-dificultad class="tabular-nums text-mark"></span>
+					<span class="inline-flex items-center gap-1.5 tabular-nums text-muted" title="Tiempo">
+						<Icon name="clock" class="size-4 shrink-0" />
+						<span data-reloj>0:00</span>
+					</span>
+				</span>
+			</div>
+
+			<div data-arranque class="flex flex-col items-start gap-3 border border-line bg-panel p-4 text-sm" hidden>
+				<p class="max-w-[62ch] text-muted">
+					El código sale cuando le das y el reloj empieza a correr. Acertar rápido da extra: {
+						RAPIDEZ.map((tramo) => `+${tramo.xp} hasta ${tiempo(tramo.segundos)}`).join(', ')
+					}. Recargar no lo para.
+				</p>
+				<button type="button" data-empezar class={`${BOTON} border-accent text-accent`}>
+					<Icon name="player-play" class="size-4 shrink-0" />
+					Empezar
+				</button>
 			</div>
 
 			<ol data-codigo class="flex flex-col border border-line bg-panel p-4 text-sm"></ol>
@@ -141,12 +162,23 @@ const BOTON =
 	<div class="flex flex-col gap-4">
 		<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
 			<h2 class="font-pixel text-lg">Clasificación</h2>
-			<span data-liga-cuenta class="text-sm tabular-nums text-muted"></span>
+			<span class="flex items-center gap-3 text-sm">
+				<span class="flex" role="group" aria-label="Qué ranking ver">
+					<button type="button" data-modo="mes" aria-pressed="true" class="border border-line px-2 py-1">
+						Este mes
+					</button>
+					<button type="button" data-modo="siempre" aria-pressed="false" class="-ml-px border border-line px-2 py-1">
+						Siempre
+					</button>
+				</span>
+				<span data-liga-cuenta class="tabular-nums text-muted"></span>
+			</span>
 		</div>
 
 		<p class="max-w-[62ch] text-sm text-muted">
 			Tu marca cabe en un código. Pásaselo a quien quieras y pega aquí los suyos: la tabla se ordena
-			por puntos, luego por resueltos y luego por racha.
+			por puntos, luego por resueltos y luego por racha. La del mes se vacía el día 1 y solo cuenta
+			los códigos de este mes.
 		</p>
 
 		<div class="grid gap-3 md:grid-cols-2">
@@ -178,8 +210,8 @@ const BOTON =
 					type="text"
 					autocomplete="off"
 					spellcheck="false"
-					maxlength="60"
-					placeholder="reto.nombre.120.8.3"
+					maxlength="80"
+					placeholder="reto.nombre.120.8.3.2026-10.45.2"
 					class="border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-accent"
 				/>
 				<div class="flex flex-wrap items-center gap-2">
@@ -232,6 +264,14 @@ const BOTON =
 		border-color: var(--color-heart);
 		color: var(--color-heart);
 	}
+	#diario [data-modo] {
+		color: var(--color-muted);
+	}
+	#diario [data-modo][aria-pressed='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+		position: relative;
+	}
 	#diario [data-tira] > li {
 		aspect-ratio: 1;
 		border: 1px solid var(--color-line);
@@ -269,6 +309,7 @@ const BOTON =
 		TEMAS,
 		TRIES,
 		addRival,
+		bonoRapidez,
 		clasificacion,
 		codigoDe,
 		dayKey,
@@ -286,6 +327,8 @@ const BOTON =
 		saveProgress,
 		solution,
 		statsOf,
+		tiempo,
+		type Modo,
 		type Progress,
 	} from '../lib/diario';
 
@@ -327,6 +370,8 @@ const BOTON =
 			dato('racha', stats.streak);
 			dato('mejor', stats.best);
 			dato('resueltos', stats.solved);
+			dato('mes', stats.mesXp);
+			dato('record', stats.record === null ? '-' : tiempo(stats.record));
 
 			$('[data-nivel-texto]').textContent = next
 				? `${current.title}: ${next.xp - stats.xp} para ${next.title}`
@@ -367,12 +412,23 @@ const BOTON =
 		const aviso = $('[data-liga-aviso]');
 		const copiar = $('[data-liga-copiar]') as HTMLButtonElement;
 		nombre.value = liga.nombre;
+		let modo: Modo = 'mes';
+
+		raiz.querySelectorAll<HTMLButtonElement>('[data-modo]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				modo = boton.dataset.modo === 'siempre' ? 'siempre' : 'mes';
+				raiz!.querySelectorAll<HTMLButtonElement>('[data-modo]').forEach((otro) => {
+					otro.setAttribute('aria-pressed', String(otro === boton));
+				});
+				pintarLiga();
+			});
+		});
 
 		function pintarLiga() {
 			const stats = statsOf(progreso, hoy);
 			$('[data-liga-codigo]').textContent = codigoDe(liga.nombre, stats);
 
-			const filas = clasificacion(liga, stats);
+			const filas = clasificacion(liga, stats, modo);
 			$('[data-liga-cuenta]').textContent = `${filas.length} ${filas.length === 1 ? 'persona' : 'personas'}`;
 			$('[data-liga]').replaceChildren(
 				...filas.map((fila) => {
@@ -432,7 +488,9 @@ const BOTON =
 		pegar.addEventListener('submit', (event) => {
 			event.preventDefault();
 			const marca = leeCodigo(pegado.value);
-			const nueva = marca ? addRival(liga, marca) : 'Ese código no cuadra. Tiene que ser como reto.nombre.120.8.3.';
+			const nueva = marca
+				? addRival(liga, marca)
+				: 'Ese código no cuadra. Tiene que ser como reto.nombre.120.8.3.2026-10.45.2.';
 			if (typeof nueva === 'string') {
 				aviso.textContent = nueva;
 				return;
@@ -476,8 +534,10 @@ const BOTON =
 			}
 
 			const titulo = $('[data-resultado-titulo]');
+			const extra = dia.ok && dia.segundos !== undefined ? bonoRapidez(dia.segundos) : 0;
+			const crono = dia.segundos !== undefined ? ` en ${tiempo(dia.segundos)}` : '';
 			titulo.textContent = dia.ok
-				? `Bien${dia.tries > 1 ? ', al segundo' : ''}. +${dia.xp}`
+				? `Bien${dia.tries > 1 ? ', al segundo' : ''}${crono}. +${dia.xp}${extra ? `, ${extra} por rapidez` : ''}`
 				: `Hoy no. Era: ${solution(reto)}`;
 			titulo.style.color = dia.ok ? 'var(--color-ok)' : 'var(--color-heart)';
 			$('[data-porque]').textContent = reto.why;
@@ -493,15 +553,21 @@ const BOTON =
 		function responder(valor: string | number, boton?: HTMLButtonElement) {
 			if (isClosed(progreso[hoy])) return;
 
-			const tries = (progreso[hoy]?.tries ?? 0) + 1;
+			const antes = progreso[hoy];
+			const tries = (antes?.tries ?? 0) + 1;
 			const ok = isRight(reto, valor);
 			const base = DIFICULTADES[reto.dificultad].xp;
+			const inicio = antes?.inicio;
+			const segundos = inicio ? Math.max(0, Math.floor((Date.now() - inicio) / 1000)) : undefined;
+			const extra = ok && segundos !== undefined ? bonoRapidez(segundos) : 0;
 			progreso[hoy] = {
 				reto: reto.id,
 				ok,
 				tries,
-				xp: ok ? (tries === 1 ? base : Math.floor(base / 2)) : 0,
+				xp: ok ? (tries === 1 ? base : Math.floor(base / 2)) + extra : 0,
 				dificultad: reto.dificultad,
+				inicio,
+				segundos: ok || tries >= TRIES ? segundos : undefined,
 			};
 			saveProgress(progreso);
 
@@ -511,6 +577,7 @@ const BOTON =
 			}
 			pintarResultado();
 			pintarMarcador();
+			pintarCrono(new Date());
 		}
 
 		function pintarReto() {
@@ -537,8 +604,14 @@ const BOTON =
 				}),
 			);
 
-			opciones.hidden = reto.kind !== 'salida';
-			escribir.hidden = reto.kind !== 'respuesta';
+			// Hasta que le das a empezar, el código no se ve: así el reloj es justo.
+			const listo = !!progreso[hoy];
+			$('[data-arranque]').hidden = listo;
+			$('[data-codigo]').hidden = !listo;
+			$('[data-pregunta]').hidden = !listo;
+			$('[data-intentos]').hidden = !listo;
+			opciones.hidden = !listo || reto.kind !== 'salida';
+			escribir.hidden = !listo || reto.kind !== 'respuesta';
 			entrada.value = '';
 
 			// Las opciones se barajan con el día, para que la buena no sea siempre la primera.
@@ -561,6 +634,29 @@ const BOTON =
 			pintarMarcador();
 		}
 
+		$('[data-empezar]').addEventListener('click', () => {
+			if (progreso[hoy]) return;
+			progreso[hoy] = { reto: reto.id, ok: false, tries: 0, xp: 0, dificultad: reto.dificultad, inicio: Date.now() };
+			saveProgress(progreso);
+			pintarReto();
+			reloj();
+			if (reto.kind === 'respuesta') entrada.focus();
+			else opciones.querySelector('button')?.focus();
+		});
+
+		/** El tiempo de hoy: corriendo si está abierto, quieto si ya se cerró. */
+		function pintarCrono(ahora: Date) {
+			const dia = progreso[hoy];
+			$('[data-reloj]').textContent =
+				dia?.segundos !== undefined
+					? tiempo(dia.segundos)
+					: dia?.inicio && !isClosed(dia)
+						? tiempo(Math.max(0, Math.floor((ahora.getTime() - dia.inicio) / 1000)))
+						: isClosed(dia)
+							? '-'
+							: '0:00';
+		}
+
 		escribir.addEventListener('submit', (event) => {
 			event.preventDefault();
 			if (!entrada.value.trim()) return;
@@ -577,6 +673,7 @@ const BOTON =
 				reto = retoDeHoy();
 				pintarReto();
 			}
+			pintarCrono(ahora);
 			const manana = new Date(ahora);
 			manana.setHours(24, 0, 0, 0);
 			const falta = Math.max(0, Math.floor((manana.getTime() - ahora.getTime()) / 1000));

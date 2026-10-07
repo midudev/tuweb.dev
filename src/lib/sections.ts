@@ -272,9 +272,9 @@ export const SECTIONS: Section[] = [
 		title: 'Reto diario',
 		icon: 'calendar-code',
 		group: 'juegos',
-		card: 'Un reto al día de JavaScript, algoritmos y optimización. Racha, niveles, insignias y clasificación.',
+		card: 'Un reto al día de JavaScript, algoritmos y optimización, contra el reloj. Racha, insignias y ranking mensual.',
 		intro:
-			'Cada día, un fragmento de código y una pregunta: qué sale por consola. Unos días van de las rarezas de JavaScript, otros de lógica y algoritmos —búsquedas, recursión, pilas, programación dinámica— y otros de optimización: cuántas vueltas da, cuántas llamadas ahorra la memoria, qué gana una ventana deslizante o dos punteros. Dos intentos, y el segundo vale la mitad. Acierta días seguidos para llevar la racha, suma puntos para subir de nivel, gana insignias y compara tu marca en la clasificación con códigos. Aquí no se ejecuta nada: las respuestas están escritas a mano y lo que llevas se queda en tu navegador.',
+			'Cada día, un fragmento de código y una pregunta: qué sale por consola. Unos días van de las rarezas de JavaScript, otros de lógica y algoritmos —búsquedas, recursión, pilas, programación dinámica— y otros de optimización: cuántas vueltas da, cuántas llamadas ahorra la memoria, qué gana una ventana deslizante o dos punteros. Le das a empezar y corre el reloj: acertar rápido da puntos extra. Dos intentos, y el segundo vale la mitad. Acierta días seguidos para llevar la racha, suma puntos para subir de nivel, gana insignias y compara tu marca en el ranking del mes o en el de siempre con códigos. Aquí no se ejecuta nada: las respuestas están escritas a mano y lo que llevas se queda en tu navegador.',
 	},
 	{
 		href: '/chistes',

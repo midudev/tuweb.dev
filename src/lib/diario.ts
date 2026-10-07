@@ -46,6 +46,25 @@ export interface Reto {
 /** Dos intentos al día. El segundo vale la mitad. */
 export const TRIES = 2;
 
+/** El reloj corre desde que le das a empezar. Si aciertas rápido, hay extra. */
+export const RAPIDEZ: readonly { segundos: number; xp: number }[] = [
+	{ segundos: 30, xp: 10 },
+	{ segundos: 60, xp: 5 },
+	{ segundos: 180, xp: 2 },
+];
+
+export function bonoRapidez(segundos: number) {
+	return RAPIDEZ.find((tramo) => segundos <= tramo.segundos)?.xp ?? 0;
+}
+
+/** Lo más que da un día: un difícil, a la primera y en nada. */
+export const XP_DIA_MAX = DIFICULTADES.dificil.xp + RAPIDEZ[0].xp;
+
+/** 75 segundos como 1:15. */
+export function tiempo(segundos: number) {
+	return `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, '0')}`;
+}
+
 export const CATALOGO: readonly Reto[] = [
 	{
 		id: 'coma-flotante',
@@ -618,6 +637,10 @@ export interface Dia {
 	tries: number;
 	xp: number;
 	dificultad: Dificultad;
+	/** Cuándo le diste a empezar, en milisegundos. */
+	inicio?: number;
+	/** Lo que tardaste en cerrarlo. */
+	segundos?: number;
 }
 
 export type Progress = Record<string, Dia>;
@@ -637,9 +660,13 @@ export function readProgress(): Progress {
 				reto: String(value.reto ?? ''),
 				ok: value.ok === true,
 				tries: Math.min(Math.max(Number(value.tries) || 0, 0), TRIES),
-				xp: Math.min(Math.max(Number(value.xp) || 0, 0), DIFICULTADES.dificil.xp),
+				xp: Math.min(Math.max(Number(value.xp) || 0, 0), XP_DIA_MAX),
 				dificultad,
 			};
+			const inicio = Number(value.inicio);
+			if (Number.isFinite(inicio) && inicio > 0) out[key].inicio = inicio;
+			const segundos = Number(value.segundos);
+			if (Number.isFinite(segundos) && segundos >= 0) out[key].segundos = Math.min(Math.floor(segundos), DAY / 1000);
 		}
 		return out;
 	} catch {
@@ -728,12 +755,30 @@ export interface Stats {
 	streak: number;
 	best: number;
 	level: number;
+	/** Los resueltos en menos de un minuto. */
+	rapidos: number;
+	/** El acierto más rápido, en segundos. */
+	record: number | null;
+	/** El mes de hoy, como AAAA-MM. */
+	mes: string;
+	mesXp: number;
+	mesSolved: number;
 }
 
 export function statsOf(progress: Progress, today: string): Stats {
 	const days = Object.values(progress);
 	const xp = days.reduce((sum, dia) => sum + dia.xp, 0);
+	const tiempos = days.filter((dia) => dia.ok && dia.segundos !== undefined).map((dia) => dia.segundos!);
+	const mes = today.slice(0, 7);
+	const delMes = Object.keys(progress)
+		.filter((key) => key.startsWith(mes))
+		.map((key) => progress[key]);
 	return {
+		rapidos: tiempos.filter((s) => s <= 60).length,
+		record: tiempos.length ? Math.min(...tiempos) : null,
+		mes,
+		mesXp: delMes.reduce((sum, dia) => sum + dia.xp, 0),
+		mesSolved: delMes.filter((dia) => dia.ok).length,
 		xp,
 		solved: days.filter((dia) => dia.ok).length,
 		firstTry: days.filter((dia) => dia.ok && dia.tries === 1).length,
@@ -763,6 +808,7 @@ export const INSIGNIAS: readonly Insignia[] = [
 	{ key: 'duro', title: 'Sin miedo', detail: 'Resuelves un reto difícil.', icon: 'stairs-up', goal: 1, count: (s) => s.hard },
 	{ key: 'algoritmos', title: 'Cabeza fría', detail: 'Cinco retos de algoritmos.', icon: 'binary-tree', goal: 5, count: (s) => s.algo },
 	{ key: 'optimiza', title: 'Menos es más', detail: 'Tres retos de optimización.', icon: 'gauge', goal: 3, count: (s) => s.opt },
+	{ key: 'rayo', title: 'Rayo', detail: 'Tres retos en menos de un minuto.', icon: 'bolt', goal: 3, count: (s) => s.rapidos },
 	{ key: 'racha-3', title: 'Tres seguidos', detail: 'Racha de tres días.', icon: 'flame', goal: 3, count: (s) => s.best },
 	{ key: 'racha-7', title: 'Una semana', detail: 'Racha de siete días.', icon: 'calendar-check', goal: 7, count: (s) => s.best },
 	{ key: 'racha-30', title: 'Un mes', detail: 'Racha de treinta días.', icon: 'trophy', goal: 30, count: (s) => s.best },
@@ -782,7 +828,14 @@ export interface Marca {
 	xp: number;
 	resueltos: number;
 	mejor: number;
+	/** El mes del código, como AAAA-MM, y lo que llevaba en él. Los códigos viejos no lo traen. */
+	mes?: string;
+	mesXp?: number;
+	mesResueltos?: number;
 }
+
+/** El ranking del mes se vacía el día 1; el de siempre, nunca. */
+export type Modo = 'mes' | 'siempre';
 
 export interface Liga {
 	/** Tu nombre en los códigos. */
@@ -795,24 +848,51 @@ export const NOMBRE_MAX = 20;
 export const RIVALES_MAX = 30;
 
 const LIGA_KEY = 'tuweb:reto-liga';
-const CODIGO = /^reto\.([\p{L}\p{N}_-]{1,20})\.(\d{1,6})\.(\d{1,5})\.(\d{1,5})$/u;
+const CODIGO =
+	/^reto\.([\p{L}\p{N}_-]{1,20})\.(\d{1,6})\.(\d{1,5})\.(\d{1,5})(?:\.(\d{4}-(?:0[1-9]|1[0-2]))\.(\d{1,4})\.(\d{1,2}))?$/u;
 
 /** Letras, números, guion y guion bajo: lo demás rompería el código. */
 export function limpiaNombre(text: string) {
 	return text.replace(/[^\p{L}\p{N}_-]+/gu, '').slice(0, NOMBRE_MAX);
 }
 
+function codigoDeMarca(marca: Marca) {
+	const base = `reto.${marca.nombre || 'anon'}.${marca.xp}.${marca.resueltos}.${marca.mejor}`;
+	return marca.mes ? `${base}.${marca.mes}.${marca.mesXp ?? 0}.${marca.mesResueltos ?? 0}` : base;
+}
+
 export function codigoDe(nombre: string, stats: Stats) {
-	return `reto.${nombre || 'anon'}.${stats.xp}.${stats.solved}.${stats.best}`;
+	return codigoDeMarca({
+		nombre,
+		xp: stats.xp,
+		resueltos: stats.solved,
+		mejor: stats.best,
+		mes: stats.mes,
+		mesXp: stats.mesXp,
+		mesResueltos: stats.mesSolved,
+	});
 }
 
 /** Un código pegado, o null si no cuadra. Lo imposible tampoco entra. */
 export function leeCodigo(text: string): Marca | null {
 	const match = CODIGO.exec(text.trim());
 	if (!match) return null;
-	const [, nombre, xp, resueltos, mejor] = match;
-	const marca = { nombre, xp: Number(xp), resueltos: Number(resueltos), mejor: Number(mejor) };
-	if (marca.xp > marca.resueltos * DIFICULTADES.dificil.xp || marca.mejor > marca.resueltos) return null;
+	const [, nombre, xp, resueltos, mejor, mes, mesXp, mesResueltos] = match;
+	const marca: Marca = { nombre, xp: Number(xp), resueltos: Number(resueltos), mejor: Number(mejor) };
+	// Solo dan puntos los días acertados, y como mucho XP_DIA_MAX cada uno.
+	if (marca.xp > marca.resueltos * XP_DIA_MAX || marca.mejor > marca.resueltos) return null;
+	if (mes) {
+		marca.mes = mes;
+		marca.mesXp = Number(mesXp);
+		marca.mesResueltos = Number(mesResueltos);
+		if (
+			marca.mesResueltos > 31 ||
+			marca.mesResueltos > marca.resueltos ||
+			marca.mesXp > marca.xp ||
+			marca.mesXp > marca.mesResueltos * XP_DIA_MAX
+		)
+			return null;
+	}
 	return marca;
 }
 
@@ -822,9 +902,7 @@ export function readLiga(): Liga {
 		const rivales = Array.isArray(raw.rivales)
 			? raw.rivales
 					.map((item) =>
-						item && typeof item === 'object'
-							? leeCodigo(`reto.${item.nombre}.${item.xp}.${item.resueltos}.${item.mejor}`)
-							: null,
+						item && typeof item === 'object' ? leeCodigo(codigoDeMarca(item)) : null,
 					)
 					.filter((item): item is Marca => item !== null)
 					.slice(0, RIVALES_MAX)
@@ -856,10 +934,24 @@ export interface Puesto extends Marca {
 	yo: boolean;
 }
 
-/** Tú y los demás, por puntos; luego resueltos y mejor racha. Mismo todo, mismo puesto. */
-export function clasificacion(liga: Liga, stats: Stats): Puesto[] {
-	const yo = { nombre: liga.nombre || 'anon', xp: stats.xp, resueltos: stats.solved, mejor: stats.best };
-	const filas = [{ ...yo, yo: true }, ...liga.rivales.map((item) => ({ ...item, yo: false }))].sort(
+/**
+ * Tú y los demás, por puntos; luego resueltos y mejor racha. Mismo todo, mismo
+ * puesto. En el del mes solo entran los códigos de este mes, con lo de este mes.
+ */
+export function clasificacion(liga: Liga, stats: Stats, modo: Modo = 'siempre'): Puesto[] {
+	const mensual = modo === 'mes';
+	const yo = {
+		nombre: liga.nombre || 'anon',
+		xp: mensual ? stats.mesXp : stats.xp,
+		resueltos: mensual ? stats.mesSolved : stats.solved,
+		mejor: stats.best,
+	};
+	const rivales = mensual
+		? liga.rivales
+				.filter((item) => item.mes === stats.mes)
+				.map((item) => ({ ...item, xp: item.mesXp ?? 0, resueltos: item.mesResueltos ?? 0 }))
+		: liga.rivales;
+	const filas = [{ ...yo, yo: true }, ...rivales.map((item) => ({ ...item, yo: false }))].sort(
 		(a, b) => b.xp - a.xp || b.resueltos - a.resueltos || b.mejor - a.mejor || Number(b.yo) - Number(a.yo),
 	);
 	let position = 0;
