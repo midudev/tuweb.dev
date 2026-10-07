@@ -51,7 +51,7 @@ export const GROUPS: Group[] = [
 		icon: 'messages',
 		card: 'Donde se junta la gente: hablar, con nombre o sin él, y el reto de la semana.',
 		intro:
-			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número—, un mural ASCII que se pasa de mano en mano, un lienzo común de un píxel por hora y los retos semanales: tres de la casa cada lunes, los que propone la gente, un tablón de soluciones para cada uno y votos con insignia para el que gana. En los chats sale el reto de la semana, por si quieres hablar de él.',
+			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número—, un mural ASCII que se pasa de mano en mano, un lienzo común de un píxel por hora, un taller para dibujar a la vez con versiones y chat, y los retos semanales: tres de la casa cada lunes, los que propone la gente, un tablón de soluciones para cada uno y votos con insignia para el que gana. En los chats sale el reto de la semana, por si quieres hablar de él.',
 	},
 	{
 		id: 'proceso',
@@ -356,6 +356,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un mural de píxeles entre todos: un píxel por persona y por hora, que pasa de mano en mano.',
 		intro:
 			'Un lienzo de 32 × 32 que se llena entre todos, de píxel en píxel. Eliges casilla y color de la paleta de dieciséis y lo pones; el siguiente, dentro de una hora. Cada píxel lleva tu firma y sale en la lista de los últimos. Se ve en directo en todas las pestañas que tengas abiertas, y para sumar a más gente pasa el enlace: quien lo abre junta ese lienzo con el suyo, pone su píxel y lo pasa otra vez. Te lo llevas en PNG. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
+	},
+	{
+		href: '/taller',
+		title: 'Taller de píxeles',
+		icon: 'brush',
+		group: 'canales',
+		card: 'Un lienzo para dibujar entre varios a la vez, con versiones a las que volver y chat al lado.',
+		intro:
+			'Un lienzo de 32 × 32 para dibujar entre varios, sin turnos: lápiz, goma y cubo con la paleta de dieciséis, y deshacer. Cada trazo sale al momento en todas las pestañas que tengas abiertas. Guarda versiones con nombre y vuelve a la que quieras, y habla del dibujo en el chat de al lado. Para sumar a más gente pasa el enlace: lleva el dibujo, las últimas versiones y la charla. Te lo llevas en PNG. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/retos',

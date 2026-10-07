@@ -1,0 +1,704 @@
+---
+/**
+ * El taller de píxeles: un lienzo de 32 × 32 para dibujar entre varios, sin
+ * turnos. Cada trazo sale al momento en las demás pestañas con BroadcastChannel,
+ * hay versiones guardadas a las que volver y un chat al lado. Para sumar a otra
+ * gente, el dibujo, las versiones y la charla viajan en el enlace. No hay
+ * servidor: no se envía nada.
+ */
+import Icon from './Icon.astro';
+import { PALETA } from '../lib/mural';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+const HERRAMIENTAS = [
+	{ id: 'lapiz', nombre: 'Lápiz', icono: 'pencil' },
+	{ id: 'goma', nombre: 'Goma', icono: 'eraser' },
+	{ id: 'cubo', nombre: 'Cubo', icono: 'bucket' },
+];
+---
+
+<section id="taller" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<div class="flex flex-wrap items-center justify-between gap-3 border border-accent bg-panel px-4 py-3">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0 text-accent" />
+				En directo
+			</span>
+			<p data-taller-pestanas class="text-sm text-fg">…</p>
+		</div>
+
+		<p data-taller-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="border border-line bg-panel p-4">
+			<canvas
+				data-taller-tela
+				width="512"
+				height="512"
+				role="img"
+				aria-label="El lienzo del taller"
+				class="mx-auto block aspect-square w-full max-w-[512px] cursor-crosshair touch-none bg-bg [image-rendering:pixelated]"
+			></canvas>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			{
+				HERRAMIENTAS.map((h) => (
+					<button type="button" data-taller-herramienta={h.id} aria-pressed="false" class={`${BOTON} aria-pressed:border-accent aria-pressed:text-accent`}>
+						<Icon name={h.icono} class="size-4 shrink-0" />
+						{h.nombre}
+					</button>
+				))
+			}
+			<button type="button" data-taller-deshacer class={BOTON}>
+				<Icon name="restore" class="size-4 shrink-0" />
+				Deshacer
+			</button>
+			<button type="button" data-taller-enlace class={BOTON}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Pasar el enlace
+			</button>
+			<button type="button" data-taller-png class={BOTON}>
+				<Icon name="download" class="size-4 shrink-0" />
+				PNG
+			</button>
+		</div>
+
+		<div role="group" aria-label="Color" class="grid grid-cols-8 gap-2 sm:grid-cols-16">
+			{
+				PALETA.map((p, i) => (
+					<button
+						type="button"
+						data-taller-color={i}
+						aria-pressed="false"
+						aria-label={p.nombre}
+						title={p.nombre}
+						style={`background:${p.color}`}
+						class="aspect-square w-full border border-line hover:border-accent aria-pressed:outline-2 aria-pressed:outline-offset-2 aria-pressed:outline-accent"
+					/>
+				))
+			}
+		</div>
+
+		<p class="flex flex-wrap justify-between gap-2 text-sm text-muted">
+			<span data-taller-cuenta></span>
+			<span data-taller-casilla class="font-mono">x — · y —</span>
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-taller-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="message-2" class="size-4 shrink-0 text-accent" />
+				Chat del taller
+			</span>
+			<ol data-taller-chat class="flex max-h-64 flex-col gap-2 overflow-y-auto text-sm"></ol>
+			<p data-taller-sin-chat class="text-xs text-muted">Nadie ha dicho nada. Empieza tú.</p>
+			<form data-taller-chat-form class="flex gap-2">
+				<input
+					type="text"
+					data-taller-chat-texto
+					maxlength="200"
+					placeholder="Di algo del dibujo"
+					aria-label="Mensaje"
+					class="min-w-0 grow border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+				/>
+				<button type="submit" class={BOTON} aria-label="Enviar">
+					<Icon name="send" class="size-4 shrink-0" />
+				</button>
+			</form>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="history" class="size-4 shrink-0 text-accent" />
+				Versiones
+			</span>
+			<form data-taller-version-form class="flex gap-2">
+				<input
+					type="text"
+					data-taller-version-nombre
+					maxlength="30"
+					placeholder="Nombre de la versión"
+					aria-label="Nombre de la versión"
+					class="min-w-0 grow border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+				/>
+				<button type="submit" class={BOTON}>
+					<Icon name="device-floppy" class="size-4 shrink-0" />
+					Guardar
+				</button>
+			</form>
+			<ol data-taller-versiones class="flex flex-col gap-2"></ol>
+			<p data-taller-sin-versiones class="text-xs text-muted">Ninguna aún. Guarda una para poder volver a ella.</p>
+		</div>
+	</div>
+</section>
+
+<script>
+	import { PALETA } from '../lib/mural';
+
+	type Version = { n: string; f: string; t: number; p: string };
+	type Mensaje = { f: string; x: string; t: number };
+	type Herramienta = 'lapiz' | 'goma' | 'cubo';
+
+	const LADO = 32;
+	const TOTAL = LADO * LADO;
+	const ESCALA = 16;
+	const CLAVE = 'tuweb:taller';
+	const PAPEL = '0';
+	const MAX_VERSIONES = 12;
+	const MAX_CHAT = 40;
+	const MAX_DESHACER = 30;
+	const YO = Math.random().toString(36).slice(2, 10);
+
+	const raiz = document.querySelector<HTMLElement>('#taller');
+	const tela = raiz?.querySelector<HTMLCanvasElement>('[data-taller-tela]');
+	const ctx = tela?.getContext('2d');
+	const aviso = raiz?.querySelector<HTMLElement>('[data-taller-aviso]');
+	const casilla = raiz?.querySelector<HTMLElement>('[data-taller-casilla]');
+	const firmaCampo = raiz?.querySelector<HTMLInputElement>('[data-taller-firma]');
+	const chatTexto = raiz?.querySelector<HTMLInputElement>('[data-taller-chat-texto]');
+	const versionNombre = raiz?.querySelector<HTMLInputElement>('[data-taller-version-nombre]');
+
+	// --- Validación ---
+
+	const textoValido = (t: unknown): t is string => typeof t === 'string' && t.length === TOTAL && /^[0-9a-f]*$/.test(t);
+	const limpiar = (s: unknown, largo: number) =>
+		typeof s === 'string' ? s.replace(/[\p{C}<>]/gu, '').trim().slice(0, largo) : '';
+	const limpiarFirma = (s: unknown) => (typeof s === 'string' ? s.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 20) : '');
+
+	function limpiarVersion(v: unknown): Version | null {
+		if (!v || typeof v !== 'object') return null;
+		const { n, f, t, p } = v as Record<string, unknown>;
+		// En el enlace las versiones van comprimidas; las tiradas llevan comas y nunca pasan por un lienzo.
+		const pixeles = textoValido(p) ? p : typeof p === 'string' ? descomprimir(p) : null;
+		if (!textoValido(pixeles) || typeof t !== 'number' || !Number.isFinite(t)) return null;
+		return { n: limpiar(n, 30) || 'Sin nombre', f: limpiarFirma(f), t, p: pixeles };
+	}
+
+	function limpiarMensaje(m: unknown): Mensaje | null {
+		if (!m || typeof m !== 'object') return null;
+		const { f, x, t } = m as Record<string, unknown>;
+		const texto = limpiar(x, 200);
+		if (!texto || typeof t !== 'number' || !Number.isFinite(t)) return null;
+		return { f: limpiarFirma(f), x: texto, t };
+	}
+
+	/** Junta dos listas sin repetir, de lo más viejo a lo más nuevo, y se queda con las últimas. */
+	function juntar<T extends { t: number; f: string }>(a: T[], b: unknown, limpia: (x: unknown) => T | null, max: number) {
+		const nuevas = Array.isArray(b) ? b.map(limpia).filter((x): x is T => !!x) : [];
+		const vistos = new Map([...a, ...nuevas].map((x): [string, T] => [`${x.t}-${x.f}`, x]));
+		return [...vistos.values()].sort((x, y) => x.t - y.t).slice(-max);
+	}
+
+	// --- El enlace: tiradas de un carácter y JSON en Base64 ---
+
+	function comprimir(texto: string) {
+		let salida = '';
+		for (let i = 0; i < texto.length; ) {
+			let j = i;
+			while (j < texto.length && texto[j] === texto[i]) j++;
+			salida += `${texto[i]}${(j - i).toString(36)},`;
+			i = j;
+		}
+		return salida;
+	}
+
+	function descomprimir(tiradas: string) {
+		let texto = '';
+		let i = 0;
+		while (i < tiradas.length) {
+			const fin = tiradas.indexOf(',', i + 1);
+			const veces = tiradas.slice(i + 1, fin);
+			if (fin < 0 || !/^[0-9a-z]+$/.test(veces)) return null;
+			const n = parseInt(veces, 36);
+			if (n < 1 || texto.length + n > TOTAL) return null;
+			texto += tiradas[i].repeat(n);
+			i = fin + 1;
+		}
+		return textoValido(texto) ? texto : null;
+	}
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	// --- Lo guardado ---
+
+	let pixeles: string[] = Array(TOTAL).fill(PAPEL);
+	let color = 1;
+	let herramienta: Herramienta = 'lapiz';
+	let firma = '';
+	let versiones: Version[] = [];
+	let chat: Mensaje[] = [];
+	const deshacer: string[] = [];
+
+	function leer() {
+		try {
+			const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			return leido && typeof leido === 'object' ? leido : null;
+		} catch {
+			return null;
+		}
+	}
+
+	const guardado = leer();
+	if (guardado) {
+		if (textoValido(guardado.pixeles)) pixeles = [...guardado.pixeles];
+		if (Number.isInteger(guardado.color) && guardado.color >= 0 && guardado.color < PALETA.length) color = guardado.color;
+		firma = limpiarFirma(guardado.firma);
+		versiones = juntar([], guardado.versiones, limpiarVersion, MAX_VERSIONES);
+		chat = juntar([], guardado.chat, limpiarMensaje, MAX_CHAT);
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ pixeles: pixeles.join(''), color, firma, versiones, chat }));
+		} catch {
+			// Sin almacenamiento se dibuja igual; solo que no se guarda.
+		}
+	}
+
+	// --- En directo entre pestañas ---
+
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
+	const otras = new Map<string, number>();
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: YO });
+	const enviarTodo = () => enviar({ tipo: 'todo', pixeles: pixeles.join('') });
+
+	function pintarPestanas() {
+		const nodo = raiz?.querySelector<HTMLElement>('[data-taller-pestanas]');
+		if (!nodo) return;
+		if (!canal) nodo.textContent = 'Tu navegador no deja.';
+		else if (!otras.size) nodo.textContent = 'Solo esta pestaña. Ábrelo en otra y verás cada trazo al momento.';
+		else nodo.textContent = `${otras.size + 1} pestañas dibujando en el mismo lienzo.`;
+	}
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, Date.now());
+		if (data.tipo === 'hola') enviar({ tipo: 'aqui' });
+		if (data.tipo === 'trazo' && Array.isArray(data.cambios)) {
+			for (const cambio of data.cambios) {
+				if (!Array.isArray(cambio)) continue;
+				const [i, c] = cambio;
+				if (Number.isInteger(i) && i >= 0 && i < TOTAL && typeof c === 'string' && /^[0-9a-f]$/.test(c)) pixeles[i] = c;
+			}
+			pintarTela();
+			pintarCuenta();
+		}
+		if (data.tipo === 'todo' && textoValido(data.pixeles)) {
+			pixeles = [...data.pixeles];
+			pintarTela();
+			pintarCuenta();
+		}
+		if (data.tipo === 'version') {
+			versiones = juntar(versiones, [data.version], limpiarVersion, MAX_VERSIONES);
+			pintarVersiones();
+		}
+		if (data.tipo === 'chat') {
+			chat = juntar(chat, [data.mensaje], limpiarMensaje, MAX_CHAT);
+			pintarChat();
+		}
+		pintarPestanas();
+	});
+
+	setInterval(() => {
+		enviar({ tipo: 'aqui' });
+		const limite = Date.now() - 10_000;
+		otras.forEach((visto, id) => visto < limite && otras.delete(id));
+		pintarPestanas();
+	}, 4_000);
+
+	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// --- Pintado ---
+
+	let encima: number | null = null;
+
+	function avisar(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		aviso.hidden = false;
+	}
+
+	const tinta = (nombre: string, otra: string) =>
+		(tela && getComputedStyle(tela).getPropertyValue(nombre).trim()) || otra;
+
+	function dibujar(pincel: CanvasRenderingContext2D, texto: string | string[], escala: number) {
+		for (let i = 0; i < TOTAL; i++) {
+			pincel.fillStyle = PALETA[parseInt(texto[i], 16)].color;
+			pincel.fillRect((i % LADO) * escala, Math.floor(i / LADO) * escala, escala, escala);
+		}
+	}
+
+	function pintarTela() {
+		if (!ctx || !tela) return;
+		dibujar(ctx, pixeles, ESCALA);
+		ctx.fillStyle = tinta('--color-line', '#e8d9c8');
+		ctx.globalAlpha = 0.5;
+		for (let i = 0; i <= LADO; i++) {
+			ctx.fillRect(i * ESCALA, 0, 1, tela.height);
+			ctx.fillRect(0, i * ESCALA, tela.width, 1);
+		}
+		ctx.globalAlpha = 1;
+		if (encima !== null) {
+			ctx.strokeStyle = tinta('--color-accent', '#c2410c');
+			ctx.lineWidth = 2;
+			ctx.strokeRect((encima % LADO) * ESCALA + 1, Math.floor(encima / LADO) * ESCALA + 1, ESCALA - 2, ESCALA - 2);
+		}
+	}
+
+	function pintarCuenta() {
+		const cuenta = raiz?.querySelector<HTMLElement>('[data-taller-cuenta]');
+		if (cuenta) cuenta.textContent = `${pixeles.filter((c) => c !== PAPEL).length} de ${TOTAL} píxeles pintados`;
+	}
+
+	const fecha = (t: number) =>
+		new Date(t).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+	function pintarChat() {
+		const ol = raiz?.querySelector<HTMLOListElement>('[data-taller-chat]');
+		const sin = raiz?.querySelector<HTMLElement>('[data-taller-sin-chat]');
+		if (sin) sin.hidden = chat.length > 0;
+		if (!ol) return;
+		ol.replaceChildren(
+			...chat.map((m) => {
+				const li = document.createElement('li');
+				li.className = 'flex min-w-0 flex-col gap-0.5 border-l border-line pl-3';
+				const cabecera = document.createElement('span');
+				cabecera.className = 'text-xs text-muted';
+				cabecera.textContent = `${m.f || 'Sin firma'} · ${fecha(m.t)}`;
+				const cuerpo = document.createElement('span');
+				cuerpo.className = 'break-words text-fg';
+				cuerpo.textContent = m.x;
+				li.append(cabecera, cuerpo);
+				return li;
+			}),
+		);
+		ol.scrollTop = ol.scrollHeight;
+	}
+
+	function pintarVersiones() {
+		const ol = raiz?.querySelector<HTMLOListElement>('[data-taller-versiones]');
+		const sin = raiz?.querySelector<HTMLElement>('[data-taller-sin-versiones]');
+		if (sin) sin.hidden = versiones.length > 0;
+		if (!ol) return;
+		ol.replaceChildren(
+			...[...versiones].reverse().map((v) => {
+				const li = document.createElement('li');
+				li.className = 'flex items-center gap-3 border border-line bg-bg p-2';
+				const mini = document.createElement('canvas');
+				mini.width = LADO * 2;
+				mini.height = LADO * 2;
+				mini.className = 'size-12 shrink-0 border border-line [image-rendering:pixelated]';
+				const pincel = mini.getContext('2d');
+				if (pincel) dibujar(pincel, v.p, 2);
+				const texto = document.createElement('span');
+				texto.className = 'flex min-w-0 grow flex-col text-xs text-muted';
+				const nombre = document.createElement('span');
+				nombre.className = 'truncate text-sm text-fg';
+				nombre.textContent = v.n;
+				const quien = document.createElement('span');
+				quien.textContent = `${v.f || 'Sin firma'} · ${fecha(v.t)}`;
+				texto.append(nombre, quien);
+				const volver = document.createElement('button');
+				volver.type = 'button';
+				volver.className = 'shrink-0 border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent';
+				volver.textContent = 'Volver';
+				volver.addEventListener('click', () => {
+					apuntar();
+					pixeles = [...v.p];
+					guardar();
+					enviarTodo();
+					pintarTela();
+					pintarCuenta();
+					avisar(`De vuelta a «${v.n}». Con deshacer recuperas lo de antes.`);
+				});
+				li.append(mini, texto, volver);
+				return li;
+			}),
+		);
+	}
+
+	function pintarControles() {
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-taller-color]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(Number(b.dataset.tallerColor) === color));
+		});
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-taller-herramienta]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.tallerHerramienta === herramienta));
+		});
+		const boton = raiz?.querySelector<HTMLButtonElement>('[data-taller-deshacer]');
+		if (boton) boton.disabled = !deshacer.length;
+	}
+
+	function todo() {
+		pintarTela();
+		pintarCuenta();
+		pintarChat();
+		pintarVersiones();
+		pintarControles();
+	}
+
+	// --- Dibujar ---
+
+	/** Guarda cómo estaba el lienzo antes de tocarlo, para deshacer. */
+	function apuntar() {
+		deshacer.push(pixeles.join(''));
+		if (deshacer.length > MAX_DESHACER) deshacer.shift();
+		pintarControles();
+	}
+
+	function celda(evento: PointerEvent) {
+		if (!tela) return null;
+		const caja = tela.getBoundingClientRect();
+		if (!caja.width || !caja.height) return null;
+		const x = Math.floor(((evento.clientX - caja.left) / caja.width) * LADO);
+		const y = Math.floor(((evento.clientY - caja.top) / caja.height) * LADO);
+		return x < 0 || y < 0 || x >= LADO || y >= LADO ? null : y * LADO + x;
+	}
+
+	/** Las casillas entre dos puntos, para que un trazo rápido no deje huecos. */
+	function linea(desde: number, hasta: number) {
+		let [x, y] = [desde % LADO, Math.floor(desde / LADO)];
+		const [x1, y1] = [hasta % LADO, Math.floor(hasta / LADO)];
+		const [dx, dy] = [Math.abs(x1 - x), -Math.abs(y1 - y)];
+		const [sx, sy] = [x < x1 ? 1 : -1, y < y1 ? 1 : -1];
+		let error = dx + dy;
+		const salida = [y * LADO + x];
+		while (x !== x1 || y !== y1) {
+			const doble = 2 * error;
+			if (doble >= dy) {
+				error += dy;
+				x += sx;
+			}
+			if (doble <= dx) {
+				error += dx;
+				y += sy;
+			}
+			salida.push(y * LADO + x);
+		}
+		return salida;
+	}
+
+	function poner(casillas: number[], c: string) {
+		const cambios = casillas.filter((i) => pixeles[i] !== c).map((i): [number, string] => [i, c]);
+		if (!cambios.length) return;
+		cambios.forEach(([i]) => (pixeles[i] = c));
+		enviar({ tipo: 'trazo', cambios });
+		pintarTela();
+		pintarCuenta();
+	}
+
+	function rellenar(inicio: number, c: string) {
+		const viejo = pixeles[inicio];
+		if (viejo === c) return;
+		const casillas: number[] = [];
+		const vistas = new Set([inicio]);
+		const pila = [inicio];
+		while (pila.length) {
+			const i = pila.pop() as number;
+			if (pixeles[i] !== viejo) continue;
+			casillas.push(i);
+			const x = i % LADO;
+			const vecinas = [x > 0 ? i - 1 : -1, x < LADO - 1 ? i + 1 : -1, i - LADO, i + LADO];
+			for (const v of vecinas) {
+				if (v < 0 || v >= TOTAL || vistas.has(v)) continue;
+				vistas.add(v);
+				pila.push(v);
+			}
+		}
+		poner(casillas, c);
+	}
+
+	let trazo: number | null = null;
+	const SIN_CASILLA = 'x — · y —';
+	const tintaActual = () => (herramienta === 'goma' ? PAPEL : color.toString(16));
+
+	tela?.addEventListener('pointerdown', (evento) => {
+		const i = celda(evento);
+		if (i === null) return;
+		evento.preventDefault();
+		apuntar();
+		if (herramienta === 'cubo') {
+			rellenar(i, tintaActual());
+			guardar();
+			return;
+		}
+		tela?.setPointerCapture(evento.pointerId);
+		trazo = i;
+		poner([i], tintaActual());
+	});
+
+	tela?.addEventListener('pointermove', (evento) => {
+		const i = celda(evento);
+		if (trazo !== null && i !== null && i !== trazo) {
+			poner(linea(trazo, i), tintaActual());
+			trazo = i;
+		}
+		if (i === encima) return;
+		encima = i;
+		if (casilla) casilla.textContent = i === null ? SIN_CASILLA : `x ${i % LADO} · y ${Math.floor(i / LADO)}`;
+		pintarTela();
+	});
+
+	const soltar = () => {
+		if (trazo === null) return;
+		trazo = null;
+		guardar();
+	};
+	tela?.addEventListener('pointerup', soltar);
+	tela?.addEventListener('pointercancel', soltar);
+
+	tela?.addEventListener('pointerleave', () => {
+		encima = null;
+		if (casilla) casilla.textContent = SIN_CASILLA;
+		pintarTela();
+	});
+
+	raiz?.querySelector('[data-taller-deshacer]')?.addEventListener('click', () => {
+		const antes = deshacer.pop();
+		if (!antes) return;
+		pixeles = [...antes];
+		guardar();
+		enviarTodo();
+		todo();
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-taller-herramienta]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const h = b.dataset.tallerHerramienta;
+			if (h === 'lapiz' || h === 'goma' || h === 'cubo') herramienta = h;
+			pintarControles();
+		});
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-taller-color]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const i = Number(b.dataset.tallerColor);
+			if (!Number.isInteger(i) || i < 0 || i >= PALETA.length) return;
+			color = i;
+			if (herramienta === 'goma') herramienta = 'lapiz';
+			guardar();
+			pintarControles();
+		});
+	});
+
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('input', () => {
+			firma = limpiarFirma(firmaCampo.value);
+			guardar();
+		});
+	}
+
+	// --- Chat y versiones ---
+
+	raiz?.querySelector('[data-taller-chat-form]')?.addEventListener('submit', (evento) => {
+		evento.preventDefault();
+		const mensaje = limpiarMensaje({ f: firma, x: chatTexto?.value, t: Date.now() });
+		if (!mensaje || !chatTexto) return;
+		chatTexto.value = '';
+		chat = juntar(chat, [mensaje], limpiarMensaje, MAX_CHAT);
+		guardar();
+		enviar({ tipo: 'chat', mensaje });
+		pintarChat();
+	});
+
+	raiz?.querySelector('[data-taller-version-form]')?.addEventListener('submit', (evento) => {
+		evento.preventDefault();
+		const version = limpiarVersion({ n: versionNombre?.value, f: firma, t: Date.now(), p: pixeles.join('') });
+		if (!version) return;
+		if (versionNombre) versionNombre.value = '';
+		versiones = juntar(versiones, [version], limpiarVersion, MAX_VERSIONES);
+		guardar();
+		enviar({ tipo: 'version', version });
+		pintarVersiones();
+		avisar(`Versión «${version.n}» guardada.`);
+	});
+
+	// --- Enlace y PNG ---
+
+	raiz?.querySelector('[data-taller-enlace]')?.addEventListener('click', async () => {
+		const datos = {
+			p: comprimir(pixeles.join('')),
+			v: versiones.slice(-6).map((v) => ({ ...v, p: comprimir(v.p) })),
+			c: chat.slice(-20),
+		};
+		try {
+			await navigator.clipboard.writeText(`${location.origin}/taller#t=${aBase64(datos)}`);
+			avisar('Enlace copiado. Lleva el dibujo, las últimas versiones y la charla.');
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	});
+
+	raiz?.querySelector('[data-taller-png]')?.addEventListener('click', () => {
+		const salida = document.createElement('canvas');
+		salida.width = LADO * ESCALA;
+		salida.height = LADO * ESCALA;
+		const pincel = salida.getContext('2d');
+		if (!pincel) return;
+		dibujar(pincel, pixeles, ESCALA);
+		salida.toBlob((blob) => {
+			if (!blob) return;
+			const url = URL.createObjectURL(blob);
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = 'taller-de-pixeles.png';
+			enlace.click();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		});
+	});
+
+	// --- Arranque ---
+
+	// Lo que llega en el enlace manda en el lienzo; lo tuyo queda como versión para volver.
+	const recibido = /^#t=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const datos = deBase64(recibido[1]);
+		const texto = datos && typeof datos.p === 'string' ? descomprimir(datos.p) : null;
+		if (texto) {
+			if (pixeles.some((c) => c !== PAPEL) && pixeles.join('') !== texto) {
+				versiones = juntar(versiones, [{ n: 'Antes del enlace', f: firma, t: Date.now(), p: pixeles.join('') }], limpiarVersion, MAX_VERSIONES);
+			}
+			pixeles = [...texto];
+			versiones = juntar(versiones, datos.v, limpiarVersion, MAX_VERSIONES);
+			chat = juntar(chat, datos.c, limpiarMensaje, MAX_CHAT);
+			guardar();
+			enviarTodo();
+			avisar('Dibujo del enlace cargado. Lo que tenías está en Versiones.');
+		} else avisar('El enlace está roto: sigue el dibujo que tenías.');
+		history.replaceState(null, '', '/taller');
+	}
+
+	// El tema puede cambiar de claro a oscuro: la rejilla sigue sus colores.
+	new MutationObserver(pintarTela).observe(document.documentElement, { attributes: true, attributeFilter: ['data-modo'] });
+
+	enviar({ tipo: 'hola' });
+	pintarPestanas();
+	todo();
+</script>
