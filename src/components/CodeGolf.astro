@@ -1,0 +1,420 @@
+---
+/**
+ * El golf de código: el problema del día, tu solución y la clasificación por
+ * líneas. Aquí no se ejecuta nada: el código se cuenta según escribes y las
+ * pruebas las pasas tú. El hoyo que toca depende de tu fecha, así que lo pinta
+ * el script. La tabla se mueve en vivo con lo que escribes y con lo que hagas
+ * en otras pestañas, y todo se queda en tu navegador.
+ */
+import { NOMBRE_MAX } from '../lib/diario';
+import { ANCHO, CODIGO_MAX } from '../lib/golf';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const CAMPO = 'border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-accent';
+---
+
+<section id="golf" class="flex flex-col gap-8">
+	<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+				<span class="inline-flex items-center gap-2">
+					<Icon name="golf" class="size-4 shrink-0 text-accent" />
+					<span data-titulo>Hoyo del día</span>
+				</span>
+				<span data-par class="tabular-nums text-mark"></span>
+			</div>
+
+			<p data-enunciado class="text-sm"></p>
+			<p class="text-sm text-muted">Coste: <span data-coste class="text-fg"></span></p>
+
+			<div class="flex flex-col gap-2">
+				<span class="inline-flex items-center gap-2 text-sm text-muted">
+					<Icon name="test-pipe" class="size-4 shrink-0" />
+					Pruebas
+				</span>
+				<ul data-pruebas class="flex flex-col gap-1 border border-line bg-panel p-4 text-sm"></ul>
+			</div>
+
+			<p class="text-sm text-muted">
+				<span data-cuenta>El siguiente hoyo sale a medianoche.</span> Cuentan las líneas con algo: las
+				vacías y los comentarios no. Una línea de más de {ANCHO} caracteres cuenta por cada {ANCHO}. Si
+				empatas en líneas, gana quien use menos caracteres.
+			</p>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-3">
+			<span class="flex items-center justify-between gap-3 text-sm text-muted">
+				<label for="golf-codigo" class="inline-flex items-center gap-2">
+					<Icon name="code" class="size-4 shrink-0 text-accent" />
+					Tu solución
+				</label>
+				<span data-medida class="tabular-nums text-mark"></span>
+			</span>
+			<textarea
+				id="golf-codigo"
+				data-codigo
+				rows="12"
+				spellcheck="false"
+				autocomplete="off"
+				autocapitalize="off"
+				maxlength={CODIGO_MAX}
+				class="w-full resize-y border border-line bg-panel p-4 text-sm outline-none focus-visible:border-accent"
+			></textarea>
+
+			<label class="inline-flex items-start gap-2 text-sm">
+				<input type="checkbox" data-probado class="mt-0.5 size-4 shrink-0 accent-accent" />
+				<span>
+					La he probado y pasa todas las pruebas. <span class="text-muted"
+						>Pruébala en el <a href="/playground" class="text-accent hover:underline">playground</a>.</span
+					>
+				</span>
+			</label>
+
+			<p data-estado class="text-sm text-muted"></p>
+
+			<details data-referencia class="border border-line p-3 text-sm" hidden>
+				<summary class="cursor-pointer text-muted hover:text-accent">Ver la solución del par</summary>
+				<pre data-solucion class="mt-3 overflow-x-auto bg-panel p-3"></pre>
+			</details>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+			<h2 class="flex items-center gap-2 font-pixel text-lg">
+				<Icon name="list-numbers" class="size-4 shrink-0 text-accent" />
+				Clasificación del hoyo
+			</h2>
+			<span class="inline-flex items-center gap-2 text-sm text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0" />
+				<span data-liga-cuenta class="tabular-nums"></span>
+			</span>
+		</div>
+
+		<p class="max-w-[62ch] text-sm text-muted">
+			Tu marca de hoy cabe en un código. Pásaselo a quien quieras y pega aquí los suyos: la tabla se
+			ordena por líneas y luego por caracteres. Se mueve sola mientras escribes y en todas las
+			pestañas que tengas abiertas. Mañana hay hoyo nuevo y tabla nueva.
+		</p>
+
+		<div class="grid gap-3 md:grid-cols-2">
+			<div class="flex flex-col gap-2 border border-line p-3">
+				<label for="golf-nombre" class="text-sm text-muted">Tu nombre en la tabla</label>
+				<input
+					id="golf-nombre"
+					data-liga-nombre
+					type="text"
+					autocomplete="off"
+					spellcheck="false"
+					maxlength={NOMBRE_MAX}
+					placeholder="anon"
+					class={CAMPO}
+				/>
+				<div class="flex flex-wrap items-center gap-2">
+					<code data-liga-codigo class="min-w-0 grow truncate bg-panel px-3 py-2 text-sm"></code>
+					<button type="button" data-liga-copiar class={BOTON}>
+						<Icon name="copy" class="size-4 shrink-0" />
+						<span>Copiar</span>
+					</button>
+				</div>
+			</div>
+
+			<form data-liga-pegar class="flex flex-col gap-2 border border-line p-3">
+				<label for="golf-pegado" class="text-sm text-muted">El código de otra persona</label>
+				<input
+					id="golf-pegado"
+					type="text"
+					autocomplete="off"
+					spellcheck="false"
+					maxlength="90"
+					placeholder="golf.nombre.fibonacci.2026-10-07.3.52"
+					class={CAMPO}
+				/>
+				<div class="flex flex-wrap items-center gap-2">
+					<button type="submit" class={BOTON}>
+						<Icon name="user-plus" class="size-4 shrink-0" />
+						Añadir a la tabla
+					</button>
+					<span data-liga-aviso class="text-sm text-heart"></span>
+				</div>
+			</form>
+		</div>
+
+		<p data-vacio class="border-y border-line py-2.5 text-sm text-muted">Nadie en este hoyo todavía.</p>
+		<ol data-liga class="flex flex-col"></ol>
+
+		<p class="text-sm text-muted">
+			Cada código dice lo que dice quien lo pasa: aquí no se ejecuta nada, así que es una liga entre
+			gente que se fía. Si alguien te pasa uno nuevo del mismo día, se actualiza su fila.
+		</p>
+	</div>
+</section>
+
+<style is:global>
+	/* Las pruebas y la tabla las pinta el script: van colgadas de #golf. */
+	#golf [data-pruebas] > li {
+		white-space: pre-wrap;
+	}
+	#golf [hidden] {
+		display: none;
+	}
+</style>
+
+<script>
+	import { limpiaNombre, readLiga as readLigaReto } from '../lib/diario';
+	import {
+		addRival,
+		clasificacion,
+		codigoDe,
+		contraPar,
+		dayKey,
+		hoyoDelDia,
+		hoyoPorId,
+		KEY,
+		leeCodigo,
+		LIGA_KEY,
+		medir,
+		par,
+		readLiga,
+		readTarjetas,
+		saveLiga,
+		saveTarjetas,
+		type Golpe,
+		type Liga,
+	} from '../lib/golf';
+
+	const raiz = document.querySelector<HTMLElement>('#golf');
+
+	if (raiz) {
+		function $(selector: string) {
+			return raiz!.querySelector(selector) as HTMLElement;
+		}
+
+		const codigo = $('[data-codigo]') as HTMLTextAreaElement;
+		const probado = $('[data-probado]') as HTMLInputElement;
+		const nombre = $('[data-liga-nombre]') as HTMLInputElement;
+		const pegar = $('[data-liga-pegar]') as HTMLFormElement;
+		const pegado = pegar.querySelector('input')!;
+		const aviso = $('[data-liga-aviso]');
+		const copiar = $('[data-liga-copiar]') as HTMLButtonElement;
+
+		let tarjetas = readTarjetas();
+		let liga = readLiga();
+		// Si ya tienes nombre en la liga del reto diario, vale el mismo.
+		if (!liga.nombre) liga = { ...liga, nombre: readLigaReto().nombre };
+		let hoy = dayKey(new Date());
+		let hoyo = hoyoDeHoy();
+
+		/** Si hoy ya empezaste, sigue siendo ese hoyo aunque el catálogo haya crecido. */
+		function hoyoDeHoy() {
+			return hoyoPorId(tarjetas[hoy]?.hoyo ?? '') ?? hoyoDelDia(hoy);
+		}
+
+		const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
+		/** Tu marca de hoy, si hay algo escrito y dices que pasa. */
+		function miGolpe(): Golpe | null {
+			const tarjeta = tarjetas[hoy];
+			if (!tarjeta?.probado) return null;
+			const { lineas, caracteres } = medir(tarjeta.codigo);
+			if (!lineas) return null;
+			return { nombre: liga.nombre || 'anon', hoyo: hoyo.id, dia: hoy, lineas, caracteres };
+		}
+
+		function guardar() {
+			tarjetas[hoy] = { hoyo: hoyo.id, codigo: codigo.value, probado: probado.checked };
+			saveTarjetas(tarjetas);
+		}
+
+		function pintarHoyo() {
+			const fecha = new Date(`${hoy}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+			$('[data-titulo]').textContent = `Hoyo del ${fecha} · ${hoyo.titulo}`;
+			$('[data-par]').textContent = `par ${par(hoyo)}`;
+			$('[data-enunciado]').textContent = hoyo.enunciado;
+			$('[data-coste]').textContent = hoyo.coste;
+			$('[data-pruebas]').replaceChildren(
+				...hoyo.pruebas.map((prueba) => {
+					const li = document.createElement('li');
+					li.textContent = prueba;
+					return li;
+				}),
+			);
+			$('[data-solucion]').textContent = hoyo.solucion.join('\n');
+			// La primera línea de la solución dice cómo se llama la función.
+			codigo.placeholder = `${hoyo.solucion[0]}\n  // ...\n}`;
+			codigo.value = tarjetas[hoy]?.codigo ?? '';
+			probado.checked = tarjetas[hoy]?.probado ?? false;
+			pintarMedida();
+		}
+
+		function pintarMedida() {
+			const { lineas, caracteres } = medir(codigo.value);
+			$('[data-medida]').textContent = lineas
+				? `${plural(lineas, 'línea', 'líneas')} · ${caracteres} car. · ${contraPar(lineas, hoyo)}`
+				: '';
+			probado.disabled = !lineas;
+			if (!lineas) probado.checked = false;
+
+			const mio = miGolpe();
+			$('[data-estado]').textContent = !lineas
+				? 'Escribe la función. Lo que escribes se guarda solo.'
+				: mio
+					? 'Ya estás en la tabla. Si la acortas, tu fila sube sola.'
+					: 'Cuando pase las pruebas, márcalo y entras en la tabla.';
+			($('[data-referencia]') as HTMLDetailsElement).hidden = !mio;
+			pintarLiga();
+		}
+
+		function pintarLiga() {
+			const mio = miGolpe();
+			$('[data-liga-codigo]').textContent = mio ? codigoDe(mio) : 'Aún no tienes marca hoy.';
+			copiar.disabled = !mio;
+
+			const filas = clasificacion(liga, mio, hoyo.id, hoy);
+			$('[data-liga-cuenta]').textContent = `En vivo · ${plural(filas.length, 'persona', 'personas')}`;
+
+			$('[data-vacio]').hidden = filas.length > 0;
+			$('[data-liga]').replaceChildren(
+				...filas.map((fila) => {
+					const li = document.createElement('li');
+					li.className =
+						'grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-4 border-t border-line py-2.5 text-sm last:border-b';
+					if (fila.yo) li.classList.add('bg-panel');
+
+					const puesto = document.createElement('span');
+					puesto.className = `font-pixel tabular-nums ${fila.position <= 3 ? 'text-accent' : 'text-muted'}`;
+					puesto.textContent = String(fila.position);
+
+					const quien = document.createElement('span');
+					quien.className = 'flex min-w-0 flex-col';
+					const titulo = document.createElement('span');
+					titulo.className = 'truncate';
+					titulo.textContent = fila.yo ? `${fila.nombre} (tú)` : fila.nombre;
+					const detalle = document.createElement('span');
+					detalle.className = 'text-muted';
+					detalle.textContent = `${fila.caracteres} caracteres · ${contraPar(fila.lineas, hoyo)}`;
+					quien.append(titulo, detalle);
+
+					const lado = document.createElement('span');
+					lado.className = 'flex items-baseline gap-3';
+					const lineas = document.createElement('span');
+					lineas.className = 'font-pixel tabular-nums';
+					lineas.textContent = String(fila.lineas);
+					lineas.title = plural(fila.lineas, 'línea', 'líneas');
+					lado.append(lineas);
+					if (!fila.yo) {
+						const quitar = document.createElement('button');
+						quitar.type = 'button';
+						quitar.className = 'text-muted hover:text-heart';
+						quitar.textContent = 'quitar';
+						quitar.setAttribute('aria-label', `Quitar a ${fila.nombre}`);
+						quitar.addEventListener('click', () => {
+							liga = {
+								...liga,
+								rivales: liga.rivales.filter(
+									(item) => !(item.nombre === fila.nombre && item.hoyo === fila.hoyo && item.dia === fila.dia),
+								),
+							};
+							saveLiga(liga);
+							pintarLiga();
+						});
+						lado.append(quitar);
+					}
+
+					li.append(puesto, quien, lado);
+					return li;
+				}),
+			);
+		}
+
+		codigo.addEventListener('input', () => {
+			guardar();
+			pintarMedida();
+		});
+
+		probado.addEventListener('change', () => {
+			guardar();
+			pintarMedida();
+		});
+
+		nombre.value = liga.nombre;
+		nombre.addEventListener('input', () => {
+			const limpio = limpiaNombre(nombre.value);
+			if (limpio !== nombre.value) nombre.value = limpio;
+			liga = { ...liga, nombre: limpio };
+			saveLiga(liga);
+			pintarLiga();
+		});
+
+		pegar.addEventListener('submit', (event) => {
+			event.preventDefault();
+			const golpe = leeCodigo(pegado.value);
+			const nueva: Liga | string = !golpe
+				? 'Ese código no cuadra. Tiene que ser como golf.nombre.fibonacci.2026-10-07.3.52.'
+				: golpe.dia !== hoy || golpe.hoyo !== hoyo.id
+					? 'Ese código es de otro hoyo. Aquí solo cuenta el de hoy.'
+					: addRival(liga, golpe);
+			if (typeof nueva === 'string') {
+				aviso.textContent = nueva;
+				return;
+			}
+			aviso.textContent = '';
+			pegado.value = '';
+			liga = nueva;
+			saveLiga(liga);
+			pintarLiga();
+		});
+
+		copiar.addEventListener('click', async () => {
+			const texto = copiar.querySelector('span')!;
+			try {
+				await navigator.clipboard.writeText($('[data-liga-codigo]').textContent ?? '');
+				texto.textContent = 'Copiado';
+			} catch {
+				texto.textContent = 'Cópialo a mano';
+			}
+			setTimeout(() => (texto.textContent = 'Copiar'), 1500);
+		});
+
+		// Lo que cambias en otra pestaña llega aquí al momento.
+		window.addEventListener('storage', (event) => {
+			if (event.key === LIGA_KEY) {
+				liga = readLiga();
+				if (document.activeElement !== nombre) nombre.value = liga.nombre;
+				pintarLiga();
+			}
+			if (event.key === KEY) {
+				tarjetas = readTarjetas();
+				if (document.activeElement !== codigo) {
+					codigo.value = tarjetas[hoy]?.codigo ?? '';
+					probado.checked = tarjetas[hoy]?.probado ?? false;
+				}
+				pintarMedida();
+			}
+		});
+
+		/** La cuenta atrás hasta medianoche. Si cambia el día con la página abierta, sale el hoyo nuevo. */
+		function reloj() {
+			const ahora = new Date();
+			if (dayKey(ahora) !== hoy) {
+				hoy = dayKey(ahora);
+				tarjetas = readTarjetas();
+				hoyo = hoyoDeHoy();
+				pintarHoyo();
+			}
+			const manana = new Date(ahora);
+			manana.setHours(24, 0, 0, 0);
+			const falta = Math.max(0, Math.floor((manana.getTime() - ahora.getTime()) / 1000));
+			const h = Math.floor(falta / 3600);
+			const m = String(Math.floor((falta % 3600) / 60)).padStart(2, '0');
+			const s = String(falta % 60).padStart(2, '0');
+			$('[data-cuenta]').textContent = `El siguiente hoyo sale en ${h}:${m}:${s}.`;
+		}
+
+		pintarHoyo();
+		reloj();
+		setInterval(reloj, 1000);
+	}
+</script>

@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, y el golf de código: un algoritmo al día y gana quien use menos líneas. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',
@@ -275,6 +275,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un reto al día de JavaScript, algoritmos y optimización, contra el reloj. Racha, insignias y ranking mensual.',
 		intro:
 			'Cada día, un fragmento de código y una pregunta: qué sale por consola. Unos días van de las rarezas de JavaScript, otros de lógica y algoritmos —búsquedas, recursión, pilas, programación dinámica— y otros de optimización: cuántas vueltas da, cuántas llamadas ahorra la memoria, qué gana una ventana deslizante o dos punteros. Le das a empezar y corre el reloj: acertar rápido da puntos extra. Dos intentos, y el segundo vale la mitad. Acierta días seguidos para llevar la racha, suma puntos para subir de nivel, gana insignias y compara tu marca en el ranking del mes o en el de siempre con códigos. Aquí no se ejecuta nada: las respuestas están escritas a mano y lo que llevas se queda en tu navegador.',
+	},
+	{
+		href: '/golf',
+		title: 'Golf de código',
+		icon: 'golf',
+		group: 'juegos',
+		card: 'Un algoritmo al día y gana quien lo resuelve en menos líneas, con su clasificación en vivo.',
+		intro:
+			'Cada día, un hoyo: un problema de algoritmos con su coste pedido —una pasada, una pila, una criba— y unas pruebas. Escribe la función en las menos líneas que puedas: se cuentan según escribes, sin vacías ni comentarios, y una línea de más de 80 caracteres cuenta por cada 80. El par es una solución limpia de la casa. Pásala en el playground, márcala y entras en la clasificación del día, que se ordena por líneas y luego por caracteres y se mueve en vivo con los códigos que te pasen. Aquí no se ejecuta nada y lo que escribes se queda en tu navegador.',
 	},
 	{
 		href: '/chistes',
