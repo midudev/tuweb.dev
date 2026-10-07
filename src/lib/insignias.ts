@@ -17,6 +17,7 @@ const WEEKS_KEPT = 8;
 
 const VOTOS_KEY = 'tuweb:retos-votos';
 const VITRINA_KEY = 'tuweb:retos-insignias';
+const ESPECIALES_KEY = 'tuweb:retos-especiales';
 
 export const ICONOS = [
 	'trophy',
@@ -224,6 +225,79 @@ export function entregar(vitrina: Insignia[], draft: Partial<Insignia>): Insigni
 
 export function quitarInsignia(vitrina: Insignia[], week: number) {
 	return vitrina.filter((item) => item.week !== week);
+}
+
+// --- Las especiales ---
+
+/**
+ * La insignia especial: la lleva quien firma la mejor solución de un reto. No
+ * se diseña, es siempre la misma, para que se reconozca en cualquier perfil.
+ */
+export const ESPECIAL = { nombre: 'Mejor solución', icono: 'crown', color: 'mark', forma: 'hexagono' } as const;
+
+export interface Especial {
+	week: number;
+	/** El id del reto, para que haya una sola por reto y semana. */
+	retoId: string;
+	reto: string;
+	/** La firma de la solución ganadora. */
+	para: string;
+	semana: string;
+	at: number;
+}
+
+function toEspecial(raw: unknown): Especial | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const item = raw as Record<string, unknown>;
+	if (!Number.isInteger(item.week) || typeof item.retoId !== 'string' || !item.retoId) return null;
+	return {
+		week: item.week as number,
+		retoId: item.retoId.slice(0, 48),
+		reto: oneLine(item.reto, 70),
+		para: oneLine(item.para, 40),
+		semana: oneLine(item.semana, 40),
+		at: typeof item.at === 'number' && Number.isFinite(item.at) ? item.at : 0,
+	};
+}
+
+export function readEspeciales(): Especial[] {
+	const parsed = leer(ESPECIALES_KEY);
+	if (!Array.isArray(parsed)) return [];
+	return parsed
+		.map(toEspecial)
+		.filter((item): item is Especial => item !== null)
+		.slice(0, VITRINA_MAX);
+}
+
+export function saveEspeciales(especiales: Especial[]) {
+	escribir(ESPECIALES_KEY, especiales, especiales.length === 0);
+}
+
+const mismoReto = (item: Especial, week: number, retoId: string) =>
+	item.week === week && item.retoId === retoId;
+
+/** Corona una solución: la especial de ese reto y semana pasa a su firma. */
+export function coronar(especiales: Especial[], draft: Omit<Especial, 'at'>): Especial[] {
+	const especial = toEspecial({ ...draft, at: Date.now() });
+	if (!especial) return especiales;
+	return [especial, ...especiales.filter((item) => !mismoReto(item, draft.week, draft.retoId))]
+		.sort((a, b) => b.at - a.at)
+		.slice(0, VITRINA_MAX);
+}
+
+export function descoronar(especiales: Especial[], week: number, retoId: string) {
+	return especiales.filter((item) => !mismoReto(item, week, retoId));
+}
+
+/** Las que son tuyas: las firmadas con tu login de GitHub o con tu firma. */
+export function especialesDe(especiales: Especial[], nombres: string[]) {
+	const tuyos = nombres.map((nombre) => nombre.trim().toLowerCase()).filter(Boolean);
+	return especiales.filter((item) => tuyos.includes(item.para.toLowerCase()));
+}
+
+/** La especial con la forma de cualquier otra, para dibujarla con insigniaSvg(). */
+export function especialComoInsignia(especial: Especial): Omit<Insignia, 'week' | 'at'> {
+	return { ...ESPECIAL, reto: especial.reto, para: especial.para, semana: especial.semana };
 }
 
 // --- El dibujo ---

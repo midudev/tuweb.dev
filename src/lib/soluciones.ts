@@ -12,6 +12,8 @@ export interface Solucion {
 	firma: string;
 	at: number;
 	votada: boolean;
+	/** La mejor del reto: solo una por reto y semana, y su firma se lleva la insignia especial. */
+	mejor: boolean;
 }
 
 /** Semana → reto → soluciones. */
@@ -25,6 +27,27 @@ export const PER_RETO = 20;
 const WEEKS_KEPT = 8;
 
 const KEY = 'tuweb:retos-soluciones';
+const FIRMA_KEY = 'tuweb:retos-firma';
+
+/** La firma con la que publicas: la misma con la que tu perfil reconoce tus insignias. */
+export function readFirma() {
+	try {
+		return clean(localStorage.getItem(FIRMA_KEY) ?? '', FIRMA_MAX).replace(/\n/g, ' ');
+	} catch {
+		return '';
+	}
+}
+
+export function saveFirma(firma: string) {
+	const limpia = clean(firma, FIRMA_MAX).replace(/\n/g, ' ');
+	try {
+		if (limpia) localStorage.setItem(FIRMA_KEY, limpia);
+		else localStorage.removeItem(FIRMA_KEY);
+	} catch {
+		// Sin almacenamiento, la firma se escribe cada vez.
+	}
+	return limpia;
+}
 
 function nextId() {
 	return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -52,6 +75,7 @@ function toSolucion(raw: unknown): Solucion | null {
 		firma: typeof item.firma === 'string' ? clean(item.firma, FIRMA_MAX).replace(/\n/g, ' ') : '',
 		at: typeof item.at === 'number' && Number.isFinite(item.at) ? item.at : 0,
 		votada: item.votada === true,
+		mejor: item.mejor === true,
 	};
 }
 
@@ -99,9 +123,10 @@ export function saveSoluciones(todas: Soluciones, week: number) {
 	}
 }
 
-/** Las de un reto, con las votadas arriba y, dentro de cada grupo, las nuevas primero. */
+/** Las de un reto: la mejor primero, luego las votadas y, dentro de cada grupo, las nuevas. */
 export function solucionesOf(todas: Soluciones, week: number, reto: string): Solucion[] {
 	return [...(todas[String(week)]?.[reto] ?? [])].sort((a, b) => {
+		if (a.mejor !== b.mejor) return a.mejor ? -1 : 1;
 		if (a.votada !== b.votada) return a.votada ? -1 : 1;
 		return b.at - a.at;
 	});
@@ -136,7 +161,7 @@ export function addSolucion(
 		return 'Esa solución ya está publicada.';
 
 	const firma = clean(String(draft.firma ?? ''), FIRMA_MAX).replace(/\n/g, ' ');
-	const nueva: Solucion = { id: nextId(), text, firma, at: Date.now(), votada: false };
+	const nueva: Solucion = { id: nextId(), text, firma, at: Date.now(), votada: false, mejor: false };
 	return withLista(todas, week, reto, [nueva, ...lista]);
 }
 
@@ -158,6 +183,21 @@ export function toggleVoto(todas: Soluciones, week: number, reto: string, id: st
 		reto,
 		lista.map((item) => (item.id === id ? { ...item, votada: !item.votada } : item)),
 	);
+}
+
+/** Elige la mejor de un reto, que quita la corona a la que la tuviera. Otra vez, la quita. */
+export function elegirMejor(todas: Soluciones, week: number, reto: string, id: string) {
+	const lista = todas[String(week)]?.[reto] ?? [];
+	return withLista(
+		todas,
+		week,
+		reto,
+		lista.map((item) => ({ ...item, mejor: item.id === id ? !item.mejor : false })),
+	);
+}
+
+export function mejorDe(todas: Soluciones, week: number, reto: string) {
+	return (todas[String(week)]?.[reto] ?? []).find((item) => item.mejor) ?? null;
 }
 
 /** Todas las votadas de la semana, con el reto al que responden. */

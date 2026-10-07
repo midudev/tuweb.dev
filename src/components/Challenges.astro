@@ -44,7 +44,7 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 const DATO = 'inline-flex items-center gap-2';
 ---
 
-<section id="retos" class="flex flex-col gap-7">
+<section id="retos" data-yo={user?.login ?? ''} class="flex flex-col gap-7">
 	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
 		<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
 			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
@@ -228,6 +228,10 @@ const DATO = 'inline-flex items-center gap-2';
 		<li data-sol-li class="flex flex-col gap-2 border border-line bg-bg p-3">
 			<p data-sol-texto class="whitespace-pre-line break-words text-sm"></p>
 			<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+				<span data-sol-corona class="inline-flex items-center gap-1 text-mark">
+					<Icon name="crown" class="size-4 shrink-0" />
+					Mejor solución
+				</span>
 				<span data-sol-destacada class="inline-flex items-center gap-1 text-mark">
 					<Icon name="star" class="size-4 shrink-0" />
 					Destacada
@@ -236,6 +240,10 @@ const DATO = 'inline-flex items-center gap-2';
 				<button type="button" data-sol-vote aria-pressed="false" class={ENLACE}>
 					<Icon name="thumb-up" class="size-4 shrink-0" />
 					<span data-sol-vote-label>Votar</span>
+				</button>
+				<button type="button" data-sol-mejor aria-pressed="false" class={ENLACE}>
+					<Icon name="crown" class="size-4 shrink-0" />
+					<span data-sol-mejor-label>La mejor</span>
 				</button>
 				<button type="button" data-sol-remove class={ENLACE}>
 					<Icon name="trash" class="size-4 shrink-0" />
@@ -368,10 +376,16 @@ const DATO = 'inline-flex items-center gap-2';
 	</div>
 
 	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
-		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
-			<Icon name="medal" class="size-5 shrink-0 text-accent" />
-			Tu vitrina
-		</h2>
+		<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+				<Icon name="medal" class="size-5 shrink-0 text-accent" />
+				Tu vitrina
+			</h2>
+			<a href="/perfil" class={ENLACE}>
+				<Icon name="user-circle" class="size-4 shrink-0" />
+				Tus insignias especiales, en tu perfil
+			</a>
+		</div>
 		<ul data-vitrina class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"></ul>
 		<p data-vitrina-vacia class="text-sm text-muted">
 			Vacía. Vota retos y entrega la insignia al que gane: aquí se queda una por semana.
@@ -421,8 +435,10 @@ const DATO = 'inline-flex items-center gap-2';
 
 	<p class="text-sm text-muted">
 		Los tres retos de la casa cambian cada lunes, y los que propone la gente duran lo que dura la
-		semana. Lo que marcas como hecho, los puntos, la racha, las soluciones, los votos y las
-		insignias solo están en tu navegador.
+		semana. En cada reto puedes coronar la mejor solución: quien la firma se lleva la insignia
+		especial, que sale en su <a href="/perfil" class="text-accent hover:underline">perfil</a>. Lo
+		que marcas como hecho, los puntos, la racha, las soluciones, los votos y las insignias solo
+		están en tu navegador.
 	</p>
 </section>
 
@@ -462,8 +478,17 @@ const DATO = 'inline-flex items-center gap-2';
 	#retos [data-sol-li]:not([data-votada='si']) [data-sol-destacada] {
 		display: none;
 	}
-	#retos [data-sol-vote][aria-pressed='true'] {
+	#retos [data-sol-vote][aria-pressed='true'],
+	#retos [data-sol-mejor][aria-pressed='true'] {
 		color: var(--color-mark);
+	}
+	/* La mejor lleva el marco entero: es la que gana el reto. */
+	#retos [data-sol-li][data-mejor='si'] {
+		border-color: var(--color-mark);
+		border-left-width: 2px;
+	}
+	#retos [data-sol-li]:not([data-mejor='si']) [data-sol-corona] {
+		display: none;
 	}
 
 	/* El que va ganando se enmarca en el color de lo que destaca; el canto sigue siendo del tema. */
@@ -521,8 +546,12 @@ const DATO = 'inline-flex items-center gap-2';
 		type Soluciones,
 		addSolucion,
 		destacadasOf,
+		elegirMejor,
+		mejorDe,
+		readFirma,
 		readSoluciones,
 		removeSolucion,
+		saveFirma,
 		saveSoluciones,
 		solucionesOf,
 		toggleVoto,
@@ -533,10 +562,15 @@ const DATO = 'inline-flex items-center gap-2';
 		ICONOS,
 		VOTOS_RETO,
 		VOTOS_SEMANA,
+		type Especial,
 		type Forma,
 		type Insignia,
 		type Votos,
+		coronar,
+		descoronar,
 		entregar,
+		readEspeciales,
+		saveEspeciales,
 		ganadorOf,
 		insigniaSvg,
 		quitarInsignia,
@@ -637,6 +671,9 @@ const DATO = 'inline-flex items-center gap-2';
 		let retryTimer = 0;
 		let sending = false;
 		let soluciones: Soluciones = readSoluciones();
+		let especiales: Especial[] = readEspeciales();
+		/** Con qué se firma por defecto: la firma de la última vez o tu login de GitHub. */
+		let yo = readFirma() || section.dataset.yo || '';
 		/** Los retos con las soluciones abiertas: repintar no los cierra. */
 		const abiertos = new Set<string>();
 		/** Lo que estabas escribiendo en cada reto, para que repintar no lo borre. */
@@ -774,13 +811,41 @@ const DATO = 'inline-flex items-center gap-2';
 				guardarSoluciones(toggleVoto(soluciones, week, reto.id, item.id)),
 			);
 
-			node
-				.querySelector<HTMLButtonElement>('[data-sol-remove]')!
-				.addEventListener('click', () =>
-					guardarSoluciones(removeSolucion(soluciones, week, reto.id, item.id)),
-				);
+			node.dataset.mejor = item.mejor ? 'si' : 'no';
+			const mejor = node.querySelector<HTMLButtonElement>('[data-sol-mejor]')!;
+			mejor.setAttribute('aria-pressed', item.mejor ? 'true' : 'false');
+			mejor.title = item.mejor
+				? 'Quitarle la corona y la insignia especial'
+				: `Coronarla: ${item.firma || 'quien no firmó'} se lleva la insignia especial`;
+			mejor.querySelector('[data-sol-mejor-label]')!.textContent = item.mejor ? 'Coronada' : 'La mejor';
+			mejor.addEventListener('click', () => {
+				const next = elegirMejor(soluciones, week, reto.id, item.id);
+				especialDe(reto, next);
+				guardarSoluciones(next);
+			});
+
+			node.querySelector<HTMLButtonElement>('[data-sol-remove]')!.addEventListener('click', () => {
+				const next = removeSolucion(soluciones, week, reto.id, item.id);
+				especialDe(reto, next);
+				guardarSoluciones(next);
+			});
 
 			return node;
+		}
+
+		/** La insignia especial de un reto sigue a su mejor solución: si no hay, no hay insignia. */
+		function especialDe(reto: Reto, todas: Soluciones) {
+			const mejor = mejorDe(todas, week, reto.id);
+			especiales = mejor
+				? coronar(especiales, {
+						week,
+						retoId: reto.id,
+						reto: reto.title,
+						para: mejor.firma || 'quien no firmó',
+						semana: weekLabel(start),
+					})
+				: descoronar(especiales, week, reto.id);
+			saveEspeciales(especiales);
 		}
 
 		/** El tablón de soluciones de un reto: la lista, los votos y el formulario. */
@@ -820,7 +885,7 @@ const DATO = 'inline-flex items-center gap-2';
 			if (borrador) {
 				text.value = borrador.text;
 				firma.value = borrador.firma;
-			}
+			} else firma.value = yo;
 			const recordar = () => borradores.set(reto.id, { text: text.value, firma: firma.value });
 			text.addEventListener('input', recordar);
 			firma.addEventListener('input', recordar);
@@ -835,7 +900,8 @@ const DATO = 'inline-flex items-center gap-2';
 					error.textContent = next;
 					return;
 				}
-				// La firma se queda para la siguiente: suele ser la misma.
+				// La firma se queda para la siguiente, y para tu perfil: suele ser la misma.
+				yo = saveFirma(firma.value) || yo;
 				borradores.set(reto.id, { text: '', firma: firma.value });
 				enfocar = reto.id;
 				guardarSoluciones(next);
@@ -1106,6 +1172,7 @@ const DATO = 'inline-flex items-center gap-2';
 			retos = lista.map((item) => fromApi(item)).filter((reto): reto is Reto => reto !== null);
 			loaded = true;
 			setLogin(typeof data.login === 'string' ? data.login : null);
+			if (!yo && typeof data.login === 'string') yo = data.login;
 			render();
 
 			if (again) {

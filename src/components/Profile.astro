@@ -1,0 +1,217 @@
+---
+/**
+ * Tu perfil de los retos: quién eres aquí, cómo llevas las semanas y las
+ * insignias especiales que te has ganado con la mejor solución de un reto. Las
+ * tuyas son las firmadas con tu login de GitHub o con tu firma. Como el resto
+ * de los retos, se lee de tu navegador: no pide nada al servidor.
+ */
+import { icons } from '@iconify-json/tabler';
+import GitHubLogin from './GitHubLogin.astro';
+import Icon from './Icon.astro';
+import { getSessionUser } from '../lib/auth';
+import { ESPECIAL } from '../lib/insignias';
+import { FIRMA_MAX } from '../lib/soluciones';
+
+const user = await getSessionUser(Astro);
+const corona = icons.icons[ESPECIAL.icono]?.body ?? '';
+
+const FIELD =
+	'w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-accent';
+const DATO = 'inline-flex items-center gap-2';
+---
+
+<section id="perfil" data-login={user?.login ?? ''} data-corona={corona} class="flex flex-col gap-7">
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="user-circle" class="size-5 shrink-0 text-accent" />
+			<span data-nombre>{user?.login ?? 'Sin nombre'}</span>
+		</h2>
+		<p class="text-sm text-muted">
+			{
+				user ? (
+					<>Has entrado con GitHub como @{user.login}: las insignias firmadas así son tuyas.</>
+				) : (
+					<>
+						Sin sesión, tu perfil es tu firma. Para que cuente también tu login, <GitHubLogin label="entra con GitHub" />.
+					</>
+				)
+			}
+		</p>
+
+		<label class="flex flex-col gap-2 sm:max-w-sm">
+			<span class="text-sm text-muted">Tu firma en las soluciones</span>
+			<input
+				type="text"
+				data-firma
+				maxlength={FIRMA_MAX}
+				autocomplete="off"
+				placeholder={user?.login ?? 'Como quieras que te llamen'}
+				class={FIELD}
+			/>
+		</label>
+
+		<p class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted" aria-live="polite">
+			<span class={DATO}>
+				Racha <span data-racha class="tabular-nums text-fg"></span>
+			</span>
+			<span class={DATO}>
+				Retos hechos <span data-hechos class="tabular-nums text-fg"></span>
+			</span>
+			<span class={DATO}>
+				Especiales <span data-especiales-n class="tabular-nums text-mark"></span>
+			</span>
+			<span class={DATO}>
+				Entregadas <span data-entregadas class="tabular-nums text-fg"></span>
+			</span>
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="crown" class="size-5 shrink-0 text-mark" />
+			Insignias especiales
+		</h2>
+		<ul data-mias class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"></ul>
+		<p data-mias-vacio class="text-sm text-muted">
+			Todavía ninguna. Publica soluciones en los
+			<a href="/retos" class="text-accent hover:underline">retos semanales</a> con tu firma: cuando la
+			tuya sale coronada como la mejor de un reto, la insignia aparece aquí.
+		</p>
+	</div>
+
+	<template data-mia>
+		<li class="flex flex-col gap-2 border border-line bg-bg p-3">
+			<div data-mia-svg role="img"></div>
+			<span data-mia-semana class="text-xs text-muted"></span>
+			<button type="button" data-mia-bajar class={ENLACE}>
+				<Icon name="download" class="size-4 shrink-0" />
+				SVG
+			</button>
+		</li>
+	</template>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="thumb-up" class="size-5 shrink-0 text-accent" />
+			Las que has coronado
+		</h2>
+		<ul data-dadas class="flex flex-col gap-2 text-sm"></ul>
+		<p data-dadas-vacio class="text-sm text-muted">
+			No has elegido la mejor solución de ningún reto. Ábrelas en el tablero y corona una.
+		</p>
+	</div>
+
+	<p class="text-sm text-muted">
+		Las insignias especiales, la firma y lo que llevas hecho viven en tu navegador: quien abra tu
+		perfil desde otro verá el suyo.
+	</p>
+</section>
+
+<style is:global>
+	#perfil [data-mia-svg] svg {
+		display: block;
+		width: 100%;
+		height: auto;
+	}
+	#perfil [data-dadas] > li {
+		border-left: 2px solid var(--color-mark);
+		padding-left: 0.75rem;
+	}
+</style>
+
+<script>
+	import {
+		type Especial,
+		especialComoInsignia,
+		especialesDe,
+		insigniaSvg,
+		readEspeciales,
+		readVitrina,
+		tintaFija,
+		tintaViva,
+	} from '../lib/insignias';
+	import { historyOf, readDone, streakOf, weekIndex, weekStart } from '../lib/retos';
+	import { readFirma, saveFirma } from '../lib/soluciones';
+
+	const section = document.querySelector<HTMLElement>('#perfil');
+	const firmaIn = section?.querySelector<HTMLInputElement>('[data-firma]');
+	const mias = section?.querySelector<HTMLElement>('[data-mias]');
+	const miaTemplate = section?.querySelector<HTMLTemplateElement>('[data-mia]');
+	const dadas = section?.querySelector<HTMLElement>('[data-dadas]');
+
+	/** Las semanas que se cuentan en «Retos hechos», como en el tablero. */
+	const SEMANAS = 8;
+
+	if (section && firmaIn && mias && miaTemplate && dadas) {
+		const login = section.dataset.login ?? '';
+		const corona = section.dataset.corona ?? '';
+		firmaIn.value = readFirma();
+
+		const svgDe = (item: Especial, viva: boolean) =>
+			insigniaSvg(especialComoInsignia(item), corona, viva ? tintaViva('mark') : tintaFija('mark'));
+
+		function bajar(item: Especial) {
+			const url = URL.createObjectURL(new Blob([svgDe(item, false)], { type: 'image/svg+xml' }));
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `insignia-mejor-solucion-${item.week}.svg`;
+			enlace.click();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		}
+
+		function dato(attr: string, texto: string) {
+			const out = section!.querySelector<HTMLElement>(`[data-${attr}]`);
+			if (out) out.textContent = texto;
+		}
+
+		function render() {
+			const firma = readFirma();
+			const especiales = readEspeciales();
+			const propias = especialesDe(especiales, [login, firma]);
+			const ajenas = especiales.filter((item) => !propias.includes(item));
+
+			dato('nombre', login || firma || 'Sin nombre');
+
+			const start = weekStart(Date.now());
+			const week = weekIndex(start);
+			const done = readDone();
+			const racha = streakOf(done, week);
+			const hechos = historyOf(done, week, start, SEMANAS).reduce((suma, semana) => suma + semana.hechos, 0);
+			dato('racha', racha === 1 ? '1 semana' : `${racha} semanas`);
+			dato('hechos', `${hechos} en ${SEMANAS} semanas`);
+			dato('especiales-n', String(propias.length));
+			dato('entregadas', String(readVitrina().length + ajenas.length));
+
+			mias!.replaceChildren(
+				...propias.map((item) => {
+					const node = miaTemplate!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+					const dibujo = node.querySelector<HTMLElement>('[data-mia-svg]')!;
+					dibujo.innerHTML = svgDe(item, true);
+					dibujo.setAttribute('aria-label', `Mejor solución: ${item.reto}, para ${item.para}`);
+					node.querySelector('[data-mia-semana]')!.textContent = item.semana;
+					node.querySelector('[data-mia-bajar]')!.addEventListener('click', () => bajar(item));
+					return node;
+				}),
+			);
+			section!.querySelector<HTMLElement>('[data-mias-vacio]')!.hidden = propias.length > 0;
+
+			dadas!.replaceChildren(
+				...ajenas.map((item) => {
+					const fila = document.createElement('li');
+					fila.textContent = `«${item.reto}» · para ${item.para} · ${item.semana}`;
+					return fila;
+				}),
+			);
+			section!.querySelector<HTMLElement>('[data-dadas-vacio]')!.hidden = ajenas.length > 0;
+		}
+
+		firmaIn.addEventListener('change', () => {
+			firmaIn.value = saveFirma(firmaIn.value);
+			render();
+		});
+		// Si coronas una solución en /retos en otra pestaña, aquí sale.
+		window.addEventListener('storage', render);
+		render();
+	}
+</script>
