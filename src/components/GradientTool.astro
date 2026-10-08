@@ -6,8 +6,29 @@
  * usan la misma geometría que el navegador para el CSS, así lo que se baja es
  * lo que se ve. Todo pasa en el navegador y
  * lo único que se guarda es el estado, en localStorage.
+ *
+ * Para compartir, el gradiente cabe en un código corto que viaja en la URL
+ * (?gradiente=l135-c2410c.0-2563eb.100#gradientes): quien abre el enlace ve
+ * ese mismo gradiente. Los ejemplos usan el mismo código.
  */
 import Icon from './Icon.astro';
+
+// Código: l<ángulo> o r<c|e>, y luego -<hex sin #>.<posición> por color.
+const EJEMPLOS = [
+	{ nombre: 'Atardecer', codigo: 'l135-ff5f6d.0-ffc371.100' },
+	{ nombre: 'Océano', codigo: 'l180-0f2027.0-203a43.50-2c5364.100' },
+	{ nombre: 'Lima', codigo: 'l90-a8e063.0-56ab2f.100' },
+	{ nombre: 'Neón', codigo: 'l45-f72585.0-7209b7.50-3a0ca3.100' },
+	{ nombre: 'Brasa', codigo: 'rc-f5c542.0-c2410c.60-1a0a00.100' },
+	{ nombre: 'Niebla', codigo: 're-e0e0e0.0-6b7280.100' },
+];
+
+function aCss(codigo: string) {
+	const [cabeza, ...colores] = codigo.split('-');
+	const paradas = colores.map((c) => `#${c.replace('.', ' ')}%`).join(', ');
+	if (cabeza.startsWith('l')) return `linear-gradient(${cabeza.slice(1)}deg, ${paradas})`;
+	return `radial-gradient(${cabeza === 're' ? 'ellipse' : 'circle'}, ${paradas})`;
+}
 
 const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
 const BOTON =
@@ -40,6 +61,24 @@ const FORMATOS = [
 	hidden
 	class="flex flex-col gap-6"
 >
+	<div class="flex flex-col gap-2">
+		<span class="text-sm text-muted">Para empezar</span>
+		<div class="flex flex-wrap gap-2">
+			{
+				EJEMPLOS.map((ejemplo) => (
+					<button
+						type="button"
+						data-gr-ejemplo={ejemplo.codigo}
+						class="inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent"
+					>
+						<span class="size-4 shrink-0 border border-line" style={`background: ${aCss(ejemplo.codigo)};`} />
+						{ejemplo.nombre}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
 	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
 		<div class="flex flex-col gap-5">
 			<div class="flex flex-col gap-2">
@@ -143,6 +182,11 @@ const FORMATOS = [
 					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
 					<span data-gr-copiar-texto aria-live="polite">Copiar</span>
 				</button>
+				<button type="button" data-gr-enlace class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="link" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-gr-enlace-texto aria-live="polite">Copiar enlace</span>
+				</button>
 				<button type="button" data-gr-bajar="css" class={BOTON}>
 					<Icon name="file-type-css" class="size-4 shrink-0" />
 					Descargar .css
@@ -209,20 +253,20 @@ const FORMATOS = [
 		border-radius: 0;
 	}
 	/* El check solo sale cuando la copia ha ido bien. */
-	[data-gr-copiar] [data-icon='check'] {
+	:is([data-gr-copiar], [data-gr-enlace]) [data-icon='check'] {
 		display: none;
 	}
-	[data-gr-copiar][data-state='done'] {
+	:is([data-gr-copiar], [data-gr-enlace])[data-state='done'] {
 		border-color: var(--color-accent);
 		color: var(--color-accent);
 	}
-	[data-gr-copiar][data-state='done'] [data-icon='copy'] {
+	:is([data-gr-copiar], [data-gr-enlace])[data-state='done'] [data-icon='copy'] {
 		display: none;
 	}
-	[data-gr-copiar][data-state='done'] [data-icon='check'] {
+	:is([data-gr-copiar], [data-gr-enlace])[data-state='done'] [data-icon='check'] {
 		display: inline-flex;
 	}
-	[data-gr-copiar][data-state='error'] {
+	:is([data-gr-copiar], [data-gr-enlace])[data-state='error'] {
 		color: var(--color-heart);
 	}
 </style>
@@ -298,6 +342,35 @@ const FORMATOS = [
 		return structuredClone(INICIAL);
 	}
 
+	// ——— El código para compartir ———
+	// l135-c2410c.0-2563eb.100 es lineal a 135deg; rc-… y re-… son radiales en
+	// círculo o elipse. Lo que no encaje se ignora sin tocar nada.
+	const CODIGO = /^(?:l(\d{1,3})|r([ce]))((?:-[0-9a-f]{6}\.\d{1,3}){2,8})$/i;
+
+	function leer(texto: string, base: Estado): Estado | null {
+		const m = texto.trim().match(CODIGO);
+		if (!m) return null;
+		const paradas = m[3]
+			.slice(1)
+			.split('-')
+			.map((trozo) => {
+				const [hex, pos] = trozo.split('.');
+				return { color: `#${hex.toLowerCase()}`, pos: limitar(Number(pos), 0, 100) };
+			});
+		return {
+			...base,
+			tipo: m[1] === undefined ? 'radial' : 'linear',
+			angulo: m[1] === undefined ? base.angulo : limitar(Number(m[1]), 0, 360),
+			forma: m[2]?.toLowerCase() === 'e' ? 'ellipse' : m[2] ? 'circle' : base.forma,
+			paradas,
+		};
+	}
+
+	function codigo() {
+		const cabeza = estado.tipo === 'linear' ? `l${estado.angulo}` : `r${estado.forma === 'ellipse' ? 'e' : 'c'}`;
+		return cabeza + ordenadas().map((p) => `-${p.color.slice(1)}.${p.pos}`).join('');
+	}
+
 	let estado = cargar();
 
 	function guardar() {
@@ -306,6 +379,18 @@ const FORMATOS = [
 		} catch {
 			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
 		}
+	}
+
+	// Un enlace compartido manda sobre lo guardado. Luego se quita de la URL
+	// para que recargar no deshaga lo que hayas cambiado encima.
+	const compartido = new URLSearchParams(location.search).get('gradiente');
+	if (compartido !== null) {
+		const desdeEnlace = leer(compartido, estado);
+		if (desdeEnlace) {
+			estado = desdeEnlace;
+			guardar();
+		}
+		history.replaceState(null, '', `${location.pathname}${location.hash}`);
 	}
 
 	// Ordenadas por posición: el CSS y el canvas las leen así, y si no se
@@ -599,23 +684,45 @@ const FORMATOS = [
 		}, 'image/png');
 	});
 
-	let reloj: number | undefined;
+	const relojes = new Map<HTMLElement, number>();
 
-	copiar?.addEventListener('click', async () => {
+	async function copiarCon(boton: HTMLButtonElement, etiqueta: HTMLElement | null | undefined, reposo: string, texto: string) {
 		let hecho = false;
 		try {
-			await navigator.clipboard.writeText(salida?.textContent ?? '');
+			await navigator.clipboard.writeText(texto);
 			hecho = true;
 		} catch {
 			// Sin portapapeles o sin permiso: el CSS sigue ahí para seleccionarlo.
 		}
-		copiar.dataset.state = hecho ? 'done' : 'error';
-		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
-		clearTimeout(reloj);
-		reloj = window.setTimeout(() => {
-			copiar.removeAttribute('data-state');
-			if (copiarTexto) copiarTexto.textContent = 'Copiar';
-		}, 2000);
+		boton.dataset.state = hecho ? 'done' : 'error';
+		if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(relojes.get(boton));
+		relojes.set(
+			boton,
+			window.setTimeout(() => {
+				boton.removeAttribute('data-state');
+				if (etiqueta) etiqueta.textContent = reposo;
+			}, 2000),
+		);
+	}
+
+	copiar?.addEventListener('click', () => copiarCon(copiar, copiarTexto, 'Copiar', salida?.textContent ?? ''));
+
+	const enlace = panel?.querySelector<HTMLButtonElement>('[data-gr-enlace]');
+	const enlaceTexto = enlace?.querySelector<HTMLElement>('[data-gr-enlace-texto]');
+	enlace?.addEventListener('click', () =>
+		copiarCon(enlace, enlaceTexto, 'Copiar enlace', `${location.origin}${location.pathname}?gradiente=${codigo()}#gradientes`),
+	);
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-gr-ejemplo]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegido = leer(boton.dataset.grEjemplo ?? '', estado);
+			if (!elegido) return;
+			estado = elegido;
+			pintarControles();
+			pintarFilas();
+			actualizar();
+		});
 	});
 
 	function ponerAngulo(valor: number) {
