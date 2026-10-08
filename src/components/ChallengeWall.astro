@@ -12,10 +12,16 @@ import SectionLabel from './SectionLabel.astro';
 <section id="muro" class="flex flex-col gap-5" aria-labelledby="label-muro-retos">
 	<div class="flex flex-wrap items-baseline justify-between gap-4">
 		<SectionLabel forId="label-muro-retos">EL MURO DE LOS RETOS</SectionLabel>
-		<a href="/retos" class="inline-flex items-center gap-2 text-sm text-accent hover:underline">
-			Ir a los retos de la semana
-			<Icon name="arrow-right" class="size-4 shrink-0 self-center" />
-		</a>
+		<span class="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+			<a href="/retos#honor" class="inline-flex items-center gap-2 text-sm text-muted hover:text-accent">
+				<Icon name="trophy" class="size-4 shrink-0 self-center" />
+				Muro de honor
+			</a>
+			<a href="/retos" class="inline-flex items-center gap-2 text-sm text-accent hover:underline">
+				Ir a los retos de la semana
+				<Icon name="arrow-right" class="size-4 shrink-0 self-center" />
+			</a>
+		</span>
 	</div>
 
 	<ul data-muro class="grid gap-3 sm:grid-cols-2"></ul>

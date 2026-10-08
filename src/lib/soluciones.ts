@@ -30,6 +30,8 @@ const WEEKS_KEPT = 8;
 
 const KEY = 'tuweb:retos-soluciones';
 const FIRMA_KEY = 'tuweb:retos-firma';
+/** El evento que lanza saveSoluciones en la propia pestaña. */
+export const CAMBIO = 'tuweb:soluciones';
 
 /** La firma con la que publicas: la misma con la que tu perfil reconoce tus insignias. */
 export function readFirma() {
@@ -124,6 +126,8 @@ export function saveSoluciones(todas: Soluciones, week: number) {
 	} catch {
 		// Sin almacenamiento, las soluciones duran lo que dura la visita.
 	}
+	// La pestaña que guarda no recibe «storage»: este aviso es para los muros de la misma página.
+	window.dispatchEvent(new Event(CAMBIO));
 }
 
 /** Las de un reto: la mejor primero, luego las votadas y, dentro de cada grupo, las nuevas. */
@@ -237,6 +241,19 @@ export function muroOf(todas: Soluciones, week: number, max: number) {
 			return b.solucion.at - a.solucion.at;
 		})
 		.slice(0, max);
+}
+
+/**
+ * El muro de honor: semana a semana, de la de ahora hacia atrás, las soluciones
+ * coronadas y, detrás, las votadas por creativas. Las semanas sin nada no salen.
+ */
+export function honorOf(todas: Soluciones, week: number, semanas = WEEKS_KEPT) {
+	const lista: { week: number; items: { reto: string; solucion: Solucion }[] }[] = [];
+	for (let actual = week; actual > week - semanas; actual--) {
+		const items = muroOf(todas, actual, PER_RETO * 3);
+		if (items.length > 0) lista.push({ week: actual, items });
+	}
+	return lista;
 }
 
 /** Cuánto lleva elegido la semana, para la línea de debajo del muro. */
