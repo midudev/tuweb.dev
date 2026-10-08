@@ -1,0 +1,111 @@
+---
+/**
+ * El muro de la portada: las soluciones de los retos semanales que la comunidad
+ * ha elegido esta semana. Primero las coronadas, que ganan su reto; luego las
+ * votadas por creativas. Sale de lo que guarda tu navegador en /retos, así que
+ * el servidor lo pinta vacío y el script lo llena.
+ */
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+---
+
+<section id="muro" class="flex flex-col gap-5" aria-labelledby="label-muro-retos">
+	<div class="flex flex-wrap items-baseline justify-between gap-4">
+		<SectionLabel forId="label-muro-retos">EL MURO DE LOS RETOS</SectionLabel>
+		<a href="/retos" class="inline-flex items-center gap-2 text-sm text-accent hover:underline">
+			Ir a los retos de la semana
+			<Icon name="arrow-right" class="size-4 shrink-0 self-center" />
+		</a>
+	</div>
+
+	<ul data-muro class="grid gap-3 sm:grid-cols-2"></ul>
+
+	<p data-muro-vacio class="border border-line bg-panel px-5 py-4 text-sm text-muted">
+		El muro está en blanco. Cada semana hay retos de programación —tres de la casa y los que propone
+		la gente—: publica tu solución, vota las más creativas y corona la mejor. Las que elijas salen
+		aquí.
+	</p>
+
+	<p data-muro-pie hidden class="text-sm text-muted"></p>
+
+	<template data-muro-item>
+		<li data-muro-li class="flex flex-col gap-2 border border-line border-l-2 bg-panel px-5 py-4">
+			<span class="flex items-center gap-2 font-pixel text-xs tracking-wide text-muted">
+				<span data-muro-corona class="inline-flex items-center gap-2 text-mark">
+					<Icon name="crown" class="size-3.5 shrink-0" />
+					MEJOR SOLUCIÓN
+				</span>
+				<span data-muro-creativa class="inline-flex items-center gap-2 text-mark">
+					<Icon name="star" class="size-3.5 shrink-0" />
+					CREATIVA
+				</span>
+			</span>
+			<span data-muro-reto class="text-xs text-muted"></span>
+			<p data-muro-texto class="line-clamp-5 whitespace-pre-line break-words text-sm"></p>
+			<span data-muro-autor class="mt-auto text-xs text-muted"></span>
+		</li>
+	</template>
+</section>
+
+<style is:global>
+	/* Las pinta el script, sin la marca del componente: todo cuelga de #muro. */
+	#muro [data-muro-li] {
+		border-left-color: var(--color-mark);
+	}
+	#muro [data-muro-li][data-mejor='si'] {
+		border-color: var(--color-mark);
+	}
+	#muro [data-muro-li][data-mejor='si'] [data-muro-creativa],
+	#muro [data-muro-li]:not([data-mejor='si']) [data-muro-corona] {
+		display: none;
+	}
+</style>
+
+<script>
+	import { houseRetos, weekIndex, weekStart } from '../lib/retos';
+	import { muroOf, muroTotal, readSoluciones } from '../lib/soluciones';
+
+	/** Un muro, no un tablón: lo que no cabe está en /retos. */
+	const MAX = 6;
+
+	const section = document.querySelector<HTMLElement>('#muro');
+	const list = section?.querySelector<HTMLElement>('[data-muro]');
+	const vacio = section?.querySelector<HTMLElement>('[data-muro-vacio]');
+	const pie = section?.querySelector<HTMLElement>('[data-muro-pie]');
+	const template = section?.querySelector<HTMLTemplateElement>('[data-muro-item]');
+
+	function pintar() {
+		if (!list || !template) return;
+		const week = weekIndex(weekStart(Date.now()));
+		const todas = readSoluciones();
+		const casa = new Map(houseRetos(week).map((reto) => [reto.id, reto.title]));
+		const items = muroOf(todas, week, MAX);
+
+		list.replaceChildren(
+			...items.map(({ reto, solucion }) => {
+				const node = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
+				node.dataset.mejor = solucion.mejor ? 'si' : 'no';
+				node.querySelector('[data-muro-reto]')!.textContent =
+					solucion.reto || casa.get(reto) || 'Un reto de la gente';
+				node.querySelector('[data-muro-texto]')!.textContent = solucion.text;
+				node.querySelector('[data-muro-autor]')!.textContent = solucion.firma
+					? `De ${solucion.firma}`
+					: 'Sin firma';
+				return node;
+			}),
+		);
+
+		if (vacio) vacio.hidden = items.length > 0;
+		if (pie) {
+			const total = muroTotal(todas, week);
+			pie.hidden = total <= items.length;
+			pie.textContent = `Y ${total - items.length} más en el tablón de los retos.`;
+		}
+	}
+
+	pintar();
+	// Si votas en otra pestaña, el muro se entera sin recargar.
+	window.addEventListener('storage', (event) => {
+		if (event.key === null || event.key === 'tuweb:retos-soluciones') pintar();
+	});
+</script>

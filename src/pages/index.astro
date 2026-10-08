@@ -1,4 +1,5 @@
 ---
+import ChallengeWall from '../components/ChallengeWall.astro';
 import Commandments from '../components/Commandments.astro';
 import Dashboard from '../components/Dashboard.astro';
 import FeatureLog from '../components/FeatureLog.astro';
@@ -83,6 +84,7 @@ const deployedAt =
 			<div data-canvas class="grow bg-bg">
 				<div class="zona aire flex flex-col gap-10">
 					<TopOne userId={user?.id} />
+					<ChallengeWall />
 					<SectionsLink />
 				</div>
 			</div>

@@ -14,6 +14,8 @@ export interface Solucion {
 	votada: boolean;
 	/** La mejor del reto: solo una por reto y semana, y su firma se lleva la insignia especial. */
 	mejor: boolean;
+	/** El título del reto al publicarla, para que el muro de la portada sepa a qué responde. */
+	reto: string;
 }
 
 /** Semana → reto → soluciones. */
@@ -76,6 +78,7 @@ function toSolucion(raw: unknown): Solucion | null {
 		at: typeof item.at === 'number' && Number.isFinite(item.at) ? item.at : 0,
 		votada: item.votada === true,
 		mejor: item.mejor === true,
+		reto: typeof item.reto === 'string' ? clean(item.reto, 80).replace(/\n/g, ' ') : '',
 	};
 }
 
@@ -150,7 +153,7 @@ export function addSolucion(
 	todas: Soluciones,
 	week: number,
 	reto: string,
-	draft: { text?: string; firma?: string },
+	draft: { text?: string; firma?: string; reto?: string },
 ): Soluciones | string {
 	const text = clean(String(draft.text ?? ''), TEXT_MAX);
 	if (!text) return 'Cuenta cómo lo resolviste.';
@@ -161,7 +164,16 @@ export function addSolucion(
 		return 'Esa solución ya está publicada.';
 
 	const firma = clean(String(draft.firma ?? ''), FIRMA_MAX).replace(/\n/g, ' ');
-	const nueva: Solucion = { id: nextId(), text, firma, at: Date.now(), votada: false, mejor: false };
+	const titulo = clean(String(draft.reto ?? ''), 80).replace(/\n/g, ' ');
+	const nueva: Solucion = {
+		id: nextId(),
+		text,
+		firma,
+		at: Date.now(),
+		votada: false,
+		mejor: false,
+		reto: titulo,
+	};
 	return withLista(todas, week, reto, [nueva, ...lista]);
 }
 
@@ -207,4 +219,30 @@ export function destacadasOf(todas: Soluciones, week: number) {
 			lista.filter((item) => item.votada).map((solucion) => ({ reto, solucion })),
 		)
 		.sort((a, b) => b.solucion.at - a.solucion.at);
+}
+
+/**
+ * El muro de la portada: lo que la comunidad ha elegido esta semana. Primero las
+ * coronadas, que ganan su reto; luego las votadas por creativas, las nuevas antes.
+ */
+export function muroOf(todas: Soluciones, week: number, max: number) {
+	return Object.entries(todas[String(week)] ?? {})
+		.flatMap(([reto, lista]) =>
+			lista
+				.filter((item) => item.mejor || item.votada)
+				.map((solucion) => ({ reto, solucion })),
+		)
+		.sort((a, b) => {
+			if (a.solucion.mejor !== b.solucion.mejor) return a.solucion.mejor ? -1 : 1;
+			return b.solucion.at - a.solucion.at;
+		})
+		.slice(0, max);
+}
+
+/** Cuánto lleva elegido la semana, para la línea de debajo del muro. */
+export function muroTotal(todas: Soluciones, week: number) {
+	return Object.values(todas[String(week)] ?? {}).reduce(
+		(suma, lista) => suma + lista.filter((item) => item.mejor || item.votada).length,
+		0,
+	);
 }

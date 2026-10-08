@@ -254,13 +254,20 @@ const DATO = 'inline-flex items-center gap-2';
 	</template>
 
 	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
-		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
-			<Icon name="star" class="size-5 shrink-0 text-mark" />
-			Soluciones destacadas
-		</h2>
+		<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+				<Icon name="star" class="size-5 shrink-0 text-mark" />
+				Soluciones destacadas
+			</h2>
+			<a href="/#muro" class={ENLACE}>
+				<Icon name="layout-board" class="size-4 shrink-0" />
+				Verlas en el muro de la portada
+			</a>
+		</div>
 		<ul data-destacadas class="flex flex-col gap-3"></ul>
 		<p data-destacadas-vacio class="text-sm text-muted">
-			Todavía no has votado ninguna. Abre las soluciones de un reto y vota las que merezcan estar aquí.
+			Todavía no has votado ninguna. Abre las soluciones de un reto y vota las más creativas: salen
+			aquí y en el muro de la portada.
 		</p>
 	</div>
 
@@ -806,7 +813,8 @@ const DATO = 'inline-flex items-center gap-2';
 
 			const vote = node.querySelector<HTMLButtonElement>('[data-sol-vote]')!;
 			vote.setAttribute('aria-pressed', item.votada ? 'true' : 'false');
-			vote.querySelector('[data-sol-vote-label]')!.textContent = item.votada ? 'Votada' : 'Votar';
+			vote.title = item.votada ? 'Quitarla del muro de la portada' : 'Votarla por creativa: sale en el muro de la portada';
+			vote.querySelector('[data-sol-vote-label]')!.textContent = item.votada ? 'Votada' : 'Creativa';
 			vote.addEventListener('click', () =>
 				guardarSoluciones(toggleVoto(soluciones, week, reto.id, item.id)),
 			);
@@ -895,6 +903,7 @@ const DATO = 'inline-flex items-center gap-2';
 				const next = addSolucion(soluciones, week, reto.id, {
 					text: text.value,
 					firma: firma.value,
+					reto: reto.title,
 				});
 				if (typeof next === 'string') {
 					error.textContent = next;
