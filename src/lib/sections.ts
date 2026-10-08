@@ -41,9 +41,9 @@ export const GROUPS: Group[] = [
 		id: 'curiosidades',
 		title: 'Curiosidades',
 		icon: 'sparkles',
-		card: 'Lo que está aquí porque sí: chistes, mascota, templo y diseño.',
+		card: 'Lo que está aquí porque sí: chistes, mascota, templo, mosaico y diseño.',
 		intro:
-			'Lo que no es una herramienta ni un juego y merece estar: chistes contados en voz alta, la mascota de la casa, el templo de midudev, cómo está hecha esta web por dentro y el escaparate de proyectos.',
+			'Lo que no es una herramienta ni un juego y merece estar: chistes contados en voz alta, la mascota de la casa, el templo de midudev, un mosaico ASCII sin bordes que se llena de carácter en carácter, cómo está hecha esta web por dentro y el escaparate de proyectos.',
 	},
 	{
 		id: 'canales',
@@ -320,6 +320,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un templo para devs, con midudev de piedra en el centro.',
 		intro:
 			'Un templo para devs. En el centro, midudev tallado en píxeles sobre su peana, y en la inscripción lo que lleva esta web: versiones, gente y ventanas. Déjale una ofrenda a los pies, enciende una vela y pídele consejo. Lo que dejes se queda en tu navegador: cópialo y proponlo para que quede en la peana de todos.',
+	},
+	{
+		href: '/mosaico',
+		title: 'Mosaico ASCII',
+		icon: 'layout-grid',
+		group: 'curiosidades',
+		card: 'Un lienzo de letras sin bordes: cada cual pone un carácter y entre todos sale el mosaico.',
+		intro:
+			'Un lienzo de letras que no se acaba: arrastra o usa las flechas para moverte por él, elige una casilla y pon tu carácter —cualquier letra, número o signo—. Uno por minuto, con tu firma, y no se puede deshacer: el mosaico sale de lo que va dejando cada cual. Se ve en directo en todas las pestañas que tengas abiertas, y para sumar a más gente pasa el enlace: quien lo abre junta ese mosaico con el suyo, pone su carácter y lo pasa otra vez. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/escaparate',

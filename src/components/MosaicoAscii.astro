@@ -1,0 +1,630 @@
+---
+/**
+ * El mosaico ASCII: un lienzo de letras sin bordes en el que cada cual pone un
+ * carácter por minuto. Se mueve arrastrando o con las flechas, va en directo
+ * entre las pestañas de tu navegador con BroadcastChannel y, para sumar a otra
+ * gente, viaja en el enlace: quien lo abre lo junta con el suyo, pone su
+ * carácter y lo pasa. No hay servidor: no se envía nada.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const COLUMNAS = 48;
+const FILAS = 20;
+
+const CARACTERES = ['#', '@', '%', '*', '+', '=', '-', ':', '.', 'o', 'O', '/', '\\', '|', '_', '^'];
+
+const MOVER = [
+	{ dx: 0, dy: -1, label: 'Subir', icon: 'arrow-up' },
+	{ dx: -1, dy: 0, label: 'Izquierda', icon: 'arrow-left' },
+	{ dx: 1, dy: 0, label: 'Derecha', icon: 'arrow-right' },
+	{ dx: 0, dy: 1, label: 'Bajar', icon: 'arrow-down' },
+];
+---
+
+<section id="mosaico" data-columnas={COLUMNAS} data-filas={FILAS} class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<div class="flex flex-col gap-1 border border-accent bg-panel px-4 py-3">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="hourglass" class="size-4 shrink-0 text-accent" />
+				Tu carácter
+			</span>
+			<p data-mosaico-espera class="font-pixel text-marca text-mark">…</p>
+			<span class="text-xs text-muted">Uno por minuto. Elige la casilla, el carácter y ponlo: no se puede deshacer.</span>
+		</div>
+
+		<p data-mosaico-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="overflow-x-auto border border-line bg-panel p-4">
+			<div class="relative mx-auto w-max font-mono text-sm leading-[1.2]">
+				<pre
+					data-mosaico-lienzo
+					tabindex="0"
+					role="img"
+					aria-label="El mosaico ASCII. Arrastra para moverte; flechas para mover la casilla, Enter para poner."
+					class="m-0 cursor-crosshair touch-none bg-bg font-mono leading-[1.2] text-fg outline-none select-none focus-visible:outline focus-visible:outline-accent"></pre>
+				<div data-mosaico-encima hidden class="pointer-events-none absolute h-[1.2em] w-[1ch] outline outline-line"></div>
+				<div data-mosaico-elegida hidden class="pointer-events-none absolute h-[1.2em] w-[1ch] bg-accent/30 outline outline-accent"></div>
+			</div>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-mosaico-poner class={`${BOTON} border-accent text-accent`}>
+				<Icon name="map-pin" class="size-4 shrink-0" />
+				Poner mi carácter
+			</button>
+			<button type="button" data-mosaico-enlace class={BOTON}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Pasar el enlace
+			</button>
+			<button type="button" data-mosaico-copiar class={BOTON}>
+				<Icon name="clipboard-copy" class="size-4 shrink-0" />
+				Copiar lo que ves
+			</button>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-2">
+			{
+				MOVER.map((m) => (
+					<button type="button" data-mosaico-mover={`${m.dx},${m.dy}`} aria-label={m.label} title={m.label} class={BOTON}>
+						<Icon name={m.icon} class="size-4 shrink-0" />
+					</button>
+				))
+			}
+			<button type="button" data-mosaico-origen class={BOTON}>
+				<Icon name="current-location" class="size-4 shrink-0" />
+				Al centro
+			</button>
+		</div>
+
+		<p class="flex flex-wrap justify-between gap-2 text-sm text-muted">
+			<span data-mosaico-cuenta></span>
+			<span data-mosaico-casilla class="font-mono">x — · y —</span>
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-1">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0 text-accent" />
+				En directo
+			</span>
+			<p data-mosaico-pestanas class="text-sm text-fg">…</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<span id="mosaico-caracter">Carácter</span>
+				<span data-mosaico-actual class="font-mono text-mark"></span>
+			</span>
+			<div role="group" aria-labelledby="mosaico-caracter" class="grid grid-cols-8 gap-2">
+				{
+					CARACTERES.map((c) => (
+						<button
+							type="button"
+							data-mosaico-caracter={c}
+							aria-pressed="false"
+							aria-label={`Carácter ${c}`}
+							class="aspect-square w-full border border-line bg-bg font-mono text-lg text-fg hover:border-accent aria-pressed:border-accent aria-pressed:text-accent"
+						>
+							{c}
+						</button>
+					))
+				}
+			</div>
+			<p class="text-xs text-muted">O pulsa cualquier tecla con el lienzo enfocado: letras, números y signos sirven.</p>
+		</div>
+
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-mosaico-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+			<span class="text-xs">Va con cada carácter que pones.</span>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="history" class="size-4 shrink-0 text-accent" />
+				Los últimos caracteres
+			</span>
+			<ol data-mosaico-registro class="flex flex-col gap-1 text-xs text-muted"></ol>
+			<p data-mosaico-sin-registro class="text-xs text-muted">Nadie aún. Pon el primero.</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="users-group" class="size-4 shrink-0 text-accent" />
+				Han puesto algo aquí
+			</span>
+			<p data-mosaico-firmas class="text-sm break-words text-fg"></p>
+		</div>
+	</div>
+</section>
+
+<script>
+	/** Una casilla puesta: x, y, carácter, firma y cuándo. */
+	type Pieza = [number, number, string, string, number];
+
+	const raiz = document.querySelector<HTMLElement>('#mosaico');
+	const COLUMNAS = Number(raiz?.dataset.columnas) || 48;
+	const FILAS = Number(raiz?.dataset.filas) || 20;
+	const ESPERA = 60_000;
+	const CLAVE = 'tuweb:mosaico';
+	/** El lienzo no tiene bordes, pero las coordenadas sí: así nadie lo rompe con un número enorme. */
+	const LIMITE = 100_000;
+	const MAX_PIEZAS = 4000;
+	const MAX_ENLACE = 1500;
+	const MAX_REGISTRO = 10;
+	const MAX_FIRMAS = 40;
+	const YO = Math.random().toString(36).slice(2, 10);
+
+	const lienzo = raiz?.querySelector<HTMLPreElement>('[data-mosaico-lienzo]');
+	const marcaEncima = raiz?.querySelector<HTMLElement>('[data-mosaico-encima]');
+	const marcaElegida = raiz?.querySelector<HTMLElement>('[data-mosaico-elegida]');
+	const espera = raiz?.querySelector<HTMLElement>('[data-mosaico-espera]');
+	const aviso = raiz?.querySelector<HTMLElement>('[data-mosaico-aviso]');
+	const ponerBoton = raiz?.querySelector<HTMLButtonElement>('[data-mosaico-poner]');
+	const firmaCampo = raiz?.querySelector<HTMLInputElement>('[data-mosaico-firma]');
+	const casilla = raiz?.querySelector<HTMLElement>('[data-mosaico-casilla]');
+
+	// --- Validación ---
+
+	const imprimible = (c: unknown): c is string => typeof c === 'string' && c.length === 1 && c > ' ' && c <= '~';
+	const coordenada = (n: unknown): n is number => Number.isInteger(n) && Math.abs(n as number) <= LIMITE;
+	const limpiarFirma = (s: unknown) =>
+		typeof s === 'string' ? s.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 20) : '';
+
+	function limpiarPieza(p: unknown): Pieza | null {
+		if (!Array.isArray(p)) return null;
+		const [x, y, c, f, t] = p;
+		if (!coordenada(x) || !coordenada(y) || !imprimible(c) || !Number.isFinite(t)) return null;
+		return [x, y, c, limpiarFirma(f), t];
+	}
+
+	const clave = (x: number, y: number) => `${x},${y}`;
+
+	// --- Lo guardado ---
+
+	/** Solo existen las casillas puestas: el resto del lienzo infinito está vacío. */
+	let piezas = new Map<string, Pieza>();
+	let ultimo = 0;
+	let caracter = '#';
+	let firma = '';
+
+	/** Junta piezas con las que hay: en cada casilla manda la más nueva. */
+	function juntar(lista: unknown) {
+		if (!Array.isArray(lista)) return 0;
+		let nuevas = 0;
+		lista.forEach((bruta) => {
+			const p = limpiarPieza(bruta);
+			if (!p) return;
+			const k = clave(p[0], p[1]);
+			const antes = piezas.get(k);
+			if (antes && antes[4] >= p[4]) return;
+			piezas.set(k, p);
+			nuevas++;
+		});
+		if (piezas.size > MAX_PIEZAS) piezas = new Map(ordenadas().slice(0, MAX_PIEZAS).map((p) => [clave(p[0], p[1]), p]));
+		return nuevas;
+	}
+
+	/** De la más nueva a la más vieja. */
+	const ordenadas = () => [...piezas.values()].sort((a, b) => b[4] - a[4]);
+
+	function leer() {
+		try {
+			const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			return leido && typeof leido === 'object' ? leido : null;
+		} catch {
+			return null;
+		}
+	}
+
+	const guardado = leer();
+	if (guardado) {
+		juntar(guardado.piezas);
+		if (Number.isFinite(guardado.ultimo)) ultimo = guardado.ultimo;
+		if (imprimible(guardado.caracter)) caracter = guardado.caracter;
+		firma = limpiarFirma(guardado.firma);
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ piezas: [...piezas.values()], ultimo, caracter, firma }));
+		} catch {
+			// Sin almacenamiento se pone igual; solo que no se guarda.
+		}
+	}
+
+	/** Lo que falta para el siguiente carácter. Un reloj atrasado no deja a nadie esperando más de un minuto. */
+	const falta = () => Math.max(0, Math.min(ESPERA, ultimo + ESPERA - Date.now()));
+
+	// --- En directo entre pestañas ---
+
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
+	const otras = new Map<string, number>();
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: YO });
+
+	function pintarPestanas() {
+		const nodo = raiz?.querySelector<HTMLElement>('[data-mosaico-pestanas]');
+		if (!nodo) return;
+		if (!canal) nodo.textContent = 'Tu navegador no deja.';
+		else if (!otras.size) nodo.textContent = 'Solo esta pestaña. Lo que pongas sale al momento en las demás.';
+		else nodo.textContent = `${otras.size + 1} pestañas mirando el mismo mosaico.`;
+	}
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, Date.now());
+		// A quien llega se le pasa todo lo que hay aquí.
+		if (data.tipo === 'hola') enviar({ tipo: 'todo', piezas: [...piezas.values()] });
+		if (data.tipo === 'pieza') {
+			const p = limpiarPieza(data.pieza);
+			if (p) {
+				juntar([p]);
+				// La otra pestaña es tu mismo navegador: su carácter también es el tuyo.
+				ultimo = Math.max(ultimo, p[4]);
+				todo();
+			}
+		}
+		if (data.tipo === 'todo' && juntar(data.piezas)) todo();
+		pintarPestanas();
+	});
+
+	setInterval(() => {
+		enviar({ tipo: 'aqui' });
+		const limite = Date.now() - 10_000;
+		otras.forEach((visto, id) => visto < limite && otras.delete(id));
+		pintarPestanas();
+	}, 4_000);
+
+	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// --- Pintado ---
+
+	/** La casilla de arriba a la izquierda de lo que se ve. */
+	let vista = { x: -Math.floor(COLUMNAS / 2), y: -Math.floor(FILAS / 2) };
+	let elegida: { x: number; y: number } | null = null;
+	let encima: { x: number; y: number } | null = null;
+
+	function avisar(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		aviso.hidden = false;
+	}
+
+	/** Lo puesto en tinta; lo vacío, un punto apagado para que se vea la trama. */
+	function pintarLienzo() {
+		if (!lienzo) return;
+		const trozos: Node[] = [];
+		for (let j = 0; j < FILAS; j++) {
+			let tramo = '';
+			let vacio = false;
+			const soltar = () => {
+				if (!tramo) return;
+				if (vacio) {
+					const span = document.createElement('span');
+					span.className = 'text-line';
+					span.textContent = tramo;
+					trozos.push(span);
+				} else trozos.push(document.createTextNode(tramo));
+				tramo = '';
+			};
+			for (let i = 0; i < COLUMNAS; i++) {
+				const p = piezas.get(clave(vista.x + i, vista.y + j));
+				if (!!p === vacio) {
+					soltar();
+					vacio = !p;
+				}
+				tramo += p ? p[2] : '·';
+			}
+			soltar();
+			if (j < FILAS - 1) trozos.push(document.createTextNode('\n'));
+		}
+		lienzo.replaceChildren(...trozos);
+		marcar(marcaEncima, encima && (!elegida || encima.x !== elegida.x || encima.y !== elegida.y) ? encima : null);
+		marcar(marcaElegida, elegida);
+	}
+
+	function marcar(nodo: HTMLElement | null | undefined, punto: { x: number; y: number } | null) {
+		if (!nodo) return;
+		const i = punto ? punto.x - vista.x : -1;
+		const j = punto ? punto.y - vista.y : -1;
+		nodo.hidden = i < 0 || j < 0 || i >= COLUMNAS || j >= FILAS;
+		nodo.style.left = `${i}ch`;
+		nodo.style.top = `${j * 1.2}em`;
+	}
+
+	function reloj(ms: number) {
+		const s = Math.ceil(ms / 1000);
+		return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+	}
+
+	function pintarEspera() {
+		const ms = falta();
+		if (espera) espera.textContent = ms ? `El siguiente en ${reloj(ms)}` : 'Listo para poner';
+		if (ponerBoton) ponerBoton.disabled = ms > 0 || elegida === null;
+	}
+
+	function pintarDatos() {
+		const cuenta = raiz?.querySelector<HTMLElement>('[data-mosaico-cuenta]');
+		if (cuenta) {
+			const centro = `centro en x ${vista.x + Math.floor(COLUMNAS / 2)} · y ${vista.y + Math.floor(FILAS / 2)}`;
+			cuenta.textContent = `${piezas.size} ${piezas.size === 1 ? 'carácter puesto' : 'caracteres puestos'} · ${centro}`;
+		}
+
+		const lista = ordenadas();
+		const firmas = [...new Set(lista.map((p) => p[3]).filter(Boolean))].slice(0, MAX_FIRMAS);
+		const nodoFirmas = raiz?.querySelector<HTMLElement>('[data-mosaico-firmas]');
+		if (nodoFirmas) nodoFirmas.textContent = firmas.length ? firmas.join(' · ') : 'Nadie aún.';
+
+		const ol = raiz?.querySelector<HTMLOListElement>('[data-mosaico-registro]');
+		const sin = raiz?.querySelector<HTMLElement>('[data-mosaico-sin-registro]');
+		if (sin) sin.hidden = lista.length > 0;
+		ol?.replaceChildren(
+			...lista.slice(0, MAX_REGISTRO).map(([x, y, c, f, t]) => {
+				const li = document.createElement('li');
+				const ir = document.createElement('button');
+				ir.type = 'button';
+				ir.className = 'flex w-full items-center gap-2 text-left hover:text-accent';
+				ir.title = 'Ir ahí';
+				const muestra = document.createElement('span');
+				muestra.className = 'w-[1ch] shrink-0 font-mono text-sm text-fg';
+				muestra.textContent = c;
+				const texto = document.createElement('span');
+				const hora = new Date(t).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+				texto.textContent = `${f || 'Sin firma'} · x ${x} y ${y} · ${hora}`;
+				ir.append(muestra, texto);
+				ir.addEventListener('click', () => {
+					centrar(x, y);
+					elegida = { x, y };
+					todo();
+				});
+				li.append(ir);
+				return li;
+			}),
+		);
+
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-mosaico-caracter]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.mosaicoCaracter === caracter));
+		});
+		const actual = raiz?.querySelector<HTMLElement>('[data-mosaico-actual]');
+		if (actual) actual.textContent = caracter;
+	}
+
+	function todo() {
+		pintarLienzo();
+		pintarEspera();
+		pintarDatos();
+	}
+
+	// --- Moverse ---
+
+	const acotar = (n: number) => Math.max(-LIMITE, Math.min(LIMITE, n));
+
+	function centrar(x: number, y: number) {
+		vista = { x: acotar(x - Math.floor(COLUMNAS / 2)), y: acotar(y - Math.floor(FILAS / 2)) };
+	}
+
+	function desplazar(dx: number, dy: number) {
+		vista = { x: acotar(vista.x + dx), y: acotar(vista.y + dy) };
+		todo();
+	}
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-mosaico-mover]').forEach((b) => {
+		const [dx, dy] = (b.dataset.mosaicoMover ?? '0,0').split(',').map(Number);
+		// Cada botón salta media pantalla.
+		b.addEventListener('click', () => desplazar(dx * Math.floor(COLUMNAS / 2), dy * Math.floor(FILAS / 2)));
+	});
+
+	raiz?.querySelector('[data-mosaico-origen]')?.addEventListener('click', () => {
+		centrar(0, 0);
+		todo();
+	});
+
+	// --- Elegir, arrastrar y poner ---
+
+	function celda(evento: PointerEvent) {
+		if (!lienzo) return null;
+		const caja = lienzo.getBoundingClientRect();
+		if (!caja.width || !caja.height) return null;
+		const i = Math.floor(((evento.clientX - caja.left) / caja.width) * COLUMNAS);
+		const j = Math.floor(((evento.clientY - caja.top) / caja.height) * FILAS);
+		return { i, j, fuera: i < 0 || j < 0 || i >= COLUMNAS || j >= FILAS };
+	}
+
+	const SIN_CASILLA = 'x — · y —';
+	/** Un arrastre empieza en una casilla; si al soltar no se ha movido, era un clic. */
+	let arrastre: { i: number; j: number; vista: { x: number; y: number }; movido: boolean } | null = null;
+
+	lienzo?.addEventListener('pointerdown', (evento) => {
+		const punto = celda(evento);
+		if (!punto || punto.fuera || evento.button !== 0) return;
+		evento.preventDefault();
+		lienzo.focus();
+		arrastre = { i: punto.i, j: punto.j, vista: { ...vista }, movido: false };
+		lienzo.setPointerCapture(evento.pointerId);
+	});
+
+	lienzo?.addEventListener('pointermove', (evento) => {
+		const punto = celda(evento);
+		if (!punto) return;
+		if (arrastre) {
+			const dx = punto.i - arrastre.i;
+			const dy = punto.j - arrastre.j;
+			if (dx || dy) arrastre.movido = true;
+			if (arrastre.movido) {
+				vista = { x: acotar(arrastre.vista.x - dx), y: acotar(arrastre.vista.y - dy) };
+				lienzo.classList.add('cursor-grabbing');
+				return todo();
+			}
+		}
+		const nueva = punto.fuera ? null : { x: vista.x + punto.i, y: vista.y + punto.j };
+		if (nueva?.x === encima?.x && nueva?.y === encima?.y) return;
+		encima = nueva;
+		if (casilla) casilla.textContent = encima ? `x ${encima.x} · y ${encima.y}` : SIN_CASILLA;
+		pintarLienzo();
+	});
+
+	function soltar() {
+		if (!arrastre) return;
+		if (!arrastre.movido) elegida = { x: arrastre.vista.x + arrastre.i, y: arrastre.vista.y + arrastre.j };
+		arrastre = null;
+		lienzo?.classList.remove('cursor-grabbing');
+		todo();
+	}
+
+	lienzo?.addEventListener('pointerup', soltar);
+	lienzo?.addEventListener('pointercancel', soltar);
+
+	lienzo?.addEventListener('pointerleave', () => {
+		encima = null;
+		if (casilla) casilla.textContent = SIN_CASILLA;
+		pintarLienzo();
+	});
+
+	function poner() {
+		// Otra pestaña ha podido gastar el carácter de este minuto: manda lo guardado.
+		const leido = leer();
+		if (leido && Number.isFinite(leido.ultimo)) ultimo = Math.max(ultimo, leido.ultimo);
+		const ms = falta();
+		if (ms) {
+			avisar(`Todavía no: te quedan ${reloj(ms)} para el siguiente.`);
+			return todo();
+		}
+		if (elegida === null) return avisar('Elige antes una casilla del mosaico.');
+
+		const ahora = Date.now();
+		const pieza: Pieza = [elegida.x, elegida.y, caracter, firma, ahora];
+		juntar([pieza]);
+		ultimo = ahora;
+		guardar();
+		enviar({ tipo: 'pieza', pieza });
+		avisar('Puesto. Pasa el enlace para que se sume alguien más.');
+		todo();
+	}
+
+	ponerBoton?.addEventListener('click', poner);
+
+	lienzo?.addEventListener('keydown', (evento) => {
+		if (evento.ctrlKey || evento.metaKey || evento.altKey) return;
+		const tecla = evento.key;
+		const pasos: Record<string, [number, number]> = {
+			ArrowUp: [0, -1],
+			ArrowDown: [0, 1],
+			ArrowLeft: [-1, 0],
+			ArrowRight: [1, 0],
+		};
+		const paso = pasos[tecla];
+		if (paso) {
+			const desde = elegida ?? { x: vista.x + Math.floor(COLUMNAS / 2), y: vista.y + Math.floor(FILAS / 2) };
+			elegida = { x: acotar(desde.x + paso[0]), y: acotar(desde.y + paso[1]) };
+			// La vista sigue a la casilla cuando se sale por un borde.
+			if (elegida.x < vista.x) vista.x = elegida.x;
+			if (elegida.x >= vista.x + COLUMNAS) vista.x = elegida.x - COLUMNAS + 1;
+			if (elegida.y < vista.y) vista.y = elegida.y;
+			if (elegida.y >= vista.y + FILAS) vista.y = elegida.y - FILAS + 1;
+			todo();
+		} else if (tecla === 'Enter') poner();
+		else if (tecla === 'Escape') {
+			elegida = null;
+			todo();
+		} else if (imprimible(tecla)) {
+			caracter = tecla;
+			guardar();
+			pintarDatos();
+		} else return;
+		evento.preventDefault();
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-mosaico-caracter]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const c = b.dataset.mosaicoCaracter;
+			if (!imprimible(c)) return;
+			caracter = c;
+			guardar();
+			pintarDatos();
+		});
+	});
+
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('input', () => {
+			firma = limpiarFirma(firmaCampo.value);
+			guardar();
+		});
+	}
+
+	// --- El enlace ---
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	async function copiar(texto: string, bien: string) {
+		try {
+			await navigator.clipboard.writeText(texto);
+			avisar(bien);
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	}
+
+	raiz?.querySelector('[data-mosaico-enlace]')?.addEventListener('click', () => {
+		const centro = [vista.x + Math.floor(COLUMNAS / 2), vista.y + Math.floor(FILAS / 2)];
+		const url = `${location.origin}/mosaico#k=${aBase64({ p: ordenadas().slice(0, MAX_ENLACE), v: centro })}`;
+		const corto = piezas.size > MAX_ENLACE ? ` Van los ${MAX_ENLACE} más nuevos.` : '';
+		copiar(url, `Enlace copiado. Quien lo abra junta este mosaico con el suyo y pone su carácter.${corto}`);
+	});
+
+	raiz?.querySelector('[data-mosaico-copiar]')?.addEventListener('click', () => {
+		const filas: string[] = [];
+		for (let j = 0; j < FILAS; j++) {
+			let fila = '';
+			for (let i = 0; i < COLUMNAS; i++) fila += piezas.get(clave(vista.x + i, vista.y + j))?.[2] ?? ' ';
+			filas.push(fila.trimEnd());
+		}
+		copiar(filas.join('\n').replace(/^\n+|\n+$/g, ''), 'Copiado lo que se ve, en texto.');
+	});
+
+	// --- Arranque ---
+
+	// Un mosaico que llega en el enlace se junta con el tuyo: en cada casilla manda la más nueva.
+	const recibido = /^#k=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const datos = deBase64(recibido[1]);
+		if (datos && Array.isArray(datos.p)) {
+			juntar(datos.p);
+			if (Array.isArray(datos.v) && coordenada(datos.v[0]) && coordenada(datos.v[1])) centrar(datos.v[0], datos.v[1]);
+			guardar();
+			enviar({ tipo: 'todo', piezas: [...piezas.values()] });
+			avisar('Mosaico del enlace juntado con el tuyo. Pon tu carácter y pásalo.');
+		} else avisar('El enlace está roto: sigue el mosaico que tenías.');
+		history.replaceState(null, '', '/mosaico');
+	}
+
+	setInterval(pintarEspera, 1000);
+
+	enviar({ tipo: 'hola' });
+	pintarPestanas();
+	todo();
+</script>
