@@ -11,6 +11,9 @@
  * Para compartir, el gradiente cabe en un código corto que viaja en la URL
  * (?gradiente=l135-c2410c.0-2563eb.100#gradientes): quien abre el enlace ve
  * ese mismo gradiente. Los ejemplos usan el mismo código.
+ *
+ * Encima de la lista de colores hay una barra con el gradiente de izquierda a
+ * derecha: se pulsa para añadir un color en ese punto y se arrastran las marcas.
  */
 import Icon from './Icon.astro';
 
@@ -139,6 +142,12 @@ const FORMATOS = [
 
 			<div class="flex flex-col gap-3">
 				<span class="text-sm text-muted">Colores</span>
+				<div
+					data-gr-barra
+					aria-hidden="true"
+					class="relative h-8 cursor-copy touch-none border border-line select-none"
+				></div>
+				<span class="text-xs text-muted">Pulsa en la barra para poner un color ahí. Arrastra las marcas para moverlos.</span>
 				<div data-gr-lista class="flex flex-col gap-3"></div>
 				<div class="flex flex-wrap gap-2">
 					<button type="button" data-gr-nuevo class={`${BOTON} disabled:opacity-40`}>
@@ -355,6 +364,7 @@ const FORMATOS = [
 	const lista = panel?.querySelector<HTMLElement>('[data-gr-lista]');
 	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-gr-plantilla]');
 	const vista = panel?.querySelector<HTMLElement>('[data-gr-vista]');
+	const barra = panel?.querySelector<HTMLElement>('[data-gr-barra]');
 	const salida = panel?.querySelector<HTMLElement>('[data-gr-css]');
 	const bloqueLineal = panel?.querySelector<HTMLElement>('[data-gr-lineal]');
 	const bloqueRadial = panel?.querySelector<HTMLElement>('[data-gr-radial]');
@@ -451,10 +461,13 @@ const FORMATOS = [
 	// ordenan, una parada «atrasada» se pega a la anterior y no se ve.
 	const ordenadas = () => [...estado.paradas].sort((a, b) => a.pos - b.pos);
 
-	function gradiente() {
-		const paradas = ordenadas()
+	const paradasCss = () =>
+		ordenadas()
 			.map((p) => `${p.color} ${p.pos}%`)
 			.join(', ');
+
+	function gradiente() {
+		const paradas = paradasCss();
 		return estado.tipo === 'linear'
 			? `linear-gradient(${estado.angulo}deg, ${paradas})`
 			: `radial-gradient(${estado.forma}, ${paradas})`;
@@ -522,7 +535,87 @@ const FORMATOS = [
 			vista.style.aspectRatio = `${ancho} / ${alto}`;
 		}
 		if (salida) salida.textContent = exportar(estado.formato);
+		pintarBarra();
 	}
+
+	// ——— La barra de paradas ———
+	// Siempre de izquierda a derecha, sea cual sea el tipo: es el mapa de colores.
+	// Las marcas se rehacen en cada pintado; el arrastre lo captura la barra, así
+	// que rehacerlas no lo corta.
+	function pintarBarra() {
+		if (!barra) return;
+		barra.style.backgroundImage = `linear-gradient(90deg, ${paradasCss()})`;
+		barra.replaceChildren(
+			...estado.paradas.map((p, i) => {
+				const marca = document.createElement('span');
+				marca.dataset.grMarca = String(i);
+				marca.className = 'absolute -top-1.5 -bottom-1.5 w-3 -translate-x-1/2 cursor-ew-resize border-2 border-bg outline outline-1 outline-fg';
+				marca.style.left = `${p.pos}%`;
+				marca.style.background = p.color;
+				return marca;
+			}),
+		);
+	}
+
+	// El color que ya hay en una posición, para que añadir no cambie lo que se ve.
+	function colorEn(pos: number) {
+		const orden = ordenadas();
+		const despues = orden.findIndex((p) => p.pos >= pos);
+		if (despues === -1) return orden[orden.length - 1].color;
+		if (despues === 0) return orden[0].color;
+		const a = orden[despues - 1];
+		const b = orden[despues];
+		return mezclar(a.color, b.color, b.pos === a.pos ? 0 : (pos - a.pos) / (b.pos - a.pos));
+	}
+
+	let arrastrada: Parada | null = null;
+
+	function posEn(e: PointerEvent) {
+		const caja = barra!.getBoundingClientRect();
+		return limitar(((e.clientX - caja.left) / caja.width) * 100, 0, 100);
+	}
+
+	// Mover una marca solo cambia su fila; rehacer toda la lista en cada
+	// movimiento sobra.
+	function moverFila(parada: Parada) {
+		const fila = lista?.children[estado.paradas.indexOf(parada)];
+		const pos = fila?.querySelector<HTMLInputElement>('[data-gr-pos]');
+		const texto = fila?.querySelector<HTMLElement>('[data-gr-pos-texto]');
+		if (pos) pos.value = String(parada.pos);
+		if (texto) texto.textContent = `${parada.pos}%`;
+	}
+
+	barra?.addEventListener('pointerdown', (e) => {
+		if (e.button !== 0) return;
+		const marca = (e.target as HTMLElement).closest<HTMLElement>('[data-gr-marca]');
+		if (marca) {
+			arrastrada = estado.paradas[Number(marca.dataset.grMarca)] ?? null;
+		} else if (estado.paradas.length < MAX_PARADAS) {
+			const pos = posEn(e);
+			arrastrada = { color: colorEn(pos), pos };
+			estado.paradas.push(arrastrada);
+			pintarFilas();
+			actualizar();
+		}
+		if (!arrastrada) return;
+		e.preventDefault();
+		barra.setPointerCapture(e.pointerId);
+	});
+
+	barra?.addEventListener('pointermove', (e) => {
+		if (!arrastrada) return;
+		const pos = posEn(e);
+		if (pos === arrastrada.pos) return;
+		arrastrada.pos = pos;
+		moverFila(arrastrada);
+		actualizar();
+	});
+
+	const soltar = () => {
+		arrastrada = null;
+	};
+	barra?.addEventListener('pointerup', soltar);
+	barra?.addEventListener('pointercancel', soltar);
 
 	function bajar(contenido: Blob, nombre: string) {
 		const url = URL.createObjectURL(contenido);
@@ -622,10 +715,11 @@ const FORMATOS = [
 		if (nuevo) nuevo.disabled = estado.paradas.length >= MAX_PARADAS;
 	}
 
-	function mezclar(a: string, b: string) {
+	// t es cuánto de b: 0 es a, 1 es b, 0.5 el de en medio.
+	function mezclar(a: string, b: string, t = 0.5) {
 		const canal = (hex: string, k: number) => parseInt(hex.slice(1 + k * 2, 3 + k * 2), 16);
 		return `#${[0, 1, 2]
-			.map((k) => Math.round((canal(a, k) + canal(b, k)) / 2).toString(16).padStart(2, '0'))
+			.map((k) => Math.round(canal(a, k) + (canal(b, k) - canal(a, k)) * t).toString(16).padStart(2, '0'))
 			.join('')}`;
 	}
 
