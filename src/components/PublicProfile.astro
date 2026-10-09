@@ -1,0 +1,149 @@
+---
+/**
+ * El perfil público de los problemas de la semana. Tu palmarés cabe en un
+ * enlace: quien lo abre ve tus medallas y cómo queda frente a las suyas. Va en
+ * el trozo tras la almohadilla, así que no pasa por el servidor ni se guarda.
+ */
+import Icon from './Icon.astro';
+import { PUNTOS } from '../lib/problemas';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const DATO = 'inline-flex items-center gap-2';
+---
+
+<section id="publico" class="flex flex-col gap-7">
+	<div data-ajeno hidden class="flex flex-col gap-4 border border-mark bg-panel p-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+				<Icon name="user-share" class="size-5 shrink-0 text-mark" />
+				<span data-ajeno-nombre></span>
+			</h2>
+			<a href="/perfil" class="text-sm text-muted hover:text-accent">Volver al tuyo</a>
+		</div>
+		<p class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted" aria-live="polite">
+			<span class={DATO}>Suyos <span data-ajeno-puntos class="tabular-nums text-fg"></span></span>
+			<span class={DATO}>Tuyos <span data-tus-puntos class="tabular-nums text-fg"></span></span>
+			<span data-duelo class="text-mark"></span>
+		</p>
+		<ul data-ajeno-lista class="flex flex-col gap-2 text-sm"></ul>
+		<p data-ajeno-vacio class="text-sm text-muted">Este enlace no trae ningún problema resuelto.</p>
+		<p class="text-xs text-muted">
+			Lo que ves viene en el enlace, tal cual lo mandó quien lo comparte: es su palabra, no un registro.
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="share" class="size-5 shrink-0 text-accent" />
+			Tu perfil público
+		</h2>
+		<p class="text-sm text-muted">
+			Comparte tus medallas de los problemas con un enlace. Quien lo abra las ve junto a las suyas.
+			Cuentan {PUNTOS.oro} puntos la destacada, {PUNTOS.plata} la plata y {PUNTOS.bronce} el bronce.
+		</p>
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-compartir class={BOTON}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Copiar enlace
+			</button>
+			<span data-mis-puntos class="text-sm tabular-nums text-muted"></span>
+			<span data-compartir-estado role="status" class="text-sm text-muted"></span>
+		</div>
+	</div>
+</section>
+
+<style is:global>
+	#publico [data-ajeno-lista] > li {
+		border-left: 2px solid var(--color-line);
+		padding-left: 0.75rem;
+	}
+	#publico [data-ajeno-lista] > li[data-medalla='oro'] {
+		border-left-color: var(--color-mark);
+		color: var(--color-mark);
+	}
+</style>
+
+<script>
+	import {
+		MEDALLAS,
+		codificaPerfil,
+		decodificaPerfil,
+		lunesDe,
+		palmares,
+		problemaDe,
+		puntosDe,
+		readRegistro,
+	} from '../lib/problemas';
+	import { weekLabel } from '../lib/retos';
+	import { FIRMA_MAX, readFirma } from '../lib/soluciones';
+
+	const section = document.querySelector<HTMLElement>('#publico');
+	const ajeno = section?.querySelector<HTMLElement>('[data-ajeno]');
+	const compartir = section?.querySelector<HTMLButtonElement>('[data-compartir]');
+	const estado = section?.querySelector<HTMLElement>('[data-compartir-estado]');
+
+	const puntosTexto = (n: number) => (n === 1 ? '1 punto' : `${n} puntos`);
+
+	if (section && ajeno && compartir && estado) {
+		const login = document.querySelector<HTMLElement>('#perfil')?.dataset.login ?? '';
+		const nombrePropio = () => (login || readFirma()).slice(0, FIRMA_MAX);
+
+		const poner = (attr: string, texto: string) => {
+			const out = section.querySelector<HTMLElement>(`[data-${attr}]`);
+			if (out) out.textContent = texto;
+		};
+
+		function pintar() {
+			const mios = puntosDe(readRegistro());
+			poner('mis-puntos', `Llevas ${puntosTexto(mios)}`);
+
+			const params = new URLSearchParams(location.hash.slice(1));
+			const resueltos = params.get('p');
+			ajeno!.hidden = resueltos === null;
+			if (resueltos === null) return;
+
+			const nombre = (params.get('de') ?? '').replace(/\s+/g, ' ').trim().slice(0, FIRMA_MAX);
+			const registro = decodificaPerfil(resueltos);
+			const suyos = puntosDe(registro);
+			poner('ajeno-nombre', nombre ? `Perfil de ${nombre}` : 'Perfil sin nombre');
+			poner('ajeno-puntos', puntosTexto(suyos));
+			poner('tus-puntos', puntosTexto(mios));
+			poner(
+				'duelo',
+				suyos === mios ? 'Vais empatados.' : suyos > mios ? `Te saca ${suyos - mios}.` : `Le sacas ${mios - suyos}.`,
+			);
+
+			const lista = palmares(registro);
+			section!.querySelector('[data-ajeno-lista]')!.replaceChildren(
+				...lista.map(({ week, intento, medalla }) => {
+					const fila = document.createElement('li');
+					fila.dataset.medalla = medalla;
+					const veces = intento.intentos === 1 ? 'a la primera' : `en ${intento.intentos} intentos`;
+					fila.textContent = `${MEDALLAS[medalla].label} · «${problemaDe(week).title}» · ${veces} · ${weekLabel(lunesDe(week))}`;
+					return fila;
+				}),
+			);
+			section!.querySelector<HTMLElement>('[data-ajeno-vacio]')!.hidden = lista.length > 0;
+		}
+
+		compartir.addEventListener('click', async () => {
+			const params = new URLSearchParams();
+			const nombre = nombrePropio();
+			if (nombre) params.set('de', nombre);
+			params.set('p', codificaPerfil(readRegistro()));
+			const url = `${location.origin}/perfil#${params.toString()}`;
+			try {
+				await navigator.clipboard.writeText(url);
+				estado.textContent = nombre ? 'Copiado.' : 'Copiado. Ponte una firma para que se sepa quién eres.';
+			} catch {
+				estado.textContent = 'No se pudo copiar.';
+			}
+			setTimeout(() => (estado.textContent = ''), 3000);
+		});
+
+		window.addEventListener('hashchange', pintar);
+		window.addEventListener('storage', pintar);
+		pintar();
+	}
+</script>

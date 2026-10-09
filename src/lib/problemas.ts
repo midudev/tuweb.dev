@@ -320,3 +320,37 @@ export function palmares(registro: Registro) {
 		.filter((item): item is { week: number; intento: Intento; medalla: Medalla } => item.medalla !== null)
 		.sort((a, b) => b.week - a.week);
 }
+
+/* ---------- El perfil que se comparte ---------- */
+
+/** Lo que vale cada medalla al comparar perfiles. */
+export const PUNTOS: Record<Medalla, number> = { oro: 3, plata: 2, bronce: 1 };
+
+export function puntosDe(registro: Registro) {
+	return palmares(registro).reduce((suma, item) => suma + PUNTOS[item.medalla], 0);
+}
+
+/** Las semanas que caben en un enlace: un año. */
+const COMPARTIDAS_MAX = 52;
+
+/** Lo resuelto, en corto para un enlace: «semana.intentos.horas» separados por comas. */
+export function codificaPerfil(registro: Registro) {
+	return palmares(registro)
+		.slice(0, COMPARTIDAS_MAX)
+		.map(({ week, intento }) => `${week}.${intento.intentos}.${Math.floor(intento.horas)}`)
+		.join(',');
+}
+
+/** Lo contrario. Lo que no tenga buena forma se descarta sin avisar. */
+export function decodificaPerfil(texto: string): Registro {
+	const out: Registro = {};
+	for (const trozo of texto.split(',').slice(0, COMPARTIDAS_MAX)) {
+		const partes = /^(-?\d{1,6})\.(\d{1,3})\.(\d{1,3})$/.exec(trozo.trim());
+		if (!partes) continue;
+		const intentos = Number(partes[2]);
+		const horas = Number(partes[3]);
+		if (intentos < 1 || horas > 7 * 24) continue;
+		out[partes[1]] = { intentos, ok: true, at: 0, horas };
+	}
+	return out;
+}

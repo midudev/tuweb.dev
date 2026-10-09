@@ -1,8 +1,12 @@
 ---
 import Profile from '../components/Profile.astro';
+import PublicProfile from '../components/PublicProfile.astro';
 import Section from '../layouts/Section.astro';
 ---
 
 <Section href="/perfil">
-	<Profile />
+	<div class="flex flex-col gap-7">
+		<PublicProfile />
+		<Profile />
+	</div>
 </Section>
