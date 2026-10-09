@@ -10,6 +10,7 @@ import GitHubLogin from './GitHubLogin.astro';
 import Icon from './Icon.astro';
 import { getSessionUser } from '../lib/auth';
 import { ESPECIAL } from '../lib/insignias';
+import { ORO_HORAS } from '../lib/problemas';
 import { FIRMA_MAX } from '../lib/soluciones';
 
 const user = await getSessionUser(Astro);
@@ -26,6 +27,14 @@ const DATO = 'inline-flex items-center gap-2';
 		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
 			<Icon name="user-circle" class="size-5 shrink-0 text-accent" />
 			<span data-nombre>{user?.login ?? 'Sin nombre'}</span>
+			<span
+				data-destacada
+				hidden
+				class="inline-flex items-center gap-1 border border-mark px-2 py-1 font-mono text-xs text-mark"
+			>
+				<Icon name="crown" class="size-4 shrink-0" />
+				<span data-destacada-texto></span>
+			</span>
 		</h2>
 		<p class="text-sm text-muted">
 			{
@@ -92,6 +101,22 @@ const DATO = 'inline-flex items-center gap-2';
 	</template>
 
 	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+			<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+				<Icon name="binary-tree" class="size-5 shrink-0 text-mark" />
+				Problemas de la semana
+			</h2>
+			<span data-problemas-n class="text-sm tabular-nums text-muted"></span>
+		</div>
+		<ul data-problemas class="flex flex-col gap-2 text-sm"></ul>
+		<p data-problemas-vacio class="text-sm text-muted">
+			Ninguno resuelto aún. Cada lunes hay un
+			<a href="/retos" class="text-accent hover:underline">problema algorítmico</a> nuevo: acierta a la
+			primera y en las primeras {ORO_HORAS} horas y la insignia destacada sale aquí.
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-4">
 		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
 			<Icon name="thumb-up" class="size-5 shrink-0 text-accent" />
 			Las que has coronado
@@ -114,9 +139,16 @@ const DATO = 'inline-flex items-center gap-2';
 		width: 100%;
 		height: auto;
 	}
-	#perfil [data-dadas] > li {
+	#perfil [data-dadas] > li,
+	#perfil [data-problemas] > li {
 		border-left: 2px solid var(--color-mark);
 		padding-left: 0.75rem;
+	}
+	#perfil [data-problemas] > li:not([data-medalla='oro']) {
+		border-left-color: var(--color-line);
+	}
+	#perfil [data-problemas] > li[data-medalla='oro'] {
+		color: var(--color-mark);
 	}
 </style>
 
@@ -131,7 +163,8 @@ const DATO = 'inline-flex items-center gap-2';
 		tintaFija,
 		tintaViva,
 	} from '../lib/insignias';
-	import { historyOf, readDone, streakOf, weekIndex, weekStart } from '../lib/retos';
+	import { MEDALLAS, lunesDe, palmares, problemaDe, readRegistro } from '../lib/problemas';
+	import { historyOf, readDone, streakOf, weekIndex, weekLabel, weekStart } from '../lib/retos';
 	import { readFirma, saveFirma } from '../lib/soluciones';
 
 	const section = document.querySelector<HTMLElement>('#perfil');
@@ -204,6 +237,28 @@ const DATO = 'inline-flex items-center gap-2';
 				}),
 			);
 			section!.querySelector<HTMLElement>('[data-dadas-vacio]')!.hidden = ajenas.length > 0;
+
+			// Los problemas de la semana: la destacada va también junto al nombre.
+			const resueltos = palmares(readRegistro());
+			const destacadas = resueltos.filter((item) => item.medalla === 'oro').length;
+			section!.querySelector<HTMLElement>('[data-destacada]')!.hidden = destacadas === 0;
+			dato('destacada-texto', destacadas === 1 ? 'Destacada' : `Destacada ×${destacadas}`);
+			dato(
+				'problemas-n',
+				resueltos.length === 0
+					? ''
+					: `${resueltos.length} ${resueltos.length === 1 ? 'resuelto' : 'resueltos'} · ${destacadas} ${destacadas === 1 ? 'destacada' : 'destacadas'}`,
+			);
+			section!.querySelector('[data-problemas]')!.replaceChildren(
+				...resueltos.map(({ week: semana, intento, medalla }) => {
+					const fila = document.createElement('li');
+					fila.dataset.medalla = medalla;
+					const veces = intento.intentos === 1 ? 'a la primera' : `en ${intento.intentos} intentos`;
+					fila.textContent = `${MEDALLAS[medalla].label} · «${problemaDe(semana).title}» · ${veces} · ${weekLabel(lunesDe(semana))}`;
+					return fila;
+				}),
+			);
+			section!.querySelector<HTMLElement>('[data-problemas-vacio]')!.hidden = resueltos.length > 0;
 		}
 
 		firmaIn.addEventListener('change', () => {

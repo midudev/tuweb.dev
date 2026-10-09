@@ -389,18 +389,18 @@ export const SECTIONS: Section[] = [
 		title: 'Retos semanales',
 		icon: 'target-arrow',
 		group: 'canales',
-		card: 'Tres retos de la casa cada lunes, los que propone la gente, las soluciones más creativas al muro e insignias para el que gana.',
+		card: 'Un problema algorítmico y tres retos de la casa cada lunes, los que propone la gente, las soluciones más creativas al muro e insignias para el que gana.',
 		intro:
-			'Un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propone la gente con su cuenta de GitHub: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas. Reparte cinco votos entre los retos y al que va ganando hazle una insignia —nombre, icono, color y forma— que queda en tu vitrina y te llevas en SVG o PNG. En cada reto, vota las soluciones más creativas y corona la mejor: salen en el muro de la portada, y quien firma la coronada se lleva la insignia especial en su perfil. Lo que marcas, votas y entregas se queda en tu navegador, y el lunes el tablero vuelve a empezar.',
+			'Cada lunes, un problema algorítmico con su entrada, la misma para todo el mundo: lo resuelves en tu máquina, con el lenguaje que quieras, y pegas el número. Si aciertas a la primera en las primeras 48 horas, la insignia destacada sale en tu perfil. Debajo, un tablero que se renueva cada lunes. Tres retos los pone la casa —del catálogo, rotando— y los demás los propone la gente con su cuenta de GitHub: título, qué cuenta como hecho, tema y nivel. Marca lo que vayas cerrando y arriba llevas la cuenta, los puntos y la racha de semanas. Reparte cinco votos entre los retos y al que va ganando hazle una insignia —nombre, icono, color y forma— que queda en tu vitrina y te llevas en SVG o PNG. En cada reto, vota las soluciones más creativas y corona la mejor: salen en el muro de la portada, y quien firma la coronada se lleva la insignia especial en su perfil. Lo que marcas, votas y entregas se queda en tu navegador, y el lunes el tablero vuelve a empezar.',
 	},
 	{
 		href: '/perfil',
 		title: 'Tu perfil',
 		icon: 'user-circle',
 		group: 'canales',
-		card: 'Tu firma, tu racha de retos y las insignias especiales de la mejor solución.',
+		card: 'Tu firma, tu racha de retos, los problemas resueltos y las insignias destacadas.',
 		intro:
-			'Quién eres en los retos semanales. Tu firma —o tu login de GitHub, si entras— es la que reconoce tus soluciones, y cada vez que una sale coronada como la mejor de su reto, aquí aparece su insignia especial para bajarla en SVG. Debajo, tu racha, lo que llevas hecho y las que has coronado tú. Todo se lee de tu navegador.',
+			'Quién eres en los retos semanales. Tu firma —o tu login de GitHub, si entras— es la que reconoce tus soluciones, y cada vez que una sale coronada como la mejor de su reto, aquí aparece su insignia especial para bajarla en SVG. Los problemas de la semana que resuelves salen con su medalla, y la destacada va junto a tu nombre. Debajo, tu racha, lo que llevas hecho y las que has coronado tú. Todo se lee de tu navegador.',
 	},
 	{
 		href: '/ideas',

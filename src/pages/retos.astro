@@ -2,10 +2,12 @@
 import Challenges from '../components/Challenges.astro';
 import HonorWall from '../components/HonorWall.astro';
 import Section from '../layouts/Section.astro';
+import WeeklyProblem from '../components/WeeklyProblem.astro';
 ---
 
 <Section href="/retos">
 	<div class="flex flex-col gap-7">
+		<WeeklyProblem />
 		<Challenges />
 		<HonorWall />
 	</div>
