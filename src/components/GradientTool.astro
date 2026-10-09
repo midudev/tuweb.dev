@@ -1,7 +1,8 @@
 ---
 /**
  * Generador de gradientes CSS: dos o más colores con su posición, lineal o
- * radial, con ángulo. La vista previa es el propio CSS aplicado a una caja. Se
+ * radial, con ángulo. La vista previa es el propio CSS aplicado a una caja, y
+ * debajo a un elemento de prueba (botón, tarjeta o texto) para verlo en uso. Se
  * exporta como CSS, variable, clase de Tailwind, SVG o PNG; el SVG y el PNG
  * usan la misma geometría que el navegador para el CSS, así lo que se baja es
  * lo que se ve. Todo pasa en el navegador y
@@ -43,6 +44,13 @@ const TAMANOS = [
 	{ id: '1920x1080', label: '1920×1080 (fondo)' },
 	{ id: '1080x1080', label: '1080×1080 (cuadrado)' },
 	{ id: '1080x1920', label: '1080×1920 (vertical)' },
+];
+
+// Elementos de prueba: el gradiente aplicado a algo real, no solo a una caja.
+const PRUEBAS = [
+	{ id: 'boton', label: 'Botón', icon: 'click' },
+	{ id: 'tarjeta', label: 'Tarjeta', icon: 'layout-cards' },
+	{ id: 'texto', label: 'Texto', icon: 'typography' },
 ];
 
 const FORMATOS = [
@@ -157,6 +165,38 @@ const FORMATOS = [
 			<div data-gr-vista class="w-full border border-line" style="aspect-ratio: 1200 / 630;" role="img" aria-label="Vista previa del gradiente"></div>
 
 			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Probar sobre</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						PRUEBAS.map((prueba) => (
+							<button
+								type="button"
+								data-gr-prueba={prueba.id}
+								aria-pressed={prueba.id === 'boton' ? 'true' : 'false'}
+								class={`${OPCION} inline-flex items-center gap-2`}
+							>
+								<Icon name={prueba.icon} class="size-4 shrink-0" />
+								{prueba.label}
+							</button>
+						))
+					}
+				</div>
+				<div class="flex min-h-40 items-center justify-center border border-line bg-panel p-6">
+					<span data-gr-muestra="boton" class="inline-flex px-6 py-3 text-sm text-bg">Enviar idea</span>
+					<article data-gr-muestra="tarjeta" hidden class="flex w-full max-w-xs flex-col border border-line bg-bg">
+						<div data-gr-fondo class="h-24"></div>
+						<div class="flex flex-col gap-1 p-4">
+							<strong class="font-pixel text-lg">Tarjeta de prueba</strong>
+							<span class="text-sm text-muted">Así queda el gradiente de cabecera.</span>
+						</div>
+					</article>
+					<p data-gr-muestra="texto" hidden data-gr-texto class="font-pixel text-center text-5xl leading-tight">
+						tuweb.dev
+					</p>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
 				<span class="text-sm text-muted">Exportar como</span>
 				<div class="flex flex-wrap gap-2">
 					{
@@ -269,6 +309,12 @@ const FORMATOS = [
 	:is([data-gr-copiar], [data-gr-enlace])[data-state='error'] {
 		color: var(--color-heart);
 	}
+	/* El texto de prueba se rellena con el gradiente. */
+	[data-gr-texto] {
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+	}
 </style>
 
 <script>
@@ -281,9 +327,12 @@ const FORMATOS = [
 		paradas: Parada[];
 		tamano: string;
 		formato: Formato;
+		prueba: Prueba;
 	};
+	type Prueba = 'boton' | 'tarjeta' | 'texto';
 
 	const FORMATOS: Formato[] = ['css', 'variable', 'tailwind', 'svg'];
+	const PRUEBAS: Prueba[] = ['boton', 'tarjeta', 'texto'];
 
 	const CLAVE = 'tuweb:gradientes';
 	const MAX_PARADAS = 8;
@@ -299,6 +348,7 @@ const FORMATOS = [
 		],
 		tamano: '1200x630',
 		formato: 'css',
+		prueba: 'boton',
 	};
 
 	const panel = document.querySelector<HTMLElement>('[data-panel="gradientes"]');
@@ -316,6 +366,9 @@ const FORMATOS = [
 	const tipos = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-tipo]') ?? [];
 	const formas = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-forma]') ?? [];
 	const formatos = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-formato]') ?? [];
+	const pruebas = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-prueba]') ?? [];
+	const muestras = panel?.querySelectorAll<HTMLElement>('[data-gr-muestra]') ?? [];
+	const pintables = panel?.querySelectorAll<HTMLElement>('[data-gr-muestra="boton"], [data-gr-fondo], [data-gr-texto]') ?? [];
 
 	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
 
@@ -334,6 +387,7 @@ const FORMATOS = [
 					})),
 					tamano: typeof guardado.tamano === 'string' ? guardado.tamano : INICIAL.tamano,
 					formato: FORMATOS.includes(guardado.formato) ? guardado.formato : INICIAL.formato,
+					prueba: PRUEBAS.includes(guardado.prueba) ? guardado.prueba : INICIAL.prueba,
 				};
 			}
 		} catch {
@@ -449,11 +503,19 @@ const FORMATOS = [
 		// En los valores arbitrarios de Tailwind el espacio se escribe con _.
 		if (formato === 'tailwind') return `bg-[${css.replace(/,\s+/g, ',').replace(/\s+/g, '_')}]`;
 		if (formato === 'svg') return svg();
+		// Probando sobre texto, el CSS ya lleva lo que hace falta para rellenar letras.
+		if (estado.prueba === 'texto') {
+			return `background: ${css};\n-webkit-background-clip: text;\nbackground-clip: text;\ncolor: transparent;`;
+		}
 		return `background: ${liso};\nbackground: ${css};`;
 	}
 
 	function pintar() {
 		const css = gradiente();
+		// backgroundImage y no background: el atajo pisaría el background-clip del texto.
+		pintables.forEach((el) => {
+			el.style.backgroundImage = css;
+		});
 		if (vista) {
 			vista.style.background = css;
 			const { ancho, alto } = medidas();
@@ -493,6 +555,10 @@ const FORMATOS = [
 		tipos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grTipo === estado.tipo)));
 		formas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grForma === estado.forma)));
 		formatos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grFormato === estado.formato)));
+		pruebas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grPrueba === estado.prueba)));
+		muestras.forEach((m) => {
+			m.hidden = m.dataset.grMuestra !== estado.prueba;
+		});
 		if (bloqueLineal) bloqueLineal.hidden = estado.tipo !== 'linear';
 		if (bloqueRadial) bloqueRadial.hidden = estado.tipo !== 'radial';
 		if (angulo) angulo.value = String(estado.angulo);
@@ -768,6 +834,16 @@ const FORMATOS = [
 			const elegido = FORMATOS.find((f) => f === boton.dataset.grFormato);
 			if (!elegido) return;
 			estado.formato = elegido;
+			pintarControles();
+			actualizar();
+		});
+	});
+
+	pruebas.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegida = PRUEBAS.find((p) => p === boton.dataset.grPrueba);
+			if (!elegida) return;
+			estado.prueba = elegida;
 			pintarControles();
 			actualizar();
 		});
