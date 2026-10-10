@@ -1,0 +1,475 @@
+---
+/**
+ * Píxeles ASCII: un lienzo de 48 × 24 que se pinta a píxeles y se escribe solo
+ * en ASCII, un carácter por tono. Va en directo entre las pestañas de tu
+ * navegador con BroadcastChannel y, para sumar a otra gente, el dibujo viaja en
+ * el enlace: quien lo abre lo junta con el suyo y sigue. No hay servidor.
+ */
+import Icon from './Icon.astro';
+
+const TONOS = [' ', '.', ':', '+', '#', '@'];
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<section id="pixeles-ascii" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<p data-pa-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="border border-line bg-panel p-4">
+			<canvas
+				data-pa-tela
+				width="768"
+				height="384"
+				role="img"
+				aria-label="El lienzo de píxeles"
+				class="mx-auto block aspect-[2/1] w-full max-w-[768px] cursor-crosshair touch-none bg-bg [image-rendering:pixelated]"
+			></canvas>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<div role="group" aria-label="Tono" class="flex flex-wrap gap-2">
+				{
+					TONOS.map((c, i) => (
+						<button
+							type="button"
+							data-pa-tono={i}
+							aria-pressed="false"
+							title={i ? `Tono ${i}: ${c}` : 'Goma'}
+							class="inline-flex size-10 items-center justify-center border border-line font-mono text-fg hover:border-accent aria-pressed:border-accent aria-pressed:text-accent"
+						>
+							{i ? c : <Icon name="eraser" class="size-4" />}
+						</button>
+					))
+				}
+			</div>
+			<span data-pa-casilla class="font-mono text-sm text-muted">x — · y —</span>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-pa-enlace class={`${BOTON} border-accent text-accent`}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Pasar el enlace
+			</button>
+			<button type="button" data-pa-txt class={BOTON}>
+				<Icon name="file-download" class="size-4 shrink-0" />
+				Descargar .txt
+			</button>
+			<button type="button" data-pa-copiar class={BOTON}>
+				<Icon name="copy" class="size-4 shrink-0" />
+				Copiar texto
+			</button>
+			<button type="button" data-pa-limpiar class={BOTON}>
+				<Icon name="trash" class="size-4 shrink-0" />
+				Limpiar
+			</button>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-1">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0 text-accent" />
+				En directo
+			</span>
+			<p data-pa-pestanas class="text-sm text-fg">…</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex justify-between gap-2 text-sm text-muted">
+				<span>El .txt, tal cual</span>
+				<span data-pa-cuenta class="text-xs"></span>
+			</span>
+			<pre
+				data-pa-texto
+				class="overflow-x-auto border border-line bg-bg p-2 font-mono text-[9px] leading-[1.1] text-fg sm:text-[10px]"></pre>
+		</div>
+
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-pa-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+			<span class="text-xs">Va en el enlace y al pie del .txt.</span>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="users-group" class="size-4 shrink-0 text-accent" />
+				Han pintado aquí
+			</span>
+			<p data-pa-firmas class="text-sm break-words text-fg"></p>
+		</div>
+	</div>
+</section>
+
+<script>
+	const TONOS = [' ', '.', ':', '+', '#', '@'];
+	const ANCHO = 48;
+	const ALTO = 24;
+	const TOTAL = ANCHO * ALTO;
+	const ESCALA = 16;
+	const CLAVE = 'tuweb:pixeles-ascii';
+	const MAX_FIRMAS = 40;
+	const YO = Math.random().toString(36).slice(2, 10);
+
+	const raiz = document.querySelector<HTMLElement>('#pixeles-ascii');
+	const tela = raiz?.querySelector<HTMLCanvasElement>('[data-pa-tela]');
+	const ctx = tela?.getContext('2d');
+	const aviso = raiz?.querySelector<HTMLElement>('[data-pa-aviso]');
+	const casilla = raiz?.querySelector<HTMLElement>('[data-pa-casilla]');
+	const firmaCampo = raiz?.querySelector<HTMLInputElement>('[data-pa-firma]');
+
+	// --- Validación ---
+
+	const textoValido = (t: unknown): t is string => typeof t === 'string' && t.length === TOTAL && /^[0-5]*$/.test(t);
+	const limpiarFirma = (s: unknown) =>
+		typeof s === 'string' ? s.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 20) : '';
+	const limpiarFirmas = (lista: unknown) =>
+		Array.isArray(lista) ? [...new Set(lista.map(limpiarFirma).filter(Boolean))].slice(-MAX_FIRMAS) : [];
+
+	// --- Lo guardado ---
+
+	let celdas: number[] = Array(TOTAL).fill(0);
+	let tono = 4;
+	let firma = '';
+	let firmas: string[] = [];
+
+	function leer() {
+		try {
+			const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			return leido && typeof leido === 'object' ? leido : null;
+		} catch {
+			return null;
+		}
+	}
+
+	const guardado = leer();
+	if (guardado) {
+		if (textoValido(guardado.celdas)) celdas = [...guardado.celdas].map(Number);
+		if (Number.isInteger(guardado.tono) && guardado.tono >= 0 && guardado.tono < TONOS.length) tono = guardado.tono;
+		firma = limpiarFirma(guardado.firma);
+		firmas = limpiarFirmas(guardado.firmas);
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ celdas: celdas.join(''), tono, firma, firmas }));
+		} catch {
+			// Sin almacenamiento se pinta igual; solo que no se guarda.
+		}
+	}
+
+	// --- En directo entre pestañas ---
+
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
+	const otras = new Map<string, number>();
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: YO });
+	const enviarTodo = () => enviar({ tipo: 'todo', celdas: celdas.join(''), firmas });
+
+	function pintarPestanas() {
+		const nodo = raiz?.querySelector<HTMLElement>('[data-pa-pestanas]');
+		if (!nodo) return;
+		if (!canal) nodo.textContent = 'Tu navegador no deja.';
+		else if (!otras.size) nodo.textContent = 'Solo esta pestaña. Lo que pintes sale al momento en las demás.';
+		else nodo.textContent = `${otras.size + 1} pestañas pintando el mismo lienzo.`;
+	}
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, Date.now());
+		if (data.tipo === 'hola') enviar({ tipo: 'aqui' });
+		if (data.tipo === 'trazo' && Array.isArray(data.trazo)) {
+			data.trazo.forEach((p: unknown) => {
+				if (!Array.isArray(p)) return;
+				const [i, t] = p;
+				if (Number.isInteger(i) && i >= 0 && i < TOTAL && Number.isInteger(t) && t >= 0 && t < TONOS.length) celdas[i] = t;
+			});
+			if (typeof data.firma === 'string' && data.firma) firmas = limpiarFirmas([...firmas, data.firma]);
+			todo();
+		}
+		if (data.tipo === 'todo' && textoValido(data.celdas)) {
+			celdas = [...data.celdas].map(Number);
+			firmas = limpiarFirmas(data.firmas);
+			todo();
+		}
+		pintarPestanas();
+	});
+
+	setInterval(() => {
+		enviar({ tipo: 'aqui' });
+		const limite = Date.now() - 10_000;
+		otras.forEach((visto, id) => visto < limite && otras.delete(id));
+		pintarPestanas();
+	}, 4_000);
+
+	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// --- El texto ---
+
+	/** El dibujo en ASCII: una línea por fila, sin espacios al final. */
+	function comoTexto() {
+		const filas: string[] = [];
+		for (let y = 0; y < ALTO; y++) {
+			filas.push(
+				celdas
+					.slice(y * ANCHO, (y + 1) * ANCHO)
+					.map((t) => TONOS[t])
+					.join('')
+					.trimEnd(),
+			);
+		}
+		return filas.join('\n');
+	}
+
+	// --- Pintado ---
+
+	let encima: number | null = null;
+
+	function avisar(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		aviso.hidden = false;
+	}
+
+	const tinta = (nombre: string, otra: string) =>
+		(tela && getComputedStyle(tela).getPropertyValue(nombre).trim()) || otra;
+
+	function pintarTela() {
+		if (!ctx || !tela) return;
+		ctx.clearRect(0, 0, tela.width, tela.height);
+		ctx.fillStyle = tinta('--color-line', '#e8d9c8');
+		for (let x = 0; x <= ANCHO; x++) ctx.fillRect(x * ESCALA, 0, 1, tela.height);
+		for (let y = 0; y <= ALTO; y++) ctx.fillRect(0, y * ESCALA, tela.width, 1);
+		ctx.fillStyle = tinta('--color-fg', '#1c1917');
+		celdas.forEach((t, i) => {
+			if (!t) return;
+			ctx.globalAlpha = t / (TONOS.length - 1);
+			ctx.fillRect((i % ANCHO) * ESCALA, Math.floor(i / ANCHO) * ESCALA, ESCALA, ESCALA);
+		});
+		ctx.globalAlpha = 1;
+		if (encima !== null) {
+			ctx.strokeStyle = tinta('--color-accent', '#c2410c');
+			ctx.lineWidth = 2;
+			ctx.strokeRect((encima % ANCHO) * ESCALA + 1, Math.floor(encima / ANCHO) * ESCALA + 1, ESCALA - 2, ESCALA - 2);
+		}
+	}
+
+	function pintarDatos() {
+		const pre = raiz?.querySelector<HTMLElement>('[data-pa-texto]');
+		if (pre) pre.textContent = comoTexto();
+		const cuenta = raiz?.querySelector<HTMLElement>('[data-pa-cuenta]');
+		if (cuenta) cuenta.textContent = `${celdas.filter(Boolean).length} de ${TOTAL} píxeles`;
+		const lista = raiz?.querySelector<HTMLElement>('[data-pa-firmas]');
+		if (lista) lista.textContent = firmas.length ? firmas.join(' · ') : 'Nadie aún.';
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-pa-tono]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(Number(b.dataset.paTono) === tono));
+		});
+	}
+
+	function todo() {
+		pintarTela();
+		pintarDatos();
+	}
+
+	// --- Pintar ---
+
+	function celda(evento: PointerEvent) {
+		if (!tela) return null;
+		const caja = tela.getBoundingClientRect();
+		if (!caja.width || !caja.height) return null;
+		const x = Math.floor(((evento.clientX - caja.left) / caja.width) * ANCHO);
+		const y = Math.floor(((evento.clientY - caja.top) / caja.height) * ALTO);
+		return x < 0 || y < 0 || x >= ANCHO || y >= ALTO ? null : y * ANCHO + x;
+	}
+
+	const SIN_CASILLA = 'x — · y —';
+	let pintando = false;
+	let trazo: [number, number][] = [];
+
+	function poner(i: number) {
+		if (celdas[i] === tono) return;
+		celdas[i] = tono;
+		trazo.push([i, tono]);
+		todo();
+	}
+
+	/** Al soltar, el trazo entero sale a las demás pestañas y se guarda. */
+	function soltar() {
+		if (!pintando) return;
+		pintando = false;
+		if (!trazo.length) return;
+		if (firma) firmas = limpiarFirmas([...firmas, firma]);
+		enviar({ tipo: 'trazo', trazo, firma });
+		trazo = [];
+		guardar();
+		pintarDatos();
+	}
+
+	tela?.addEventListener('pointerdown', (evento) => {
+		const i = celda(evento);
+		if (i === null) return;
+		evento.preventDefault();
+		tela?.setPointerCapture(evento.pointerId);
+		pintando = true;
+		poner(i);
+	});
+
+	tela?.addEventListener('pointermove', (evento) => {
+		const i = celda(evento);
+		if (pintando && i !== null) poner(i);
+		// Mientras pintas, cada celda sale también en directo, sin esperar a soltar.
+		if (pintando && trazo.length > 16) {
+			enviar({ tipo: 'trazo', trazo, firma });
+			trazo = [];
+		}
+		if (i === encima) return;
+		encima = i;
+		if (casilla) casilla.textContent = i === null ? SIN_CASILLA : `x ${i % ANCHO} · y ${Math.floor(i / ANCHO)}`;
+		pintarTela();
+	});
+
+	tela?.addEventListener('pointerup', soltar);
+	tela?.addEventListener('pointercancel', soltar);
+	tela?.addEventListener('pointerleave', () => {
+		encima = null;
+		if (casilla) casilla.textContent = SIN_CASILLA;
+		pintarTela();
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-pa-tono]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const t = Number(b.dataset.paTono);
+			if (!Number.isInteger(t) || t < 0 || t >= TONOS.length) return;
+			tono = t;
+			guardar();
+			pintarDatos();
+		});
+	});
+
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('input', () => {
+			firma = limpiarFirma(firmaCampo.value);
+			guardar();
+		});
+	}
+
+	raiz?.querySelector('[data-pa-limpiar]')?.addEventListener('click', () => {
+		if (!celdas.some(Boolean)) return;
+		if (!confirm('¿Borrar el lienzo entero? También se borra en las demás pestañas.')) return;
+		celdas = Array(TOTAL).fill(0);
+		guardar();
+		enviarTodo();
+		avisar('Lienzo en blanco.');
+		todo();
+	});
+
+	// --- Llevárselo ---
+
+	function archivo() {
+		const pie = firmas.length ? `\n\n-- ${firmas.join(', ')} · tuweb.dev/pixeles-ascii` : '\n\n-- tuweb.dev/pixeles-ascii';
+		return `${comoTexto()}${pie}\n`;
+	}
+
+	raiz?.querySelector('[data-pa-txt]')?.addEventListener('click', () => {
+		const url = URL.createObjectURL(new Blob([archivo()], { type: 'text/plain;charset=utf-8' }));
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = 'pixeles-ascii.txt';
+		enlace.click();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	raiz?.querySelector('[data-pa-copiar]')?.addEventListener('click', async () => {
+		try {
+			await navigator.clipboard.writeText(comoTexto());
+			avisar('Texto copiado.');
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	});
+
+	// --- El enlace ---
+
+	/** Tiradas de un carácter: el carácter, cuántas veces en base 36 y una coma. */
+	function comprimir(texto: string) {
+		let salida = '';
+		for (let i = 0; i < texto.length; ) {
+			let j = i;
+			while (j < texto.length && texto[j] === texto[i]) j++;
+			salida += `${texto[i]}${(j - i).toString(36)},`;
+			i = j;
+		}
+		return salida;
+	}
+
+	function descomprimir(tiradas: string) {
+		let texto = '';
+		let i = 0;
+		while (i < tiradas.length) {
+			const fin = tiradas.indexOf(',', i + 1);
+			const veces = tiradas.slice(i + 1, fin);
+			if (fin < 0 || !/^[0-9a-z]+$/.test(veces)) return null;
+			const n = parseInt(veces, 36);
+			if (n < 1 || texto.length + n > TOTAL) return null;
+			texto += tiradas[i].repeat(n);
+			i = fin + 1;
+		}
+		return textoValido(texto) ? texto : null;
+	}
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	raiz?.querySelector('[data-pa-enlace]')?.addEventListener('click', async () => {
+		const url = `${location.origin}/pixeles-ascii#a=${aBase64({ c: comprimir(celdas.join('')), f: firmas })}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			avisar('Enlace copiado. Quien lo abra junta este dibujo con el suyo y sigue pintando.');
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	});
+
+	// --- Arranque ---
+
+	// Un dibujo que llega en el enlace se junta con el tuyo: donde trae píxel, manda el suyo.
+	const recibido = /^#a=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const datos = deBase64(recibido[1]);
+		const texto = datos && typeof datos.c === 'string' ? descomprimir(datos.c) : null;
+		if (texto) {
+			[...texto].forEach((c, i) => c !== '0' && (celdas[i] = Number(c)));
+			firmas = limpiarFirmas([...firmas, ...limpiarFirmas(datos.f)]);
+			guardar();
+			enviarTodo();
+			avisar('Dibujo del enlace juntado con el tuyo. Sigue pintando y pásalo.');
+		} else avisar('El enlace está roto: sigue el dibujo que tenías.');
+		history.replaceState(null, '', '/pixeles-ascii');
+	}
+
+	// El tema puede cambiar de claro a oscuro: la rejilla y la tinta siguen sus colores.
+	new MutationObserver(pintarTela).observe(document.documentElement, { attributes: true, attributeFilter: ['data-modo'] });
+
+	enviar({ tipo: 'hola' });
+	pintarPestanas();
+	todo();
+</script>

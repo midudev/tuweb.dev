@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, y el golf de código: un algoritmo al día y gana quien use menos líneas. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, y un lienzo de píxeles compartido que se escribe en ASCII para bajarlo en .txt. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',
@@ -284,6 +284,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un algoritmo al día y gana quien lo resuelve en menos líneas, con su clasificación en vivo.',
 		intro:
 			'Cada día, un hoyo: un problema de algoritmos con su coste pedido —una pasada, una pila, una criba— y unas pruebas. Escribe la función en las menos líneas que puedas: se cuentan según escribes, sin vacías ni comentarios, y una línea de más de 80 caracteres cuenta por cada 80. El par es una solución limpia de la casa. Pásala en el playground, márcala y entras en la clasificación del día, que se ordena por líneas y luego por caracteres y se mueve en vivo con los códigos que te pasen. Aquí no se ejecuta nada y lo que escribes se queda en tu navegador.',
+	},
+	{
+		href: '/pixeles-ascii',
+		title: 'Píxeles ASCII',
+		icon: 'pencil',
+		group: 'juegos',
+		card: 'Un lienzo de píxeles compartido que se escribe solo en ASCII, listo para bajar en .txt.',
+		intro:
+			'Dibuja a píxeles sobre un lienzo de 48 × 24 y míralo convertirse en ASCII según pintas: cada tono es un carácter, de . a @. Arrastra para pintar, cambia de tono o borra, y al lado sale el texto tal cual se descarga, en vivo. Se comparte en directo con todas las pestañas que tengas abiertas, y para sumar a más gente pasa el enlace: quien lo abre junta el dibujo con el suyo, sigue pintando y lo pasa otra vez. Te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/chistes',
