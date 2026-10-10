@@ -290,9 +290,9 @@ export const SECTIONS: Section[] = [
 		title: 'Píxeles ASCII',
 		icon: 'pencil',
 		group: 'juegos',
-		card: 'Un lienzo de píxeles compartido que se escribe solo en ASCII, listo para bajar en .txt.',
+		card: 'Un lienzo de píxeles compartido, a ratón o con comandos de consola, que se escribe solo en ASCII.',
 		intro:
-			'Dibuja a píxeles sobre un lienzo de 48 × 24 y míralo convertirse en ASCII según pintas: cada tono es un carácter, de . a @. Arrastra para pintar, cambia de tono o borra, y al lado sale el texto tal cual se descarga, en vivo. Se comparte en directo con todas las pestañas que tengas abiertas, y para sumar a más gente pasa el enlace: quien lo abre junta el dibujo con el suyo, sigue pintando y lo pasa otra vez. Te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
+			'Dibuja a píxeles sobre un lienzo de 48 × 24 y míralo convertirse en ASCII según pintas: cada tono es un carácter, de . a @. Arrastra para pintar, cambia de tono o borra, o escríbelo en la consola de debajo —pixel, linea, caja, circulo—; escribe ayuda para verlos. Al lado sale el texto tal cual se descarga, en vivo. Se comparte en directo con todas las pestañas que tengas abiertas, y para sumar a más gente pasa el enlace: quien lo abre junta el dibujo con el suyo, sigue pintando y lo pasa otra vez. Te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/chistes',

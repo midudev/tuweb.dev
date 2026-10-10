@@ -1,7 +1,7 @@
 ---
 /**
  * Píxeles ASCII: un lienzo de 48 × 24 que se pinta a píxeles y se escribe solo
- * en ASCII, un carácter por tono. Va en directo entre las pestañas de tu
+ * en ASCII, un carácter por tono, con el ratón o con comandos desde la consola. Va en directo entre las pestañas de tu
  * navegador con BroadcastChannel y, para sumar a otra gente, el dibujo viaja en
  * el enlace: quien lo abre lo junta con el suyo y sigue. No hay servidor.
  */
@@ -44,6 +44,31 @@ const BOTON =
 				}
 			</div>
 			<span data-pa-casilla class="font-mono text-sm text-muted">x — · y —</span>
+		</div>
+
+		<div class="flex flex-col border border-line bg-bg">
+			<div class="flex items-center gap-2 border-b border-line px-3 py-2 text-xs text-muted">
+				<Icon name="terminal-2" class="size-4 shrink-0 text-accent" />
+				Consola
+			</div>
+			<pre
+				data-pa-salida
+				aria-live="polite"
+				class="m-0 h-36 overflow-y-auto px-3 py-2 font-mono text-xs leading-[1.4] whitespace-pre-wrap text-muted"></pre>
+			<form data-pa-consola class="flex items-center gap-2 border-t border-line px-3 py-2">
+				<label for="pa-comando" class="font-mono text-accent">$</label>
+				<input
+					id="pa-comando"
+					type="text"
+					data-pa-comando
+					autocomplete="off"
+					autocapitalize="off"
+					spellcheck="false"
+					maxlength="120"
+					placeholder="pixel 10 5 @   ·   ayuda"
+					class="min-w-0 flex-1 bg-transparent font-mono text-sm text-fg outline-none placeholder:text-muted"
+				/>
+			</form>
 		</div>
 
 		<div class="flex flex-wrap items-center gap-3">
@@ -449,6 +474,185 @@ const BOTON =
 		}
 	});
 
+	// --- Consola ---
+
+	const salida = raiz?.querySelector<HTMLElement>('[data-pa-salida]');
+	const comando = raiz?.querySelector<HTMLInputElement>('[data-pa-comando]');
+	const MAX_LINEAS = 200;
+
+	const AYUDA = [
+		`x va de 0 a ${ANCHO - 1} y y de 0 a ${ALTO - 1}, desde arriba a la izquierda.`,
+		'El tono va de 1 a 5 o con su carácter (. : + # @); si no lo pones, va el elegido.',
+		'  pixel x y [tono]',
+		'  linea x1 y1 x2 y2 [tono]',
+		'  caja x y ancho alto [tono]      solo el borde',
+		'  rellenar x y ancho alto [tono]',
+		'  circulo x y radio [tono]',
+		'  borrar x y ancho alto',
+		'  tono t · firma nombre · enlace · ver · vaciar · limpiar',
+		'Flechas arriba y abajo: los comandos de antes.',
+	];
+
+	function decir(texto: string, color = 'text-muted') {
+		if (!salida) return;
+		const fila = document.createElement('span');
+		fila.className = `block ${color}`;
+		fila.textContent = texto;
+		salida.append(fila);
+		while (salida.childElementCount > MAX_LINEAS) salida.firstElementChild?.remove();
+		salida.scrollTop = salida.scrollHeight;
+	}
+
+	/** Un tono escrito como número o como su carácter. */
+	function leerTono(texto: string | undefined) {
+		if (texto === undefined) return tono;
+		if (/^[0-5]$/.test(texto)) return Number(texto);
+		const i = TONOS.indexOf(texto);
+		return i > 0 ? i : null;
+	}
+
+	/** Todo un comando sale como un solo trazo a las demás pestañas, con tu firma. */
+	function dibujar(trazar: (pon: (x: number, y: number, t: number) => void) => void) {
+		const cambios: [number, number][] = [];
+		trazar((x, y, t) => {
+			if (x < 0 || y < 0 || x >= ANCHO || y >= ALTO) return;
+			const i = y * ANCHO + x;
+			if (celdas[i] === t) return;
+			celdas[i] = t;
+			cambios.push([i, t]);
+		});
+		if (!cambios.length) return 0;
+		if (firma) firmas = limpiarFirmas([...firmas, firma]);
+		enviar({ tipo: 'trazo', trazo: cambios, firma });
+		guardar();
+		todo();
+		return cambios.length;
+	}
+
+	function linea(x0: number, y0: number, x1: number, y1: number, t: number, pon: (x: number, y: number, t: number) => void) {
+		const dx = Math.abs(x1 - x0);
+		const dy = -Math.abs(y1 - y0);
+		const sx = x0 < x1 ? 1 : -1;
+		const sy = y0 < y1 ? 1 : -1;
+		let error = dx + dy;
+		for (;;) {
+			pon(x0, y0, t);
+			if (x0 === x1 && y0 === y1) return;
+			const doble = 2 * error;
+			if (doble >= dy) {
+				error += dy;
+				x0 += sx;
+			}
+			if (doble <= dx) {
+				error += dx;
+				y0 += sy;
+			}
+		}
+	}
+
+	const USOS = new Map<string, [number, string]>([
+		['pixel', [2, 'pixel x y [tono]']],
+		['linea', [4, 'linea x1 y1 x2 y2 [tono]']],
+		['caja', [4, 'caja x y ancho alto [tono]']],
+		['rellenar', [4, 'rellenar x y ancho alto [tono]']],
+		['circulo', [3, 'circulo x y radio [tono]']],
+		['borrar', [4, 'borrar x y ancho alto']],
+	]);
+
+	function ejecutar(entrada: string) {
+		const partes = entrada.split(/\s+/);
+		const orden = (partes.shift() ?? '')
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '');
+
+		if (orden === 'ayuda' || orden === 'help') return AYUDA.forEach((l) => decir(l));
+		if (orden === 'limpiar' || orden === 'clear') {
+			if (salida) salida.textContent = '';
+			return;
+		}
+		if (orden === 'ver') return comoTexto().split('\n').forEach((l) => decir(l || ' ', 'text-fg'));
+		if (orden === 'enlace') return raiz?.querySelector<HTMLButtonElement>('[data-pa-enlace]')?.click();
+		if (orden === 'vaciar') {
+			raiz?.querySelector<HTMLButtonElement>('[data-pa-limpiar]')?.click();
+			return decir(celdas.some(Boolean) ? 'Sigue como estaba.' : 'Lienzo en blanco.');
+		}
+		if (orden === 'tono') {
+			const t = partes.length === 1 ? leerTono(partes[0]) : null;
+			if (t === null || t === 0) return decir('Uso: tono 1-5 o tono @', 'text-mark');
+			tono = t;
+			guardar();
+			pintarDatos();
+			return decir(`Tono ${t}: ${TONOS[t]}`);
+		}
+		if (orden === 'firma') {
+			firma = limpiarFirma(partes.join(' '));
+			if (firmaCampo) firmaCampo.value = firma;
+			guardar();
+			return decir(firma ? `Firmas como ${firma}.` : 'Sin firma.');
+		}
+
+		const uso = USOS.get(orden);
+		if (!uso) return decir(`No conozco «${orden}». Escribe ayuda.`, 'text-mark');
+		const numeros = partes.slice(0, uso[0]);
+		const resto = partes.slice(uso[0]);
+		const t = orden === 'borrar' ? 0 : leerTono(resto[0]);
+		if (
+			numeros.length < uso[0] ||
+			!numeros.every((n) => /^-?\d{1,3}$/.test(n)) ||
+			resto.length > (orden === 'borrar' ? 0 : 1) ||
+			t === null
+		) {
+			return decir(`Uso: ${uso[1]}`, 'text-mark');
+		}
+		const n = numeros.map(Number);
+		const medidas = orden === 'pixel' || orden === 'linea' ? [] : n.slice(2);
+		if (medidas.some((m) => m < 1 || m > ANCHO)) return decir(`Las medidas van de 1 a ${ANCHO}.`, 'text-mark');
+
+		const cuantos = dibujar((pon) => {
+			if (orden === 'pixel') pon(n[0], n[1], t);
+			else if (orden === 'linea') linea(n[0], n[1], n[2], n[3], t, pon);
+			else if (orden === 'circulo') {
+				for (let y = -n[2]; y <= n[2]; y++) {
+					for (let x = -n[2]; x <= n[2]; x++) {
+						if (Math.abs(Math.hypot(x, y) - n[2]) < 0.5) pon(n[0] + x, n[1] + y, t);
+					}
+				}
+			} else {
+				for (let y = 0; y < n[3]; y++) {
+					for (let x = 0; x < n[2]; x++) {
+						const borde = x === 0 || y === 0 || x === n[2] - 1 || y === n[3] - 1;
+						if (orden !== 'caja' || borde) pon(n[0] + x, n[1] + y, t);
+					}
+				}
+			}
+		});
+		decir(cuantos ? `Hecho: ${cuantos} píxeles.` : 'No cambia nada: fuera del lienzo o ya estaba.');
+	}
+
+	const anteriores: string[] = [];
+	let vuelta = 0;
+
+	raiz?.querySelector<HTMLFormElement>('[data-pa-consola]')?.addEventListener('submit', (evento) => {
+		evento.preventDefault();
+		if (!comando) return;
+		const entrada = comando.value.trim();
+		comando.value = '';
+		if (!entrada) return;
+		if (anteriores.at(-1) !== entrada) anteriores.push(entrada);
+		if (anteriores.length > 50) anteriores.shift();
+		vuelta = anteriores.length;
+		decir(`$ ${entrada}`, 'text-fg');
+		ejecutar(entrada);
+	});
+
+	comando?.addEventListener('keydown', (evento) => {
+		if (evento.key !== 'ArrowUp' && evento.key !== 'ArrowDown') return;
+		evento.preventDefault();
+		vuelta = Math.min(anteriores.length, Math.max(0, vuelta + (evento.key === 'ArrowUp' ? -1 : 1)));
+		comando.value = anteriores[vuelta] ?? '';
+	});
+
 	// --- Arranque ---
 
 	// Un dibujo que llega en el enlace se junta con el tuyo: donde trae píxel, manda el suyo.
@@ -469,6 +673,7 @@ const BOTON =
 	// El tema puede cambiar de claro a oscuro: la rejilla y la tinta siguen sus colores.
 	new MutationObserver(pintarTela).observe(document.documentElement, { attributes: true, attributeFilter: ['data-modo'] });
 
+	decir('Escribe ayuda para ver los comandos.');
 	enviar({ tipo: 'hola' });
 	pintarPestanas();
 	todo();
