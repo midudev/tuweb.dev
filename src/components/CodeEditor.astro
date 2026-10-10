@@ -1,0 +1,281 @@
+---
+/**
+ * El editor del problema de la semana: escribes tu solución aquí mismo, con
+ * números de línea, sangría con el tabulador y el borrador guardado semana a
+ * semana. Aquí no se ejecuta nada: cópialo o bájatelo, córrelo en tu máquina
+ * con la entrada de esta semana y pega el número arriba.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<section id="editor" class="flex flex-col gap-4 border border-line bg-panel p-4" aria-labelledby="editor-titulo">
+	<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+		<h2 id="editor-titulo" class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="code" class="size-5 shrink-0 text-accent" />
+			Tu solución
+		</h2>
+		<label class="inline-flex items-center gap-2 text-sm text-muted">
+			Lenguaje
+			<select data-lenguaje class="border border-line bg-bg px-2 py-1 text-sm text-fg outline-none focus-visible:border-accent">
+				<option value="js">JavaScript</option>
+				<option value="py">Python</option>
+				<option value="txt">Otro</option>
+			</select>
+		</label>
+	</div>
+
+	<div class="flex h-80 border border-line bg-bg text-xs leading-relaxed focus-within:border-accent">
+		<pre
+			data-gutter
+			aria-hidden="true"
+			class="select-none overflow-hidden border-r border-line px-2 py-3 text-right tabular-nums text-muted"></pre>
+		<textarea
+			data-codigo
+			spellcheck="false"
+			autocomplete="off"
+			autocapitalize="off"
+			wrap="off"
+			aria-label="Código de tu solución"
+			aria-describedby="editor-ayuda"
+			class="min-w-0 flex-1 resize-none overflow-auto bg-transparent px-3 py-3 outline-none [tab-size:2]"></textarea>
+	</div>
+
+	<div class="flex flex-wrap items-center gap-3">
+		<button type="button" data-copiar class={BOTON}>
+			<Icon name="copy" class="size-4 shrink-0" />
+			<span data-copiar-label>Copiar</span>
+		</button>
+		<button type="button" data-bajar class={BOTON}>
+			<Icon name="download" class="size-4 shrink-0" />
+			Descargar
+		</button>
+		<button type="button" data-plantilla class={BOTON}>
+			<Icon name="restore" class="size-4 shrink-0" />
+			<span data-plantilla-label>Empezar de cero</span>
+		</button>
+		<span data-info role="status" class="text-sm tabular-nums text-muted"></span>
+	</div>
+
+	<p id="editor-ayuda" class="inline-flex items-start gap-2 border-t border-line pt-3 text-xs text-muted">
+		<Icon name="keyboard" class="size-4 shrink-0" />
+		<span>
+			Tab sangra y Mayús+Tab quita sangría. Para salir del editor con el teclado, Esc y luego Tab. El
+			borrador se guarda solo en tu navegador, uno por semana. Aquí no se ejecuta nada: córrelo en tu
+			máquina con tu entrada y pega el número en el problema.
+		</span>
+	</p>
+</section>
+
+<style>
+	/* El campo sube a 16px en pantallas de dedo; los números tienen que ir con él. */
+	@media (pointer: coarse) {
+		[data-gutter] {
+			font-size: max(1rem, 1em);
+		}
+	}
+</style>
+
+<script>
+	import { problemaDe, type Problema } from '../lib/problemas';
+	import { weekIndex, weekStart } from '../lib/retos';
+
+	type Lenguaje = 'js' | 'py' | 'txt';
+	type Borradores = Record<string, { lang: Lenguaje; code: string }>;
+
+	const KEY = 'tuweb:retos-editor';
+	const SANGRIA = '  ';
+	const CODE_MAX = 20_000;
+	/** Las semanas que se guardan: más atrás no hace falta. */
+	const SEMANAS = 8;
+
+	const section = document.querySelector<HTMLElement>('#editor');
+	const editor = section?.querySelector<HTMLTextAreaElement>('[data-codigo]');
+	const gutter = section?.querySelector<HTMLElement>('[data-gutter]');
+	const lenguaje = section?.querySelector<HTMLSelectElement>('[data-lenguaje]');
+	const info = section?.querySelector<HTMLElement>('[data-info]');
+
+	const esLenguaje = (valor: unknown): valor is Lenguaje => valor === 'js' || valor === 'py' || valor === 'txt';
+
+	function leer(): Borradores {
+		try {
+			const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as unknown;
+			if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+			const out: Borradores = {};
+			for (const [week, item] of Object.entries(raw as Record<string, { lang?: unknown; code?: unknown }>)) {
+				if (!/^-?\d+$/.test(week) || !item || typeof item.code !== 'string') continue;
+				out[week] = { lang: esLenguaje(item.lang) ? item.lang : 'js', code: item.code.slice(0, CODE_MAX) };
+			}
+			return out;
+		} catch {
+			return {};
+		}
+	}
+
+	function guardar(borradores: Borradores) {
+		const recientes = Object.keys(borradores)
+			.sort((a, b) => Number(b) - Number(a))
+			.slice(0, SEMANAS);
+		try {
+			localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(recientes.map((week) => [week, borradores[week]]))));
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	function plantilla(problema: Problema, lang: Lenguaje) {
+		const comentario = lang === 'py' ? '#' : '//';
+		const cabecera = [problema.title, problema.formato].map((linea) => `${comentario} ${linea}`).join('\n');
+		if (lang === 'py')
+			return `${cabecera}\n\ndef resolver(entrada):\n${SANGRIA}numeros = list(map(int, entrada.split()))\n${SANGRIA}return 0\n`;
+		if (lang === 'js')
+			return `${cabecera}\n\nfunction resolver(entrada) {\n${SANGRIA}const numeros = entrada.trim().split(/\\s+/).map(Number);\n${SANGRIA}return 0;\n}\n`;
+		return `${cabecera}\n\n`;
+	}
+
+	if (section && editor && gutter && lenguaje && info) {
+		const week = String(weekIndex(weekStart(Date.now())));
+		const problema = problemaDe(Number(week));
+		let borradores = leer();
+		const actual = borradores[week];
+
+		lenguaje.value = actual?.lang ?? 'js';
+		editor.value = actual?.code ?? plantilla(problema, 'js');
+
+		const lang = () => (esLenguaje(lenguaje.value) ? lenguaje.value : 'txt');
+		let salir = false;
+
+		function pintar(guardado: boolean | null) {
+			const lineas = editor!.value.split('\n').length;
+			gutter!.textContent = Array.from({ length: lineas }, (_, i) => i + 1).join('\n');
+			gutter!.scrollTop = editor!.scrollTop;
+			const cuenta = `${lineas} ${lineas === 1 ? 'línea' : 'líneas'} · ${editor!.value.length} caracteres`;
+			info!.textContent = guardado === false ? `${cuenta} · sin guardar` : cuenta;
+		}
+
+		function persistir() {
+			if (editor!.value.length > CODE_MAX) editor!.value = editor!.value.slice(0, CODE_MAX);
+			borradores = { ...leer(), [week]: { lang: lang(), code: editor!.value } };
+			pintar(guardar(borradores));
+		}
+
+		/** Escribe como si fuera el teclado, para que deshacer siga funcionando. */
+		function insertar(texto: string) {
+			if (!document.execCommand('insertText', false, texto)) {
+				editor!.setRangeText(texto, editor!.selectionStart, editor!.selectionEnd, 'end');
+			}
+		}
+
+		/** Sangra o quita sangría a todas las líneas que toca la selección. */
+		function sangrar(quitar: boolean) {
+			const { value, selectionStart, selectionEnd } = editor!;
+			const inicio = value.lastIndexOf('\n', selectionStart - 1) + 1;
+			const finLinea = value.indexOf('\n', selectionEnd);
+			const fin = finLinea === -1 ? value.length : finLinea;
+			const lineas = value.slice(inicio, fin).split('\n');
+			const nuevas = lineas.map((linea) =>
+				quitar ? linea.replace(/^ {1,2}|^\t/, '') : SANGRIA + linea,
+			);
+			const primera = nuevas[0].length - lineas[0].length;
+			const total = nuevas.join('\n').length - lineas.join('\n').length;
+			editor!.setSelectionRange(inicio, fin);
+			insertar(nuevas.join('\n'));
+			editor!.setSelectionRange(
+				Math.max(inicio, selectionStart + primera),
+				Math.max(inicio, selectionEnd + total),
+			);
+		}
+
+		editor.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') {
+				salir = true;
+				return;
+			}
+			if (event.key === 'Tab' && !salir && !event.ctrlKey && !event.metaKey && !event.altKey) {
+				event.preventDefault();
+				const { selectionStart, selectionEnd, value } = editor;
+				const varias = value.slice(selectionStart, selectionEnd).includes('\n');
+				if (event.shiftKey || varias) sangrar(event.shiftKey);
+				else insertar(SANGRIA);
+				return;
+			}
+			if (event.key === 'Enter' && !event.isComposing && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+				// La línea nueva sigue la sangría de la de arriba, y sube un paso tras { [ ( o :.
+				const { selectionStart, value } = editor;
+				const linea = value.slice(value.lastIndexOf('\n', selectionStart - 1) + 1, selectionStart);
+				const sangria = /^[ \t]*/.exec(linea)?.[0] ?? '';
+				const abre = /[{[(:]\s*$/.test(linea);
+				event.preventDefault();
+				insertar(`\n${sangria}${abre ? SANGRIA : ''}`);
+				return;
+			}
+			salir = false;
+		});
+
+		editor.addEventListener('blur', () => (salir = false));
+		editor.addEventListener('input', persistir);
+		editor.addEventListener('scroll', () => (gutter.scrollTop = editor.scrollTop));
+
+		lenguaje.addEventListener('change', () => {
+			// Si aún no has tocado la plantilla, se cambia por la del lenguaje nuevo.
+			const plantillas = (['js', 'py', 'txt'] as const).map((item) => plantilla(problema, item));
+			if (plantillas.includes(editor.value)) editor.value = plantilla(problema, lang());
+			persistir();
+		});
+
+		const plantillaLabel = section.querySelector<HTMLElement>('[data-plantilla-label]');
+		let confirmando = false;
+		section.querySelector('[data-plantilla]')?.addEventListener('click', () => {
+			// Borrar lo escrito pide dos clics: el primero solo pregunta.
+			if (!confirmando) {
+				confirmando = true;
+				if (plantillaLabel) plantillaLabel.textContent = '¿Seguro? Se borra lo tuyo';
+				setTimeout(() => {
+					confirmando = false;
+					if (plantillaLabel) plantillaLabel.textContent = 'Empezar de cero';
+				}, 3000);
+				return;
+			}
+			confirmando = false;
+			if (plantillaLabel) plantillaLabel.textContent = 'Empezar de cero';
+			editor.value = plantilla(problema, lang());
+			persistir();
+			editor.focus();
+		});
+
+		const copiarLabel = section.querySelector<HTMLElement>('[data-copiar-label]');
+		section.querySelector('[data-copiar]')?.addEventListener('click', async () => {
+			try {
+				await navigator.clipboard.writeText(editor.value);
+				if (copiarLabel) copiarLabel.textContent = 'Copiado';
+			} catch {
+				if (copiarLabel) copiarLabel.textContent = 'No se pudo';
+			}
+			setTimeout(() => {
+				if (copiarLabel) copiarLabel.textContent = 'Copiar';
+			}, 1500);
+		});
+
+		section.querySelector('[data-bajar]')?.addEventListener('click', () => {
+			const url = URL.createObjectURL(new Blob([editor.value], { type: 'text/plain' }));
+			const enlace = document.createElement('a');
+			enlace.href = url;
+			enlace.download = `solucion-${problema.id}.${lang()}`;
+			enlace.click();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		});
+
+		pintar(null);
+		window.addEventListener('storage', (event) => {
+			if (event.key !== KEY || document.activeElement === editor) return;
+			const otro = leer()[week];
+			if (!otro) return;
+			editor.value = otro.code;
+			lenguaje.value = otro.lang;
+			pintar(null);
+		});
+	}
+</script>

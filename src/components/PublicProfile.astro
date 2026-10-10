@@ -28,6 +28,13 @@ const DATO = 'inline-flex items-center gap-2';
 		</p>
 		<ul data-ajeno-lista class="flex flex-col gap-2 text-sm"></ul>
 		<p data-ajeno-vacio class="text-sm text-muted">Este enlace no trae ningún problema resuelto.</p>
+		<div class="flex flex-wrap items-center gap-3">
+			<button type="button" data-al-ranking class={BOTON}>
+				<Icon name="user-plus" class="size-4 shrink-0" />
+				Añadir al ranking
+			</button>
+			<span data-al-ranking-estado role="status" class="text-sm text-muted"></span>
+		</div>
 		<p class="text-xs text-muted">
 			Lo que ves viene en el enlace, tal cual lo mandó quien lo comparte: es su palabra, no un registro.
 		</p>
@@ -75,6 +82,7 @@ const DATO = 'inline-flex items-center gap-2';
 		puntosDe,
 		readRegistro,
 	} from '../lib/problemas';
+	import { addRival, readRivales, rivalDeEnlace, saveRivales } from '../lib/ranking';
 	import { weekLabel } from '../lib/retos';
 	import { FIRMA_MAX, readFirma } from '../lib/soluciones';
 
@@ -140,6 +148,23 @@ const DATO = 'inline-flex items-center gap-2';
 				estado.textContent = 'No se pudo copiar.';
 			}
 			setTimeout(() => (estado.textContent = ''), 3000);
+		});
+
+		const alRankingEstado = section.querySelector<HTMLElement>('[data-al-ranking-estado]');
+		section.querySelector('[data-al-ranking]')?.addEventListener('click', () => {
+			if (!alRankingEstado) return;
+			const rival = rivalDeEnlace(location.hash, Date.now());
+			const nuevos = typeof rival === 'string' ? null : addRival(readRivales(), rival);
+			if (typeof rival === 'string') alRankingEstado.textContent = rival;
+			else if (!nuevos) alRankingEstado.textContent = 'Tu ranking está lleno. Quita a alguien en /retos.';
+			else {
+				saveRivales(nuevos);
+				const enlace = document.createElement('a');
+				enlace.href = '/retos#ranking';
+				enlace.className = 'text-accent hover:underline';
+				enlace.textContent = 'Ver el ranking';
+				alRankingEstado.replaceChildren(`${rival.nombre} está en tu ranking. `, enlace);
+			}
 		});
 
 		window.addEventListener('hashchange', pintar);

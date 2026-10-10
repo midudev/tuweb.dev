@@ -1,0 +1,169 @@
+---
+/**
+ * El ranking de la comunidad en los problemas de la semana. Cada uno pasa su
+ * perfil en un enlace y aquí se suman los que te han pasado, ordenados por
+ * puntos y contigo dentro. Sin servidor: la tabla vive en tu navegador.
+ */
+import Icon from './Icon.astro';
+import { PUNTOS } from '../lib/problemas';
+import { RIVALES_MAX } from '../lib/ranking';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+---
+
+<section id="ranking" class="flex flex-col gap-4 border border-line bg-panel p-4" aria-labelledby="ranking-titulo">
+	<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+		<h2 id="ranking-titulo" class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="list-numbers" class="size-5 shrink-0 text-accent" />
+			Ranking
+		</h2>
+		<span data-ranking-total class="text-sm tabular-nums text-muted"></span>
+	</div>
+
+	<ol data-ranking class="flex flex-col text-sm"></ol>
+
+	<template data-ranking-fila>
+		<li data-fila class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line py-2">
+			<span data-pos class="w-8 font-pixel tabular-nums text-muted"></span>
+			<span data-nombre class="min-w-0 flex-1 break-words"></span>
+			<span data-semana class="inline-flex items-center gap-1 text-xs text-ok">
+				<Icon name="check" class="size-4 shrink-0" />
+				Esta semana
+			</span>
+			<span data-medallas class="text-xs tabular-nums text-muted"></span>
+			<span data-puntos class="w-16 text-right tabular-nums"></span>
+			<button type="button" data-quitar class="text-muted hover:text-heart" aria-label="Quitar del ranking">
+				<Icon name="trash" class="size-4 shrink-0" />
+			</button>
+		</li>
+	</template>
+
+	<form data-ranking-form class="flex flex-wrap items-end gap-3">
+		<label class="flex min-w-0 flex-1 flex-col gap-2">
+			<span class="text-sm text-muted">Pega el enlace de perfil de alguien</span>
+			<input
+				type="text"
+				data-enlace
+				autocomplete="off"
+				placeholder="/perfil#de=...&p=..."
+				class="w-full border border-line bg-bg px-3 py-2 text-sm outline-none focus-visible:border-accent"
+			/>
+		</label>
+		<button type="submit" class={BOTON}>
+			<Icon name="user-plus" class="size-4 shrink-0" />
+			Añadir
+		</button>
+		<button type="button" data-mi-enlace class={BOTON}>
+			<Icon name="link" class="size-4 shrink-0" />
+			Copiar el tuyo
+		</button>
+	</form>
+	<p data-ranking-estado role="status" class="text-sm text-muted"></p>
+
+	<p class="border-t border-line pt-3 text-xs text-muted">
+		Puntúan los problemas de la semana: {PUNTOS.oro} la destacada, {PUNTOS.plata} la plata y {PUNTOS.bronce}
+		el bronce. Pasa tu enlace y pide el de los demás; caben {RIVALES_MAX}. Cada enlace trae lo que dice
+		quien lo comparte: si lo vuelve a pasar, se pone al día.
+	</p>
+</section>
+
+<style is:global>
+	#ranking [data-fila][data-tu='si'] {
+		color: var(--color-accent);
+	}
+	#ranking [data-fila][data-tu='si'] [data-quitar],
+	#ranking [data-fila][data-hecho='no'] [data-semana] {
+		visibility: hidden;
+	}
+	#ranking [data-fila]:first-child [data-pos] {
+		color: var(--color-mark);
+	}
+</style>
+
+<script>
+	import { codificaPerfil, readRegistro } from '../lib/problemas';
+	import {
+		CAMBIO_RANKING,
+		addRival,
+		readRivales,
+		removeRival,
+		rivalDeEnlace,
+		saveRivales,
+		tablaDe,
+	} from '../lib/ranking';
+	import { weekIndex, weekStart } from '../lib/retos';
+	import { readFirma } from '../lib/soluciones';
+
+	const section = document.querySelector<HTMLElement>('#ranking');
+	const list = section?.querySelector<HTMLElement>('[data-ranking]');
+	const template = section?.querySelector<HTMLTemplateElement>('[data-ranking-fila]');
+	const form = section?.querySelector<HTMLFormElement>('[data-ranking-form]');
+	const input = section?.querySelector<HTMLInputElement>('[data-enlace]');
+	const estado = section?.querySelector<HTMLElement>('[data-ranking-estado]');
+	const total = section?.querySelector<HTMLElement>('[data-ranking-total]');
+
+	if (section && list && template && form && input && estado && total) {
+		const avisar = (texto: string, clase = 'text-muted') => {
+			estado.className = `text-sm ${clase}`;
+			estado.textContent = texto;
+		};
+
+		function pintar() {
+			const rivales = readRivales();
+			const filas = tablaDe(rivales, readRegistro(), readFirma(), weekIndex(weekStart(Date.now())));
+
+			list!.replaceChildren(
+				...filas.map((fila, index) => {
+					const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+					node.dataset.tu = fila.tu ? 'si' : 'no';
+					node.dataset.hecho = fila.semana ? 'si' : 'no';
+					node.querySelector('[data-pos]')!.textContent = String(index + 1).padStart(2, '0');
+					node.querySelector('[data-nombre]')!.textContent = fila.tu ? `${fila.nombre} (tú)` : fila.nombre;
+					node.querySelector('[data-medallas]')!.textContent =
+						`${fila.medallas.oro} dest. · ${fila.medallas.plata} plata · ${fila.medallas.bronce} bronce`;
+					node.querySelector('[data-puntos]')!.textContent = `${fila.puntos} pts`;
+					node.querySelector('[data-quitar]')!.addEventListener('click', () => {
+						saveRivales(removeRival(readRivales(), fila.nombre));
+						avisar(`${fila.nombre} sale del ranking.`);
+					});
+					return node;
+				}),
+			);
+
+			total!.textContent = rivales.length === 0 ? 'Solo tú, de momento' : `${filas.length} en la tabla`;
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			const rival = rivalDeEnlace(input.value, Date.now());
+			if (typeof rival === 'string') return avisar(rival, 'text-heart');
+
+			const antes = readRivales();
+			const nuevos = addRival(antes, rival);
+			if (!nuevos) return avisar('La tabla está llena. Quita a alguien antes.', 'text-heart');
+
+			const yaEstaba = antes.length === nuevos.length;
+			saveRivales(nuevos);
+			input.value = '';
+			avisar(yaEstaba ? `${rival.nombre}, puesto al día.` : `${rival.nombre} entra en el ranking.`, 'text-ok');
+		});
+
+		section.querySelector('[data-mi-enlace]')?.addEventListener('click', async () => {
+			const params = new URLSearchParams();
+			const firma = readFirma();
+			if (firma) params.set('de', firma);
+			params.set('p', codificaPerfil(readRegistro()));
+			try {
+				await navigator.clipboard.writeText(`${location.origin}/perfil#${params.toString()}`);
+				avisar(firma ? 'Copiado. Pásalo a quien quieras.' : 'Copiado, pero sin firma no te pueden añadir: ponte una en los retos.');
+			} catch {
+				avisar('No se pudo copiar.', 'text-heart');
+			}
+		});
+
+		pintar();
+		window.addEventListener(CAMBIO_RANKING, pintar);
+		window.addEventListener('storage', pintar);
+	}
+</script>
