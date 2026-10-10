@@ -14,6 +14,7 @@ import ChartTool from './ChartTool.astro';
 import ColorTool from './ColorTool.astro';
 import ComicTool from './ComicTool.astro';
 import ConfigTool from './ConfigTool.astro';
+import CssPatternTool from './CssPatternTool.astro';
 import CvTool from './CvTool.astro';
 import EffectsTool from './EffectsTool.astro';
 import FaviconTool from './FaviconTool.astro';
@@ -79,6 +80,7 @@ const tools = [
 	{ id: 'imagen', label: 'Análisis de imagen', icon: 'photo-scan' },
 	{ id: 'superposicion', label: 'Superposición', icon: 'layers-difference' },
 	{ id: 'patrones', label: 'Patrones de fondo', icon: 'texture' },
+	{ id: 'patrones-css', label: 'Patrones CSS', icon: 'grid-pattern' },
 	{ id: 'flechas', label: 'Flechas CSS', icon: 'arrows-right' },
 	{ id: 'favicon', label: 'Favicon', icon: 'favicon' },
 	{ id: 'tipografia', label: 'Tipografía', icon: 'text-size' },
@@ -275,6 +277,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<OverlayTool />
 
 	<PatternTool />
+
+	<CssPatternTool />
 
 	<ArrowTool />
 

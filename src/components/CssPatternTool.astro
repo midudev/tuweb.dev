@@ -1,0 +1,505 @@
+---
+/**
+ * Patrones de fondo hechos solo con CSS: rayas, rejilla, puntos, ajedrez,
+ * zigzag… con gradientes y nada más, sin SVG ni imágenes. Se elige el patrón,
+ * los dos colores, el tamaño, el grosor y el giro, y sale el CSS (o las clases
+ * de Tailwind) listo para pegar. Todo pasa en el navegador; lo único que se
+ * guarda es el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const PATRONES = [
+	{ id: 'rayas', label: 'Rayas', icon: 'slashes' },
+	{ id: 'cruzadas', label: 'Cruzadas', icon: 'hash' },
+	{ id: 'rejilla', label: 'Rejilla', icon: 'grid-4x4' },
+	{ id: 'puntos', label: 'Puntos', icon: 'grid-dots' },
+	{ id: 'tresbolillo', label: 'Tresbolillo', icon: 'grid-pattern' },
+	{ id: 'ajedrez', label: 'Ajedrez', icon: 'chess' },
+	{ id: 'zigzag', label: 'Zigzag', icon: 'wave-sine' },
+];
+
+const EJEMPLOS = [
+	{ nombre: 'Cuaderno', patron: 'rejilla', fondo: '#fdfdf8', tinta: '#93c5fd', opacidad: 100, tamano: 20, grosor: 1, angulo: 0 },
+	{ nombre: 'Lunares', patron: 'tresbolillo', fondo: '#c2410c', tinta: '#fdf6ef', opacidad: 100, tamano: 28, grosor: 5, angulo: 0 },
+	{ nombre: 'Marinero', patron: 'rayas', fondo: '#ffffff', tinta: '#1e3a8a', opacidad: 100, tamano: 24, grosor: 12, angulo: 0 },
+	{ nombre: 'Tela', patron: 'cruzadas', fondo: '#fdf6ef', tinta: '#c2410c', opacidad: 40, tamano: 12, grosor: 1, angulo: 45 },
+	{ nombre: 'Tablero', patron: 'ajedrez', fondo: '#111111', tinta: '#f5f5f5', opacidad: 100, tamano: 40, grosor: 1, angulo: 0 },
+	{ nombre: 'Sierra', patron: 'zigzag', fondo: '#f5c542', tinta: '#c2410c', opacidad: 100, tamano: 32, grosor: 1, angulo: 0 },
+	{ nombre: 'Noche', patron: 'puntos', fondo: '#0f172a', tinta: '#38bdf8', opacidad: 60, tamano: 22, grosor: 1.5, angulo: 0 },
+];
+
+const RANGOS = [
+	{ id: 'tamano', label: 'Tamaño', min: 6, max: 120, step: 1 },
+	{ id: 'grosor', label: 'Grosor', min: 0.5, max: 30, step: 0.5 },
+	{ id: 'angulo', label: 'Giro', min: 0, max: 180, step: 1 },
+	{ id: 'opacidad', label: 'Opacidad', min: 5, max: 100, step: 1 },
+];
+
+const OPCION =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<div
+	role="tabpanel"
+	id="patrones-css"
+	aria-labelledby="tab-patrones-css"
+	data-panel="patrones-css"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="flex flex-col gap-2">
+		<span class="text-sm text-muted">Para empezar</span>
+		<div class="flex flex-wrap gap-2">
+			{
+				EJEMPLOS.map((ejemplo) => (
+					<button type="button" data-pc-ejemplo={JSON.stringify(ejemplo)} class={BOTON}>
+						<span data-pc-icono class="size-4 shrink-0 border border-line" />
+						{ejemplo.nombre}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<h3 id="pc-patron" class="text-sm text-muted">Patrón</h3>
+				<div role="group" aria-labelledby="pc-patron" class="flex flex-wrap gap-2">
+					{
+						PATRONES.map((patron) => (
+							<button type="button" data-pc-patron={patron.id} aria-pressed="false" class={OPCION}>
+								<Icon name={patron.icon} class="size-4 shrink-0" />
+								{patron.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<h3 id="pc-colores" class="text-sm text-muted">Colores</h3>
+				<div role="group" aria-labelledby="pc-colores" class="flex flex-wrap gap-4">
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						Fondo
+						<input type="color" data-pc-color="fondo" class="h-9 w-14 cursor-pointer border border-line bg-panel p-1" />
+					</label>
+					<label class="inline-flex items-center gap-2 text-sm text-muted">
+						Dibujo
+						<input type="color" data-pc-color="tinta" class="h-9 w-14 cursor-pointer border border-line bg-panel p-1" />
+					</label>
+					<button type="button" data-pc-cambiar class={BOTON}>
+						<Icon name="arrows-exchange" class="size-4 shrink-0" />
+						Invertir
+					</button>
+				</div>
+			</div>
+
+			{
+				RANGOS.map((rango) => (
+					<label class="flex flex-col gap-2 text-sm text-muted">
+						<span class="flex items-center justify-between">
+							{rango.label}
+							<span data-pc-valor={rango.id} class="text-fg" />
+						</span>
+						<input
+							type="range"
+							data-pc-rango={rango.id}
+							min={rango.min}
+							max={rango.max}
+							step={rango.step}
+							class="w-full accent-accent disabled:opacity-40"
+						/>
+					</label>
+				))
+			}
+			<p data-pc-nota class="text-sm text-muted empty:hidden" aria-live="polite"></p>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-pc-azar class={BOTON}>
+					<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+					Al azar
+				</button>
+				<button type="button" data-pc-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div data-pc-vista class="h-64 w-full border border-line sm:h-80" role="img" aria-label="Vista previa del patrón"></div>
+
+			<div class="flex flex-col gap-2">
+				<span class="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
+					<span class="flex flex-wrap gap-2">
+						<button type="button" data-pc-formato="css" aria-pressed="true" class={OPCION}>
+							<Icon name="file-type-css" class="size-4 shrink-0" />
+							CSS
+						</button>
+						<button type="button" data-pc-formato="tailwind" aria-pressed="false" class={OPCION}>
+							<Icon name="brand-tailwind" class="size-4 shrink-0" />
+							Tailwind
+						</button>
+					</span>
+					<span class="flex flex-wrap gap-2">
+						<button type="button" data-pc-copiar class={BOTON}>
+							<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+							<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+							<span data-pc-copiar-texto aria-live="polite">Copiar</span>
+						</button>
+						<button type="button" data-pc-bajar class={BOTON}>
+							<Icon name="download" class="size-4 shrink-0" />
+							Descargar .css
+						</button>
+					</span>
+				</span>
+				<pre
+					data-pc-salida
+					class="max-h-72 overflow-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-pc-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-pc-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-pc-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-pc-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-pc-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-pc-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-pc-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-pc-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Patron = 'rayas' | 'cruzadas' | 'rejilla' | 'puntos' | 'tresbolillo' | 'ajedrez' | 'zigzag';
+	type Estado = {
+		patron: Patron;
+		fondo: string;
+		tinta: string;
+		opacidad: number;
+		tamano: number;
+		grosor: number;
+		angulo: number;
+		formato: 'css' | 'tailwind';
+	};
+	type Numerico = 'tamano' | 'grosor' | 'angulo' | 'opacidad';
+	type Capas = { imagenes: string[]; tamano?: string; posicion?: string[] };
+
+	const PATRONES: Patron[] = ['rayas', 'cruzadas', 'rejilla', 'puntos', 'tresbolillo', 'ajedrez', 'zigzag'];
+	// Qué ajustes pinta cada patrón: los demás se apagan para no despistar.
+	const USA_GROSOR: Patron[] = ['rayas', 'cruzadas', 'rejilla', 'puntos', 'tresbolillo'];
+	const USA_ANGULO: Patron[] = ['rayas', 'cruzadas'];
+	const LIMITES: Record<Numerico, [number, number]> = {
+		tamano: [6, 120],
+		grosor: [0.5, 30],
+		angulo: [0, 180],
+		opacidad: [5, 100],
+	};
+
+	const CLAVE = 'tuweb:patrones-css';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const INICIAL: Estado = {
+		patron: 'rejilla',
+		fondo: '#fdf6ef',
+		tinta: '#c2410c',
+		opacidad: 35,
+		tamano: 24,
+		grosor: 1,
+		angulo: 45,
+		formato: 'css',
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="patrones-css"]');
+	const vista = panel?.querySelector<HTMLElement>('[data-pc-vista]');
+	const salida = panel?.querySelector<HTMLElement>('[data-pc-salida]');
+	const nota = panel?.querySelector<HTMLElement>('[data-pc-nota]');
+	const rangos = panel?.querySelectorAll<HTMLInputElement>('[data-pc-rango]') ?? [];
+	const colores = panel?.querySelectorAll<HTMLInputElement>('[data-pc-color]') ?? [];
+	const patrones = panel?.querySelectorAll<HTMLButtonElement>('[data-pc-patron]') ?? [];
+	const formatos = panel?.querySelectorAll<HTMLButtonElement>('[data-pc-formato]') ?? [];
+
+	const limitar = (v: number, [min, max]: [number, number]) => Math.min(Math.max(v, min), max);
+	// Un decimal como mucho, para que el CSS que se copia se lea bien.
+	const px = (n: number) => `${Math.round(n * 10) / 10}px`;
+
+	function sano(dato: Partial<Estado> | null): Estado {
+		const num = (v: unknown, clave: Numerico) =>
+			typeof v === 'number' && Number.isFinite(v) ? limitar(v, LIMITES[clave]) : INICIAL[clave];
+		return {
+			patron: PATRONES.find((p) => p === dato?.patron) ?? INICIAL.patron,
+			fondo: HEX.test(String(dato?.fondo)) ? String(dato?.fondo).toLowerCase() : INICIAL.fondo,
+			tinta: HEX.test(String(dato?.tinta)) ? String(dato?.tinta).toLowerCase() : INICIAL.tinta,
+			opacidad: num(dato?.opacidad, 'opacidad'),
+			tamano: num(dato?.tamano, 'tamano'),
+			grosor: num(dato?.grosor, 'grosor'),
+			angulo: num(dato?.angulo, 'angulo'),
+			formato: dato?.formato === 'tailwind' ? 'tailwind' : 'css',
+		};
+	}
+
+	function cargar() {
+		try {
+			return sano(JSON.parse(localStorage.getItem(CLAVE) ?? 'null'));
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+			return { ...INICIAL };
+		}
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	// La opacidad va en el propio color (#rrggbbaa): así el fondo no se toca.
+	function tintaDe(e: Estado) {
+		if (e.opacidad >= 100) return e.tinta;
+		return e.tinta + Math.round(e.opacidad * 2.55).toString(16).padStart(2, '0');
+	}
+
+	// ——— Los patrones ———
+	// Todo son gradientes con cortes secos (un color y transparent en la misma
+	// posición), que es como CSS dibuja formas sin imágenes.
+	function capas(e: Estado): Capas {
+		const t = tintaDe(e);
+		const s = e.tamano;
+		// El grosor no puede pasar de media baldosa o se come el patrón entero.
+		const g = Math.min(e.grosor, s / 2);
+		const raya = (angulo: number) => `repeating-linear-gradient(${angulo}deg, ${t} 0 ${px(g)}, transparent 0 ${px(s)})`;
+		const punto = `radial-gradient(circle, ${t} ${px(g)}, transparent ${px(g + 0.5)})`;
+		const pico = (angulo: number) => `linear-gradient(${angulo}deg, ${t} 25%, transparent 25%)`;
+
+		switch (e.patron) {
+			case 'rayas':
+				return { imagenes: [raya(e.angulo)] };
+			case 'cruzadas':
+				return { imagenes: [raya(e.angulo), raya(e.angulo + 90)] };
+			case 'rejilla':
+				return {
+					imagenes: [`linear-gradient(${t} ${px(g)}, transparent 0)`, `linear-gradient(90deg, ${t} ${px(g)}, transparent 0)`],
+					tamano: `${px(s)} ${px(s)}`,
+				};
+			case 'puntos':
+				return { imagenes: [punto], tamano: `${px(s)} ${px(s)}` };
+			case 'tresbolillo':
+				return { imagenes: [punto, punto], tamano: `${px(s)} ${px(s)}`, posicion: ['0 0', `${px(s / 2)} ${px(s / 2)}`] };
+			case 'ajedrez':
+				return { imagenes: [`repeating-conic-gradient(${t} 0 25%, transparent 0 50%)`], tamano: `${px(s)} ${px(s)}` };
+			case 'zigzag':
+				return {
+					imagenes: [pico(135), pico(225), pico(315), pico(45)],
+					tamano: `${px(s)} ${px(s)}`,
+					posicion: [`${px(-s / 2)} 0`, `${px(-s / 2)} 0`, '0 0', '0 0'],
+				};
+		}
+	}
+
+	function aplicar(el: HTMLElement, e: Estado) {
+		const c = capas(e);
+		el.style.backgroundColor = e.fondo;
+		el.style.backgroundImage = c.imagenes.join(', ');
+		el.style.backgroundSize = c.tamano ?? '';
+		el.style.backgroundPosition = c.posicion?.join(', ') ?? '';
+	}
+
+	// ——— Exportar ———
+	function propiedades(e: Estado): [string, string][] {
+		const c = capas(e);
+		const lista: [string, string][] = [
+			['background-color', e.fondo],
+			['background-image', c.imagenes.join(',\n    ')],
+		];
+		if (c.tamano) lista.push(['background-size', c.tamano]);
+		if (c.posicion) lista.push(['background-position', c.posicion.join(', ')]);
+		return lista;
+	}
+
+	function css(e: Estado) {
+		return propiedades(e)
+			.map(([clave, valor]) => `${clave}: ${valor.includes('\n') ? `\n    ${valor}` : valor};`)
+			.join('\n');
+	}
+
+	// En los valores arbitrarios de Tailwind el espacio se escribe con _.
+	function tailwind(e: Estado) {
+		return propiedades(e)
+			.map(([clave, valor]) => `[${clave}:${valor.replace(/,\s+/g, ',').replace(/\s+/g, '_')}]`)
+			.join(' ');
+	}
+
+	const exportar = () => (estado.formato === 'tailwind' ? tailwind(estado) : css(estado));
+
+	function mostrar(clave: Numerico, valor: number) {
+		if (clave === 'angulo') return `${valor}°`;
+		if (clave === 'opacidad') return `${valor}%`;
+		return `${valor}px`;
+	}
+
+	function pintar() {
+		patrones.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pcPatron === estado.patron)));
+		formatos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pcFormato === estado.formato)));
+		colores.forEach((campo) => {
+			campo.value = campo.dataset.pcColor === 'fondo' ? estado.fondo : estado.tinta;
+		});
+		rangos.forEach((rango) => {
+			const clave = rango.dataset.pcRango as Numerico;
+			rango.value = String(estado[clave]);
+			rango.disabled =
+				(clave === 'grosor' && !USA_GROSOR.includes(estado.patron)) ||
+				(clave === 'angulo' && !USA_ANGULO.includes(estado.patron));
+			const valor = panel?.querySelector<HTMLElement>(`[data-pc-valor="${clave}"]`);
+			if (valor) valor.textContent = mostrar(clave, estado[clave]);
+		});
+		if (nota) {
+			nota.textContent =
+				estado.grosor > estado.tamano / 2 && USA_GROSOR.includes(estado.patron)
+					? `El grosor se queda en ${px(estado.tamano / 2)}: más tapa la baldosa entera.`
+					: estado.patron === 'puntos' || estado.patron === 'tresbolillo'
+						? 'En los puntos, el grosor es el radio.'
+						: '';
+		}
+		if (vista) aplicar(vista, estado);
+		if (salida) salida.textContent = exportar();
+	}
+
+	function cambiar(parche: Partial<Estado>) {
+		estado = { ...estado, ...parche };
+		pintar();
+		guardar();
+	}
+
+	// Cada ejemplo lleva su propia muestra en miniatura, pintada igual que la vista.
+	panel?.querySelectorAll<HTMLButtonElement>('[data-pc-ejemplo]').forEach((boton) => {
+		let ejemplo: Estado;
+		try {
+			ejemplo = sano(JSON.parse(boton.dataset.pcEjemplo ?? 'null'));
+		} catch {
+			return;
+		}
+		const icono = boton.querySelector<HTMLElement>('[data-pc-icono]');
+		// En 16px no se ve nada a tamaño real: la miniatura va a la mitad.
+		if (icono) aplicar(icono, { ...ejemplo, tamano: Math.max(6, ejemplo.tamano / 2), grosor: ejemplo.grosor / 2 });
+		boton.addEventListener('click', () => cambiar({ ...ejemplo, formato: estado.formato }));
+	});
+
+	patrones.forEach((boton) => {
+		boton.addEventListener('click', () => cambiar({ patron: PATRONES.find((p) => p === boton.dataset.pcPatron) ?? estado.patron }));
+	});
+
+	formatos.forEach((boton) => {
+		boton.addEventListener('click', () => cambiar({ formato: boton.dataset.pcFormato === 'tailwind' ? 'tailwind' : 'css' }));
+	});
+
+	colores.forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const valor = campo.value.toLowerCase();
+			cambiar(campo.dataset.pcColor === 'fondo' ? { fondo: valor } : { tinta: valor });
+		});
+	});
+
+	rangos.forEach((rango) => {
+		rango.addEventListener('input', () => {
+			const clave = rango.dataset.pcRango as Numerico;
+			const parche: Partial<Estado> = {};
+			parche[clave] = limitar(Number(rango.value), LIMITES[clave]);
+			cambiar(parche);
+		});
+	});
+
+	panel?.querySelector('[data-pc-cambiar]')?.addEventListener('click', () => {
+		cambiar({ fondo: estado.tinta, tinta: estado.fondo });
+	});
+
+	function hsl(h: number, s: number, l: number) {
+		const f = (n: number) => {
+			const k = (n + h / 30) % 12;
+			const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+			return Math.round(v * 255).toString(16).padStart(2, '0');
+		};
+		return `#${f(0)}${f(8)}${f(4)}`;
+	}
+
+	// Al azar: un tono y su vecino, uno claro de fondo y otro fuerte de dibujo.
+	panel?.querySelector('[data-pc-azar]')?.addEventListener('click', () => {
+		const tono = Math.random() * 360;
+		const tamano = 10 + Math.round(Math.random() * 50);
+		cambiar({
+			patron: PATRONES[Math.floor(Math.random() * PATRONES.length)],
+			fondo: hsl(tono, 0.5, 0.92),
+			tinta: hsl((tono + 20 + Math.random() * 40) % 360, 0.7, 0.45),
+			opacidad: 40 + Math.round(Math.random() * 60),
+			tamano,
+			grosor: Math.max(0.5, Math.round(Math.random() * tamano * 0.4 * 2) / 2),
+			angulo: Math.round(Math.random() * 4) * 45,
+		});
+	});
+
+	panel?.querySelector('[data-pc-reset]')?.addEventListener('click', () => cambiar({ ...INICIAL, formato: estado.formato }));
+
+	panel?.querySelector('[data-pc-bajar]')?.addEventListener('click', () => {
+		const cuerpo = css(estado)
+			.split('\n')
+			.map((linea) => `  ${linea}`)
+			.join('\n');
+		const url = URL.createObjectURL(new Blob([`.patron {\n${cuerpo}\n}\n`], { type: 'text/css' }));
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = `patron-${estado.patron}.css`;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-pc-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-pc-copiar-texto]');
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(exportar());
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	pintar();
+</script>
