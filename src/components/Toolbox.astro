@@ -21,6 +21,7 @@ import EffectsTool from './EffectsTool.astro';
 import FaviconTool from './FaviconTool.astro';
 import FlowTool from './FlowTool.astro';
 import FunctionTool from './FunctionTool.astro';
+import GeoWallpaperTool from './GeoWallpaperTool.astro';
 import GradientTool from './GradientTool.astro';
 import HoverTool from './HoverTool.astro';
 import Icon from './Icon.astro';
@@ -66,6 +67,7 @@ const tools = [
 	{ id: 'paletas-azar', label: 'Paletas al azar', icon: 'arrows-shuffle' },
 	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
 	{ id: 'fondos', label: 'Fondos de pantalla', icon: 'wallpaper' },
+	{ id: 'fondos-geometricos', label: 'Fondos geométricos', icon: 'triangle-square-circle' },
 	{ id: 'sombras', label: 'Sombras', icon: 'shadow' },
 	{ id: 'botones', label: 'Botones CSS', icon: 'click' },
 	{ id: 'hover', label: 'Efectos hover', icon: 'pointer' },
@@ -250,6 +252,9 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<GradientTool />
 
 	<WallpaperTool />
+
+	<GeoWallpaperTool />
+
 	<ShadowTool />
 
 	<ButtonTool />

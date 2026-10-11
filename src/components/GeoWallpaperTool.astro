@@ -1,0 +1,582 @@
+---
+/**
+ * Fondos de pantalla geométricos: una rejilla de triángulos, círculos, líneas,
+ * arcos o hexágonos colocados al azar con una semilla. La misma semilla, los
+ * mismos colores y los mismos ajustes dan siempre el mismo fondo, así que la
+ * vista pequeña y el PNG grande salen idénticos. Todo pasa en el navegador;
+ * solo se guarda el estado, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+
+const FORMAS = [
+	{ id: 'triangulos', label: 'Triángulos', icon: 'triangles' },
+	{ id: 'circulos', label: 'Círculos', icon: 'circles' },
+	{ id: 'lineas', label: 'Líneas', icon: 'slash' },
+	{ id: 'arcos', label: 'Arcos', icon: 'wave-saw-tool' },
+	{ id: 'hexagonos', label: 'Hexágonos', icon: 'hexagon' },
+	{ id: 'cuadrados', label: 'Cuadrados', icon: 'square' },
+];
+
+const PALETAS = [
+	{ id: 'casa', label: 'Casa', colores: ['#fdf6ef', '#c2410c', '#f5c542', '#7a6152'] },
+	{ id: 'noche', label: 'Noche', colores: ['#17110d', '#fc784b', '#382b21', '#d9a441'] },
+	{ id: 'papel', label: 'Papel', colores: ['#f4f1ea', '#1f1f1f', '#9b9b9b', '#d6d1c4'] },
+	{ id: 'oceano', label: 'Océano', colores: ['#0b1d3a', '#1f6feb', '#4fd1c5', '#cfe8ff'] },
+	{ id: 'bosque', label: 'Bosque', colores: ['#14251b', '#2f7a3b', '#a3c45e', '#e9e4c9'] },
+	{ id: 'bauhaus', label: 'Bauhaus', colores: ['#efe9dc', '#d7263d', '#1b4b8f', '#f2b705'] },
+];
+
+const ESCRITORIO = [
+	{ id: '1920x1080', label: '1920×1080 (Full HD)' },
+	{ id: '2560x1440', label: '2560×1440 (QHD)' },
+	{ id: '3440x1440', label: '3440×1440 (panorámico)' },
+	{ id: '3840x2160', label: '3840×2160 (4K)' },
+	{ id: '5120x2880', label: '5120×2880 (5K)' },
+];
+
+const MOVIL = [
+	{ id: '1080x2400', label: '1080×2400 (Android)' },
+	{ id: '1179x2556', label: '1179×2556 (iPhone)' },
+	{ id: '1290x2796', label: '1290×2796 (iPhone grande)' },
+	{ id: '1440x3200', label: '1440×3200 (Android grande)' },
+	{ id: '2048x2732', label: '2048×2732 (tableta)' },
+];
+
+const AJUSTES = [
+	{ id: 'celdas', label: 'Celdas', min: 3, max: 40 },
+	{ id: 'densidad', label: 'Densidad', min: 5, max: 100 },
+	{ id: 'grosor', label: 'Grosor', min: 2, max: 40 },
+	{ id: 'margen', label: 'Aire', min: 0, max: 40 },
+];
+---
+
+<div
+	role="tabpanel"
+	id="fondos-geometricos"
+	aria-labelledby="tab-fondos-geometricos"
+	data-panel="fondos-geometricos"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<p class="text-sm text-muted">
+		Fondos minimalistas a base de formas geométricas puestas al azar. Cambia la semilla hasta que te guste y bájalo
+		en alta resolución para escritorio o móvil.
+	</p>
+
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Forma</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						FORMAS.map((forma, i) => (
+							<button
+								type="button"
+								data-fg-forma={forma.id}
+								aria-pressed={i === 0 ? 'true' : 'false'}
+								class={`${OPCION} inline-flex items-center gap-2`}
+							>
+								<Icon name={forma.icon} class="size-4 shrink-0" />
+								{forma.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Paletas</span>
+				<div class="flex flex-wrap gap-2">
+					{
+						PALETAS.map((paleta) => (
+							<button
+								type="button"
+								data-fg-paleta={paleta.id}
+								data-colores={paleta.colores.join(',')}
+								class="inline-flex items-center gap-2 border border-line px-2 py-2 text-xs text-muted hover:border-accent hover:text-accent"
+							>
+								<span class="flex" aria-hidden="true">
+									{paleta.colores.map((color) => <span class="size-3" style={`background: ${color}`} />)}
+								</span>
+								{paleta.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Colores (el primero es el fondo)</span>
+				<div class="flex flex-wrap items-center gap-2">
+					{
+						[0, 1, 2, 3].map((i) => (
+							<input
+								type="color"
+								data-fg-color={i}
+								aria-label={i === 0 ? 'Color de fondo' : `Color ${i}`}
+								class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+							/>
+						))
+					}
+					<button type="button" data-fg-azar-colores class={BOTON}>
+						<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+						Al azar
+					</button>
+				</div>
+			</div>
+
+			{
+				AJUSTES.map((ajuste) => (
+					<label class="flex flex-col gap-2">
+						<span class="flex justify-between text-sm text-muted">
+							{ajuste.label} <span data-fg-texto={ajuste.id} />
+						</span>
+						<input
+							type="range"
+							min={ajuste.min}
+							max={ajuste.max}
+							step="1"
+							data-fg-ajuste={ajuste.id}
+							class="w-full accent-accent"
+						/>
+					</label>
+				))
+			}
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="border border-line bg-panel p-2">
+				<canvas
+					data-fg-vista
+					width="960"
+					height="540"
+					role="img"
+					aria-label="Vista previa del fondo geométrico"
+					class="mx-auto block h-auto max-h-[32rem] w-auto max-w-full"></canvas>
+			</div>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-fg-semilla class={BOTON}>
+					<Icon name="dice-5" class="size-4 shrink-0" />
+					Otro patrón
+				</button>
+				<button type="button" data-fg-todo class={BOTON}>
+					<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+					Sorpréndeme
+				</button>
+				<button type="button" data-fg-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<label class="inline-flex items-center gap-2 text-sm text-muted">
+					<span class="sr-only">Tamaño</span>
+					<select data-fg-tamano class={`${CAMPO} w-auto`}>
+						<option value="pantalla" data-fg-pantalla>Tu pantalla</option>
+						<optgroup label="Escritorio">
+							{ESCRITORIO.map((t) => <option value={t.id}>{t.label}</option>)}
+						</optgroup>
+						<optgroup label="Móvil">
+							{MOVIL.map((t) => <option value={t.id}>{t.label}</option>)}
+						</optgroup>
+					</select>
+				</label>
+				<button type="button" data-fg-png class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .png
+				</button>
+			</div>
+			<p data-fg-estado aria-live="polite" class="min-h-6 text-sm text-mark"></p>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-fg-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-fg-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-fg-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+</style>
+
+<script>
+	type Forma = 'triangulos' | 'circulos' | 'lineas' | 'arcos' | 'hexagonos' | 'cuadrados';
+	type Ajuste = 'celdas' | 'densidad' | 'grosor' | 'margen';
+	type Estado = Record<Ajuste, number> & {
+		forma: Forma;
+		colores: string[];
+		semilla: number;
+		tamano: string;
+	};
+
+	const FORMAS: Forma[] = ['triangulos', 'circulos', 'lineas', 'arcos', 'hexagonos', 'cuadrados'];
+	const LIMITES: Record<Ajuste, [number, number]> = {
+		celdas: [3, 40],
+		densidad: [5, 100],
+		grosor: [2, 40],
+		margen: [0, 40],
+	};
+	const CLAVE = 'tuweb:fondos-geometricos';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const INICIAL: Estado = {
+		forma: 'triangulos',
+		colores: ['#fdf6ef', '#c2410c', '#f5c542', '#7a6152'],
+		celdas: 10,
+		densidad: 60,
+		grosor: 12,
+		margen: 10,
+		semilla: 7,
+		tamano: 'pantalla',
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="fondos-geometricos"]');
+	const vista = panel?.querySelector<HTMLCanvasElement>('[data-fg-vista]');
+	const tamano = panel?.querySelector<HTMLSelectElement>('[data-fg-tamano]');
+	const aviso = panel?.querySelector<HTMLElement>('[data-fg-estado]');
+	const formas = panel?.querySelectorAll<HTMLButtonElement>('[data-fg-forma]') ?? [];
+	const colores = panel?.querySelectorAll<HTMLInputElement>('[data-fg-color]') ?? [];
+	const ajustes = panel?.querySelectorAll<HTMLInputElement>('[data-fg-ajuste]') ?? [];
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
+	const esAjuste = (v: string | undefined): v is Ajuste => v !== undefined && Object.hasOwn(LIMITES, v);
+
+	function cargar(): Estado {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && Array.isArray(g.colores) && g.colores.length === 4) {
+				const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+				const estado = structuredClone(INICIAL);
+				estado.forma = FORMAS.includes(g.forma) ? g.forma : INICIAL.forma;
+				estado.colores = g.colores.map((c: unknown) => (HEX.test(String(c)) ? String(c).toLowerCase() : '#000000'));
+				for (const id of Object.keys(LIMITES) as Ajuste[]) {
+					estado[id] = limitar(num(g[id], INICIAL[id]), ...LIMITES[id]);
+				}
+				estado.semilla = limitar(num(g.semilla, INICIAL.semilla), 0, 999999);
+				estado.tamano = typeof g.tamano === 'string' ? g.tamano : INICIAL.tamano;
+				return estado;
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return structuredClone(INICIAL);
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento: la herramienta sigue igual.
+		}
+	}
+
+	// ——— Medidas ———
+	// «Tu pantalla» son los píxeles de verdad: los CSS por la densidad.
+	function pantalla() {
+		const dpr = window.devicePixelRatio || 1;
+		return { ancho: Math.round(screen.width * dpr), alto: Math.round(screen.height * dpr) };
+	}
+
+	function medidas() {
+		if (estado.tamano === 'pantalla') return pantalla();
+		const [ancho, alto] = (estado.tamano.match(/^(\d+)x(\d+)$/)?.slice(1) ?? ['1920', '1080']).map(Number);
+		return { ancho, alto };
+	}
+
+	// ——— Dibujo ———
+	// Un generador con semilla: la misma semilla, el mismo patrón.
+	function azar(semilla: number) {
+		let a = semilla >>> 0 || 1;
+		return () => {
+			a = (a + 0x6d2b79f5) >>> 0;
+			let t = Math.imul(a ^ (a >>> 15), 1 | a);
+			t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+	}
+
+	// La celda se mide contra el lado corto, así la vista y el PNG salen iguales.
+	// Cada celda gasta siempre tres números al azar, dibuje o no: mover la
+	// densidad quita y pone formas sin barajar las demás.
+	function dibujar(ctx: CanvasRenderingContext2D, w: number, h: number) {
+		const rng = azar(estado.semilla);
+		const [fondo, ...tintes] = estado.colores;
+		const celda = Math.min(w, h) / estado.celdas;
+		const densidad = estado.densidad / 100;
+		const trazo = Math.max(1, celda * (estado.grosor / 100));
+		const hueco = celda * (estado.margen / 100) * 0.5;
+		const tinte = (v: number) => tintes[Math.min(tintes.length - 1, Math.floor(v * tintes.length))];
+
+		ctx.fillStyle = fondo;
+		ctx.fillRect(0, 0, w, h);
+		ctx.lineWidth = trazo;
+		ctx.lineCap = 'round';
+
+		if (estado.forma === 'hexagonos') {
+			// Hexágonos con punta arriba: filas a 1,5 radios, las impares desplazadas.
+			const r = celda / Math.sqrt(3);
+			const filas = Math.ceil(h / (r * 1.5)) + 2;
+			const cols = Math.ceil(w / celda) + 2;
+			const radio = Math.max(0, r - hueco);
+			for (let f = -1; f < filas; f++) {
+				for (let c = -1; c < cols; c++) {
+					const [a, b] = [rng(), rng(), rng()];
+					if (a > densidad) continue;
+					const cx = c * celda + (f % 2 ? celda / 2 : 0);
+					const cy = f * r * 1.5;
+					ctx.beginPath();
+					for (let k = 0; k < 6; k++) {
+						const ang = Math.PI / 6 + (k * Math.PI) / 3;
+						ctx.lineTo(cx + Math.cos(ang) * radio, cy + Math.sin(ang) * radio);
+					}
+					ctx.closePath();
+					ctx.fillStyle = tinte(b);
+					ctx.fill();
+				}
+			}
+			return;
+		}
+
+		const cols = Math.ceil(w / celda);
+		const filas = Math.ceil(h / celda);
+		// La rejilla se centra para que lo que sobra se reparta por los dos lados.
+		const ox = (w - cols * celda) / 2;
+		const oy = (h - filas * celda) / 2;
+
+		for (let f = 0; f < filas; f++) {
+			for (let c = 0; c < cols; c++) {
+				const [a, b, d] = [rng(), rng(), rng()];
+				if (a > densidad) continue;
+				const x = ox + c * celda + hueco;
+				const y = oy + f * celda + hueco;
+				const l = Math.max(0, celda - hueco * 2);
+				const color = tinte(b);
+				ctx.fillStyle = color;
+				ctx.strokeStyle = color;
+				ctx.beginPath();
+
+				if (estado.forma === 'triangulos') {
+					// Media celda cortada por una de sus cuatro esquinas.
+					const esquinas: [number, number][] = [[x, y], [x + l, y], [x + l, y + l], [x, y + l]];
+					const giro = Math.floor(d * 4);
+					for (let k = 0; k < 3; k++) ctx.lineTo(...esquinas[(giro + k) % 4]);
+					ctx.closePath();
+					ctx.fill();
+				} else if (estado.forma === 'circulos') {
+					ctx.arc(x + l / 2, y + l / 2, (l / 2) * (0.35 + d * 0.65), 0, Math.PI * 2);
+					ctx.fill();
+				} else if (estado.forma === 'lineas') {
+					// El laberinto del 10 PRINT: una diagonal hacia un lado u otro.
+					if (d < 0.5) {
+						ctx.moveTo(x, y);
+						ctx.lineTo(x + l, y + l);
+					} else {
+						ctx.moveTo(x + l, y);
+						ctx.lineTo(x, y + l);
+					}
+					ctx.stroke();
+				} else if (estado.forma === 'arcos') {
+					// Teselas de Truchet: dos cuartos de círculo en esquinas opuestas.
+					const m = l / 2;
+					if (d < 0.5) {
+						ctx.arc(x, y, m, 0, Math.PI / 2);
+						ctx.moveTo(x + l - m, y + l);
+						ctx.arc(x + l, y + l, m, Math.PI, Math.PI * 1.5);
+					} else {
+						ctx.arc(x + l, y, m, Math.PI / 2, Math.PI);
+						ctx.moveTo(x + m, y + l);
+						ctx.arc(x, y + l, m, 0, -Math.PI / 2, true);
+					}
+					ctx.stroke();
+				} else {
+					// Cuadrados que encogen hacia el centro de su celda.
+					const lado = l * (0.3 + d * 0.7);
+					ctx.rect(x + (l - lado) / 2, y + (l - lado) / 2, lado, lado);
+					ctx.fill();
+				}
+			}
+		}
+	}
+
+	// La vista se pinta pequeña, con la proporción del tamaño elegido.
+	function pintar() {
+		if (!vista) return;
+		const { ancho, alto } = medidas();
+		const escala = 960 / Math.max(ancho, alto);
+		const w = Math.max(1, Math.round(ancho * escala));
+		const h = Math.max(1, Math.round(alto * escala));
+		if (vista.width !== w || vista.height !== h) {
+			vista.width = w;
+			vista.height = h;
+		}
+		const ctx = vista.getContext('2d');
+		if (ctx) dibujar(ctx, w, h);
+	}
+
+	function actualizar() {
+		pintarControles();
+		pintar();
+		guardar();
+	}
+
+	// ——— Controles ———
+	function pintarControles() {
+		formas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fgForma === estado.forma)));
+		colores.forEach((input) => {
+			input.value = estado.colores[Number(input.dataset.fgColor)] ?? '#000000';
+		});
+		ajustes.forEach((input) => {
+			const id = input.dataset.fgAjuste;
+			if (!esAjuste(id)) return;
+			input.value = String(estado[id]);
+			const texto = panel?.querySelector(`[data-fg-texto="${id}"]`);
+			if (texto) texto.textContent = id === 'celdas' ? String(estado[id]) : `${estado[id]}%`;
+		});
+		if (tamano) {
+			if (![...tamano.options].some((o) => o.value === estado.tamano)) estado.tamano = INICIAL.tamano;
+			tamano.value = estado.tamano;
+		}
+	}
+
+	function hsl(h: number, s: number, l: number) {
+		const f = (k0: number) => {
+			const k = (k0 + h / 30) % 12;
+			const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+			return Math.round(v * 255).toString(16).padStart(2, '0');
+		};
+		return `#${f(0)}${f(8)}${f(4)}`;
+	}
+
+	// Un fondo muy claro o muy oscuro y tres tonos vecinos encima.
+	function coloresAlAzar() {
+		const base = Math.random() * 360;
+		const salto = 20 + Math.random() * 60;
+		const oscuro = Math.random() < 0.5;
+		estado.colores = [
+			hsl(base, 0.25, oscuro ? 0.08 : 0.95),
+			...[1, 2, 3].map((i) => hsl((base + salto * i) % 360, 0.5 + Math.random() * 0.3, 0.45 + Math.random() * 0.2)),
+		];
+	}
+
+	formas.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegida = FORMAS.find((f) => f === boton.dataset.fgForma);
+			if (!elegida) return;
+			estado.forma = elegida;
+			actualizar();
+		});
+	});
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-fg-paleta]').forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const lista = (boton.dataset.colores ?? '').split(',').filter((c) => HEX.test(c));
+			if (lista.length !== 4) return;
+			estado.colores = lista;
+			actualizar();
+		});
+	});
+
+	colores.forEach((input) => {
+		input.addEventListener('input', () => {
+			estado.colores[Number(input.dataset.fgColor)] = input.value.toLowerCase();
+			actualizar();
+		});
+	});
+
+	ajustes.forEach((input) => {
+		input.addEventListener('input', () => {
+			const id = input.dataset.fgAjuste;
+			if (!esAjuste(id)) return;
+			estado[id] = limitar(Number(input.value), ...LIMITES[id]);
+			actualizar();
+		});
+	});
+
+	tamano?.addEventListener('change', () => {
+		estado.tamano = tamano.value;
+		actualizar();
+	});
+
+	panel?.querySelector('[data-fg-azar-colores]')?.addEventListener('click', () => {
+		coloresAlAzar();
+		actualizar();
+	});
+	panel?.querySelector('[data-fg-semilla]')?.addEventListener('click', () => {
+		estado.semilla = Math.floor(Math.random() * 999999);
+		actualizar();
+	});
+	panel?.querySelector('[data-fg-todo]')?.addEventListener('click', () => {
+		estado.forma = FORMAS[Math.floor(Math.random() * FORMAS.length)];
+		estado.semilla = Math.floor(Math.random() * 999999);
+		estado.celdas = limitar(4 + Math.random() * 16, ...LIMITES.celdas);
+		estado.densidad = limitar(30 + Math.random() * 70, ...LIMITES.densidad);
+		estado.grosor = limitar(6 + Math.random() * 20, ...LIMITES.grosor);
+		estado.margen = limitar(Math.random() * 30, ...LIMITES.margen);
+		coloresAlAzar();
+		actualizar();
+	});
+	panel?.querySelector('[data-fg-reset]')?.addEventListener('click', () => {
+		estado = structuredClone(INICIAL);
+		actualizar();
+	});
+
+	// ——— Exportar ———
+	const botonPng = panel?.querySelector<HTMLButtonElement>('[data-fg-png]');
+	botonPng?.addEventListener('click', () => {
+		const { ancho, alto } = medidas();
+		const nombre = `fondo-${estado.forma}-${ancho}x${alto}.png`;
+		if (aviso) aviso.textContent = `Generando ${ancho}×${alto}…`;
+		botonPng.disabled = true;
+		// Un respiro para que se vea el aviso antes del trabajo pesado.
+		setTimeout(() => {
+			const lienzo = document.createElement('canvas');
+			lienzo.width = ancho;
+			lienzo.height = alto;
+			const ctx = lienzo.getContext('2d');
+			if (!ctx) {
+				if (aviso) aviso.textContent = 'Tu navegador no deja pintar a ese tamaño.';
+				botonPng.disabled = false;
+				return;
+			}
+			dibujar(ctx, ancho, alto);
+			lienzo.toBlob((blob) => {
+				botonPng.disabled = false;
+				if (!blob) {
+					if (aviso) aviso.textContent = 'No se pudo generar. Prueba un tamaño menor.';
+					return;
+				}
+				const url = URL.createObjectURL(blob);
+				const enlace = document.createElement('a');
+				enlace.href = url;
+				enlace.download = nombre;
+				enlace.click();
+				setTimeout(() => URL.revokeObjectURL(url), 1000);
+				if (aviso) aviso.textContent = `Listo: ${nombre}`;
+			}, 'image/png');
+		}, 30);
+	});
+
+	const opcionPantalla = panel?.querySelector<HTMLOptionElement>('[data-fg-pantalla]');
+	if (opcionPantalla) {
+		const { ancho, alto } = pantalla();
+		opcionPantalla.textContent = `${ancho}×${alto} (tu pantalla)`;
+	}
+
+	pintarControles();
+	pintar();
+</script>
