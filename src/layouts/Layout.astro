@@ -1,4 +1,5 @@
 ---
+import A11yPanel from '../components/A11yPanel.astro';
 import NyanCat from '../components/NyanCat.astro';
 import '../styles/global.css';
 
@@ -58,12 +59,15 @@ const {
 			pinta la hoja de estilos antes de que esto corra.
 		-->
 		<script>
+			import { applyAccesibilidad, readAccesibilidad } from '../lib/accesibilidad';
 			import { applyConfig, readConfig } from '../lib/config';
 			import { watchEfectos } from '../lib/efectos';
 			import { applyTheme, readTheme, watchSystemMode } from '../lib/theme';
 
 			applyTheme(readTheme());
 			applyConfig(readConfig());
+			// Contraste, tamaño de letra y tipografía para dislexia, del panel de accesibilidad.
+			applyAccesibilidad(readAccesibilidad());
 			// Con el modo en «sistema», la web sigue al sistema sin recargar.
 			watchSystemMode();
 			// Los sonidos de clic y scroll, si alguien los ha encendido en Herramientas.
@@ -74,5 +78,7 @@ const {
 		<slot />
 		<!-- La mascota de la casa: cruza por encima de todo sin tocar nada. -->
 		<NyanCat />
+		<!-- Contraste, letra y tipografía para dislexia, a mano en todas las páginas. -->
+		<A11yPanel />
 	</body>
 </html>

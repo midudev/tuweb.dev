@@ -277,6 +277,80 @@ html[data-fondo='trama'] [data-canvas] {
 }
 
 /*
+ * Accesibilidad: lo que se elige en el panel fijo de abajo a la derecha, que el
+ * script de la cabecera escribe en el <html>.
+ *
+ * Contraste alto: la misma rampa cálida, pero con la tinta casi negra (o casi
+ * blanca de noche), el apagado subido hasta parecerse al texto y las líneas
+ * marcadas. Va con !important porque el acento elegido en la caja de
+ * herramientas llega en línea, y aquí tiene que mandar el contraste. De día el
+ * texto queda a 18:1 y el acento a 7:1; de noche, a 18:1 y 10:1.
+ */
+html[data-contraste='alto'] {
+	--color-bg: #fffaf5 !important;
+	--color-fg: #1c120b !important;
+	--color-muted: #3b2d24 !important;
+	--color-line: #7a6152 !important;
+	--color-panel: #f7ece1 !important;
+	--color-accent: #9a3412 !important;
+	--color-mark: #6b2408 !important;
+}
+
+html[data-contraste='alto'][data-modo='oscuro'] {
+	--color-bg: #0f0a07 !important;
+	--color-fg: #fff7ef !important;
+	--color-muted: #e6d5c6 !important;
+	--color-line: #ad9483 !important;
+	--color-panel: #1a130e !important;
+	--color-accent: #ffa47e !important;
+	--color-mark: #ffd9c4 !important;
+}
+
+html[data-contraste='alto'] a {
+	text-decoration-thickness: 0.1em;
+}
+
+html[data-contraste='alto'] :focus-visible {
+	outline: 2px solid var(--color-accent);
+}
+
+/* Letra más grande: toda la escala va en rem, así que basta con subir la raíz. */
+html[data-letra='112'] {
+	font-size: 112.5%;
+}
+
+html[data-letra='125'] {
+	font-size: 125%;
+}
+
+html[data-letra='150'] {
+	font-size: 150%;
+}
+
+/*
+ * Tipografía para dislexia. No se descarga nada: si está instalada una de las
+ * pensadas para esto, sale esa; si no, una sin remates abierta del sistema. Se
+ * abre además el espacio entre letras, palabras y líneas, que es lo que más
+ * ayuda. El código sigue en monoespaciada, que si no se descuadra.
+ */
+html[data-dislexia='si'] {
+	--font-mono: 'OpenDyslexic', 'Lexend', 'Atkinson Hyperlegible', 'Comic Sans MS', 'Comic Neue', Verdana, sans-serif;
+	--font-pixel: var(--font-mono);
+}
+
+html[data-dislexia='si'] body {
+	letter-spacing: 0.04em;
+	word-spacing: 0.14em;
+	line-height: 1.8;
+}
+
+html[data-dislexia='si'] :is(pre, code, kbd, samp, textarea) {
+	font-family: 'Geist Mono Variable', ui-monospace, monospace;
+	letter-spacing: normal;
+	word-spacing: normal;
+}
+
+/*
  * La sección de la que habla el tour de bienvenida. La regla va aquí y no en
  * el componente porque las secciones las pinta cada uno por su lado, y los
  * estilos de Astro son de su componente y de nadie más.

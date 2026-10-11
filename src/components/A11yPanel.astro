@@ -1,0 +1,184 @@
+---
+/**
+ * El panel de accesibilidad: contraste alto, letra más grande y tipografía para
+ * dislexia. Va en el layout, así que está en todas las páginas, con un botón
+ * fijo abajo a la derecha. Se aplica al momento y se guarda en este navegador;
+ * lo pinta el script de la cabecera antes de que se vea nada.
+ */
+import { TAMANOS } from '../lib/accesibilidad';
+import Icon from './Icon.astro';
+
+const boton =
+	'inline-flex items-center justify-center gap-2 border border-line px-2.5 py-1.5 text-muted hover:text-accent aria-pressed:bg-bg aria-pressed:text-accent aria-pressed:border-accent';
+---
+
+<div data-a11y class="a11y fixed z-50 flex flex-col items-end gap-2">
+	<div
+		id="a11y-panel"
+		data-a11y-panel
+		role="group"
+		aria-labelledby="a11y-titulo"
+		hidden
+		class="w-72 max-w-[calc(100vw-2rem)] border border-line bg-panel p-4 text-sm"
+	>
+		<div class="mb-4 flex items-center justify-between gap-3">
+			<p id="a11y-titulo" class="font-pixel text-lg text-fg">Accesibilidad</p>
+			<button type="button" data-a11y-cerrar class="text-muted hover:text-accent" title="Cerrar">
+				<Icon name="x" class="size-4 shrink-0" />
+				<span class="sr-only">Cerrar el panel</span>
+			</button>
+		</div>
+
+		<div class="flex flex-col gap-4">
+			<div class="flex items-center justify-between gap-3">
+				<span class="text-fg">Contraste alto</span>
+				<button type="button" data-a11y-contraste aria-pressed="false" class={boton}>
+					<Icon name="contrast" class="size-4 shrink-0" />
+					<span data-a11y-estado>No</span>
+				</button>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-fg">Tamaño de letra</span>
+				<div role="group" aria-label="Tamaño de letra" class="flex border border-line">
+					{
+						TAMANOS.map((t) => (
+							<button
+								type="button"
+								data-a11y-tamano={t}
+								aria-pressed="false"
+								class="flex-1 border-l border-line px-2 py-1.5 text-muted first:border-l-0 hover:text-accent aria-pressed:bg-bg aria-pressed:text-accent"
+							>
+								{t}%
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex items-center justify-between gap-3">
+				<span class="text-fg">Letra para dislexia</span>
+				<button type="button" data-a11y-dislexia aria-pressed="false" class={boton}>
+					<Icon name="typography" class="size-4 shrink-0" />
+					<span data-a11y-estado>No</span>
+				</button>
+			</div>
+
+			<p class="text-xs text-muted">
+				Se guarda en este navegador. La letra para dislexia usa la que tengas instalada
+				(OpenDyslexic, Lexend o Atkinson) y, si no, una sin remates más abierta.
+			</p>
+
+			<button
+				type="button"
+				data-a11y-reset
+				class="inline-flex items-center gap-2 self-start text-accent hover:underline"
+			>
+				<Icon name="rotate" class="size-4 shrink-0" />
+				Quitar ajustes
+			</button>
+		</div>
+	</div>
+
+	<button
+		type="button"
+		data-a11y-abrir
+		aria-expanded="false"
+		aria-controls="a11y-panel"
+		title="Accesibilidad"
+		class="inline-flex size-11 items-center justify-center border border-line bg-panel text-muted hover:border-accent hover:text-accent aria-expanded:border-accent aria-expanded:text-accent"
+	>
+		<Icon name="accessible" class="size-5 shrink-0" />
+		<span class="sr-only">Ajustes de accesibilidad</span>
+	</button>
+</div>
+
+<script>
+	import {
+		ACCESIBILIDAD_INICIAL,
+		type Accesibilidad,
+		applyAccesibilidad,
+		limpiarAccesibilidad,
+		readAccesibilidad,
+		saveAccesibilidad,
+	} from '../lib/accesibilidad';
+
+	const raiz = document.querySelector<HTMLElement>('[data-a11y]');
+	const panel = raiz?.querySelector<HTMLElement>('[data-a11y-panel]');
+	const abrir = raiz?.querySelector<HTMLButtonElement>('[data-a11y-abrir]');
+	const contraste = raiz?.querySelector<HTMLButtonElement>('[data-a11y-contraste]');
+	const dislexia = raiz?.querySelector<HTMLButtonElement>('[data-a11y-dislexia]');
+	const tamanos = raiz?.querySelectorAll<HTMLButtonElement>('[data-a11y-tamano]') ?? [];
+
+	let ajustes = readAccesibilidad();
+
+	function marcar(boton: HTMLButtonElement | null | undefined, on: boolean) {
+		if (!boton) return;
+		boton.setAttribute('aria-pressed', String(on));
+		const estado = boton.querySelector('[data-a11y-estado]');
+		if (estado) estado.textContent = on ? 'Sí' : 'No';
+	}
+
+	function render() {
+		marcar(contraste, ajustes.contraste);
+		marcar(dislexia, ajustes.dislexia);
+		tamanos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.a11yTamano === String(ajustes.tamano))));
+	}
+
+	function cambiar(nuevos: Accesibilidad) {
+		// applyAccesibilidad avisa, y el aviso ya repinta los botones.
+		applyAccesibilidad(nuevos);
+		saveAccesibilidad(nuevos);
+	}
+
+	function mostrar(on: boolean) {
+		if (!panel || !abrir) return;
+		panel.hidden = !on;
+		abrir.setAttribute('aria-expanded', String(on));
+	}
+
+	abrir?.addEventListener('click', () => mostrar(panel?.hidden ?? false));
+	raiz?.querySelector('[data-a11y-cerrar]')?.addEventListener('click', () => {
+		mostrar(false);
+		abrir?.focus();
+	});
+
+	contraste?.addEventListener('click', () => cambiar({ ...ajustes, contraste: !ajustes.contraste }));
+	dislexia?.addEventListener('click', () => cambiar({ ...ajustes, dislexia: !ajustes.dislexia }));
+	tamanos.forEach((b) =>
+		b.addEventListener('click', () => cambiar(limpiarAccesibilidad({ ...ajustes, tamano: Number(b.dataset.a11yTamano) }))),
+	);
+	raiz?.querySelector('[data-a11y-reset]')?.addEventListener('click', () => cambiar({ ...ACCESIBILIDAD_INICIAL }));
+
+	// Escape o un clic fuera lo cierran.
+	document.addEventListener('keydown', (e) => {
+		if (e.key !== 'Escape' || panel?.hidden) return;
+		mostrar(false);
+		abrir?.focus();
+	});
+	document.addEventListener('click', (e) => {
+		if (panel?.hidden || !(e.target instanceof Node) || raiz?.contains(e.target)) return;
+		mostrar(false);
+	});
+
+	document.addEventListener('tuweb:accesibilidad', (e) => {
+		ajustes = limpiarAccesibilidad((e as CustomEvent).detail);
+		render();
+	});
+
+	render();
+</script>
+
+<style>
+	/* Abajo a la derecha, apartado de la barra de gestos y del marco del móvil. */
+	.a11y {
+		inset-block-end: calc(1rem + env(safe-area-inset-bottom));
+		inset-inline-end: calc(1rem + env(safe-area-inset-right));
+	}
+
+	@media print {
+		.a11y {
+			display: none;
+		}
+	}
+</style>
