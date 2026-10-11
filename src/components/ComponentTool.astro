@@ -1,0 +1,527 @@
+---
+/**
+ * Componentes animados: eliges una pieza de interfaz (botón, insignia, aviso,
+ * tarjeta o interruptor), le pones una animación CSS y la afinas —colores,
+ * duración, retraso, curva, repeticiones y cuándo salta—. Te llevas el HTML y
+ * el CSS listos para pegar. La vista previa va dentro de un shadow root, así
+ * lo que se ve es lo mismo que se copia. Todo pasa en el navegador y solo se
+ * guardan los ajustes, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+
+const GRUPOS = [
+	{
+		id: 'pieza',
+		label: 'Componente',
+		items: [
+			{ id: 'boton', label: 'Botón' },
+			{ id: 'insignia', label: 'Insignia' },
+			{ id: 'aviso', label: 'Aviso' },
+			{ id: 'tarjeta', label: 'Tarjeta' },
+			{ id: 'interruptor', label: 'Interruptor' },
+		],
+	},
+	{
+		id: 'anim',
+		label: 'Animación',
+		items: [
+			{ id: 'pulso', label: 'Pulso' },
+			{ id: 'latido', label: 'Latido' },
+			{ id: 'sacudida', label: 'Sacudida' },
+			{ id: 'rebote', label: 'Rebote' },
+			{ id: 'flotar', label: 'Flotar' },
+			{ id: 'aparecer', label: 'Aparecer' },
+			{ id: 'resplandor', label: 'Resplandor' },
+			{ id: 'brillo', label: 'Brillo' },
+		],
+	},
+	{
+		id: 'disparo',
+		label: 'Cuándo salta',
+		items: [
+			{ id: 'carga', label: 'Al cargar' },
+			{ id: 'hover', label: 'Al pasar el ratón' },
+		],
+	},
+	{
+		id: 'veces',
+		label: 'Repeticiones',
+		items: [
+			{ id: '1', label: '1' },
+			{ id: '2', label: '2' },
+			{ id: '3', label: '3' },
+			{ id: 'infinite', label: 'Sin fin' },
+		],
+	},
+	{
+		id: 'esquinas',
+		label: 'Esquinas',
+		items: [
+			{ id: 'rectas', label: 'Rectas' },
+			{ id: 'redondas', label: 'Redondas' },
+		],
+	},
+];
+
+const CURVAS = [
+	{ id: 'ease', label: 'Ease' },
+	{ id: 'linear', label: 'Lineal' },
+	{ id: 'ease-in', label: 'Acelera' },
+	{ id: 'ease-out', label: 'Frena' },
+	{ id: 'ease-in-out', label: 'Acelera y frena' },
+	{ id: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)', label: 'Con rebote' },
+];
+---
+
+<div
+	role="tabpanel"
+	id="componentes"
+	aria-labelledby="tab-componentes"
+	data-panel="componentes"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			{
+				GRUPOS.map((grupo) => (
+					<div class="flex flex-col gap-2">
+						<span id={`cp-${grupo.id}`} class="text-sm text-muted">
+							{grupo.label}
+						</span>
+						<div role="group" aria-labelledby={`cp-${grupo.id}`} class="flex flex-wrap gap-2">
+							{grupo.items.map((item) => (
+								<button
+									type="button"
+									data-cp-opcion={grupo.id}
+									data-valor={item.id}
+									aria-pressed="false"
+									class={OPCION}
+								>
+									{item.label}
+								</button>
+							))}
+						</div>
+					</div>
+				))
+			}
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Texto</span>
+				<input type="text" data-cp-texto maxlength="40" autocomplete="off" class={CAMPO} />
+			</label>
+
+			<div class="flex flex-wrap gap-5">
+				<label class="flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-cp-color="color" aria-label="Color principal" class={COLOR} />
+					Color
+				</label>
+				<label class="flex items-center gap-2 text-sm text-muted">
+					<input type="color" data-cp-color="tinta" aria-label="Color secundario" class={COLOR} />
+					Secundario
+				</label>
+			</div>
+
+			<label class="flex flex-col gap-2">
+				<span class="flex justify-between text-sm text-muted">
+					Duración <span data-cp-salida="duracion" class="text-fg"></span>
+				</span>
+				<input type="range" min="0.2" max="4" step="0.1" data-cp-rango="duracion" class="w-full accent-accent" />
+			</label>
+
+			<label class="flex flex-col gap-2">
+				<span class="flex justify-between text-sm text-muted">
+					Retraso <span data-cp-salida="retraso" class="text-fg"></span>
+				</span>
+				<input type="range" min="0" max="2" step="0.1" data-cp-rango="retraso" class="w-full accent-accent" />
+			</label>
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Curva</span>
+				<select data-cp-curva class={CAMPO}>
+					{CURVAS.map((curva) => <option value={curva.id}>{curva.label}</option>)}
+				</select>
+			</label>
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Clase CSS</span>
+				<input
+					type="text"
+					data-cp-clase
+					maxlength="24"
+					placeholder="ui"
+					autocomplete="off"
+					spellcheck="false"
+					class={CAMPO}
+				/>
+			</label>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-cp-pausa class={BOTON}>
+					<span data-icon="pause" class="inline-flex"><Icon name="player-pause" class="size-4 shrink-0" /></span>
+					<span data-icon="play" class="inline-flex"><Icon name="player-play" class="size-4 shrink-0" /></span>
+					<span data-cp-pausa-texto>Pausar</span>
+				</button>
+				<button type="button" data-cp-otra class={BOTON}>
+					<Icon name="player-track-next" class="size-4 shrink-0" />
+					Otra vez
+				</button>
+				<button type="button" data-cp-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div
+				data-cp-vista
+				class="min-h-64 w-full border border-line bg-panel"
+				role="img"
+				aria-label="Vista previa del componente animado"
+			>
+			</div>
+			<p data-cp-pista class="-mt-2 text-sm text-muted" hidden>Pasa el ratón por encima para verla.</p>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">HTML y CSS</span>
+				<pre
+					data-cp-codigo
+					class="max-h-96 overflow-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-cp-copiar class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-cp-copiar-texto aria-live="polite">Copiar</span>
+				</button>
+				<button type="button" data-cp-bajar class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .html
+				</button>
+			</div>
+			<p class="text-xs text-muted">Se guarda solo en tu navegador. No se envía a ninguna parte.</p>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-cp-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-cp-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-cp-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-cp-pausa] [data-icon='play'],
+	[data-cp-pausa][data-state='paused'] [data-icon='pause'] {
+		display: none;
+	}
+	[data-cp-pausa][data-state='paused'] [data-icon='play'] {
+		display: inline-flex;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-cp-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-cp-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-cp-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-cp-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-cp-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Estado = {
+		pieza: string;
+		anim: string;
+		disparo: string;
+		veces: string;
+		esquinas: string;
+		texto: string;
+		color: string;
+		tinta: string;
+		duracion: number;
+		retraso: number;
+		curva: string;
+		clase: string;
+	};
+
+	const CLAVE = 'tuweb:componentes';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const INICIAL: Estado = {
+		pieza: 'boton',
+		anim: 'pulso',
+		disparo: 'carga',
+		veces: 'infinite',
+		esquinas: 'rectas',
+		texto: 'Apúntate',
+		color: '#c2410c',
+		tinta: '#fffaf3',
+		duracion: 1.2,
+		retraso: 0,
+		curva: 'ease',
+		clase: 'ui',
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="componentes"]');
+	const vista = panel?.querySelector<HTMLElement>('[data-cp-vista]');
+	const codigo = panel?.querySelector<HTMLElement>('[data-cp-codigo]');
+	const pista = panel?.querySelector<HTMLElement>('[data-cp-pista]');
+	const texto = panel?.querySelector<HTMLInputElement>('[data-cp-texto]');
+	const clase = panel?.querySelector<HTMLInputElement>('[data-cp-clase]');
+	const curva = panel?.querySelector<HTMLSelectElement>('[data-cp-curva]');
+	const pausa = panel?.querySelector<HTMLButtonElement>('[data-cp-pausa]');
+	const pausaTexto = pausa?.querySelector<HTMLElement>('[data-cp-pausa-texto]');
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-cp-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-cp-copiar-texto]');
+	const opciones = [...(panel?.querySelectorAll<HTMLButtonElement>('[data-cp-opcion]') ?? [])];
+	const colores = panel?.querySelectorAll<HTMLInputElement>('[data-cp-color]') ?? [];
+	const rangos = panel?.querySelectorAll<HTMLInputElement>('[data-cp-rango]') ?? [];
+	const curvas = [...(curva?.options ?? [])].map((o) => o.value);
+
+	/** Los valores válidos de cada grupo de botones salen del propio marcado. */
+	function validos(grupo: string) {
+		return opciones.filter((b) => b.dataset.cpOpcion === grupo).map((b) => b.dataset.valor ?? '');
+	}
+
+	// El shadow root aísla la vista previa: su clase y sus @keyframes no se
+	// cruzan con los de la página.
+	const raiz = vista?.attachShadow({ mode: 'open' });
+	let pausada = false;
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+	const redondear = (v: number) => Math.round(v * 10) / 10;
+	const limpiarClase = (v: string) => v.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^[^a-z]+/, '').slice(0, 24);
+	const escapar = (v: string) =>
+		v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+	function sanear(g: Record<string, unknown>): Estado {
+		const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+		const de = (grupo: keyof Estado) => {
+			const v = String(g[grupo]);
+			return validos(grupo).includes(v) ? v : String(INICIAL[grupo]);
+		};
+		return {
+			pieza: de('pieza'),
+			anim: de('anim'),
+			disparo: de('disparo'),
+			veces: de('veces'),
+			esquinas: de('esquinas'),
+			texto: typeof g.texto === 'string' ? g.texto.slice(0, 40) : INICIAL.texto,
+			color: HEX.test(String(g.color)) ? String(g.color).toLowerCase() : INICIAL.color,
+			tinta: HEX.test(String(g.tinta)) ? String(g.tinta).toLowerCase() : INICIAL.tinta,
+			duracion: redondear(limitar(num(g.duracion, INICIAL.duracion), 0.2, 4)),
+			retraso: redondear(limitar(num(g.retraso, INICIAL.retraso), 0, 2)),
+			curva: curvas.includes(String(g.curva)) ? String(g.curva) : INICIAL.curva,
+			clase: limpiarClase(String(g.clase ?? '')) || INICIAL.clase,
+		};
+	}
+
+	function cargar(): Estado {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && typeof g === 'object') return sanear(g);
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return { ...INICIAL };
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	// ——— El HTML de cada componente ———
+	function html(e: Estado) {
+		const c = e.clase;
+		const t = escapar(e.texto || 'Texto');
+		if (e.pieza === 'insignia') return `<span class="${c}">${t}</span>`;
+		if (e.pieza === 'aviso') return `<div class="${c}" role="status">${t}</div>`;
+		if (e.pieza === 'tarjeta') {
+			return `<article class="${c}">\n  <h3>${t}</h3>\n  <p>Lista para copiar y pegar.</p>\n</article>`;
+		}
+		if (e.pieza === 'interruptor') {
+			return `<label class="${c}">\n  <input type="checkbox" checked>\n  <span></span>\n  ${t}\n</label>`;
+		}
+		return `<button class="${c}" type="button">${t}</button>`;
+	}
+
+	// ——— El CSS del componente, sin animar ———
+	function base(e: Estado) {
+		const c = `.${e.clase}`;
+		const r = (valor: string) => (e.esquinas === 'redondas' ? `\n  border-radius: ${valor};` : '');
+		if (e.pieza === 'insignia') {
+			return `${c} {\n  display: inline-block;\n  padding: 0.3em 0.7em;\n  background: ${e.color};\n  color: ${e.tinta};\n  font-size: 0.75rem;\n  letter-spacing: 0.05em;\n  text-transform: uppercase;${r('999px')}\n}`;
+		}
+		if (e.pieza === 'aviso') {
+			return `${c} {\n  max-width: 20rem;\n  padding: 1em 1.25em;\n  border-left: 4px solid ${e.tinta};\n  background: ${e.color};\n  color: ${e.tinta};${r('0.5em')}\n}`;
+		}
+		if (e.pieza === 'tarjeta') {
+			return `${c} {\n  width: 16rem;\n  padding: 1.5em;\n  border: 2px solid ${e.color};\n  background: ${e.tinta};\n  color: ${e.color};${r('0.75em')}\n}\n${c} h3 {\n  margin: 0 0 0.5em;\n}\n${c} p {\n  margin: 0;\n  opacity: 0.8;\n}`;
+		}
+		if (e.pieza === 'interruptor') {
+			return `${c} {\n  display: inline-flex;\n  align-items: center;\n  gap: 0.75em;\n  cursor: pointer;\n}\n${c} input {\n  position: absolute;\n  opacity: 0;\n}\n${c} span {\n  position: relative;\n  width: 3em;\n  height: 1.6em;\n  background: #999;\n  transition: background 0.2s;${r('999px')}\n}\n${c} span::after {\n  content: "";\n  position: absolute;\n  top: 0.2em;\n  left: 0.2em;\n  width: 1.2em;\n  height: 1.2em;\n  background: ${e.tinta};\n  transition: transform 0.2s;${r('50%')}\n}\n${c} input:checked + span {\n  background: ${e.color};\n}\n${c} input:checked + span::after {\n  transform: translateX(1.4em);\n}\n${c} input:focus-visible + span {\n  outline: 2px solid ${e.color};\n  outline-offset: 2px;\n}`;
+		}
+		return `${c} {\n  padding: 0.75em 1.5em;\n  border: 0;\n  background: ${e.color};\n  color: ${e.tinta};\n  font: inherit;\n  cursor: pointer;${r('0.5em')}\n}`;
+	}
+
+	// ——— Los fotogramas de cada animación ———
+	function fotogramas(e: Estado) {
+		const t = (v: string) => `transform: ${v};`;
+		const mapa: Record<string, string> = {
+			pulso: `  0%, 100% { ${t('scale(1)')} }\n  50% { ${t('scale(1.08)')} }`,
+			latido: `  0%, 28%, 70%, 100% { ${t('scale(1)')} }\n  14%, 42% { ${t('scale(1.15)')} }`,
+			sacudida: `  0%, 100% { ${t('translateX(0)')} }\n  20%, 60% { ${t('translateX(-6px)')} }\n  40%, 80% { ${t('translateX(6px)')} }`,
+			rebote: `  0%, 50%, 80%, 100% { ${t('translateY(0)')} }\n  30% { ${t('translateY(-14px)')} }\n  65% { ${t('translateY(-6px)')} }`,
+			flotar: `  0%, 100% { ${t('translateY(0)')} }\n  50% { ${t('translateY(-8px)')} }`,
+			aparecer: `  from { opacity: 0; ${t('translateY(16px)')} }\n  to { opacity: 1; ${t('none')} }`,
+			resplandor: `  0% { box-shadow: 0 0 0 0 ${e.color}99; }\n  100% { box-shadow: 0 0 0 14px ${e.color}00; }`,
+			brillo: `  from { ${t('translateX(-100%)')} }\n  to { ${t('translateX(100%)')} }`,
+		};
+		return mapa[e.anim] ?? mapa.pulso;
+	}
+
+	function css(e: Estado) {
+		const c = `.${e.clase}`;
+		const nombre = `${e.clase}-${e.anim}`;
+		const brillo = e.anim === 'brillo';
+		const tras = brillo ? '::after' : '';
+		const selector = e.disparo === 'hover' ? `${c}:hover${tras}` : `${c}${tras}`;
+		const extra = brillo
+			? `\n${c} {\n  position: relative;\n  overflow: hidden;\n}\n${c}::after {\n  content: "";\n  position: absolute;\n  inset: 0;\n  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);\n  transform: translateX(-100%);\n  pointer-events: none;\n}`
+			: '';
+		const animacion = `${nombre} ${e.duracion}s ${e.curva} ${e.retraso}s ${e.veces} both`;
+		return `${base(e)}${extra}\n${selector} {\n  animation: ${animacion};\n}\n@keyframes ${nombre} {\n${fotogramas(e)}\n}\n@media (prefers-reduced-motion: reduce) {\n  ${selector} {\n    animation: none;\n  }\n}`;
+	}
+
+	function fragmento() {
+		return `${html(estado)}\n\n<style>\n${css(estado)}\n</style>`;
+	}
+
+	function pintar() {
+		if (raiz) {
+			const quieta = pausada ? '\n*, *::after { animation-play-state: paused !important; }' : '';
+			// Todo lo que entra aquí está validado: HEX, números, opciones de la lista,
+			// una clase limpia y el texto escapado.
+			raiz.innerHTML = `<style>:host { display: grid; place-items: center; min-height: 16rem; padding: 2rem; box-sizing: border-box; }\n${css(estado)}${quieta}</style>${html(estado)}`;
+		}
+		if (codigo) codigo.textContent = fragmento();
+		if (pista) pista.hidden = estado.disparo !== 'hover';
+	}
+
+	function pintarControles() {
+		const valores = estado as unknown as Record<string, string | number>;
+		opciones.forEach((b) => {
+			b.setAttribute('aria-pressed', String(String(valores[b.dataset.cpOpcion ?? '']) === b.dataset.valor));
+		});
+		colores.forEach((input) => {
+			input.value = String(valores[input.dataset.cpColor ?? '']);
+		});
+		rangos.forEach((input) => {
+			input.value = String(valores[input.dataset.cpRango ?? '']);
+		});
+		panel?.querySelectorAll<HTMLElement>('[data-cp-salida]').forEach((salida) => {
+			salida.textContent = `${valores[salida.dataset.cpSalida ?? '']}s`;
+		});
+		if (curva) curva.value = estado.curva;
+		if (texto && document.activeElement !== texto) texto.value = estado.texto;
+		if (clase && document.activeElement !== clase) clase.value = estado.clase;
+	}
+
+	function cambiar(parcial: Record<string, unknown>) {
+		estado = sanear({ ...estado, ...parcial });
+		pintarControles();
+		pintar();
+		guardar();
+	}
+
+	opciones.forEach((boton) => {
+		boton.addEventListener('click', () => cambiar({ [boton.dataset.cpOpcion ?? '']: boton.dataset.valor }));
+	});
+	colores.forEach((input) => {
+		input.addEventListener('input', () => cambiar({ [input.dataset.cpColor ?? '']: input.value }));
+	});
+	rangos.forEach((input) => {
+		input.addEventListener('input', () => cambiar({ [input.dataset.cpRango ?? '']: Number(input.value) }));
+	});
+	curva?.addEventListener('change', () => cambiar({ curva: curva.value }));
+	texto?.addEventListener('input', () => cambiar({ texto: texto.value }));
+	clase?.addEventListener('input', () => cambiar({ clase: clase.value }));
+	clase?.addEventListener('blur', () => {
+		clase.value = estado.clase;
+	});
+
+	pausa?.addEventListener('click', () => {
+		pausada = !pausada;
+		if (pausada) pausa.dataset.state = 'paused';
+		else pausa.removeAttribute('data-state');
+		if (pausaTexto) pausaTexto.textContent = pausada ? 'Seguir' : 'Pausar';
+		pintar();
+	});
+
+	// Volver a pintar el shadow root crea el elemento de nuevo y la animación
+	// arranca desde cero.
+	panel?.querySelector('[data-cp-otra]')?.addEventListener('click', pintar);
+
+	panel?.querySelector('[data-cp-reset]')?.addEventListener('click', () => cambiar({ ...INICIAL }));
+
+	let reloj: number | undefined;
+
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(fragmento());
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	panel?.querySelector('[data-cp-bajar]')?.addEventListener('click', () => {
+		const pagina = `<!doctype html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n<title>${escapar(estado.texto || 'Componente')}</title>\n<style>\nbody {\n  margin: 0;\n  min-height: 100vh;\n  display: grid;\n  place-items: center;\n  font-family: system-ui, sans-serif;\n}\n${css(estado)}\n</style>\n</head>\n<body>\n${html(estado)}\n</body>\n</html>\n`;
+		const url = URL.createObjectURL(new Blob([pagina], { type: 'text/html' }));
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = `${estado.clase}-${estado.pieza}-${estado.anim}.html`;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	pintarControles();
+	pintar();
+</script>
