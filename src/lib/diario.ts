@@ -929,6 +929,60 @@ export function addRival(liga: Liga, marca: Marca): Liga | string {
 	return { ...liga, rivales: [...otros, marca] };
 }
 
+/* ---------- Los movimientos ---------- */
+
+/** El último puesto que viste de cada nombre, por tabla: así se sabe quién sube y quién baja. */
+export type Puestos = Record<Modo, Record<string, number>>;
+
+const PUESTOS_KEY = 'tuweb:reto-puestos';
+
+export function readPuestos(): Puestos {
+	const out: Puestos = { mes: {}, siempre: {} };
+	try {
+		const raw = JSON.parse(localStorage.getItem(PUESTOS_KEY) ?? '{}') as Partial<Puestos>;
+		for (const modo of ['mes', 'siempre'] as const) {
+			const tabla = raw[modo];
+			if (!tabla || typeof tabla !== 'object') continue;
+			for (const [nombre, puesto] of Object.entries(tabla)) {
+				const n = Number(puesto);
+				if (Number.isInteger(n) && n > 0 && n <= RIVALES_MAX + 1) out[modo][nombre.toLowerCase()] = n;
+			}
+		}
+	} catch {
+		// Sin lo guardado, nadie se ha movido.
+	}
+	return out;
+}
+
+export function savePuestos(puestos: Puestos) {
+	try {
+		localStorage.setItem(PUESTOS_KEY, JSON.stringify(puestos));
+	} catch {
+		// Si no deja guardar, los movimientos duran lo que dure la visita.
+	}
+}
+
+/** Lo que, si cambia en otra pestaña, mueve la tabla de esta. */
+export const CLAVES_VIVAS: readonly string[] = [KEY, LIGA_KEY];
+
+/** Lo que ha subido cada uno desde la última vez: positivo sube, negativo baja, null si es nuevo. */
+export function movimiento(antes: Record<string, number>, puesto: Puesto) {
+	// La primera vez no hay con qué comparar: nadie es nuevo, todo empieza aquí.
+	if (Object.keys(antes).length === 0) return 0;
+	const previo = antes[puesto.yo ? '' : puesto.nombre.toLowerCase()];
+	return previo === undefined ? null : previo - puesto.position;
+}
+
+/** Los puestos de ahora, para comparar la próxima vez. Tú vas sin nombre: lo puedes cambiar. */
+export function puestosDe(filas: Puesto[]) {
+	return Object.fromEntries(filas.map((fila) => [fila.yo ? '' : fila.nombre.toLowerCase(), fila.position]));
+}
+
+/** El enlace que mete tu marca en la tabla de quien lo abre. */
+export function enlaceDe(origen: string, codigo: string) {
+	return `${origen}/reto-diario#${codigo}`;
+}
+
 export interface Puesto extends Marca {
 	position: number;
 	yo: boolean;

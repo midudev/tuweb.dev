@@ -200,6 +200,10 @@ const BOTON =
 						<Icon name="copy" class="size-4 shrink-0" />
 						<span>Copiar</span>
 					</button>
+					<button type="button" data-liga-enlace class={BOTON}>
+						<Icon name="link" class="size-4 shrink-0" />
+						<span>Enlace</span>
+					</button>
 				</div>
 			</div>
 
@@ -224,11 +228,18 @@ const BOTON =
 			</form>
 		</div>
 
+		<p data-liga-movida class="flex items-center gap-2 text-sm" aria-live="polite">
+			<span class="inline-flex size-2 shrink-0 animate-pulse bg-accent" aria-hidden="true"></span>
+			<span data-liga-movida-texto class="text-muted">En vivo.</span>
+		</p>
+
 		<ol data-liga class="flex flex-col"></ol>
 
 		<p class="text-sm text-muted">
 			La tabla vive en este navegador y cada código dice lo que dice quien lo pasa: es una liga entre
-			gente que se fía. Si alguien te pasa uno nuevo, se actualiza su fila.
+			gente que se fía. Si alguien te pasa uno nuevo, se actualiza su fila. Se mueve en vivo con lo que
+			resuelvas, también en otras pestañas, y al lado de cada puesto sale cuánto ha subido o bajado
+			desde tu última visita. Con el enlace, quien lo abre te mete en su tabla sin pegar nada.
 		</p>
 	</div>
 </section>
@@ -304,8 +315,14 @@ const BOTON =
 
 <script>
 	import {
+		CLAVES_VIVAS,
 		DIFICULTADES,
 		INSIGNIAS,
+		enlaceDe,
+		movimiento,
+		puestosDe,
+		readPuestos,
+		savePuestos,
 		TEMAS,
 		TRIES,
 		addRival,
@@ -411,8 +428,27 @@ const BOTON =
 		const pegado = pegar.querySelector('input')!;
 		const aviso = $('[data-liga-aviso]');
 		const copiar = $('[data-liga-copiar]') as HTMLButtonElement;
+		const enlace = $('[data-liga-enlace]') as HTMLButtonElement;
 		nombre.value = liga.nombre;
 		let modo: Modo = 'mes';
+		// Los puestos de tu última visita: contra ellos se cuenta quién sube y quién baja.
+		const antes = readPuestos();
+		const ahora = readPuestos();
+
+		/** El +2 o -1 de cada fila, o «nuevo» si no estaba la última vez. */
+		function flecha(cambio: number | null) {
+			const marca = document.createElement('span');
+			marca.className = 'w-12 text-end tabular-nums';
+			if (cambio === null) {
+				marca.className += ' text-mark';
+				marca.textContent = 'nuevo';
+			} else if (cambio !== 0) {
+				marca.className += cambio > 0 ? ' text-ok' : ' text-heart';
+				marca.textContent = cambio > 0 ? `+${cambio}` : String(cambio);
+				marca.title = `${cambio > 0 ? 'Sube' : 'Baja'} ${Math.abs(cambio)} ${Math.abs(cambio) === 1 ? 'puesto' : 'puestos'}`;
+			}
+			return marca;
+		}
 
 		raiz.querySelectorAll<HTMLButtonElement>('[data-modo]').forEach((boton) => {
 			boton.addEventListener('click', () => {
@@ -430,6 +466,17 @@ const BOTON =
 
 			const filas = clasificacion(liga, stats, modo);
 			$('[data-liga-cuenta]').textContent = `${filas.length} ${filas.length === 1 ? 'persona' : 'personas'}`;
+
+			const yo = filas.find((fila) => fila.yo)!;
+			const mio = movimiento(antes[modo], yo);
+			$('[data-liga-movida-texto]').textContent =
+				mio && mio > 0
+					? `En vivo. Subes ${mio} ${mio === 1 ? 'puesto' : 'puestos'}: vas ${yo.position}.º de ${filas.length}.`
+					: mio && mio < 0
+						? `En vivo. Bajas ${-mio} ${mio === -1 ? 'puesto' : 'puestos'}: vas ${yo.position}.º de ${filas.length}.`
+						: `En vivo. Vas ${yo.position}.º de ${filas.length}.`;
+			ahora[modo] = puestosDe(filas);
+			savePuestos(ahora);
 			$('[data-liga]').replaceChildren(
 				...filas.map((fila) => {
 					const li = document.createElement('li');
@@ -456,7 +503,7 @@ const BOTON =
 					const puntos = document.createElement('span');
 					puntos.className = 'font-pixel tabular-nums';
 					puntos.textContent = String(fila.xp);
-					lado.append(puntos);
+					lado.append(flecha(movimiento(antes[modo], fila)), puntos);
 					if (!fila.yo) {
 						const quitar = document.createElement('button');
 						quitar.type = 'button';
@@ -491,6 +538,7 @@ const BOTON =
 			const nueva = marca
 				? addRival(liga, marca)
 				: 'Ese código no cuadra. Tiene que ser como reto.nombre.120.8.3.2026-10.45.2.';
+			aviso.style.color = '';
 			if (typeof nueva === 'string') {
 				aviso.textContent = nueva;
 				return;
@@ -511,6 +559,49 @@ const BOTON =
 				texto.textContent = 'Cópialo a mano';
 			}
 			setTimeout(() => (texto.textContent = 'Copiar'), 1500);
+		});
+
+		enlace.addEventListener('click', async () => {
+			const texto = enlace.querySelector('span')!;
+			try {
+				await navigator.clipboard.writeText(enlaceDe(location.origin, $('[data-liga-codigo]').textContent ?? ''));
+				texto.textContent = 'Copiado';
+			} catch {
+				texto.textContent = 'No se pudo';
+			}
+			setTimeout(() => (texto.textContent = 'Enlace'), 1500);
+		});
+
+		// Si llegas con la marca de alguien en el enlace, entra en tu tabla.
+		let hash = location.hash.slice(1);
+		try {
+			hash = decodeURIComponent(hash);
+		} catch {
+			// Un enlace roto no es un código.
+		}
+		const recibido = hash ? leeCodigo(hash) : null;
+		if (recibido) {
+			const nueva = addRival(liga, recibido);
+			if (typeof nueva === 'string') aviso.textContent = nueva;
+			else {
+				liga = nueva;
+				saveLiga(liga);
+				aviso.textContent = `${recibido.nombre} ya está en tu tabla.`;
+				aviso.style.color = 'var(--color-ok)';
+			}
+			history.replaceState(null, '', '/reto-diario');
+			$('[data-liga]').scrollIntoView({ block: 'center' });
+		}
+
+		// Lo que resuelvas o pegues en otra pestaña mueve esta tabla al momento.
+		window.addEventListener('storage', (event) => {
+			if (event.key !== null && !CLAVES_VIVAS.includes(event.key)) return;
+			progreso = readProgress();
+			liga = readLiga();
+			if (document.activeElement !== nombre) nombre.value = liga.nombre;
+			reto = retoDeHoy();
+			pintarReto();
+			pintarCrono(new Date());
 		});
 
 		function pintarResultado() {
