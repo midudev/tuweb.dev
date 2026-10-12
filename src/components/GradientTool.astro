@@ -3,7 +3,8 @@
  * Generador de gradientes CSS: dos o más colores con su posición, lineal o
  * radial, con ángulo o con centro. La vista previa es el propio CSS aplicado a
  * una caja, y debajo a un elemento de prueba (botón, tarjeta o texto) para verlo
- * en uso. Se exporta como CSS, variable, SCSS, estilo de React, clase de
+ * en uso. A la muestra se le cambia el texto, el tamaño, el color de la letra
+ * y el fondo sobre el que se ve. Se exporta como CSS, variable, SCSS, estilo de React, clase de
  * Tailwind, SVG o PNG; el SVG y el PNG
  * usan la misma geometría que el navegador para el CSS, así lo que se baja es
  * lo que se ve. Todo pasa en el navegador y
@@ -56,6 +57,13 @@ const PRUEBAS = [
 	{ id: 'boton', label: 'Botón', icon: 'click' },
 	{ id: 'tarjeta', label: 'Tarjeta', icon: 'layout-cards' },
 	{ id: 'texto', label: 'Texto', icon: 'typography' },
+];
+
+// Sobre qué fondo se ve la muestra: los colores de la propia web.
+const ESCENARIOS = [
+	{ id: 'panel', label: 'Panel' },
+	{ id: 'bg', label: 'Fondo' },
+	{ id: 'fg', label: 'Contraste' },
 ];
 
 const FORMATOS = [
@@ -214,16 +222,54 @@ const FORMATOS = [
 						))
 					}
 				</div>
-				<div class="flex min-h-40 items-center justify-center border border-line bg-panel p-6">
-					<span data-gr-muestra="boton" class="inline-flex px-6 py-3 text-sm text-bg">Enviar idea</span>
+				<div class="grid gap-3 sm:grid-cols-2">
+					<label class="flex flex-col gap-1 text-xs text-muted">
+						Texto
+						<input type="text" data-gr-m-texto maxlength="40" placeholder="El de cada elemento" spellcheck="false" autocomplete="off" class={CAMPO} />
+					</label>
+					<label class="flex flex-col gap-1 text-xs text-muted">
+						<span class="flex justify-between">Tamaño <span data-gr-m-escala-texto></span></span>
+						<input type="range" min="50" max="200" step="10" data-gr-m-escala class="w-full accent-accent" />
+					</label>
+					<label class="flex items-center gap-2 text-xs text-muted">
+						<input
+							type="color"
+							data-gr-m-letra
+							aria-label="Color de la letra"
+							class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+						/>
+						Color de la letra
+					</label>
+					<div class="flex flex-col gap-1 text-xs text-muted">
+						Fondo de la muestra
+						<div class="flex flex-wrap gap-1">
+							{
+								ESCENARIOS.map((escenario) => (
+									<button
+										type="button"
+										data-gr-m-fondo={escenario.id}
+										aria-pressed="false"
+										class="border border-line px-2 py-1 text-xs text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent"
+									>
+										{escenario.label}
+									</button>
+								))
+							}
+						</div>
+					</div>
+				</div>
+				<div data-gr-escenario class="flex min-h-40 items-center justify-center overflow-hidden border border-line bg-panel p-6">
+					<span data-gr-muestra="boton" class="inline-flex px-6 py-3 text-sm">
+						<span data-gr-rotulo="Enviar idea">Enviar idea</span>
+					</span>
 					<article data-gr-muestra="tarjeta" hidden class="flex w-full max-w-xs flex-col border border-line bg-bg">
 						<div data-gr-fondo class="h-24"></div>
 						<div class="flex flex-col gap-1 p-4">
-							<strong class="font-pixel text-lg">Tarjeta de prueba</strong>
+							<strong data-gr-rotulo="Tarjeta de prueba" class="font-pixel text-lg">Tarjeta de prueba</strong>
 							<span class="text-sm text-muted">Así queda el gradiente de cabecera.</span>
 						</div>
 					</article>
-					<p data-gr-muestra="texto" hidden data-gr-texto class="font-pixel text-center text-5xl leading-tight">
+					<p data-gr-muestra="texto" hidden data-gr-texto data-gr-rotulo="tuweb.dev" class="font-pixel text-center text-5xl leading-tight break-all">
 						tuweb.dev
 					</p>
 				</div>
@@ -364,11 +410,16 @@ const FORMATOS = [
 		tamano: string;
 		formato: Formato;
 		prueba: Prueba;
+		// La muestra: texto (vacío es el de siempre), tamaño en %, color de letra
+		// del botón y fondo sobre el que se ve.
+		muestra: { texto: string; escala: number; letra: string; fondo: Escenario };
 	};
 	type Prueba = 'boton' | 'tarjeta' | 'texto';
+	type Escenario = 'panel' | 'bg' | 'fg';
 
 	const FORMATOS: Formato[] = ['css', 'variable', 'scss', 'react', 'tailwind', 'svg'];
 	const PRUEBAS: Prueba[] = ['boton', 'tarjeta', 'texto'];
+	const ESCENARIOS: Escenario[] = ['panel', 'bg', 'fg'];
 
 	const CLAVE = 'tuweb:gradientes';
 	const MAX_PARADAS = 8;
@@ -387,6 +438,7 @@ const FORMATOS = [
 		tamano: '1200x630',
 		formato: 'css',
 		prueba: 'boton',
+		muestra: { texto: '', escala: 100, letra: '#ffffff', fondo: 'panel' },
 	};
 
 	const panel = document.querySelector<HTMLElement>('[data-panel="gradientes"]');
@@ -410,6 +462,13 @@ const FORMATOS = [
 	const centros = panel?.querySelectorAll<HTMLInputElement>('[data-gr-centro]') ?? [];
 	const centrosTexto = panel?.querySelectorAll<HTMLElement>('[data-gr-centro-texto]') ?? [];
 	const pintables = panel?.querySelectorAll<HTMLElement>('[data-gr-muestra="boton"], [data-gr-fondo], [data-gr-texto]') ?? [];
+	const escenario = panel?.querySelector<HTMLElement>('[data-gr-escenario]');
+	const rotulos = panel?.querySelectorAll<HTMLElement>('[data-gr-rotulo]') ?? [];
+	const mTexto = panel?.querySelector<HTMLInputElement>('[data-gr-m-texto]');
+	const mEscala = panel?.querySelector<HTMLInputElement>('[data-gr-m-escala]');
+	const mEscalaTexto = panel?.querySelector<HTMLElement>('[data-gr-m-escala-texto]');
+	const mLetra = panel?.querySelector<HTMLInputElement>('[data-gr-m-letra]');
+	const mFondos = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-m-fondo]') ?? [];
 
 	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
 
@@ -431,6 +490,12 @@ const FORMATOS = [
 					tamano: typeof guardado.tamano === 'string' ? guardado.tamano : INICIAL.tamano,
 					formato: FORMATOS.includes(guardado.formato) ? guardado.formato : INICIAL.formato,
 					prueba: PRUEBAS.includes(guardado.prueba) ? guardado.prueba : INICIAL.prueba,
+					muestra: {
+						texto: typeof guardado.muestra?.texto === 'string' ? guardado.muestra.texto.slice(0, 40) : '',
+						escala: limitar(num(guardado.muestra?.escala, 100), 50, 200),
+						letra: HEX.test(String(guardado.muestra?.letra)) ? String(guardado.muestra.letra).toLowerCase() : INICIAL.muestra.letra,
+						fondo: ESCENARIOS.includes(guardado.muestra?.fondo) ? guardado.muestra.fondo : INICIAL.muestra.fondo,
+					},
 				};
 			}
 		} catch {
@@ -709,6 +774,7 @@ const FORMATOS = [
 		if (angulo) angulo.value = String(estado.angulo);
 		if (anguloNum) anguloNum.value = String(estado.angulo);
 		pintarCentro();
+		pintarMuestra();
 		// En radial la vista previa se arrastra, así que en el móvil no hace scroll.
 		if (vista) {
 			vista.style.cursor = estado.tipo === 'radial' ? 'crosshair' : '';
@@ -1055,6 +1121,40 @@ const FORMATOS = [
 			estado.prueba = elegida;
 			pintarControles();
 			actualizar();
+		});
+	});
+
+	// ——— La muestra ———
+	// Cada elemento tiene su texto de siempre; si escribes uno, vale para todos.
+	function pintarMuestra() {
+		const { texto, escala, letra, fondo } = estado.muestra;
+		rotulos.forEach((r) => {
+			r.textContent = texto.trim() || (r.dataset.grRotulo ?? '');
+		});
+		muestras.forEach((m) => m.style.setProperty('zoom', String(escala / 100)));
+		const boton = panel?.querySelector<HTMLElement>('[data-gr-muestra="boton"]');
+		if (boton) boton.style.color = letra;
+		if (escenario) escenario.style.background = `var(--color-${fondo})`;
+		if (mTexto && document.activeElement !== mTexto) mTexto.value = texto;
+		if (mEscala) mEscala.value = String(escala);
+		if (mEscalaTexto) mEscalaTexto.textContent = `${escala}%`;
+		if (mLetra) mLetra.value = letra;
+		mFondos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grMFondo === fondo)));
+	}
+
+	function cambiarMuestra(cambio: Partial<Estado['muestra']>) {
+		estado.muestra = { ...estado.muestra, ...cambio };
+		pintarMuestra();
+		guardar();
+	}
+
+	mTexto?.addEventListener('input', () => cambiarMuestra({ texto: mTexto.value.slice(0, 40) }));
+	mEscala?.addEventListener('input', () => cambiarMuestra({ escala: limitar(Number(mEscala.value), 50, 200) }));
+	mLetra?.addEventListener('input', () => cambiarMuestra({ letra: mLetra.value.toLowerCase() }));
+	mFondos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegido = ESCENARIOS.find((f) => f === boton.dataset.grMFondo);
+			if (elegido) cambiarMuestra({ fondo: elegido });
 		});
 	});
 
