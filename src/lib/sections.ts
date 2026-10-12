@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, y un lienzo de píxeles compartido que se escribe en ASCII para bajarlo en .txt. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, y un lienzo de píxeles compartido que se escribe en ASCII para bajarlo en .txt. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',
@@ -284,6 +284,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un algoritmo al día y gana quien lo resuelve en menos líneas, con su clasificación en vivo.',
 		intro:
 			'Cada día, un hoyo: un problema de algoritmos con su coste pedido —una pasada, una pila, una criba— y unas pruebas. Escribe la función en las menos líneas que puedas: se cuentan según escribes, sin vacías ni comentarios, y una línea de más de 80 caracteres cuenta por cada 80. El par es una solución limpia de la casa. Pásala en el playground, márcala y entras en la clasificación del día, que se ordena por líneas y luego por caracteres y se mueve en vivo con los códigos que te pasen. Aquí no se ejecuta nada y lo que escribes se queda en tu navegador.',
+	},
+	{
+		href: '/acertijos',
+		title: 'Acertijos en equipo',
+		icon: 'puzzle',
+		group: 'juegos',
+		card: 'Tres acertijos de lógica al día contra el reloj, en equipo: insignias y un ranking que se suma entre todos.',
+		intro:
+			'El modo cooperativo: cada día, tres acertijos de lógica y diez minutos para todo el equipo. Cada pestaña es alguien con su firma; lo que prueba cualquiera sale al momento en las demás, y lo que acierta uno cuenta para todos. Cien puntos por acierto, la mitad si pedís pista, y lo que sobre del reloj si hacéis pleno. Seis insignias para desbloquear —pleno, sin pistas, en menos de tres minutos, en equipo, tres días seguidos— y un ranking colaborativo donde cada partida suma entera a todo el equipo; pasa el enlace y quien lo abre junta vuestras partidas con las suyas. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/pixeles-ascii',

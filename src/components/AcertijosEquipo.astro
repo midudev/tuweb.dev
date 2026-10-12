@@ -1,0 +1,480 @@
+---
+/**
+ * Acertijos en equipo: tres acertijos de lógica al día contra un reloj común.
+ * La sala va en directo entre las pestañas de tu navegador con BroadcastChannel:
+ * cada pestaña es alguien del equipo, con su firma. Al cerrar la ronda, la
+ * partida suma a todo el equipo en el ranking colaborativo, que viaja en el
+ * enlace para juntarse con el de otra gente. No hay servidor.
+ */
+import Icon from './Icon.astro';
+import { INSIGNIAS } from '../lib/acertijos';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+---
+
+<section id="acertijos" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<p data-ac-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="flex flex-wrap items-center justify-between gap-3 border border-line bg-panel p-4">
+			<div class="flex flex-col gap-1">
+				<span data-ac-estado class="text-sm text-fg">…</span>
+				<span data-ac-puntos class="text-xs text-muted"></span>
+			</div>
+			<div class="flex items-center gap-3">
+				<span data-ac-reloj class="font-pixel text-2xl text-accent" aria-live="off">10:00</span>
+				<button type="button" data-ac-empezar class={`${BOTON} border-accent text-accent`}>
+					<Icon name="player-play" class="size-4 shrink-0" />
+					Empezar
+				</button>
+			</div>
+		</div>
+
+		<ol data-ac-lista class="flex flex-col gap-3"></ol>
+
+		<template data-ac-molde>
+			<li class="flex flex-col gap-3 border border-line bg-panel p-4">
+				<p class="flex items-start gap-2 text-sm text-fg">
+					<span data-ac-num class="font-pixel text-accent"></span>
+					<span data-ac-texto></span>
+				</p>
+				<p data-ac-pista class="text-xs text-mark" hidden></p>
+				<p data-ac-hecho class="flex items-center gap-2 text-sm text-accent" hidden>
+					<Icon name="check" class="size-4 shrink-0" />
+					<span></span>
+				</p>
+				<form data-ac-form class="flex flex-wrap items-center gap-2">
+					<input
+						type="text"
+						data-ac-respuesta
+						maxlength="40"
+						autocomplete="off"
+						placeholder="Tu respuesta"
+						class="min-w-0 flex-1 border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent disabled:opacity-50"
+					/>
+					<button type="submit" class={BOTON}>
+						<Icon name="send" class="size-4 shrink-0" />
+						Probar
+					</button>
+					<button type="button" data-ac-verpista class={BOTON} title="Pista: el acertijo vale la mitad">
+						<Icon name="bulb" class="size-4 shrink-0" />
+						Pista
+					</button>
+				</form>
+			</li>
+		</template>
+
+		<div class="flex flex-col border border-line bg-bg">
+			<div class="flex items-center gap-2 border-b border-line px-3 py-2 text-xs text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0 text-accent" />
+				Lo que va probando el equipo
+			</div>
+			<ul data-ac-intentos aria-live="polite" class="m-0 flex h-40 flex-col overflow-y-auto px-3 py-2 font-mono text-xs"></ul>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-ac-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+			<span class="text-xs">Una por pestaña: abre otra con otra firma y sois dos.</span>
+		</label>
+
+		<div class="flex flex-col gap-1">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="users-group" class="size-4 shrink-0 text-accent" />
+				En la sala
+			</span>
+			<p data-ac-sala class="text-sm break-words text-fg">…</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="award" class="size-4 shrink-0 text-accent" />
+				Insignias
+				<span data-ac-cuenta class="text-xs"></span>
+			</span>
+			<ul class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+				{
+					INSIGNIAS.map((ins) => (
+						<li
+							data-ac-insignia={ins.id}
+							title={ins.detalle}
+							class="flex flex-col items-center gap-1 border border-line bg-bg p-2 text-center opacity-40 data-[ganada]:border-accent data-[ganada]:opacity-100"
+						>
+							<Icon name={ins.icono} class="size-6 text-accent" />
+							<span class="text-xs text-fg">{ins.titulo}</span>
+							<span class="text-[10px] leading-tight text-muted">{ins.detalle}</span>
+						</li>
+					))
+				}
+			</ul>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="trophy" class="size-4 shrink-0 text-accent" />
+				Ranking colaborativo
+			</span>
+			<p data-ac-comunidad class="text-xs text-muted"></p>
+			<ol data-ac-ranking class="flex flex-col text-sm"></ol>
+			<button type="button" data-ac-enlace class={`${BOTON} self-start border-accent text-accent`}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Pasar el enlace
+			</button>
+			<span class="text-xs text-muted">Lleva vuestras partidas: quien lo abre las junta con las suyas.</span>
+		</div>
+	</div>
+</section>
+
+<script>
+	import { CON_PISTA, DURACION, INSIGNIAS, MAX_EQUIPO, MAX_INTENTOS, PUNTOS, type Partida, type Sala } from '../lib/acertijos';
+	import { acertijosDe, acierta, claveDe, diaDe, estadoDe, insigniasDe, puntosDe, rankingDe } from '../lib/acertijos';
+	import { juntarPartidas, juntarSalas, limpiarFirma, limpiarPartidas, limpiarSala, salaVacia } from '../lib/acertijos';
+
+	const CLAVE = 'tuweb:acertijos';
+	const CLAVE_FIRMA = 'tuweb:acertijos-firma';
+	const YO = Math.random().toString(36).slice(2, 10);
+
+	const raiz = document.querySelector<HTMLElement>('#acertijos');
+	const $ = <T extends HTMLElement>(sel: string) => raiz?.querySelector<T>(sel) ?? null;
+	const aviso = $('[data-ac-aviso]');
+	const firmaCampo = $<HTMLInputElement>('[data-ac-firma]');
+
+	function avisar(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		aviso.hidden = false;
+	}
+
+	// --- Lo guardado ---
+
+	let hoy = diaDe(Date.now());
+	let sala: Sala = salaVacia(hoy);
+	let partidas: Partida[] = [];
+	let insignias: string[] = [];
+	let plenos: number[] = [];
+
+	function cargar() {
+		let guardado: Record<string, unknown> = {};
+		try {
+			guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null') ?? {};
+		} catch {
+			// Lo que no se lee se da por vacío.
+		}
+		const suya = limpiarSala(guardado.sala);
+		if (suya && suya.dia === hoy) sala = juntarSalas(sala, suya);
+		partidas = juntarPartidas(partidas, limpiarPartidas(guardado.partidas));
+		const ids = new Set(INSIGNIAS.map((i) => i.id));
+		if (Array.isArray(guardado.insignias)) insignias = [...new Set([...insignias, ...guardado.insignias.filter((i: unknown) => ids.has(String(i)))])];
+		if (Array.isArray(guardado.plenos)) plenos = [...new Set([...plenos, ...guardado.plenos.filter(Number.isInteger)])].slice(-60);
+	}
+
+	// Otra pestaña puede haber guardado entre medias: se junta antes de escribir.
+	function guardar() {
+		cargar();
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ sala, partidas, insignias, plenos }));
+		} catch {
+			// Sin almacenamiento se juega igual; solo que no se guarda.
+		}
+	}
+
+	// La firma es de la pestaña: así dos pestañas son dos personas del equipo.
+	let firma = `anon-${YO.slice(0, 4)}`;
+	try {
+		firma = limpiarFirma(sessionStorage.getItem(CLAVE_FIRMA)) || firma;
+	} catch {
+		// Sin almacenamiento, firma de paso.
+	}
+
+	const guardarFirma = () => {
+		try {
+			sessionStorage.setItem(CLAVE_FIRMA, firma);
+		} catch {}
+	};
+
+	// --- En directo entre pestañas ---
+
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
+	const otras = new Map<string, { firma: string; visto: number }>();
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: YO, firma });
+	const enviarSala = () => enviar({ tipo: 'sala', sala, partidas });
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, { firma: limpiarFirma(data.firma) || 'alguien', visto: Date.now() });
+		if (data.tipo === 'hola') enviarSala();
+		if (data.tipo === 'sala') {
+			const suya = limpiarSala(data.sala);
+			if (suya && suya.dia === hoy) sala = juntarSalas(sala, suya);
+			partidas = juntarPartidas(partidas, limpiarPartidas(data.partidas));
+			repasar();
+		}
+		pintarSala();
+	});
+
+	setInterval(() => {
+		enviar({ tipo: 'aqui' });
+		const limite = Date.now() - 10_000;
+		otras.forEach((o, id) => o.visto < limite && otras.delete(id));
+		pintarSala();
+	}, 4_000);
+
+	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// --- Pintado ---
+
+	const lista = $('[data-ac-lista]');
+	const molde = $<HTMLTemplateElement>('[data-ac-molde]');
+	const reloj = $('[data-ac-reloj]');
+	const empezar = $<HTMLButtonElement>('[data-ac-empezar]');
+
+	const mmss = (ms: number) => {
+		const s = Math.max(0, Math.ceil(ms / 1000));
+		return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+	};
+
+	function pintarSala() {
+		const nodo = $('[data-ac-sala]');
+		if (!nodo) return;
+		const aqui = [firma, ...[...otras.values()].map((o) => o.firma)];
+		if (!canal) nodo.textContent = `${firma}. Tu navegador no deja jugar entre pestañas.`;
+		else if (aqui.length === 1) nodo.textContent = `Solo ${firma}. Abre otra pestaña para sumar a alguien.`;
+		else nodo.textContent = `${aqui.length} en la sala: ${[...new Set(aqui)].join(' · ')}`;
+	}
+
+	/** Las tarjetas se montan una vez al día: luego solo cambia su estado. */
+	function montar() {
+		if (!lista || !molde) return;
+		lista.textContent = '';
+		acertijosDe(hoy).forEach((a, i) => {
+			const nodo = molde.content.firstElementChild?.cloneNode(true) as HTMLElement | undefined;
+			if (!nodo) return;
+			nodo.dataset.id = a.id;
+			nodo.querySelector('[data-ac-num]')!.textContent = String(i + 1);
+			nodo.querySelector('[data-ac-texto]')!.textContent = a.texto;
+			nodo.querySelector('[data-ac-pista]')!.textContent = `Pista: ${a.pista}`;
+			nodo.querySelector('[data-ac-form]')?.addEventListener('submit', (evento) => {
+				evento.preventDefault();
+				const campo = nodo.querySelector<HTMLInputElement>('[data-ac-respuesta]');
+				if (campo) probar(a.id, campo);
+			});
+			nodo.querySelector('[data-ac-verpista]')?.addEventListener('click', () => pedirPista(a.id));
+			lista.append(nodo);
+		});
+	}
+
+	let pintados = '';
+
+	function pintar() {
+		const ahora = Date.now();
+		const estado = estadoDe(sala, ahora);
+		const textos = {
+			espera: 'La ronda de hoy no ha empezado. Cuando le deis, corren diez minutos para todo el equipo.',
+			jugando: 'Ronda en marcha: lo que acierte cualquiera cuenta para todos.',
+			pleno: '¡Pleno! Los tres resueltos. Mañana, tres nuevos.',
+			tiempo: 'Se acabó el tiempo. Mañana, tres nuevos.',
+		};
+		$('[data-ac-estado]')!.textContent = textos[estado];
+		$('[data-ac-puntos]')!.textContent = `${puntosDe(sala)} puntos · ${PUNTOS} por acierto, ${CON_PISTA} con pista y lo que sobre del reloj si hacéis pleno`;
+		if (reloj) reloj.textContent = sala.inicio === null ? mmss(DURACION) : mmss(sala.inicio + DURACION - ahora);
+		if (empezar) empezar.hidden = estado !== 'espera';
+
+		lista?.querySelectorAll<HTMLElement>('li[data-id]').forEach((nodo) => {
+			const id = nodo.dataset.id ?? '';
+			const hecho = sala.resueltos[id];
+			const abierto = estado === 'jugando' && !hecho;
+			nodo.classList.toggle('border-accent', !!hecho);
+			nodo.querySelector<HTMLElement>('[data-ac-pista]')!.hidden = !sala.pistas.includes(id);
+			const marca = nodo.querySelector<HTMLElement>('[data-ac-hecho]');
+			if (marca) {
+				marca.hidden = !hecho;
+				marca.querySelector('span')!.textContent = hecho ? `Resuelto por ${hecho.por} a los ${mmss(hecho.at - (sala.inicio ?? hecho.at))}` : '';
+			}
+			nodo.querySelector<HTMLElement>('[data-ac-form]')!.hidden = !!hecho;
+			nodo.querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button').forEach((c) => (c.disabled = !abierto));
+			nodo.querySelector<HTMLButtonElement>('[data-ac-verpista]')!.disabled = !abierto || sala.pistas.includes(id);
+		});
+
+		// El registro solo se rehace cuando entra algo: así no salta el scroll a cada segundo.
+		const intentos = $('[data-ac-intentos]');
+		const huella = `${hoy}:${sala.inicio}:${sala.intentos.length}:${sala.intentos.at(-1)?.id ?? ''}`;
+		if (intentos && huella !== pintados) {
+			pintados = huella;
+			intentos.textContent = '';
+			const numeros = new Map(acertijosDe(hoy).map((a, i) => [a.id, i + 1]));
+			if (!sala.intentos.length) intentos.innerHTML = '<li class="text-muted">Nadie ha probado nada todavía.</li>';
+			sala.intentos.forEach((i) => {
+				const fila = document.createElement('li');
+				fila.className = i.ok ? 'text-accent' : 'text-muted';
+				fila.textContent = `${mmss(i.at - (sala.inicio ?? i.at))}  #${numeros.get(i.acertijo)}  ${i.por}: «${i.texto}» ${i.ok ? 'bien' : 'no'}`;
+				intentos.append(fila);
+			});
+			intentos.scrollTop = intentos.scrollHeight;
+		}
+
+		raiz?.querySelectorAll<HTMLElement>('[data-ac-insignia]').forEach((nodo) => {
+			nodo.toggleAttribute('data-ganada', insignias.includes(nodo.dataset.acInsignia ?? ''));
+		});
+		$('[data-ac-cuenta]')!.textContent = `${insignias.length} de ${INSIGNIAS.length}`;
+
+		const filas = rankingDe(partidas);
+		const total = partidas.reduce((s, p) => s + p.puntos, 0);
+		const aciertos = partidas.reduce((s, p) => s + p.aciertos, 0);
+		$('[data-ac-comunidad]')!.textContent = partidas.length
+			? `Entre todos: ${total} puntos, ${aciertos} acertijos en ${partidas.length} partidas.`
+			: 'Aún no hay partidas. Cerrad una ronda y entráis aquí.';
+		const ranking = $('[data-ac-ranking]');
+		if (ranking) {
+			ranking.textContent = '';
+			filas.slice(0, 15).forEach((f, i) => {
+				const fila = document.createElement('li');
+				fila.className = `flex justify-between gap-3 border-b border-line py-1 ${f.firma === firma ? 'text-accent' : 'text-fg'}`;
+				fila.textContent = `${i + 1}. ${f.firma}`;
+				const datos = Object.assign(document.createElement('span'), { className: 'shrink-0 font-mono text-xs text-muted' });
+				fila.append(Object.assign(datos, { textContent: `${f.puntos} pts · ${f.aciertos} ok` }));
+				ranking.append(fila);
+			});
+		}
+	}
+
+	// --- Jugar ---
+
+	function cambiar(nueva: Sala) {
+		sala = nueva;
+		repasar();
+		guardar();
+		enviarSala();
+	}
+
+	const conmigo = (s: Sala) => ({ ...s, equipo: s.equipo.includes(firma) ? s.equipo : [...s.equipo, firma].slice(0, MAX_EQUIPO) });
+
+	empezar?.addEventListener('click', () => {
+		if (sala.inicio !== null) return;
+		cambiar(conmigo({ ...sala, inicio: Date.now() }));
+		lista?.querySelector<HTMLInputElement>('[data-ac-respuesta]')?.focus();
+	});
+
+	function probar(id: string, campo: HTMLInputElement) {
+		const texto = campo.value.trim().slice(0, 40);
+		const acertijo = acertijosDe(hoy).find((a) => a.id === id);
+		if (!texto || !acertijo || estadoDe(sala, Date.now()) !== 'jugando' || sala.resueltos[id]) return;
+		const ok = acierta(acertijo, texto);
+		const at = Date.now();
+		const intento = { id: `${at.toString(36)}${YO.slice(0, 4)}`, por: firma, acertijo: id, texto, ok, at };
+		const resueltos = ok ? { ...sala.resueltos, [id]: { por: firma, at, pista: sala.pistas.includes(id) } } : sala.resueltos;
+		campo.value = '';
+		cambiar(conmigo({ ...sala, resueltos, intentos: [...sala.intentos, intento].slice(-MAX_INTENTOS) }));
+		if (!ok) campo.focus();
+	}
+
+	function pedirPista(id: string) {
+		if (sala.pistas.includes(id) || estadoDe(sala, Date.now()) !== 'jugando') return;
+		cambiar(conmigo({ ...sala, pistas: [...sala.pistas, id] }));
+	}
+
+	/** Cierra la ronda si toca, apunta la partida y reparte insignias. Se puede llamar las veces que haga falta. */
+	let apuntada = '';
+	function repasar() {
+		const estado = estadoDe(sala, Date.now());
+		const cerrada = estado === 'pleno' || estado === 'tiempo';
+		if (cerrada && sala.equipo.length) {
+			const partida = { dia: sala.dia, equipo: sala.equipo, puntos: puntosDe(sala), aciertos: Object.keys(sala.resueltos).length };
+			const marca = `${claveDe(partida)}:${partida.puntos}`;
+			if (marca !== apuntada) {
+				apuntada = marca;
+				partidas = juntarPartidas(partidas, [partida]);
+				if (estado === 'pleno' && !plenos.includes(sala.dia)) plenos = [...plenos, sala.dia].slice(-60);
+				guardar();
+			}
+		}
+		const nuevas = insigniasDe(sala, plenos).filter((i) => !insignias.includes(i));
+		if (nuevas.length) {
+			insignias = [...insignias, ...nuevas];
+			guardar();
+			const titulos = nuevas.map((id) => INSIGNIAS.find((i) => i.id === id)?.titulo).join(', ');
+			avisar(`Insignia nueva: ${titulos}.`);
+		}
+		pintar();
+	}
+
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('change', () => {
+			firma = limpiarFirma(firmaCampo.value) || firma;
+			firmaCampo.value = firma;
+			guardarFirma();
+			enviar({ tipo: 'aqui' });
+			pintarSala();
+			pintar();
+		});
+	}
+
+	// --- El enlace ---
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	$('[data-ac-enlace]')?.addEventListener('click', async () => {
+		const url = `${location.origin}/acertijos#r=${aBase64({ p: partidas.slice(0, 60) })}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			avisar('Enlace copiado. Quien lo abra junta vuestras partidas con las suyas.');
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	});
+
+	// --- Arranque ---
+
+	cargar();
+	const recibido = /^#r=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const datos = deBase64(recibido[1]);
+		const llegan = limpiarPartidas(datos?.p);
+		if (llegan.length) {
+			partidas = juntarPartidas(partidas, llegan);
+			guardar();
+			avisar(`${llegan.length} partidas juntadas con las tuyas. Jugad la de hoy y pasadlo otra vez.`);
+		} else avisar('El enlace está roto: sigue el ranking que tenías.');
+		history.replaceState(null, '', '/acertijos');
+	}
+
+	// El reloj corre para todos; a medianoche cambia el día y la sala empieza vacía.
+	setInterval(() => {
+		const dia = diaDe(Date.now());
+		if (dia !== hoy) {
+			hoy = dia;
+			sala = salaVacia(hoy);
+			montar();
+		}
+		repasar();
+	}, 1_000);
+
+	montar();
+	repasar();
+	enviar({ tipo: 'hola' });
+	enviarSala();
+	pintarSala();
+</script>
