@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, y un lienzo de píxeles compartido que se escribe en ASCII para bajarlo en .txt. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, una terminal donde los acertijos se abren con comandos de Linux, y un lienzo de píxeles compartido que se escribe en ASCII para bajarlo en .txt. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',
@@ -293,6 +293,15 @@ export const SECTIONS: Section[] = [
 		card: 'Tres acertijos de lógica al día contra el reloj, en equipo: insignias y un ranking que se suma entre todos.',
 		intro:
 			'El modo cooperativo: cada día, tres acertijos de lógica y diez minutos para todo el equipo. Cada pestaña es alguien con su firma; lo que prueba cualquiera sale al momento en las demás, y lo que acierta uno cuenta para todos. Cien puntos por acierto, la mitad si pedís pista, y lo que sobre del reloj si hacéis pleno. Seis insignias para desbloquear —pleno, sin pistas, en menos de tres minutos, en equipo, tres días seguidos— y un ranking colaborativo donde cada partida suma entera a todo el equipo; pasa el enlace y quien lo abre junta vuestras partidas con las suyas. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
+	},
+	{
+		href: '/terminal',
+		title: 'Terminal',
+		icon: 'terminal-2',
+		group: 'juegos',
+		card: 'Siete acertijos que se abren con ls, cat, grep y find. Logros y ranking de la comunidad.',
+		intro:
+			'Una terminal de mentira con siete niveles. En cada uno hay una clave escondida entre ficheros: búscala con ls, cd, cat, head, tail, grep, find, wc o sort, encadénalos con | y ábrela con abrir. Cada nivel vale cien puntos, la mitad si pides pista, y abre el siguiente. Seis logros para desbloquear y un ranking de la comunidad: pasa el enlace y quien lo abre junta tu marca con la suya. Aquí no se ejecuta nada: los ficheros y los comandos están escritos a mano y lo que llevas se queda en tu navegador.',
 	},
 	{
 		href: '/pixeles-ascii',

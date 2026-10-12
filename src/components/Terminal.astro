@@ -1,0 +1,403 @@
+---
+/**
+ * La terminal de los juegos: siete niveles que se abren con comandos de Linux.
+ * Los ficheros son de mentira y los comandos, funciones de src/lib/terminal.ts:
+ * no se ejecuta nada. Lo que llevas, las insignias y el ranking se guardan en
+ * tu navegador; el ranking viaja en el enlace para juntarse con el de otra gente.
+ */
+import Icon from './Icon.astro';
+import { INSIGNIAS, NIVELES } from '../lib/terminal';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+---
+
+<section id="terminal" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<p data-te-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="flex flex-col gap-1 border border-line bg-panel p-4">
+			<span class="flex items-center gap-2 text-sm text-fg">
+				<span data-te-num class="font-pixel text-accent"></span>
+				<span data-te-titulo></span>
+			</span>
+			<span data-te-reto class="text-sm text-muted"></span>
+			<span data-te-pista class="text-xs text-mark" hidden></span>
+		</div>
+
+		<div data-te-pantalla class="flex h-96 cursor-text flex-col border border-line bg-bg font-mono text-xs sm:text-sm">
+			<div data-te-salida aria-live="polite" class="flex-1 overflow-y-auto px-3 py-2 break-words whitespace-pre-wrap"></div>
+			<form data-te-form class="flex items-center gap-2 border-t border-line px-3 py-2">
+				<label for="te-linea" data-te-prompt class="shrink-0 text-accent">dev@tuweb:~$</label>
+				<input
+					id="te-linea"
+					type="text"
+					data-te-linea
+					maxlength="200"
+					autocomplete="off"
+					autocapitalize="off"
+					spellcheck="false"
+					class="min-w-0 flex-1 bg-transparent text-fg outline-none"
+				/>
+			</form>
+		</div>
+		<span class="text-xs text-muted">Escribe ayuda para ver los comandos. Tab completa, las flechas recuperan lo anterior.</span>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="folders" class="size-4 shrink-0 text-accent" />
+				Niveles
+				<span data-te-puntos class="text-xs"></span>
+			</span>
+			<ol class="flex flex-col text-sm">
+				{
+					NIVELES.map((n, i) => (
+						<li>
+							<button
+								type="button"
+								data-te-nivel={i}
+								class="flex w-full items-center justify-between gap-3 border-b border-line py-1 text-left text-fg hover:text-accent disabled:text-muted disabled:opacity-50 data-[actual]:text-accent"
+							>
+								<span>
+									{i + 1}. {n.titulo}
+								</span>
+								<span data-te-marca class="shrink-0 font-mono text-xs text-muted" />
+							</button>
+						</li>
+					))
+				}
+			</ol>
+		</div>
+
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-te-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="award" class="size-4 shrink-0 text-accent" />
+				Logros
+				<span data-te-cuenta class="text-xs"></span>
+			</span>
+			<ul class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+				{
+					INSIGNIAS.map((ins) => (
+						<li
+							data-te-insignia={ins.id}
+							title={ins.detalle}
+							class="flex flex-col items-center gap-1 border border-line bg-bg p-2 text-center opacity-40 data-[ganada]:border-accent data-[ganada]:opacity-100"
+						>
+							<Icon name={ins.icono} class="size-6 text-accent" />
+							<span class="text-xs text-fg">{ins.titulo}</span>
+							<span class="text-[10px] leading-tight text-muted">{ins.detalle}</span>
+						</li>
+					))
+				}
+			</ul>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="trophy" class="size-4 shrink-0 text-accent" />
+				Ranking de la comunidad
+			</span>
+			<ol data-te-ranking class="flex flex-col text-sm"></ol>
+			<button type="button" data-te-enlace class={`${BOTON} self-start border-accent text-accent`}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Pasar el enlace
+			</button>
+			<span class="text-xs text-muted">Lleva la tabla con tu marca: quien lo abre la junta con la suya.</span>
+		</div>
+	</div>
+</section>
+
+<script>
+	import { CON_PISTA, HOME, INSIGNIAS, NIVELES, PUNTOS, type Entrada } from '../lib/terminal';
+	import { acierta, completar, ejecutar, juntarRanking, limpiarFirma, limpiarRanking } from '../lib/terminal';
+
+	const CLAVE = 'tuweb:terminal';
+
+	const raiz = document.querySelector<HTMLElement>('#terminal');
+	const $ = <T extends HTMLElement>(sel: string) => raiz?.querySelector<T>(sel) ?? null;
+	const salida = $('[data-te-salida]');
+	const linea = $<HTMLInputElement>('[data-te-linea]');
+	const aviso = $('[data-te-aviso]');
+
+	function avisar(texto: string) {
+		if (!aviso) return;
+		aviso.textContent = texto;
+		aviso.hidden = false;
+	}
+
+	// --- Lo guardado ---
+
+	let firma = `anon-${Math.random().toString(36).slice(2, 6)}`;
+	let actual = 0;
+	let resueltos: Record<string, { pista: boolean }> = {};
+	let pistas: string[] = [];
+	let insignias: string[] = [];
+	let ranking: Entrada[] = [];
+
+	try {
+		const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null') ?? {};
+		firma = limpiarFirma(g.firma) || firma;
+		const ids = new Set(NIVELES.map((n) => n.id));
+		if (g.resueltos && typeof g.resueltos === 'object') {
+			for (const [id, r] of Object.entries(g.resueltos)) if (ids.has(id)) resueltos[id] = { pista: (r as { pista?: unknown })?.pista === true };
+		}
+		if (Array.isArray(g.pistas)) pistas = g.pistas.filter((p: unknown) => ids.has(String(p)));
+		if (Array.isArray(g.insignias)) insignias = g.insignias.filter((i: unknown) => INSIGNIAS.some((x) => x.id === i));
+		ranking = limpiarRanking(g.ranking);
+		if (Number.isInteger(g.actual) && g.actual >= 0 && g.actual < NIVELES.length) actual = g.actual;
+	} catch {
+		// Lo que no se lee se da por vacío.
+	}
+
+	const puntos = () => Object.values(resueltos).reduce((s, r) => s + (r.pista ? CON_PISTA : PUNTOS), 0);
+	const abierto = (i: number) => i === 0 || !!resueltos[NIVELES[i - 1].id];
+
+	function guardar() {
+		ranking = juntarRanking(ranking, [{ firma, puntos: puntos(), niveles: Object.keys(resueltos).length }]);
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ firma, actual, resueltos, pistas, insignias, ranking }));
+		} catch {
+			// Sin almacenamiento se juega igual; solo que no se guarda.
+		}
+	}
+
+	// --- La pantalla ---
+
+	let cwd = HOME;
+	const historial: string[] = [];
+	let paso = 0;
+
+	function escribir(lineas: string[], color = 'text-fg') {
+		if (!salida) return;
+		for (const texto of lineas) {
+			const fila = document.createElement('div');
+			fila.className = color;
+			fila.textContent = texto || ' ';
+			salida.append(fila);
+		}
+		while (salida.childElementCount > 400) salida.firstElementChild?.remove();
+		salida.scrollTop = salida.scrollHeight;
+	}
+
+	const prompt = () => `dev@tuweb:${cwd.startsWith(HOME) ? `~${cwd.slice(HOME.length)}` : cwd}$`;
+
+	function pintar() {
+		const nivel = NIVELES[actual];
+		$('[data-te-num]')!.textContent = String(actual + 1);
+		$('[data-te-titulo]')!.textContent = nivel.titulo;
+		$('[data-te-reto]')!.textContent = nivel.reto;
+		const pista = $('[data-te-pista]')!;
+		pista.textContent = `Pista: ${nivel.pista}`;
+		pista.hidden = !pistas.includes(nivel.id);
+		$('[data-te-prompt]')!.textContent = prompt();
+		$('[data-te-puntos]')!.textContent = `${Object.keys(resueltos).length} de ${NIVELES.length} · ${puntos()} puntos`;
+
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-te-nivel]').forEach((b) => {
+			const i = Number(b.dataset.teNivel);
+			const hecho = resueltos[NIVELES[i].id];
+			b.disabled = !abierto(i);
+			b.toggleAttribute('data-actual', i === actual);
+			b.querySelector('[data-te-marca]')!.textContent = hecho ? (hecho.pista ? `+${CON_PISTA}` : `+${PUNTOS}`) : abierto(i) ? 'abierto' : 'cerrado';
+		});
+
+		raiz?.querySelectorAll<HTMLElement>('[data-te-insignia]').forEach((nodo) => {
+			nodo.toggleAttribute('data-ganada', insignias.includes(nodo.dataset.teInsignia ?? ''));
+		});
+		$('[data-te-cuenta]')!.textContent = `${insignias.length} de ${INSIGNIAS.length}`;
+
+		const tabla = $('[data-te-ranking]');
+		if (tabla) {
+			tabla.textContent = '';
+			ranking.slice(0, 15).forEach((e, i) => {
+				const fila = document.createElement('li');
+				fila.className = `flex justify-between gap-3 border-b border-line py-1 ${e.firma === firma ? 'text-accent' : 'text-fg'}`;
+				fila.textContent = `${i + 1}. ${e.firma}`;
+				const datos = Object.assign(document.createElement('span'), { className: 'shrink-0 font-mono text-xs text-muted' });
+				fila.append(Object.assign(datos, { textContent: `${e.puntos} pts · ${e.niveles}/${NIVELES.length}` }));
+				tabla.append(fila);
+			});
+		}
+	}
+
+	function ganar(ids: string[]) {
+		const nuevas = [...new Set(ids)].filter((id) => !insignias.includes(id));
+		if (!nuevas.length) return;
+		insignias = [...insignias, ...nuevas];
+		const titulos = nuevas.map((id) => INSIGNIAS.find((i) => i.id === id)?.titulo).join(', ');
+		escribir([`*** Logro desbloqueado: ${titulos} ***`], 'text-accent');
+		avisar(`Logro nuevo: ${titulos}.`);
+	}
+
+	function irA(i: number) {
+		if (i < 0 || i >= NIVELES.length || !abierto(i)) return escribir([`nivel: el ${i + 1} sigue cerrado`], 'text-mark');
+		actual = i;
+		cwd = HOME;
+		guardar();
+		escribir(['', `--- Nivel ${i + 1}: ${NIVELES[i].titulo} ---`, NIVELES[i].reto], 'text-accent');
+		pintar();
+	}
+
+	const AYUDA = [
+		'ls [-a] [ruta]        lo que hay en una carpeta',
+		'cd [ruta]             entrar en una carpeta (.. sube)',
+		'pwd                   dónde estás',
+		'cat fichero           leer un fichero',
+		'head|tail -n N fich.  las primeras o las últimas líneas',
+		'grep [-i -n -c -v -r] texto [fichero]',
+		'find [ruta] -name "*.txt"',
+		'wc [-l -w -c] [fichero]',
+		'sort [-r] [fichero]   ordenar líneas',
+		'comando | comando     pasar la salida al siguiente',
+		'',
+		'abrir <clave>         probar la clave del nivel',
+		`pista                 ver la pista (el nivel vale ${CON_PISTA})`,
+		'nivel [n]             ir a un nivel abierto',
+		'clear                 limpiar la pantalla',
+	];
+
+	function orden(texto: string) {
+		escribir([`${prompt()} ${texto}`], 'text-muted');
+		const [cmd, ...args] = texto.trim().split(/\s+/);
+		const nivel = NIVELES[actual];
+		if (cmd === 'ayuda' || cmd === 'help') return escribir(AYUDA);
+		if (cmd === 'clear') {
+			if (salida) salida.textContent = '';
+			return;
+		}
+		if (cmd === 'nivel') return args[0] ? irA(Number(args[0]) - 1) : escribir([`${actual + 1}. ${nivel.titulo}: ${nivel.reto}`]);
+		if (cmd === 'pista') {
+			if (!resueltos[nivel.id] && !pistas.includes(nivel.id)) pistas = [...pistas, nivel.id];
+			guardar();
+			pintar();
+			return escribir([`Pista: ${nivel.pista}`], 'text-mark');
+		}
+		if (cmd === 'abrir') {
+			if (!args.length) return escribir(['abrir: falta la clave'], 'text-mark');
+			if (!acierta(nivel, args.join(' '))) return escribir(['Acceso denegado. Esa no es.'], 'text-mark');
+			if (resueltos[nivel.id]) escribir(['Ya lo tenías abierto.'], 'text-accent');
+			else {
+				const pista = pistas.includes(nivel.id);
+				resueltos = { ...resueltos, [nivel.id]: { pista } };
+				escribir([`Acceso concedido. +${pista ? CON_PISTA : PUNTOS} puntos.`], 'text-accent');
+				const todos = NIVELES.every((n) => resueltos[n.id]);
+				ganar(['primero', ...(todos ? ['root'] : []), ...(todos && NIVELES.every((n) => !resueltos[n.id].pista) ? ['sinpistas'] : [])]);
+			}
+			guardar();
+			if (actual + 1 < NIVELES.length) irA(actual + 1);
+			else escribir(['Los siete abiertos. Eres root. Pasa el enlace y a ver quién te alcanza.'], 'text-accent');
+			return pintar();
+		}
+
+		const r = ejecutar(nivel, cwd, texto);
+		cwd = r.cwd;
+		escribir(r.salida, r.error ? 'text-mark' : 'text-fg');
+		const usos: Record<string, string> = { 'ls -a': 'ocultos', grep: 'grep', '|': 'tuberia' };
+		ganar(r.usados.flatMap((u) => (usos[u] ? [usos[u]] : [])));
+		guardar();
+		pintar();
+	}
+
+	$('[data-te-form]')?.addEventListener('submit', (evento) => {
+		evento.preventDefault();
+		const texto = linea?.value.trim().slice(0, 200) ?? '';
+		if (linea) linea.value = '';
+		if (!texto) return escribir([prompt()], 'text-muted');
+		historial.push(texto);
+		paso = historial.length;
+		orden(texto);
+	});
+
+	linea?.addEventListener('keydown', (evento) => {
+		if (evento.key === 'Tab') {
+			evento.preventDefault();
+			linea.value = completar(NIVELES[actual], cwd, linea.value);
+		} else if (evento.key === 'ArrowUp' || evento.key === 'ArrowDown') {
+			evento.preventDefault();
+			paso = Math.max(0, Math.min(historial.length, paso + (evento.key === 'ArrowUp' ? -1 : 1)));
+			linea.value = historial[paso] ?? '';
+		}
+	});
+
+	$('[data-te-pantalla]')?.addEventListener('click', () => {
+		if (!getSelection()?.toString()) linea?.focus();
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-te-nivel]').forEach((b) => {
+		b.addEventListener('click', () => {
+			irA(Number(b.dataset.teNivel));
+			linea?.focus();
+		});
+	});
+
+	const firmaCampo = $<HTMLInputElement>('[data-te-firma]');
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('change', () => {
+			const nueva = limpiarFirma(firmaCampo.value);
+			// La fila vieja se va: la marca es la misma, solo cambia quién la firma.
+			if (nueva && nueva !== firma) ranking = ranking.filter((e) => e.firma !== firma);
+			firma = nueva || firma;
+			firmaCampo.value = firma;
+			guardar();
+			pintar();
+		});
+	}
+
+	// --- El enlace ---
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	$('[data-te-enlace]')?.addEventListener('click', async () => {
+		guardar();
+		const url = `${location.origin}/terminal#r=${aBase64({ r: ranking.slice(0, 40) })}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			avisar('Enlace copiado. Quien lo abra junta la tabla con la suya.');
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	});
+
+	// --- Arranque ---
+
+	const recibido = /^#r=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const llegan = limpiarRanking(deBase64(recibido[1])?.r);
+		if (llegan.length) {
+			ranking = juntarRanking(ranking, llegan);
+			avisar(`${llegan.length} marcas juntadas con la tuya. Sube y pásalo otra vez.`);
+		} else avisar('El enlace está roto: sigue el ranking que tenías.');
+		history.replaceState(null, '', '/terminal');
+	}
+
+	if (!abierto(actual)) actual = 0;
+	guardar();
+	escribir(['tuweb shell 1.0 — nada de esto se ejecuta de verdad.', 'Escribe ayuda para ver los comandos.'], 'text-muted');
+	irA(actual);
+</script>
