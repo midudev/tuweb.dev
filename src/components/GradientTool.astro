@@ -1,16 +1,18 @@
 ---
 /**
  * Generador de gradientes CSS: dos o más colores con su posición, lineal o
- * radial, con ángulo. La vista previa es el propio CSS aplicado a una caja, y
- * debajo a un elemento de prueba (botón, tarjeta o texto) para verlo en uso. Se
- * exporta como CSS, variable, clase de Tailwind, SVG o PNG; el SVG y el PNG
+ * radial, con ángulo o con centro. La vista previa es el propio CSS aplicado a
+ * una caja, y debajo a un elemento de prueba (botón, tarjeta o texto) para verlo
+ * en uso. Se exporta como CSS, variable, SCSS, estilo de React, clase de
+ * Tailwind, SVG o PNG; el SVG y el PNG
  * usan la misma geometría que el navegador para el CSS, así lo que se baja es
  * lo que se ve. Todo pasa en el navegador y
  * lo único que se guarda es el estado, en localStorage.
  *
  * Para compartir, el gradiente cabe en un código corto que viaja en la URL
  * (?gradiente=l135-c2410c.0-2563eb.100#gradientes): quien abre el enlace ve
- * ese mismo gradiente. Los ejemplos usan el mismo código.
+ * ese mismo gradiente. Los ejemplos usan el mismo código. Un radial con el
+ * centro movido lo lleva detrás de la forma: rc@30.40-….
  *
  * Encima de la lista de colores hay una barra con el gradiente de izquierda a
  * derecha: se pulsa para añadir un color en ese punto y se arrastran las marcas.
@@ -59,6 +61,8 @@ const PRUEBAS = [
 const FORMATOS = [
 	{ id: 'css', label: 'CSS', icon: 'file-type-css' },
 	{ id: 'variable', label: 'Variable', icon: 'variable' },
+	{ id: 'scss', label: 'SCSS', icon: 'brand-sass' },
+	{ id: 'react', label: 'React', icon: 'brand-react' },
 	{ id: 'tailwind', label: 'Tailwind', icon: 'brand-tailwind' },
 	{ id: 'svg', label: 'SVG', icon: 'file-type-svg' },
 ];
@@ -137,6 +141,26 @@ const FORMATOS = [
 				<div class="flex flex-wrap gap-2">
 					<button type="button" data-gr-forma="circle" aria-pressed="true" class={OPCION}>Círculo</button>
 					<button type="button" data-gr-forma="ellipse" aria-pressed="false" class={OPCION}>Elipse</button>
+				</div>
+				<span class="mt-2 text-sm text-muted">Centro</span>
+				{
+					[
+						{ eje: 'x', label: 'Horizontal' },
+						{ eje: 'y', label: 'Vertical' },
+					].map((campo) => (
+						<label class="flex items-center gap-3 text-xs text-muted">
+							<span class="w-20 shrink-0">{campo.label}</span>
+							<input type="range" min="0" max="100" step="1" data-gr-centro={campo.eje} class="min-w-0 flex-1 accent-accent" />
+							<span data-gr-centro-texto={campo.eje} class="w-10 shrink-0 text-right"></span>
+						</label>
+					))
+				}
+				<div class="flex flex-wrap items-center gap-2">
+					<button type="button" data-gr-centrar class="inline-flex items-center gap-2 border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent">
+						<Icon name="current-location" class="size-4 shrink-0" />
+						Al medio
+					</button>
+					<span class="text-xs text-muted">O pulsa en la vista previa.</span>
 				</div>
 			</div>
 
@@ -328,11 +352,14 @@ const FORMATOS = [
 
 <script>
 	type Parada = { color: string; pos: number };
-	type Formato = 'css' | 'variable' | 'tailwind' | 'svg';
+	type Formato = 'css' | 'variable' | 'scss' | 'react' | 'tailwind' | 'svg';
 	type Estado = {
 		tipo: 'linear' | 'radial';
 		angulo: number;
 		forma: 'circle' | 'ellipse';
+		// El centro del radial, en % del ancho y del alto.
+		centroX: number;
+		centroY: number;
 		paradas: Parada[];
 		tamano: string;
 		formato: Formato;
@@ -340,7 +367,7 @@ const FORMATOS = [
 	};
 	type Prueba = 'boton' | 'tarjeta' | 'texto';
 
-	const FORMATOS: Formato[] = ['css', 'variable', 'tailwind', 'svg'];
+	const FORMATOS: Formato[] = ['css', 'variable', 'scss', 'react', 'tailwind', 'svg'];
 	const PRUEBAS: Prueba[] = ['boton', 'tarjeta', 'texto'];
 
 	const CLAVE = 'tuweb:gradientes';
@@ -350,6 +377,8 @@ const FORMATOS = [
 		tipo: 'linear',
 		angulo: 135,
 		forma: 'circle',
+		centroX: 50,
+		centroY: 50,
 		paradas: [
 			{ color: '#c2410c', pos: 0 },
 			{ color: '#f5c542', pos: 50 },
@@ -378,6 +407,8 @@ const FORMATOS = [
 	const formatos = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-formato]') ?? [];
 	const pruebas = panel?.querySelectorAll<HTMLButtonElement>('[data-gr-prueba]') ?? [];
 	const muestras = panel?.querySelectorAll<HTMLElement>('[data-gr-muestra]') ?? [];
+	const centros = panel?.querySelectorAll<HTMLInputElement>('[data-gr-centro]') ?? [];
+	const centrosTexto = panel?.querySelectorAll<HTMLElement>('[data-gr-centro-texto]') ?? [];
 	const pintables = panel?.querySelectorAll<HTMLElement>('[data-gr-muestra="boton"], [data-gr-fondo], [data-gr-texto]') ?? [];
 
 	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(Math.round(v), min), max);
@@ -391,6 +422,8 @@ const FORMATOS = [
 					tipo: guardado.tipo === 'radial' ? 'radial' : 'linear',
 					angulo: limitar(num(guardado.angulo, INICIAL.angulo), 0, 360),
 					forma: guardado.forma === 'ellipse' ? 'ellipse' : 'circle',
+					centroX: limitar(num(guardado.centroX, 50), 0, 100),
+					centroY: limitar(num(guardado.centroY, 50), 0, 100),
 					paradas: guardado.paradas.slice(0, MAX_PARADAS).map((p: Partial<Parada>) => ({
 						color: HEX.test(String(p.color)) ? String(p.color).toLowerCase() : '#000000',
 						pos: limitar(num(p.pos, 0), 0, 100),
@@ -408,13 +441,15 @@ const FORMATOS = [
 
 	// ——— El código para compartir ———
 	// l135-c2410c.0-2563eb.100 es lineal a 135deg; rc-… y re-… son radiales en
-	// círculo o elipse. Lo que no encaje se ignora sin tocar nada.
-	const CODIGO = /^(?:l(\d{1,3})|r([ce]))((?:-[0-9a-f]{6}\.\d{1,3}){2,8})$/i;
+	// círculo o elipse, con @x.y si el centro no está en medio. Lo que no encaje
+	// se ignora sin tocar nada.
+	const CODIGO = /^(?:l(\d{1,3})|r([ce])(?:@(\d{1,3})\.(\d{1,3}))?)((?:-[0-9a-f]{6}\.\d{1,3}){2,8})$/i;
 
 	function leer(texto: string, base: Estado): Estado | null {
 		const m = texto.trim().match(CODIGO);
 		if (!m) return null;
-		const paradas = m[3]
+		const radial = m[1] === undefined;
+		const paradas = m[5]
 			.slice(1)
 			.split('-')
 			.map((trozo) => {
@@ -423,15 +458,21 @@ const FORMATOS = [
 			});
 		return {
 			...base,
-			tipo: m[1] === undefined ? 'radial' : 'linear',
-			angulo: m[1] === undefined ? base.angulo : limitar(Number(m[1]), 0, 360),
+			tipo: radial ? 'radial' : 'linear',
+			angulo: radial ? base.angulo : limitar(Number(m[1]), 0, 360),
 			forma: m[2]?.toLowerCase() === 'e' ? 'ellipse' : m[2] ? 'circle' : base.forma,
+			// Un radial sin @ va en medio; uno lineal deja el centro como estaba.
+			centroX: radial ? limitar(Number(m[3] ?? 50), 0, 100) : base.centroX,
+			centroY: radial ? limitar(Number(m[4] ?? 50), 0, 100) : base.centroY,
 			paradas,
 		};
 	}
 
+	const enMedio = () => estado.centroX === 50 && estado.centroY === 50;
+
 	function codigo() {
-		const cabeza = estado.tipo === 'linear' ? `l${estado.angulo}` : `r${estado.forma === 'ellipse' ? 'e' : 'c'}`;
+		const centro = enMedio() ? '' : `@${estado.centroX}.${estado.centroY}`;
+		const cabeza = estado.tipo === 'linear' ? `l${estado.angulo}` : `r${estado.forma === 'ellipse' ? 'e' : 'c'}${centro}`;
 		return cabeza + ordenadas().map((p) => `-${p.color.slice(1)}.${p.pos}`).join('');
 	}
 
@@ -470,7 +511,7 @@ const FORMATOS = [
 		const paradas = paradasCss();
 		return estado.tipo === 'linear'
 			? `linear-gradient(${estado.angulo}deg, ${paradas})`
-			: `radial-gradient(${estado.forma}, ${paradas})`;
+			: `radial-gradient(${estado.forma}${enMedio() ? '' : ` at ${estado.centroX}% ${estado.centroY}%`}, ${paradas})`;
 	}
 
 	function medidas() {
@@ -512,6 +553,17 @@ const FORMATOS = [
 		const liso = ordenadas()[0]?.color ?? '#000000';
 		if (formato === 'variable') {
 			return `:root {\n  --gradiente: ${css};\n}\n\n.fondo {\n  background: ${liso};\n  background: var(--gradiente);\n}`;
+		}
+		if (formato === 'scss') {
+			return `$gradiente: ${css};\n\n@mixin fondo-gradiente {\n  background: ${liso};\n  background: $gradiente;\n}\n\n.fondo {\n  @include fondo-gradiente;\n}`;
+		}
+		// En JSX el estilo es un objeto y el valor va entre comillas.
+		if (formato === 'react') {
+			const estilo =
+				estado.prueba === 'texto'
+					? `  backgroundImage: '${css}',\n  WebkitBackgroundClip: 'text',\n  backgroundClip: 'text',\n  color: 'transparent',`
+					: `  background: '${css}',`;
+			return `const gradiente = {\n${estilo}\n};\n\n<div style={gradiente} />`;
 		}
 		// En los valores arbitrarios de Tailwind el espacio se escribe con _.
 		if (formato === 'tailwind') return `bg-[${css.replace(/,\s+/g, ',').replace(/\s+/g, '_')}]`;
@@ -656,6 +708,12 @@ const FORMATOS = [
 		if (bloqueRadial) bloqueRadial.hidden = estado.tipo !== 'radial';
 		if (angulo) angulo.value = String(estado.angulo);
 		if (anguloNum) anguloNum.value = String(estado.angulo);
+		pintarCentro();
+		// En radial la vista previa se arrastra, así que en el móvil no hace scroll.
+		if (vista) {
+			vista.style.cursor = estado.tipo === 'radial' ? 'crosshair' : '';
+			vista.style.touchAction = estado.tipo === 'radial' ? 'none' : '';
+		}
 		if (tamano) {
 			if (![...tamano.options].some((o) => o.value === estado.tamano)) estado.tamano = INICIAL.tamano;
 			tamano.value = estado.tamano;
@@ -775,8 +833,8 @@ const FORMATOS = [
 	// La misma geometría que usa el navegador para el CSS. Lineal: la línea del
 	// gradiente pasa por el centro con el ángulo dado (0deg es hacia arriba y gira
 	// como el reloj) y mide lo justo para que las esquinas caigan en el 0% y el
-	// 100%. Radial: centrado y hasta la esquina más lejana, que es lo que hace
-	// CSS cuando no se le dice tamaño.
+	// 100%. Radial: desde su centro hasta la esquina más lejana, que es lo que
+	// hace CSS cuando no se le dice tamaño.
 	// El SVG usa las mismas cuentas, así que salen de aquí.
 	function geometria() {
 		const { ancho, alto } = medidas();
@@ -795,12 +853,16 @@ const FORMATOS = [
 				y2: cy + dy * medio,
 			};
 		}
-		// La elipse guarda la proporción del lienzo y toca las esquinas: radios
-		// de la mitad de cada lado por raíz de dos.
+		// La elipse guarda la proporción de los lados más lejanos y toca la
+		// esquina más lejana: esas distancias por raíz de dos.
+		const px = (ancho * estado.centroX) / 100;
+		const py = (alto * estado.centroY) / 100;
+		const lejosX = Math.max(px, ancho - px);
+		const lejosY = Math.max(py, alto - py);
 		const circulo = estado.forma === 'circle';
-		const rx = circulo ? Math.hypot(cx, cy) : cx * Math.SQRT2;
-		const ry = circulo ? rx : cy * Math.SQRT2;
-		return { tipo: 'radial' as const, cx, cy, rx, ry };
+		const rx = circulo ? Math.hypot(lejosX, lejosY) : lejosX * Math.SQRT2;
+		const ry = circulo ? rx : lejosY * Math.SQRT2;
+		return { tipo: 'radial' as const, cx: px, cy: py, rx, ry };
 	}
 
 	function lienzo() {
@@ -906,6 +968,59 @@ const FORMATOS = [
 			if (anguloNum) anguloNum.value = String(estado.angulo);
 		});
 	});
+
+	// ——— El centro del radial ———
+	const centroDe = (eje: string | undefined) => (eje === 'y' ? estado.centroY : estado.centroX);
+
+	function pintarCentro() {
+		centros.forEach((c) => {
+			c.value = String(centroDe(c.dataset.grCentro));
+		});
+		centrosTexto.forEach((t) => {
+			t.textContent = `${centroDe(t.dataset.grCentroTexto)}%`;
+		});
+	}
+
+	function ponerCentro(x: number, y: number) {
+		estado.centroX = limitar(x, 0, 100);
+		estado.centroY = limitar(y, 0, 100);
+		pintarCentro();
+		actualizar();
+	}
+
+	centros.forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const valor = Number(campo.value);
+			if (campo.dataset.grCentro === 'y') ponerCentro(estado.centroX, valor);
+			else ponerCentro(valor, estado.centroY);
+		});
+	});
+
+	panel?.querySelector('[data-gr-centrar]')?.addEventListener('click', () => ponerCentro(50, 50));
+
+	// Pulsar (o arrastrar) sobre la vista previa mueve el centro, solo en radial.
+	let moviendoCentro = false;
+
+	function centroEn(e: PointerEvent) {
+		const caja = vista!.getBoundingClientRect();
+		ponerCentro(((e.clientX - caja.left) / caja.width) * 100, ((e.clientY - caja.top) / caja.height) * 100);
+	}
+
+	vista?.addEventListener('pointerdown', (e) => {
+		if (estado.tipo !== 'radial' || e.button !== 0) return;
+		moviendoCentro = true;
+		e.preventDefault();
+		vista.setPointerCapture(e.pointerId);
+		centroEn(e);
+	});
+	vista?.addEventListener('pointermove', (e) => {
+		if (moviendoCentro) centroEn(e);
+	});
+	const soltarCentro = () => {
+		moviendoCentro = false;
+	};
+	vista?.addEventListener('pointerup', soltarCentro);
+	vista?.addEventListener('pointercancel', soltarCentro);
 
 	tipos.forEach((boton) => {
 		boton.addEventListener('click', () => {
