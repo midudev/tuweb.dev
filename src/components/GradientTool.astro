@@ -17,7 +17,11 @@
  *
  * Encima de la lista de colores hay una barra con el gradiente de izquierda a
  * derecha: se pulsa para añadir un color en ese punto y se arrastran las marcas.
+ *
+ * Debajo va la galería de la comunidad (GradientGallery): lee el gradiente de
+ * data-gr-codigo y pide abrir uno con el evento gr:cargar.
  */
+import GradientGallery from './GradientGallery.astro';
 import Icon from './Icon.astro';
 
 // Código: l<ángulo> o r<c|e>, y luego -<hex sin #>.<posición> por color.
@@ -327,6 +331,8 @@ const FORMATOS = [
 			</div>
 		</div>
 	</div>
+
+	<GradientGallery />
 
 	<template data-gr-plantilla>
 		<div data-gr-fila class="flex items-center gap-2">
@@ -652,6 +658,8 @@ const FORMATOS = [
 			vista.style.aspectRatio = `${ancho} / ${alto}`;
 		}
 		if (salida) salida.textContent = exportar(estado.formato);
+		// La galería lee de aquí qué gradiente hay en pantalla.
+		if (panel) panel.dataset.grCodigo = codigo();
 		pintarBarra();
 	}
 
@@ -1002,15 +1010,23 @@ const FORMATOS = [
 		copiarCon(enlace, enlaceTexto, 'Copiar enlace', `${location.origin}${location.pathname}?gradiente=${codigo()}#gradientes`),
 	);
 
+	function cargarCodigo(texto: string) {
+		const elegido = leer(texto, estado);
+		if (!elegido) return;
+		estado = elegido;
+		pintarControles();
+		pintarFilas();
+		actualizar();
+	}
+
 	panel?.querySelectorAll<HTMLButtonElement>('[data-gr-ejemplo]').forEach((boton) => {
-		boton.addEventListener('click', () => {
-			const elegido = leer(boton.dataset.grEjemplo ?? '', estado);
-			if (!elegido) return;
-			estado = elegido;
-			pintarControles();
-			pintarFilas();
-			actualizar();
-		});
+		boton.addEventListener('click', () => cargarCodigo(boton.dataset.grEjemplo ?? ''));
+	});
+
+	// La galería pide abrir un diseño en el editor.
+	panel?.addEventListener('gr:cargar', (e) => {
+		const detalle = (e as CustomEvent<unknown>).detail;
+		if (typeof detalle === 'string') cargarCodigo(detalle);
 	});
 
 	function ponerAngulo(valor: number) {

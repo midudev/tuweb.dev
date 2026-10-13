@@ -1,0 +1,378 @@
+---
+/**
+ * Galería de gradientes de la comunidad. Subes el que tienes en el editor con
+ * un nombre y tu firma, votas los que más te gustan y se ordenan solos. No hay
+ * servidor: la galería se guarda en este navegador y viaja en un enlace
+ * (?galeria=…#gradientes). Quien lo abre junta esos diseños con los suyos, añade
+ * los que quiera y lo vuelve a pasar. Al juntar, de cada diseño se queda la
+ * cuenta de votos más alta.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<section data-gg class="flex flex-col gap-4 border-t border-line pt-6" aria-labelledby="gg-titulo">
+	<div class="flex flex-col gap-1">
+		<h3 id="gg-titulo" class="font-pixel text-2xl">Galería de la comunidad</h3>
+		<p class="text-sm text-muted">
+			Sube el tuyo, vota los mejores y pasa el enlace. Quien lo abre suma sus diseños y los votos se juntan.
+		</p>
+	</div>
+
+	<form data-gg-form class="grid gap-3 border border-line bg-panel p-4 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,12rem)_auto] sm:items-end">
+		<span data-gg-actual class="h-10 w-full border border-line sm:w-16" aria-hidden="true"></span>
+		<label class="flex flex-col gap-1 text-xs text-muted">
+			Nombre del diseño
+			<input type="text" data-gg-nombre maxlength="30" required placeholder="Atardecer en Cádiz" spellcheck="false" autocomplete="off" class={CAMPO} />
+		</label>
+		<label class="flex flex-col gap-1 text-xs text-muted">
+			Tu firma
+			<input type="text" data-gg-firma maxlength="20" placeholder="anónimo" spellcheck="false" autocomplete="off" class={CAMPO} />
+		</label>
+		<button type="submit" class={`${BOTON} justify-center`}>
+			<Icon name="upload" class="size-4 shrink-0" />
+			Subir el actual
+		</button>
+	</form>
+	<p data-gg-aviso class="text-sm text-mark empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-wrap items-center justify-between gap-2">
+		<div class="flex flex-wrap gap-2" role="group" aria-label="Orden">
+			<button type="button" data-gg-orden="votos" aria-pressed="true" class={OPCION}>Más votados</button>
+			<button type="button" data-gg-orden="nuevos" aria-pressed="false" class={OPCION}>Recientes</button>
+			<button type="button" data-gg-orden="mios" aria-pressed="false" class={OPCION}>Los míos</button>
+		</div>
+		<button type="button" data-gg-enlace class={BOTON}>
+			<span data-icon="link" class="inline-flex"><Icon name="link" class="size-4 shrink-0" /></span>
+			<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+			<span data-gg-enlace-texto aria-live="polite">Copiar enlace de la galería</span>
+		</button>
+	</div>
+
+	<ol data-gg-lista class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"></ol>
+	<p data-gg-vacio hidden class="text-sm text-muted">Aún no has subido ninguno.</p>
+
+	<template data-gg-molde>
+		<li class="flex flex-col border border-line bg-panel">
+			<div data-gg-muestra class="relative h-28 border-b border-line">
+				<span data-gg-puesto class="absolute top-2 left-2 bg-bg px-2 py-0.5 font-pixel text-sm text-accent"></span>
+			</div>
+			<div class="flex flex-col gap-3 p-3">
+				<div class="flex min-w-0 flex-col">
+					<strong data-gg-titulo class="truncate font-pixel text-lg"></strong>
+					<span data-gg-autor class="truncate text-xs text-muted"></span>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-gg-votar aria-pressed="false" class={`${OPCION} inline-flex items-center gap-2 px-2 py-1`}>
+						<Icon name="heart" class="size-4 shrink-0" />
+						<span data-gg-votos></span>
+					</button>
+					<button type="button" data-gg-abrir class={`${BOTON} px-2 py-1`}>
+						<Icon name="brush" class="size-4 shrink-0" />
+						Abrir
+					</button>
+					<button type="button" data-gg-quitar aria-label="Quitar de la galería" class={`${BOTON} px-2 py-1`}>
+						<Icon name="trash" class="size-4 shrink-0" />
+					</button>
+				</div>
+			</div>
+		</li>
+	</template>
+</section>
+
+<style>
+	[data-gg-enlace] [data-icon='check'] {
+		display: none;
+	}
+	[data-gg-enlace][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-gg-enlace][data-state='done'] [data-icon='link'] {
+		display: none;
+	}
+	[data-gg-enlace][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-gg-enlace][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Diseno = { codigo: string; nombre: string; autor: string; votos: number };
+	type Orden = 'votos' | 'nuevos' | 'mios';
+	type Galeria = { disenos: Diseno[]; votados: string[]; mios: string[]; firma: string };
+
+	const CLAVE = 'tuweb:galeria-gradientes';
+	const MAX = 40;
+	// El mismo código corto que usa el editor para compartir un gradiente.
+	const CODIGO = /^(?:l(\d{1,3})|r([ce])(?:@(\d{1,3})\.(\d{1,3}))?)((?:-[0-9a-f]{6}\.\d{1,3}){2,8})$/i;
+
+	// Para que una galería nueva no salga vacía.
+	const SEMILLA: Diseno[] = [
+		{ codigo: 'l135-ff5f6d.0-ffc371.100', nombre: 'Atardecer', autor: 'tuweb', votos: 3 },
+		{ codigo: 'l45-f72585.0-7209b7.50-3a0ca3.100', nombre: 'Neón', autor: 'tuweb', votos: 2 },
+		{ codigo: 'rc@30.30-f5c542.0-c2410c.55-1a0a00.100', nombre: 'Brasa', autor: 'tuweb', votos: 1 },
+		{ codigo: 'l180-0f2027.0-203a43.50-2c5364.100', nombre: 'Océano', autor: 'tuweb', votos: 1 },
+	];
+
+	const raiz = document.querySelector<HTMLElement>('[data-gg]');
+	const panel = raiz?.closest<HTMLElement>('[data-panel="gradientes"]');
+	const form = raiz?.querySelector<HTMLFormElement>('[data-gg-form]');
+	const nombre = raiz?.querySelector<HTMLInputElement>('[data-gg-nombre]');
+	const firma = raiz?.querySelector<HTMLInputElement>('[data-gg-firma]');
+	const actual = raiz?.querySelector<HTMLElement>('[data-gg-actual]');
+	const aviso = raiz?.querySelector<HTMLElement>('[data-gg-aviso]');
+	const lista = raiz?.querySelector<HTMLElement>('[data-gg-lista]');
+	const vacio = raiz?.querySelector<HTMLElement>('[data-gg-vacio]');
+	const molde = raiz?.querySelector<HTMLTemplateElement>('[data-gg-molde]');
+	const ordenes = raiz?.querySelectorAll<HTMLButtonElement>('[data-gg-orden]') ?? [];
+	const enlace = raiz?.querySelector<HTMLButtonElement>('[data-gg-enlace]');
+	const enlaceTexto = raiz?.querySelector<HTMLElement>('[data-gg-enlace-texto]');
+
+	let orden: Orden = 'votos';
+
+	// Texto de otra gente: sin saltos ni caracteres de control, y corto.
+	const limpio = (v: unknown, max: number) =>
+		typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '';
+
+	function valido(v: unknown): Diseno | null {
+		if (!Array.isArray(v)) return null;
+		const [codigo, titulo, autor, votos] = v;
+		if (typeof codigo !== 'string' || !CODIGO.test(codigo)) return null;
+		const t = limpio(titulo, 30);
+		if (!t) return null;
+		return {
+			codigo: codigo.toLowerCase(),
+			nombre: t,
+			autor: limpio(autor, 20) || 'anónimo',
+			votos: typeof votos === 'number' && Number.isFinite(votos) ? Math.min(Math.max(Math.round(votos), 0), 9999) : 0,
+		};
+	}
+
+	const comprimir = (d: Diseno) => [d.codigo, d.nombre, d.autor, d.votos];
+
+	function cargar(): Galeria {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && Array.isArray(g.disenos)) {
+				const textos = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+				return {
+					disenos: g.disenos.map(valido).filter((d: Diseno | null): d is Diseno => d !== null).slice(0, MAX),
+					votados: textos(g.votados),
+					mios: textos(g.mios),
+					firma: limpio(g.firma, 20),
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza con la semilla.
+		}
+		return { disenos: structuredClone(SEMILLA), votados: [], mios: [], firma: '' };
+	}
+
+	let galeria = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(
+				CLAVE,
+				JSON.stringify({ ...galeria, disenos: galeria.disenos.map(comprimir) }),
+			);
+		} catch {
+			// Sin almacenamiento la galería dura lo que la pestaña.
+		}
+	}
+
+	// Lo que llega se suma a lo que hay; si sobran, se van los menos votados.
+	function juntar(entrantes: Diseno[]) {
+		let nuevos = 0;
+		for (const d of entrantes) {
+			const ya = galeria.disenos.find((x) => x.codigo === d.codigo);
+			if (ya) ya.votos = Math.max(ya.votos, d.votos);
+			else {
+				galeria.disenos.push(d);
+				nuevos++;
+			}
+		}
+		if (galeria.disenos.length > MAX) {
+			const mejores = [...galeria.disenos].sort((a, b) => b.votos - a.votos).slice(0, MAX);
+			galeria.disenos = galeria.disenos.filter((d) => mejores.includes(d));
+		}
+		return nuevos;
+	}
+
+	// Un enlace de galería se junta con la tuya y luego se quita de la URL.
+	const params = new URLSearchParams(location.search);
+	const compartida = params.get('galeria');
+	if (compartida !== null) {
+		try {
+			const datos = JSON.parse(compartida);
+			const entrantes = Array.isArray(datos) ? datos.slice(0, MAX).map(valido).filter((d): d is Diseno => d !== null) : [];
+			const nuevos = juntar(entrantes);
+			guardar();
+			if (aviso) aviso.textContent = nuevos ? `Han llegado ${nuevos} diseños nuevos a tu galería.` : 'Ya tenías todos los diseños de ese enlace.';
+		} catch {
+			if (aviso) aviso.textContent = 'Ese enlace de galería no se entiende.';
+		}
+		params.delete('galeria');
+		const resto = params.toString();
+		history.replaceState(null, '', `${location.pathname}${resto ? `?${resto}` : ''}${location.hash}`);
+	}
+
+	function aCss(codigo: string) {
+		const m = codigo.match(CODIGO);
+		if (!m) return '';
+		const paradas = m[5]
+			.slice(1)
+			.split('-')
+			.map((t) => {
+				const [hex, pos] = t.split('.');
+				return { hex, pos: Number(pos) };
+			})
+			.sort((a, b) => a.pos - b.pos)
+			.map((p) => `#${p.hex} ${p.pos}%`)
+			.join(', ');
+		if (m[1] !== undefined) return `linear-gradient(${m[1]}deg, ${paradas})`;
+		const forma = m[2].toLowerCase() === 'e' ? 'ellipse' : 'circle';
+		const centro = m[3] === undefined ? '' : ` at ${m[3]}% ${m[4]}%`;
+		return `radial-gradient(${forma}${centro}, ${paradas})`;
+	}
+
+	const codigoActual = () => panel?.dataset.grCodigo ?? '';
+
+	function pintarActual() {
+		if (actual) actual.style.backgroundImage = aCss(codigoActual());
+	}
+
+	function ordenados() {
+		const indice = (d: Diseno) => galeria.disenos.indexOf(d);
+		const todos = [...galeria.disenos];
+		if (orden === 'nuevos') return todos.sort((a, b) => indice(b) - indice(a));
+		if (orden === 'mios') return todos.filter((d) => galeria.mios.includes(d.codigo)).sort((a, b) => indice(b) - indice(a));
+		return todos.sort((a, b) => b.votos - a.votos || indice(a) - indice(b));
+	}
+
+	function pintar() {
+		if (!lista || !molde) return;
+		ordenes.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ggOrden === orden)));
+		const elegidos = ordenados();
+		// El puesto es siempre el del ranking por votos, se mire como se mire.
+		const ranking = [...galeria.disenos].sort((a, b) => b.votos - a.votos);
+		if (vacio) vacio.hidden = elegidos.length > 0;
+		lista.replaceChildren(
+			...elegidos.map((d) => {
+				const li = molde.content.firstElementChild?.cloneNode(true) as HTMLElement;
+				const q = <T extends HTMLElement>(s: string) => li.querySelector<T>(s)!;
+				q('[data-gg-muestra]').style.backgroundImage = aCss(d.codigo);
+				const puesto = ranking.indexOf(d) + 1;
+				q('[data-gg-puesto]').textContent = `#${puesto}`;
+				q('[data-gg-puesto]').hidden = puesto > 3 || d.votos === 0;
+				q('[data-gg-titulo]').textContent = d.nombre;
+				q('[data-gg-autor]').textContent = `por ${d.autor}`;
+				q('[data-gg-votos]').textContent = String(d.votos);
+				const votar = q<HTMLButtonElement>('[data-gg-votar]');
+				const votado = galeria.votados.includes(d.codigo);
+				votar.setAttribute('aria-pressed', String(votado));
+				votar.setAttribute('aria-label', votado ? `Quitar tu voto a ${d.nombre}` : `Votar ${d.nombre}`);
+				votar.addEventListener('click', () => {
+					if (galeria.votados.includes(d.codigo)) {
+						galeria.votados = galeria.votados.filter((c) => c !== d.codigo);
+						d.votos = Math.max(0, d.votos - 1);
+					} else {
+						galeria.votados.push(d.codigo);
+						d.votos++;
+					}
+					guardar();
+					pintar();
+				});
+				q('[data-gg-abrir]').addEventListener('click', () => {
+					panel?.dispatchEvent(new CustomEvent('gr:cargar', { detail: d.codigo }));
+					panel?.scrollIntoView({ block: 'start' });
+				});
+				// Solo se quita lo que subiste tú: lo de otros vuelve con cada enlace.
+				const quitar = q('[data-gg-quitar]');
+				if (galeria.mios.includes(d.codigo)) {
+					quitar.addEventListener('click', () => {
+						galeria.disenos = galeria.disenos.filter((x) => x !== d);
+						galeria.mios = galeria.mios.filter((c) => c !== d.codigo);
+						galeria.votados = galeria.votados.filter((c) => c !== d.codigo);
+						guardar();
+						pintar();
+					});
+				} else quitar.remove();
+				return li;
+			}),
+		);
+	}
+
+	form?.addEventListener('submit', (e) => {
+		e.preventDefault();
+		const codigo = codigoActual();
+		const titulo = limpio(nombre?.value, 30);
+		if (!CODIGO.test(codigo) || !titulo) return;
+		galeria.firma = limpio(firma?.value, 20);
+		const ya = galeria.disenos.find((d) => d.codigo === codigo);
+		if (ya) {
+			if (aviso) aviso.textContent = `Ese gradiente ya está en la galería: «${ya.nombre}».`;
+			return;
+		}
+		if (galeria.disenos.length >= MAX) {
+			// Llena: se hace sitio quitando el menos votado que no sea tuyo.
+			const fuera = [...galeria.disenos].sort((a, b) => a.votos - b.votos).find((d) => !galeria.mios.includes(d.codigo));
+			if (!fuera) {
+				if (aviso) aviso.textContent = `Caben ${MAX} diseños. Quita alguno de los tuyos.`;
+				return;
+			}
+			galeria.disenos = galeria.disenos.filter((d) => d !== fuera);
+		}
+		galeria.disenos.push({ codigo, nombre: titulo, autor: galeria.firma || 'anónimo', votos: 0 });
+		galeria.mios.push(codigo);
+		guardar();
+		if (nombre) nombre.value = '';
+		if (aviso) aviso.textContent = `«${titulo}» ya está en la galería. Pasa el enlace para que lo vean.`;
+		orden = 'nuevos';
+		pintar();
+	});
+
+	ordenes.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegido = (['votos', 'nuevos', 'mios'] as Orden[]).find((o) => o === boton.dataset.ggOrden);
+			if (!elegido) return;
+			orden = elegido;
+			pintar();
+		});
+	});
+
+	let reloj: number | undefined;
+
+	enlace?.addEventListener('click', async () => {
+		const datos = encodeURIComponent(JSON.stringify(galeria.disenos.map(comprimir)));
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(`${location.origin}${location.pathname}?galeria=${datos}#gradientes`);
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso.
+		}
+		enlace.dataset.state = hecho ? 'done' : 'error';
+		if (enlaceTexto) enlaceTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			enlace.removeAttribute('data-state');
+			if (enlaceTexto) enlaceTexto.textContent = 'Copiar enlace de la galería';
+		}, 2000);
+	});
+
+	// El editor cambia el gradiente; la muestra junto al botón de subir lo sigue.
+	if (panel) new MutationObserver(pintarActual).observe(panel, { attributes: true, attributeFilter: ['data-gr-codigo'] });
+
+	if (firma) firma.value = galeria.firma;
+	pintarActual();
+	pintar();
+</script>
