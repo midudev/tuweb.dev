@@ -108,6 +108,10 @@ const BOTON =
 			<pre
 				data-pa-texto
 				class="overflow-x-auto border border-line bg-bg p-2 font-mono text-[9px] leading-[1.1] text-fg sm:text-[10px]"></pre>
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="device-floppy" class="size-4 shrink-0 text-accent" />
+				<span data-pa-guardado aria-live="polite">Se guarda solo con cada trazo.</span>
+			</span>
 		</div>
 
 		<label class="flex flex-col gap-2 text-sm text-muted">
@@ -181,11 +185,20 @@ const BOTON =
 		firmas = limpiarFirmas(guardado.firmas);
 	}
 
+	const hora = () => new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+	function marcarGuardado(texto: string) {
+		const nodo = raiz?.querySelector<HTMLElement>('[data-pa-guardado]');
+		if (nodo) nodo.textContent = texto;
+	}
+
 	function guardar() {
 		try {
 			localStorage.setItem(CLAVE, JSON.stringify({ celdas: celdas.join(''), tono, firma, firmas }));
+			marcarGuardado(`Guardado solo a las ${hora()}. El .txt es el mismo para quien lo tenga.`);
 		} catch {
 			// Sin almacenamiento se pinta igual; solo que no se guarda.
+			marcarGuardado('Tu navegador no deja guardar: bájate el .txt antes de irte.');
 		}
 	}
 
