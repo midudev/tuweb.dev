@@ -27,7 +27,7 @@ export const GROUPS: Group[] = [
 		icon: 'tool',
 		card: 'Lo que sirve para trabajar: convertir, probar, escribir y ordenar.',
 		intro:
-			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, pintar el mural de píxeles del día, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, hacerte un logo y una tarjeta de visita, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio o apuntar lo que toca hoy. Casi todo corre en tu navegador; los consejos que publicas los ve todo el mundo.',
+			'Lo que se usa para trabajar: convertir un JSON, entender un cron, probar una regex, montar un prompt, escribir código suelto, hacer un meme, montar un cómic, pintar el mural de píxeles del día, dibujar entre varios arte ASCII a píxeles para pegarlo en redes, sacar la nube de palabras de un texto, dibujar una línea de tiempo, cruzar conjuntos en un diagrama de Venn, hacerte un logo y una tarjeta de visita, diseñar una animación CSS, comparar dos textos, llevarte un consejo de oficio o apuntar lo que toca hoy. Casi todo corre en tu navegador; los consejos que publicas los ve todo el mundo.',
 	},
 	{
 		id: 'juegos',
@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, una terminal donde los acertijos se abren con comandos de Linux, y un lienzo de píxeles compartido que se escribe en ASCII para bajarlo en .txt. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo y una terminal donde los acertijos se abren con comandos de Linux. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',
@@ -131,6 +131,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un lienzo de 32 × 32, dieciséis colores y un tema nuevo cada día.',
 		intro:
 			'Cada día, un tema y un lienzo de 32 × 32 para pintarlo con una paleta de dieciséis colores: lápiz, goma, cubo y cuentagotas, con deshacer y rejilla. Te lo llevas en PNG. Lo que pintas se guarda en tu navegador, un dibujo por día, y los de días anteriores quedan a mano para bajarlos.',
+	},
+	{
+		href: '/pixeles-ascii',
+		title: 'Arte ASCII a píxeles',
+		icon: 'pencil',
+		group: 'herramientas',
+		card: 'Un lienzo de píxeles compartido que se escribe solo en ASCII, para copiarlo y pegarlo donde quieras.',
+		intro:
+			'Dibuja a píxeles sobre un lienzo de 48 × 24 y míralo convertirse en ASCII según pintas: cada tono es un carácter, de . a @. Arrastra para pintar, cambia de tono o borra, o escríbelo en la consola de debajo —pixel, linea, caja, circulo—; escribe ayuda para verlos. Al lado sale el texto tal cual se descarga, en vivo. Se comparte en directo con todas las pestañas que tengas abiertas, y para sumar a más gente pasa el enlace: quien lo abre junta el dibujo con el suyo, sigue pintando y lo pasa otra vez. Cuando esté, cópialo como texto plano y pégalo en un post, un README o un chat, o te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/nube',
@@ -302,15 +311,6 @@ export const SECTIONS: Section[] = [
 		card: 'Siete acertijos que se abren con ls, cat, grep y find. Logros y ranking de la comunidad.',
 		intro:
 			'Una terminal de mentira con siete niveles. En cada uno hay una clave escondida entre ficheros: búscala con ls, cd, cat, head, tail, grep, find, wc o sort, encadénalos con | y ábrela con abrir. Cada nivel vale cien puntos, la mitad si pides pista, y abre el siguiente. Seis logros para desbloquear y un ranking de la comunidad: pasa el enlace y quien lo abre junta tu marca con la suya. Aquí no se ejecuta nada: los ficheros y los comandos están escritos a mano y lo que llevas se queda en tu navegador.',
-	},
-	{
-		href: '/pixeles-ascii',
-		title: 'Píxeles ASCII',
-		icon: 'pencil',
-		group: 'juegos',
-		card: 'Un lienzo de píxeles compartido, a ratón o con comandos de consola, que se escribe solo en ASCII.',
-		intro:
-			'Dibuja a píxeles sobre un lienzo de 48 × 24 y míralo convertirse en ASCII según pintas: cada tono es un carácter, de . a @. Arrastra para pintar, cambia de tono o borra, o escríbelo en la consola de debajo —pixel, linea, caja, circulo—; escribe ayuda para verlos. Al lado sale el texto tal cual se descarga, en vivo. Se comparte en directo con todas las pestañas que tengas abiertas, y para sumar a más gente pasa el enlace: quien lo abre junta el dibujo con el suyo, sigue pintando y lo pasa otra vez. Te lo llevas en .txt. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/chistes',
