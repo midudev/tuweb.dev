@@ -73,23 +73,23 @@
 	--text-marca--line-height: 1;
 
 	/*
-	 * El tema de día: claro y naranja. El fondo es un papel cálido, los paneles y
-	 * las líneas suben por esa misma rampa y el acento es un naranja quemado.
-	 * Nada de blanco puro ni de negro puro: todo lleva la misma gota de tierra.
-	 * El apagado pasa AA (5.4:1) y el acento también (4.8:1).
+	 * El tema de día: blanco de alto contraste, sobrio, de oficina. Fondo blanco
+	 * puro, tinta casi negra y grises neutros sin gota de color; el único color es
+	 * el naranja de casa, oscurecido para que se lea de sobra.
+	 * El texto queda a 19.8:1, el apagado a 10.4:1 y el acento a 7.3:1: todo AAA.
 	 */
-	--color-bg: #fdf6ef;
-	--color-fg: #3b2d24;
-	--color-muted: #7a6152;
-	--color-line: #e8d9c8;
-	--color-panel: #f7ece1;
-	--color-accent: #c2410c;
-	/* El naranja empujado hacia el tostado oscuro, para lo que tiene que destacar. */
-	--color-mark: color-mix(in oklab, #c2410c 70%, #2b1b10);
-	--color-heart: #b91c3c;
-	--color-ok: #2f7a3b;
-	/* El ámbar de «construyendo»: naranja también, pero más apagado que el acento. */
-	--color-building: #8a5a00;
+	--color-bg: #ffffff;
+	--color-fg: #0f0f0f;
+	--color-muted: #404040;
+	--color-line: #c4c4c4;
+	--color-panel: #f4f4f4;
+	--color-accent: #9a3412;
+	/* El naranja empujado hacia el negro, para lo que tiene que destacar. */
+	--color-mark: color-mix(in oklab, #9a3412 70%, #0f0f0f);
+	--color-heart: #a3112e;
+	--color-ok: #1f5f2a;
+	/* El ámbar de «construyendo»: más apagado que el acento, pero AAA también. */
+	--color-building: #6e4700;
 
 	/*
 	 * El gris de las barras de búsqueda. Es el gris más claro que llega a 3:1
@@ -99,10 +99,10 @@
 	 */
 	--color-search: #949494;
 	/*
-	 * La tinta de encima. La de casa se queda en 4.36:1 sobre ese gris, así que
-	 * el texto del buscador baja un paso y llega a 5.09:1, que ya es AA.
+	 * La tinta de encima: casi negra y neutra, como la de casa, a 6.3:1 sobre
+	 * ese gris, que ya es AA.
 	 */
-	--color-search-fg: #2e2219;
+	--color-search-fg: #1a1a1a;
 }
 
 /*
@@ -147,30 +147,9 @@ html[data-modo='oscuro'] {
 }
 
 /*
- * Antes de que corra ese script no hay data-modo puesto. Quien tenga el sistema
- * de noche —que es lo de fábrica— entra ya en oscuro y no se come el fogonazo
- * blanco de medio segundo.
- */
-@media (prefers-color-scheme: dark) {
-	html:not([data-modo]) {
-		color-scheme: dark;
-		--color-bg: var(--oscuro-bg);
-		--color-fg: var(--oscuro-fg);
-		--color-muted: var(--oscuro-muted);
-		--color-line: var(--oscuro-line);
-		--color-panel: var(--oscuro-panel);
-		--color-accent: var(--oscuro-accent);
-		--color-mark: var(--oscuro-mark);
-		--color-heart: var(--oscuro-heart);
-		--color-ok: var(--oscuro-ok);
-		--color-building: var(--oscuro-building);
-	}
-}
-
-/*
- * La web se pinta con el tema que toque: el claro de casa, el oscuro si se pide
- * o si lo pide el sistema. Lo que se afina en la caja de herramientas —color
- * primario y fondo— vale para los dos.
+ * La web entra en blanco, tenga el sistema lo que tenga. El oscuro sigue ahí
+ * para quien lo pida, o para quien elija «sistema» y lo tenga de noche. Lo que
+ * se afina en la caja de herramientas —color primario y fondo— vale para los dos.
  */
 html {
 	color-scheme: light;
@@ -239,13 +218,12 @@ html {
  * se lee peor. Todos van anclados a la pantalla para que las secciones
  * apiladas parezcan una sola pieza.
  *
- * La aurora es el de casa: dos halos naranjas, uno arriba a la izquierda y otro
- * abajo a la derecha, que hacen de horizonte detrás del contenido. El fondo se
- * elige en la caja de herramientas con data-fondo; el «:not» cubre el primer
- * pintado, antes de que corra el script de la cabecera.
+ * El de casa es el liso: blanco sin nada detrás, que es lo que pide el tema
+ * corporativo. La aurora son dos halos naranjas, uno arriba a la izquierda y
+ * otro abajo a la derecha. El fondo se elige en la caja de herramientas con
+ * data-fondo; sin él, la página sale lisa.
  */
-html[data-fondo='aurora'] [data-canvas],
-html:not([data-fondo]) [data-canvas] {
+html[data-fondo='aurora'] [data-canvas] {
 	background-image:
 		radial-gradient(
 			60rem 34rem at 10% -10%,
@@ -280,20 +258,20 @@ html[data-fondo='trama'] [data-canvas] {
  * Accesibilidad: lo que se elige en el panel fijo de abajo a la derecha, que el
  * script de la cabecera escribe en el <html>.
  *
- * Contraste alto: la misma rampa cálida, pero con la tinta casi negra (o casi
- * blanca de noche), el apagado subido hasta parecerse al texto y las líneas
- * marcadas. Va con !important porque el acento elegido en la caja de
- * herramientas llega en línea, y aquí tiene que mandar el contraste. De día el
- * texto queda a 18:1 y el acento a 7:1; de noche, a 18:1 y 10:1.
+ * Contraste alto: de día, blanco y negro puros, el apagado casi como el texto y
+ * las líneas marcadas; de noche, la rampa cálida con la tinta casi blanca. Va
+ * con !important porque el acento elegido en la caja de herramientas llega en
+ * línea, y aquí tiene que mandar el contraste. De día el texto queda a 21:1 y
+ * el acento a 9.6:1; de noche, a 18:1 y 10:1.
  */
 html[data-contraste='alto'] {
-	--color-bg: #fffaf5 !important;
-	--color-fg: #1c120b !important;
-	--color-muted: #3b2d24 !important;
-	--color-line: #7a6152 !important;
-	--color-panel: #f7ece1 !important;
-	--color-accent: #9a3412 !important;
-	--color-mark: #6b2408 !important;
+	--color-bg: #ffffff !important;
+	--color-fg: #000000 !important;
+	--color-muted: #262626 !important;
+	--color-line: #595959 !important;
+	--color-panel: #f0f0f0 !important;
+	--color-accent: #7c2d12 !important;
+	--color-mark: #4a1a08 !important;
 }
 
 html[data-contraste='alto'][data-modo='oscuro'] {

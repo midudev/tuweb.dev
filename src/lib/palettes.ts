@@ -37,18 +37,18 @@ export const COLOR_VARS = CONFIG_VARS.filter((item) => item.kind === 'color').ma
 );
 
 /**
- * Las de casa. La primera no toca nada: es la web tal cual está en el repo, de
- * día o de noche según el sistema. Las demás llevan sus cinco colores puestos y
- * están medidas: el texto pasa de 11:1 sobre su fondo y el apagado de 5:1.
+ * Las de casa. La primera no toca nada: es la web tal cual está en el repo, en
+ * blanco de alto contraste. Las demás llevan sus cinco colores puestos y están
+ * medidas: el texto pasa de 11:1 sobre su fondo y el apagado de 5:1.
  */
 export const PALETTES: readonly Palette[] = [
 	{
 		id: 'casa',
 		label: 'De casa',
 		vars: {},
-		accent: '#c2410c',
-		surface: 'aurora',
-		mode: 'sistema',
+		accent: '#9a3412',
+		surface: 'plano',
+		mode: 'claro',
 	},
 	{
 		id: 'papel',

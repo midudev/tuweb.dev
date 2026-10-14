@@ -1,6 +1,6 @@
 /*
- * El tema de la web: el naranja de src/styles/global.css, de día sobre papel
- * claro y de noche sobre marrón muy oscuro. Aquí se afina el modo, el color
+ * El tema de la web: el naranja de src/styles/global.css, de día sobre blanco
+ * de alto contraste y de noche sobre marrón muy oscuro. Aquí se afina el modo, el color
  * primario y el fondo. Todo vive en dos sitios: en el <html> —atributos y
  * variables CSS, para que el cambio se vea al momento— y en el localStorage de
  * quien lo eligió, para que siga ahí al volver. No sale de este navegador.
@@ -28,14 +28,15 @@ export const SURFACES: readonly Surface[] = ['aurora', 'plano', 'degradado', 'tr
 export const MODES: readonly Mode[] = ['sistema', 'claro', 'oscuro'];
 
 /*
- * Lo de fábrica: el naranja quemado, la aurora y el modo que tenga puesto el
- * sistema. Quien no toque nada ve la web tal cual se diseñó, de día o de noche.
+ * Lo de fábrica: el tema claro de alto contraste, blanco y liso, con el naranja
+ * oscurecido. Quien no toque nada ve la web así, tenga el sistema lo que tenga.
  */
-export const DEFAULT_THEME: Theme = { accent: '#c2410c', surface: 'aurora', mode: 'sistema' };
+export const DEFAULT_THEME: Theme = { accent: '#9a3412', surface: 'plano', mode: 'claro' };
 
 /** Los colores del selector rápido: la familia cálida. El primero es el de casa. */
 export const PRESETS = [
-	{ label: 'Naranja', hex: '#c2410c' },
+	{ label: 'Naranja', hex: '#9a3412' },
+	{ label: 'Vivo', hex: '#c2410c' },
 	{ label: 'Calabaza', hex: '#b5560e' },
 	{ label: 'Ámbar', hex: '#9a6205' },
 	{ label: 'Cobre', hex: '#a75f2b' },
@@ -75,7 +76,7 @@ const LIGHTNESS: Record<Scheme, { min: number; max: number }> = {
 
 /** El realce es el acento empujado lejos del fondo: al tostado o a la crema. */
 const MARK: Record<Scheme, { amount: number; towards: string }> = {
-	claro: { amount: 70, towards: '#2b1b10' },
+	claro: { amount: 70, towards: '#0f0f0f' },
 	oscuro: { amount: 65, towards: '#ffeadb' },
 };
 

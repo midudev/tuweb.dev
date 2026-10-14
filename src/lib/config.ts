@@ -20,11 +20,11 @@ export interface ConfigVar {
 export const GROUPS = ['Colores', 'Tipografía'] as const;
 
 export const CONFIG_VARS: readonly ConfigVar[] = [
-	{ name: '--color-bg', label: 'Fondo', kind: 'color', group: 'Colores', base: '#fdf6ef' },
-	{ name: '--color-fg', label: 'Texto', kind: 'color', group: 'Colores', base: '#3b2d24' },
-	{ name: '--color-muted', label: 'Texto apagado', kind: 'color', group: 'Colores', base: '#7a6152' },
-	{ name: '--color-line', label: 'Líneas', kind: 'color', group: 'Colores', base: '#e8d9c8' },
-	{ name: '--color-panel', label: 'Paneles', kind: 'color', group: 'Colores', base: '#f7ece1' },
+	{ name: '--color-bg', label: 'Fondo', kind: 'color', group: 'Colores', base: '#ffffff' },
+	{ name: '--color-fg', label: 'Texto', kind: 'color', group: 'Colores', base: '#0f0f0f' },
+	{ name: '--color-muted', label: 'Texto apagado', kind: 'color', group: 'Colores', base: '#404040' },
+	{ name: '--color-line', label: 'Líneas', kind: 'color', group: 'Colores', base: '#c4c4c4' },
+	{ name: '--color-panel', label: 'Paneles', kind: 'color', group: 'Colores', base: '#f4f4f4' },
 	{ name: '--text-xs', label: 'Texto pequeño', kind: 'size', group: 'Tipografía', base: '13px' },
 	{ name: '--text-sm', label: 'Texto normal', kind: 'size', group: 'Tipografía', base: '15px' },
 	{ name: '--text-base', label: 'Texto de cuerpo', kind: 'size', group: 'Tipografía', base: '16px' },
