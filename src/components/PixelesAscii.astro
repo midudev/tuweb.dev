@@ -44,6 +44,16 @@ const BOTON =
 				}
 			</div>
 			<span data-pa-casilla class="font-mono text-sm text-muted">x — · y —</span>
+			<div role="group" aria-label="Vista del lienzo" class="ml-auto flex">
+				<button type="button" data-pa-vista="pixeles" aria-pressed="true" class={`${BOTON} aria-pressed:border-accent aria-pressed:text-accent`}>
+					<Icon name="grid-dots" class="size-4 shrink-0" />
+					Píxeles
+				</button>
+				<button type="button" data-pa-vista="texto" aria-pressed="false" class={`${BOTON} -ml-px aria-pressed:border-accent aria-pressed:text-accent`}>
+					<Icon name="terminal-2" class="size-4 shrink-0" />
+					Terminal
+				</button>
+			</div>
 		</div>
 
 		<div class="flex flex-col border border-line bg-bg">
@@ -105,9 +115,15 @@ const BOTON =
 				<span>El .txt, tal cual</span>
 				<span data-pa-cuenta class="text-xs"></span>
 			</span>
-			<pre
-				data-pa-texto
-				class="overflow-x-auto border border-line bg-bg p-2 font-mono text-[9px] leading-[1.1] text-fg sm:text-[10px]"></pre>
+			<div class="border border-line bg-bg font-mono">
+				<div class="border-b border-line px-2 py-1 text-xs text-muted">
+					<span class="text-accent">$</span> cat pixeles-ascii.txt
+				</div>
+				<pre data-pa-texto class="m-0 overflow-x-auto p-2 text-[9px] leading-[1.1] text-fg sm:text-[10px]"></pre>
+				<div class="px-2 pb-2 text-xs text-muted">
+					<span class="text-accent">$</span> <span class="pa-cursor text-fg">_</span>
+				</div>
+			</div>
 			<span class="flex items-center gap-2 text-xs text-muted">
 				<Icon name="device-floppy" class="size-4 shrink-0 text-accent" />
 				<span data-pa-guardado aria-live="polite">Se guarda solo con cada trazo.</span>
@@ -167,6 +183,7 @@ const BOTON =
 	let tono = 4;
 	let firma = '';
 	let firmas: string[] = [];
+	let vista: 'pixeles' | 'texto' = 'pixeles';
 
 	function leer() {
 		try {
@@ -183,6 +200,7 @@ const BOTON =
 		if (Number.isInteger(guardado.tono) && guardado.tono >= 0 && guardado.tono < TONOS.length) tono = guardado.tono;
 		firma = limpiarFirma(guardado.firma);
 		firmas = limpiarFirmas(guardado.firmas);
+		if (guardado.vista === 'texto') vista = 'texto';
 	}
 
 	const hora = () => new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -194,7 +212,7 @@ const BOTON =
 
 	function guardar() {
 		try {
-			localStorage.setItem(CLAVE, JSON.stringify({ celdas: celdas.join(''), tono, firma, firmas }));
+			localStorage.setItem(CLAVE, JSON.stringify({ celdas: celdas.join(''), tono, firma, firmas, vista }));
 			marcarGuardado(`Guardado solo a las ${hora()}. El .txt es el mismo para quien lo tenga.`);
 		} catch {
 			// Sin almacenamiento se pinta igual; solo que no se guarda.
@@ -223,17 +241,23 @@ const BOTON =
 		else otras.set(data.de, Date.now());
 		if (data.tipo === 'hola') enviar({ tipo: 'aqui' });
 		if (data.tipo === 'trazo' && Array.isArray(data.trazo)) {
+			let puestos = 0;
 			data.trazo.forEach((p: unknown) => {
 				if (!Array.isArray(p)) return;
 				const [i, t] = p;
-				if (Number.isInteger(i) && i >= 0 && i < TOTAL && Number.isInteger(t) && t >= 0 && t < TONOS.length) celdas[i] = t;
+				if (Number.isInteger(i) && i >= 0 && i < TOTAL && Number.isInteger(t) && t >= 0 && t < TONOS.length) {
+					celdas[i] = t;
+					puestos++;
+				}
 			});
 			if (typeof data.firma === 'string' && data.firma) firmas = limpiarFirmas([...firmas, data.firma]);
+			if (puestos) apuntar(limpiarFirma(data.firma) || 'otra pestaña', puestos);
 			todo();
 		}
 		if (data.tipo === 'todo' && textoValido(data.celdas)) {
 			celdas = [...data.celdas].map(Number);
 			firmas = limpiarFirmas(data.firmas);
+			decir(`[${hora()}] El lienzo entero llega de otra pestaña.`, 'text-accent');
 			todo();
 		}
 		pintarPestanas();
@@ -247,6 +271,19 @@ const BOTON =
 	}, 4_000);
 
 	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// Lo que pintan las demás sale en la consola, un apunte por firma y por trazo.
+	const llegadas = new Map<string, number>();
+	let apunte: number | undefined;
+
+	function apuntar(quien: string, cuantos: number) {
+		llegadas.set(quien, (llegadas.get(quien) ?? 0) + cuantos);
+		clearTimeout(apunte);
+		apunte = window.setTimeout(() => {
+			llegadas.forEach((n, q) => decir(`[${hora()}] ${q} pinta ${n} ${n === 1 ? 'píxel' : 'píxeles'}.`, 'text-accent'));
+			llegadas.clear();
+		}, 700);
+	}
 
 	// --- El texto ---
 
@@ -281,6 +318,21 @@ const BOTON =
 	function pintarTela() {
 		if (!ctx || !tela) return;
 		ctx.clearRect(0, 0, tela.width, tela.height);
+		if (vista === 'texto') {
+			// La vista de terminal: cada celda, su carácter, tal cual saldrá en el .txt.
+			ctx.fillStyle = tinta('--color-fg', '#0f0f0f');
+			ctx.font = `600 ${ESCALA}px ${tinta('--font-mono', 'monospace')}`;
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			celdas.forEach((t, i) => {
+				if (t) ctx.fillText(TONOS[t], (i % ANCHO) * ESCALA + ESCALA / 2, Math.floor(i / ANCHO) * ESCALA + ESCALA / 2 + 1);
+			});
+			if (encima !== null) {
+				ctx.fillStyle = tinta('--color-accent', '#9a3412');
+				ctx.fillRect((encima % ANCHO) * ESCALA + 2, Math.floor(encima / ANCHO) * ESCALA + ESCALA - 3, ESCALA - 4, 2);
+			}
+			return;
+		}
 		ctx.fillStyle = tinta('--color-line', '#e8d9c8');
 		for (let x = 0; x <= ANCHO; x++) ctx.fillRect(x * ESCALA, 0, 1, tela.height);
 		for (let y = 0; y <= ALTO; y++) ctx.fillRect(0, y * ESCALA, tela.width, 1);
@@ -307,6 +359,9 @@ const BOTON =
 		if (lista) lista.textContent = firmas.length ? firmas.join(' · ') : 'Nadie aún.';
 		raiz?.querySelectorAll<HTMLButtonElement>('[data-pa-tono]').forEach((b) => {
 			b.setAttribute('aria-pressed', String(Number(b.dataset.paTono) === tono));
+		});
+		raiz?.querySelectorAll<HTMLButtonElement>('[data-pa-vista]').forEach((b) => {
+			b.setAttribute('aria-pressed', String(b.dataset.paVista === vista));
 		});
 	}
 
@@ -387,6 +442,14 @@ const BOTON =
 			tono = t;
 			guardar();
 			pintarDatos();
+		});
+	});
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-pa-vista]').forEach((b) => {
+		b.addEventListener('click', () => {
+			vista = b.dataset.paVista === 'texto' ? 'texto' : 'pixeles';
+			guardar();
+			todo();
 		});
 	});
 
@@ -686,8 +749,29 @@ const BOTON =
 	// El tema puede cambiar de claro a oscuro: la rejilla y la tinta siguen sus colores.
 	new MutationObserver(pintarTela).observe(document.documentElement, { attributes: true, attributeFilter: ['data-modo'] });
 
+	// La vista de terminal escribe con Geist Mono: se repinta cuando acaba de cargar.
+	document.fonts?.ready.then(pintarTela);
+
 	decir('Escribe ayuda para ver los comandos.');
 	enviar({ tipo: 'hola' });
 	pintarPestanas();
 	todo();
 </script>
+
+<style>
+	.pa-cursor {
+		animation: pa-parpadeo 1s steps(1) infinite;
+	}
+
+	@keyframes pa-parpadeo {
+		50% {
+			opacity: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.pa-cursor {
+			animation: none;
+		}
+	}
+</style>
