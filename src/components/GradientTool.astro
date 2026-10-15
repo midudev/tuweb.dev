@@ -15,6 +15,9 @@
  * ese mismo gradiente. Los ejemplos usan el mismo código. Un radial con el
  * centro movido lo lleva detrás de la forma: rc@30.40-….
  *
+ * La vista previa se toca: en lineal, arrastrar gira el ángulo hacia el
+ * puntero; en radial, mueve el centro. También con las flechas del teclado.
+ *
  * Encima de la lista de colores hay una barra con el gradiente de izquierda a
  * derecha: se pulsa para añadir un color en ese punto y se arrastran las marcas.
  *
@@ -207,7 +210,32 @@ const FORMATOS = [
 		</div>
 
 		<div class="flex min-w-0 flex-col gap-4">
-			<div data-gr-vista class="w-full border border-line" style="aspect-ratio: 1200 / 630;" role="img" aria-label="Vista previa del gradiente"></div>
+			<div class="flex flex-col gap-2">
+				<div
+					data-gr-vista
+					tabindex="0"
+					role="group"
+					aria-label="Vista previa del gradiente"
+					aria-describedby="gr-vista-ayuda"
+					class="relative w-full overflow-hidden border border-line outline-none select-none focus-visible:border-accent"
+					style="aspect-ratio: 1200 / 630;"
+				>
+					<span
+						data-gr-guia="lineal"
+						aria-hidden="true"
+						class="pointer-events-none absolute bottom-1/2 left-1/2 h-[35%] w-0.5 -translate-x-1/2 bg-fg outline outline-1 outline-bg"
+						style="transform-origin: 50% 100%;"
+					>
+						<span class="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 bg-fg outline outline-1 outline-bg"></span>
+					</span>
+					<span
+						data-gr-guia="radial"
+						aria-hidden="true"
+						class="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 border-2 border-bg outline outline-1 outline-fg"
+					></span>
+				</div>
+				<p id="gr-vista-ayuda" data-gr-vista-ayuda class="text-xs text-muted"></p>
+			</div>
 
 			<div class="flex flex-col gap-2">
 				<span class="text-sm text-muted">Probar sobre</span>
@@ -394,6 +422,14 @@ const FORMATOS = [
 	:is([data-gr-copiar], [data-gr-enlace])[data-state='error'] {
 		color: var(--color-heart);
 	}
+	/* Las guías de la vista previa solo salen al usarla. */
+	[data-gr-guia] {
+		opacity: 0;
+		transition: opacity 0.15s;
+	}
+	[data-gr-vista]:is(:hover, :focus-visible, [data-arrastrando]) [data-gr-guia] {
+		opacity: 1;
+	}
 	/* El texto de prueba se rellena con el gradiente. */
 	[data-gr-texto] {
 		-webkit-background-clip: text;
@@ -451,6 +487,9 @@ const FORMATOS = [
 	const lista = panel?.querySelector<HTMLElement>('[data-gr-lista]');
 	const plantilla = panel?.querySelector<HTMLTemplateElement>('[data-gr-plantilla]');
 	const vista = panel?.querySelector<HTMLElement>('[data-gr-vista]');
+	const vistaAyuda = panel?.querySelector<HTMLElement>('[data-gr-vista-ayuda]');
+	const guiaLineal = panel?.querySelector<HTMLElement>('[data-gr-guia="lineal"]');
+	const guiaRadial = panel?.querySelector<HTMLElement>('[data-gr-guia="radial"]');
 	const barra = panel?.querySelector<HTMLElement>('[data-gr-barra]');
 	const salida = panel?.querySelector<HTMLElement>('[data-gr-css]');
 	const bloqueLineal = panel?.querySelector<HTMLElement>('[data-gr-lineal]');
@@ -661,6 +700,20 @@ const FORMATOS = [
 		// La galería lee de aquí qué gradiente hay en pantalla.
 		if (panel) panel.dataset.grCodigo = codigo();
 		pintarBarra();
+		pintarGuias();
+	}
+
+	// La flecha marca hacia dónde va el lineal; el punto, el centro del radial.
+	function pintarGuias() {
+		if (guiaLineal) {
+			guiaLineal.hidden = estado.tipo !== 'linear';
+			guiaLineal.style.rotate = `${estado.angulo}deg`;
+		}
+		if (guiaRadial) {
+			guiaRadial.hidden = estado.tipo !== 'radial';
+			guiaRadial.style.left = `${estado.centroX}%`;
+			guiaRadial.style.top = `${estado.centroY}%`;
+		}
 	}
 
 	// ——— La barra de paradas ———
@@ -783,10 +836,16 @@ const FORMATOS = [
 		if (anguloNum) anguloNum.value = String(estado.angulo);
 		pintarCentro();
 		pintarMuestra();
-		// En radial la vista previa se arrastra, así que en el móvil no hace scroll.
+		// La vista previa se arrastra, así que en el móvil no hace scroll.
 		if (vista) {
-			vista.style.cursor = estado.tipo === 'radial' ? 'crosshair' : '';
-			vista.style.touchAction = estado.tipo === 'radial' ? 'none' : '';
+			vista.style.cursor = estado.tipo === 'radial' ? 'crosshair' : 'grab';
+			vista.style.touchAction = 'none';
+		}
+		if (vistaAyuda) {
+			vistaAyuda.textContent =
+				estado.tipo === 'radial'
+					? 'Pulsa o arrastra en la vista previa para mover el centro. Con el teclado, flechas (Mayús para ir de 10 en 10).'
+					: 'Arrastra en la vista previa para girar el ángulo hacia donde apuntes. Con el teclado, flechas (Mayús para ir de 15 en 15).';
 		}
 		if (tamano) {
 			if (![...tamano.options].some((o) => o.value === estado.tamano)) estado.tamano = INICIAL.tamano;
@@ -1080,7 +1139,8 @@ const FORMATOS = [
 
 	panel?.querySelector('[data-gr-centrar]')?.addEventListener('click', () => ponerCentro(50, 50));
 
-	// Pulsar (o arrastrar) sobre la vista previa mueve el centro, solo en radial.
+	// Pulsar (o arrastrar) sobre la vista previa: en radial mueve el centro; en
+	// lineal gira el ángulo hacia el puntero, con 0deg arriba como en CSS.
 	let moviendoCentro = false;
 
 	function centroEn(e: PointerEvent) {
@@ -1088,19 +1148,62 @@ const FORMATOS = [
 		ponerCentro(((e.clientX - caja.left) / caja.width) * 100, ((e.clientY - caja.top) / caja.height) * 100);
 	}
 
+	function anguloEn(e: PointerEvent) {
+		const caja = vista!.getBoundingClientRect();
+		const dx = e.clientX - (caja.left + caja.width / 2);
+		const dy = e.clientY - (caja.top + caja.height / 2);
+		if (dx === 0 && dy === 0) return;
+		const grados = ((Math.atan2(dx, -dy) * 180) / Math.PI + 360) % 360;
+		// Con Mayús salta de 15 en 15.
+		const paso = e.shiftKey ? 15 : 1;
+		ponerAngulo((Math.round(grados / paso) * paso) % 360);
+		if (anguloNum) anguloNum.value = String(estado.angulo);
+	}
+
+	const usarVista = (e: PointerEvent) => (estado.tipo === 'radial' ? centroEn(e) : anguloEn(e));
+
 	vista?.addEventListener('pointerdown', (e) => {
-		if (estado.tipo !== 'radial' || e.button !== 0) return;
+		if (e.button !== 0) return;
 		moviendoCentro = true;
+		vista.dataset.arrastrando = '';
+		vista.style.cursor = estado.tipo === 'radial' ? 'crosshair' : 'grabbing';
 		e.preventDefault();
+		vista.focus({ preventScroll: true });
 		vista.setPointerCapture(e.pointerId);
-		centroEn(e);
+		usarVista(e);
 	});
 	vista?.addEventListener('pointermove', (e) => {
-		if (moviendoCentro) centroEn(e);
+		if (moviendoCentro) usarVista(e);
 	});
 	const soltarCentro = () => {
 		moviendoCentro = false;
+		if (!vista) return;
+		delete vista.dataset.arrastrando;
+		vista.style.cursor = estado.tipo === 'radial' ? 'crosshair' : 'grab';
 	};
+
+	// Con el teclado: flechas para girar o para mover el centro.
+	const FLECHAS: Record<string, [number, number]> = {
+		ArrowLeft: [-1, 0],
+		ArrowRight: [1, 0],
+		ArrowUp: [0, -1],
+		ArrowDown: [0, 1],
+	};
+	vista?.addEventListener('keydown', (e) => {
+		const flecha = FLECHAS[e.key];
+		if (!flecha) return;
+		e.preventDefault();
+		const [x, y] = flecha;
+		if (estado.tipo === 'radial') {
+			const paso = e.shiftKey ? 10 : 1;
+			ponerCentro(estado.centroX + x * paso, estado.centroY + y * paso);
+			return;
+		}
+		// Derecha y arriba giran como el reloj; izquierda y abajo, al revés.
+		const paso = (x || -y) * (e.shiftKey ? 15 : 1);
+		ponerAngulo((((estado.angulo + paso) % 360) + 360) % 360);
+		if (anguloNum) anguloNum.value = String(estado.angulo);
+	});
 	vista?.addEventListener('pointerup', soltarCentro);
 	vista?.addEventListener('pointercancel', soltarCentro);
 
