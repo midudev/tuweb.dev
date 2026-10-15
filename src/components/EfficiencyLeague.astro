@@ -1,0 +1,290 @@
+---
+/**
+ * La liga de eficiencia del problema de la semana. Con la respuesta buena,
+ * apuntas tu algoritmo, su coste, su memoria y lo que tarda con tu entrada; la
+ * tabla os ordena de más eficiente a menos. Solo entra una marca que mejore la
+ * tuya. Se comparte en un enlace y todo se queda en tu navegador.
+ */
+import Icon from './Icon.astro';
+import { ALGO_MAX, LENGUAJES, MARCAS_MAX, MEMORIAS, TIEMPOS } from '../lib/eficiencia';
+import { FIRMA_MAX } from '../lib/soluciones';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40';
+const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus-visible:border-accent';
+---
+
+<section id="eficiencia" class="flex flex-col gap-4 border border-line bg-panel p-4" aria-labelledby="eficiencia-titulo">
+	<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+		<h2 id="eficiencia-titulo" class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="bolt" class="size-5 shrink-0 text-accent" />
+			Liga de eficiencia
+		</h2>
+		<span data-ef-total class="text-sm tabular-nums text-muted"></span>
+	</div>
+
+	<p class="text-sm text-muted">
+		Resolverlo da medalla; aquí se compite por cómo. Gana el menor coste, luego la menor memoria y luego el
+		reloj con tu entrada de la semana. Solo cuenta mejorar: una marca peor no pisa la tuya.
+	</p>
+
+	<ol data-ef-tabla class="flex flex-col text-sm"></ol>
+
+	<template data-ef-fila>
+		<li data-fila class="flex flex-col gap-1 border-t border-line py-2">
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+				<span data-pos class="w-8 font-pixel tabular-nums text-muted"></span>
+				<span data-nombre class="min-w-0 flex-1 break-words"></span>
+				<span data-coste class="text-xs tabular-nums"></span>
+				<span data-ms class="w-20 text-right tabular-nums"></span>
+				<button type="button" data-quitar class="text-muted hover:text-heart" aria-label="Quitar de la liga">
+					<Icon name="trash" class="size-4 shrink-0" />
+				</button>
+			</div>
+			<p data-algo class="pl-12 text-xs text-muted break-words"></p>
+		</li>
+	</template>
+
+	<form data-ef-form class="grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
+		<p data-ef-bloqueo class="text-sm text-muted sm:col-span-2" hidden>
+			Primero resuelve el <a href="#problema" class="text-accent hover:underline">problema de la semana</a>: la
+			marca solo vale con la respuesta buena.
+		</p>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Tu firma</span>
+			<input type="text" data-ef-firma maxlength={FIRMA_MAX} autocomplete="off" class={CAMPO} />
+		</label>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Lenguaje</span>
+			<select data-ef-lang class={CAMPO}>
+				{Object.entries(LENGUAJES).map(([id, label]) => <option value={id}>{label}</option>)}
+			</select>
+		</label>
+		<label class="flex flex-col gap-2 sm:col-span-2">
+			<span class="text-sm text-muted">Tu algoritmo, en una línea</span>
+			<input
+				type="text"
+				data-ef-algo
+				maxlength={ALGO_MAX}
+				autocomplete="off"
+				placeholder="Kadane: una pasada, sin listas auxiliares"
+				class={CAMPO}
+			/>
+		</label>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Coste en tiempo</span>
+			<select data-ef-tiempo class={CAMPO}>
+				{TIEMPOS.map((label, index) => <option value={index} selected={index === 2}>{label}</option>)}
+			</select>
+		</label>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Memoria extra</span>
+			<select data-ef-memoria class={CAMPO}>
+				{MEMORIAS.map((label, index) => <option value={index}>{label}</option>)}
+			</select>
+		</label>
+		<label class="flex flex-col gap-2">
+			<span class="text-sm text-muted">Tarda, en milisegundos</span>
+			<input type="text" data-ef-ms inputmode="decimal" autocomplete="off" placeholder="0.42" class={`${CAMPO} tabular-nums`} />
+		</label>
+		<div class="flex flex-wrap items-end gap-3">
+			<button type="submit" data-ef-enviar class={BOTON}>
+				<Icon name="send" class="size-4 shrink-0" />
+				Apuntar marca
+			</button>
+			<button type="button" data-ef-copiar class={BOTON}>
+				<Icon name="link" class="size-4 shrink-0" />
+				Copiar la tuya
+			</button>
+		</div>
+	</form>
+	<p data-ef-estado role="status" class="text-sm text-muted"></p>
+
+	<form data-ef-pegar class="flex flex-wrap items-end gap-3">
+		<label class="flex min-w-0 flex-1 flex-col gap-2">
+			<span class="text-sm text-muted">Pega la marca de alguien</span>
+			<input type="text" data-ef-enlace autocomplete="off" placeholder="/retos#de=...&ef=..." class={`w-full ${CAMPO}`} />
+		</label>
+		<button type="submit" class={BOTON}>
+			<Icon name="user-plus" class="size-4 shrink-0" />
+			Añadir
+		</button>
+	</form>
+
+	<p class="border-t border-line pt-3 text-xs text-muted">
+		Aquí no se ejecuta nada: mide en tu máquina con la entrada de la semana y apunta lo que sale. Cada marca
+		es la palabra de quien la firma. Pasa tu enlace y pide el de los demás; caben {MARCAS_MAX} por semana. Si
+		alguien mejora y te lo vuelve a pasar, se pone al día. El lunes, liga nueva.
+	</p>
+</section>
+
+<style is:global>
+	#eficiencia [data-fila][data-tu='si'] [data-nombre] {
+		color: var(--color-accent);
+	}
+	#eficiencia [data-fila][data-tu='si'] [data-quitar] {
+		visibility: hidden;
+	}
+	#eficiencia [data-fila]:first-child [data-pos] {
+		color: var(--color-mark);
+	}
+</style>
+
+<script>
+	import {
+		CAMBIO_EFICIENCIA,
+		LENGUAJES,
+		MEMORIAS,
+		TIEMPOS,
+		addMarca,
+		enlaceDe,
+		marcaDeEnlace,
+		msTexto,
+		nuevaMarca,
+		readEficiencia,
+		removeMarca,
+		saveEficiencia,
+		tablaEficiencia,
+	} from '../lib/eficiencia';
+	import { readRegistro } from '../lib/problemas';
+	import { weekIndex, weekStart } from '../lib/retos';
+	import { readFirma, saveFirma } from '../lib/soluciones';
+
+	const section = document.querySelector<HTMLElement>('#eficiencia');
+	const q = <T extends Element>(sel: string) => section?.querySelector<T>(sel) ?? null;
+	const lista = q<HTMLElement>('[data-ef-tabla]');
+	const template = q<HTMLTemplateElement>('[data-ef-fila]');
+	const form = q<HTMLFormElement>('[data-ef-form]');
+	const pegar = q<HTMLFormElement>('[data-ef-pegar]');
+	const estado = q<HTMLElement>('[data-ef-estado]');
+	const total = q<HTMLElement>('[data-ef-total]');
+	const firma = q<HTMLInputElement>('[data-ef-firma]');
+	const algo = q<HTMLInputElement>('[data-ef-algo]');
+	const ms = q<HTMLInputElement>('[data-ef-ms]');
+	const lang = q<HTMLSelectElement>('[data-ef-lang]');
+	const tiempo = q<HTMLSelectElement>('[data-ef-tiempo]');
+	const memoria = q<HTMLSelectElement>('[data-ef-memoria]');
+	const enlace = q<HTMLInputElement>('[data-ef-enlace]');
+
+	if (
+		section && lista && template && form && pegar && estado && total &&
+		firma && algo && ms && lang && tiempo && memoria && enlace
+	) {
+		const week = weekIndex(weekStart(Date.now()));
+
+		const avisar = (texto: string, clase = 'text-muted') => {
+			estado.className = `text-sm ${clase}`;
+			estado.textContent = texto;
+		};
+
+		function pintar() {
+			const guardado = readEficiencia();
+			const filas = tablaEficiencia(guardado, week);
+			const resuelto = Boolean(readRegistro()[String(week)]?.ok);
+
+			form!.querySelector<HTMLElement>('[data-ef-bloqueo]')!.hidden = resuelto;
+			form!.querySelector<HTMLButtonElement>('[data-ef-copiar]')!.disabled = !guardado.mias[String(week)];
+
+			lista!.replaceChildren(
+				...filas.map(({ marca, tu }, index) => {
+					const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+					node.dataset.tu = tu ? 'si' : 'no';
+					node.querySelector('[data-pos]')!.textContent = String(index + 1).padStart(2, '0');
+					node.querySelector('[data-nombre]')!.textContent = tu ? `${marca.nombre} (tú)` : marca.nombre;
+					node.querySelector('[data-coste]')!.textContent =
+						`${TIEMPOS[marca.tiempo]} · mem. ${MEMORIAS[marca.memoria]} · ${LENGUAJES[marca.lang]}`;
+					node.querySelector('[data-ms]')!.textContent = msTexto(marca.ms);
+					const mejoras = marca.mejoras === 0 ? '' : ` · mejorada ${marca.mejoras} ${marca.mejoras === 1 ? 'vez' : 'veces'}`;
+					node.querySelector('[data-algo]')!.textContent = `${marca.algo}${mejoras}`;
+					node.querySelector('[data-quitar]')!.addEventListener('click', () => {
+						saveEficiencia(removeMarca(readEficiencia(), week, marca.nombre));
+						avisar(`${marca.nombre} sale de la liga.`);
+					});
+					return node;
+				}),
+			);
+
+			total!.textContent = filas.length === 0 ? 'Nadie todavía' : `${filas.length} en la liga`;
+		}
+
+		function recibir(texto: string) {
+			const recibido = marcaDeEnlace(texto, Date.now());
+			if (typeof recibido === 'string') return avisar(recibido, 'text-heart');
+			if (recibido.week !== week) return avisar('Esa marca es de otra semana: la liga de ahora es otra.', 'text-heart');
+
+			const antes = readEficiencia();
+			const mia = antes.mias[String(week)];
+			if (mia && mia.nombre.toLowerCase() === recibido.marca.nombre.toLowerCase())
+				return avisar('Esa marca firma como tú: la tuya ya está en la tabla.');
+
+			const nuevo = addMarca(antes, week, recibido.marca);
+			if (!nuevo) return avisar('La liga está llena. Quita a alguien antes.', 'text-heart');
+			const yaEstaba = (antes.otras[String(week)] ?? []).length === (nuevo.otras[String(week)] ?? []).length;
+			saveEficiencia(nuevo);
+			avisar(
+				yaEstaba ? `${recibido.marca.nombre}, puesto al día.` : `${recibido.marca.nombre} entra en la liga.`,
+				'text-ok',
+			);
+		}
+
+		// Lo que ya tenías apuntado vuelve al formulario, para afinarlo.
+		const mia = readEficiencia().mias[String(week)];
+		firma.value = mia?.nombre ?? readFirma();
+		if (mia) {
+			algo.value = mia.algo;
+			lang.value = mia.lang;
+			tiempo.value = String(mia.tiempo);
+			memoria.value = String(mia.memoria);
+		}
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			if (!readRegistro()[String(week)]?.ok) return avisar('Primero resuelve el problema de la semana.', 'text-heart');
+
+			const nombre = saveFirma(firma.value);
+			firma.value = nombre;
+			const guardado = readEficiencia();
+			const antes = guardado.mias[String(week)];
+			const marca = nuevaMarca(
+				antes,
+				{ nombre, algo: algo.value, ms: ms.value, lang: lang.value, tiempo: tiempo.value, memoria: memoria.value },
+				Date.now(),
+			);
+			if (typeof marca === 'string') return avisar(marca, 'text-heart');
+
+			saveEficiencia({ ...guardado, mias: { ...guardado.mias, [String(week)]: marca } });
+			ms.value = '';
+			avisar(antes ? 'Marca mejorada. Vuelve a pasar tu enlace.' : 'Marca apuntada. Pasa tu enlace.', 'text-ok');
+		});
+
+		section.querySelector('[data-ef-copiar]')?.addEventListener('click', async () => {
+			const marca = readEficiencia().mias[String(week)];
+			if (!marca) return;
+			try {
+				await navigator.clipboard.writeText(`${location.origin}/retos#${enlaceDe(marca, week)}`);
+				avisar('Copiado. Pásalo a quien quieras.');
+			} catch {
+				avisar('No se pudo copiar.', 'text-heart');
+			}
+		});
+
+		pegar.addEventListener('submit', (event) => {
+			event.preventDefault();
+			recibir(enlace.value);
+			if (estado.classList.contains('text-ok')) enlace.value = '';
+		});
+
+		// Abrir un enlace de marca la suma a tu liga y deja la dirección limpia.
+		if (new URLSearchParams(location.hash.slice(1)).has('ef')) {
+			recibir(location.hash);
+			history.replaceState(null, '', `${location.pathname}${location.search}#eficiencia`);
+			section.scrollIntoView();
+		}
+
+		pintar();
+		// El problema se resuelve más arriba, en esta misma pestaña: al volver aquí se mira otra vez.
+		form.addEventListener('focusin', pintar);
+		window.addEventListener(CAMBIO_EFICIENCIA, pintar);
+		window.addEventListener('storage', pintar);
+	}
+</script>
