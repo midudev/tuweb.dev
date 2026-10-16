@@ -3,7 +3,8 @@
  * Píxeles ASCII: un lienzo de 48 × 24 que se pinta a píxeles y se escribe solo
  * en ASCII, un carácter por tono, con el ratón o con comandos desde la consola. Va en directo entre las pestañas de tu
  * navegador con BroadcastChannel y, para sumar a otra gente, el dibujo viaja en
- * el enlace: quien lo abre lo junta con el suyo y sigue. No hay servidor.
+ * el enlace: quien lo abre lo junta con el suyo y sigue. Cada hora se queda una
+ * copia del lienzo, las últimas 24, para volver a ella. No hay servidor.
  */
 import Icon from './Icon.astro';
 
@@ -149,6 +150,15 @@ const BOTON =
 			</span>
 			<p data-pa-firmas class="text-sm break-words text-fg"></p>
 		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="history" class="size-4 shrink-0 text-accent" />
+				Copia de cada hora
+			</span>
+			<span data-pa-proxima class="text-xs text-muted"></span>
+			<ol data-pa-horas class="flex max-h-56 flex-col overflow-y-auto border border-line bg-bg empty:hidden"></ol>
+		</div>
 	</div>
 </section>
 
@@ -288,11 +298,11 @@ const BOTON =
 	// --- El texto ---
 
 	/** El dibujo en ASCII: una línea por fila, sin espacios al final. */
-	function comoTexto() {
+	function comoTexto(de = celdas) {
 		const filas: string[] = [];
 		for (let y = 0; y < ALTO; y++) {
 			filas.push(
-				celdas
+				de
 					.slice(y * ANCHO, (y + 1) * ANCHO)
 					.map((t) => TONOS[t])
 					.join('')
@@ -473,19 +483,120 @@ const BOTON =
 
 	// --- Llevárselo ---
 
-	function archivo() {
-		const pie = firmas.length ? `\n\n-- ${firmas.join(', ')} · tuweb.dev/pixeles-ascii` : '\n\n-- tuweb.dev/pixeles-ascii';
-		return `${comoTexto()}${pie}\n`;
+	function archivo(de = celdas, quienes = firmas) {
+		const pie = quienes.length ? `\n\n-- ${quienes.join(', ')} · tuweb.dev/pixeles-ascii` : '\n\n-- tuweb.dev/pixeles-ascii';
+		return `${comoTexto(de)}${pie}\n`;
 	}
 
-	raiz?.querySelector('[data-pa-txt]')?.addEventListener('click', () => {
-		const url = URL.createObjectURL(new Blob([archivo()], { type: 'text/plain;charset=utf-8' }));
+	function descargar(texto: string, nombre: string) {
+		const url = URL.createObjectURL(new Blob([texto], { type: 'text/plain;charset=utf-8' }));
 		const enlace = document.createElement('a');
 		enlace.href = url;
-		enlace.download = 'pixeles-ascii.txt';
+		enlace.download = nombre;
 		enlace.click();
 		setTimeout(() => URL.revokeObjectURL(url), 1000);
-	});
+	}
+
+	raiz?.querySelector('[data-pa-txt]')?.addEventListener('click', () => descargar(archivo(), 'pixeles-ascii.txt'));
+
+	// --- La copia de cada hora ---
+
+	// Al cambiar la hora se guarda el lienzo tal cual, una copia por hora y
+	// las últimas 24. Las pestañas comparten la lista: la primera que llega la hace.
+	const CLAVE_HORAS = `${CLAVE}:horas`;
+	const MAX_HORAS = 24;
+	const UNA_HORA = 3_600_000;
+	type Copia = { hora: number; celdas: string; firmas: string[] };
+
+	const horaDe = (ms: number) => Math.floor(ms / UNA_HORA);
+	const aLas = (hora: number, dia = false) =>
+		new Date(hora * UNA_HORA).toLocaleString('es', {
+			...(dia ? { weekday: 'short' as const } : {}),
+			hour: '2-digit',
+			minute: '2-digit',
+		});
+
+	function leerHoras(): Copia[] {
+		try {
+			const lista = JSON.parse(localStorage.getItem(CLAVE_HORAS) ?? '[]');
+			if (!Array.isArray(lista)) return [];
+			return lista
+				.filter((c) => c && Number.isInteger(c.hora) && textoValido(c.celdas))
+				.map((c) => ({ hora: c.hora, celdas: c.celdas, firmas: limpiarFirmas(c.firmas) }))
+				.slice(-MAX_HORAS);
+		} catch {
+			return [];
+		}
+	}
+
+	function copiarHora() {
+		const ahora = horaDe(Date.now());
+		const horas = leerHoras();
+		const ultima = horas.at(-1);
+		const texto = celdas.join('');
+		// Ya hay copia de esta hora, el lienzo está en blanco o no ha cambiado desde la última.
+		if (ultima && ultima.hora >= ahora) return;
+		if (!celdas.some(Boolean) || ultima?.celdas === texto) return;
+		horas.push({ hora: ahora, celdas: texto, firmas });
+		try {
+			localStorage.setItem(CLAVE_HORAS, JSON.stringify(horas.slice(-MAX_HORAS)));
+		} catch {
+			return;
+		}
+		decir(`[${hora()}] Copia de las ${aLas(ahora)} guardada.`, 'text-accent');
+		pintarHoras();
+	}
+
+	function boton(texto: string, accion: () => void) {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.textContent = texto;
+		b.className = 'border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent';
+		b.addEventListener('click', accion);
+		return b;
+	}
+
+	function pintarHoras() {
+		const proxima = raiz?.querySelector<HTMLElement>('[data-pa-proxima]');
+		if (proxima) proxima.textContent = `La próxima, a las ${aLas(horaDe(Date.now()) + 1)}. Si no cambia nada, no se repite.`;
+		const lista = raiz?.querySelector<HTMLElement>('[data-pa-horas]');
+		if (!lista) return;
+		lista.replaceChildren(
+			...leerHoras()
+				.reverse()
+				.map((copia) => {
+					const fila = document.createElement('li');
+					fila.className = 'flex items-center gap-2 border-b border-line px-2 py-1 last:border-b-0';
+					const cuando = document.createElement('span');
+					cuando.className = 'flex-1 font-mono text-xs text-fg';
+					const llenos = [...copia.celdas].filter((c) => c !== '0').length;
+					cuando.textContent = `${aLas(copia.hora, true)} · ${llenos} px`;
+					const volver = boton('Volver', () => {
+						if (!confirm(`¿Volver a la copia de las ${aLas(copia.hora)}? También cambia en las demás pestañas.`)) return;
+						celdas = [...copia.celdas].map(Number);
+						firmas = limpiarFirmas([...firmas, ...copia.firmas]);
+						guardar();
+						enviarTodo();
+						avisar(`Lienzo de vuelta a las ${aLas(copia.hora)}.`);
+						todo();
+					});
+					const txt = boton('.txt', () =>
+						descargar(
+							archivo([...copia.celdas].map(Number), copia.firmas),
+							`pixeles-ascii-${new Date(copia.hora * UNA_HORA).toLocaleString('sv').slice(0, 13).replace(' ', '-')}h.txt`,
+						),
+					);
+					fila.append(cuando, volver, txt);
+					return fila;
+				}),
+		);
+	}
+
+	window.addEventListener('storage', (evento) => evento.key === CLAVE_HORAS && pintarHoras());
+	setInterval(() => {
+		copiarHora();
+		pintarHoras();
+	}, 30_000);
 
 	raiz?.querySelector('[data-pa-copiar]')?.addEventListener('click', async () => {
 		try {
@@ -753,6 +864,8 @@ const BOTON =
 	document.fonts?.ready.then(pintarTela);
 
 	decir('Escribe ayuda para ver los comandos.');
+	copiarHora();
+	pintarHoras();
 	enviar({ tipo: 'hola' });
 	pintarPestanas();
 	todo();
