@@ -1,4 +1,5 @@
 ---
+import AccessibleSchemeTool from './AccessibleSchemeTool.astro';
 import AmbientTool from './AmbientTool.astro';
 import ArrowTool from './ArrowTool.astro';
 import ArtPaletteTool from './ArtPaletteTool.astro';
@@ -65,6 +66,7 @@ const tools = [
 	{ id: 'prompts-ia', label: 'Prompts para IA', icon: 'sparkles' },
 	{ id: 'colores', label: 'Colores', icon: 'palette' },
 	{ id: 'laboratorio', label: 'Laboratorio de color', icon: 'flask' },
+	{ id: 'accesible', label: 'Esquemas accesibles', icon: 'accessible' },
 	{ id: 'obras', label: 'Paletas de obras', icon: 'artboard' },
 	{ id: 'paletas-azar', label: 'Paletas al azar', icon: 'arrows-shuffle' },
 	{ id: 'gradientes', label: 'Gradientes', icon: 'color-filter' },
@@ -248,6 +250,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<ColorTool />
 
 	<ColorLab />
+
+	<AccessibleSchemeTool />
 
 	<ArtPaletteTool />
 

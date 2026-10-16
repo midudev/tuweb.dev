@@ -1,0 +1,611 @@
+---
+/**
+ * Esquemas accesibles: de un color de marca sale un esquema entero (fondo,
+ * superficie, textos, bordes, primario, enlaces, éxito y error) que cumple el
+ * contraste de WCAG 2 en el nivel elegido, AA o AAA. Se ve al momento en una
+ * interfaz de prueba y cada color se toca a mano; si una pareja deja de cumplir,
+ * «Arreglar» mueve solo la luz de ese color, sin cambiarle el tono, hasta que
+ * cumpla. Las cuentas de contraste son las de src/lib/color-lab.ts. Se guarda en
+ * localStorage y no sale del navegador.
+ */
+import Icon from './Icon.astro';
+
+const ROLES = [
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'superficie', label: 'Superficie' },
+	{ id: 'texto', label: 'Texto' },
+	{ id: 'suave', label: 'Texto suave' },
+	{ id: 'borde', label: 'Bordes' },
+	{ id: 'primario', label: 'Primario' },
+	{ id: 'sobrePrimario', label: 'Texto en primario' },
+	{ id: 'enlace', label: 'Enlaces' },
+	{ id: 'exito', label: 'Éxito' },
+	{ id: 'error', label: 'Error' },
+];
+
+const SIMULACIONES = [
+	{ id: 'normal', label: 'Normal' },
+	{ id: 'gris', label: 'En gris' },
+	{ id: 'borroso', label: 'Borroso' },
+];
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<div
+	role="tabpanel"
+	id="accesible"
+	aria-labelledby="tab-accesible"
+	data-panel="accesible"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<template data-ea-icono><Icon name="wand" class="size-4 shrink-0" /></template>
+
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Color de marca</span>
+				<div class="flex items-center gap-2">
+					<input
+						type="color"
+						data-ea-base
+						aria-label="Color de marca"
+						class="h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1"
+					/>
+					<input
+						type="text"
+						data-ea-base-hex
+						maxlength="7"
+						spellcheck="false"
+						autocomplete="off"
+						aria-label="Color de marca en hexadecimal"
+						class="w-24 border border-line bg-panel px-2 py-2 text-sm outline-none focus-visible:border-accent"
+					/>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Modo</span>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-ea-modo="claro" aria-pressed="true" class={OPCION}>Claro</button>
+					<button type="button" data-ea-modo="oscuro" aria-pressed="false" class={OPCION}>Oscuro</button>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Nivel WCAG</span>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-ea-nivel="AA" aria-pressed="true" class={OPCION}>AA · 4.5:1</button>
+					<button type="button" data-ea-nivel="AAA" aria-pressed="false" class={OPCION}>AAA · 7:1</button>
+				</div>
+				<span class="text-xs text-muted">Bordes y controles piden 3:1 en los dos.</span>
+			</div>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-ea-generar class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Generar
+				</button>
+				<button type="button" data-ea-azar class={BOTON}>
+					<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+					Al azar
+				</button>
+				<button type="button" data-ea-arreglar-todo class={BOTON}>
+					<Icon name="wand" class="size-4 shrink-0" />
+					Arreglar todo
+				</button>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Colores del esquema</span>
+				<div class="grid grid-cols-2 gap-2">
+					{
+						ROLES.map((rol) => (
+							<label class="flex items-center gap-2 text-xs text-muted">
+								<input
+									type="color"
+									data-ea-color={rol.id}
+									aria-label={rol.label}
+									class="h-8 w-8 shrink-0 cursor-pointer border border-line bg-panel p-0.5"
+								/>
+								{rol.label}
+							</label>
+						))
+					}
+				</div>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div class="flex flex-wrap items-center gap-2">
+				<span class="text-sm text-muted">Ver</span>
+				{
+					SIMULACIONES.map((sim) => (
+						<button
+							type="button"
+							data-ea-simular={sim.id}
+							aria-pressed={sim.id === 'normal' ? 'true' : 'false'}
+							class="border border-line px-2 py-1 text-xs text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent"
+						>
+							{sim.label}
+						</button>
+					))
+				}
+			</div>
+
+			<div data-ea-vista class="ea-vista overflow-hidden border border-line">
+				<header class="ea-cabecera flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+					<strong class="font-pixel text-lg">Mi web</strong>
+					<nav class="flex gap-4 text-sm">
+						<a href="#accesible" class="ea-enlace" tabindex="-1">Inicio</a>
+						<a href="#accesible" class="ea-enlace" tabindex="-1">Precios</a>
+						<a href="#accesible" class="ea-enlace" tabindex="-1">Contacto</a>
+					</nav>
+				</header>
+				<div class="flex flex-col gap-4 p-5">
+					<div class="flex flex-col gap-1">
+						<h3 class="font-pixel text-2xl">Diseña para todo el mundo</h3>
+						<p class="text-sm">
+							Un buen contraste ayuda a quien ve peor, a quien lee con sol en la pantalla y a ti a las tres de
+							la mañana. <a href="#accesible" class="ea-enlace underline" tabindex="-1">Leer más</a>
+						</p>
+						<p class="ea-suave text-xs">Actualizado hace 2 días</p>
+					</div>
+					<div class="ea-tarjeta flex flex-col gap-3 p-4">
+						<span class="text-sm">Correo</span>
+						<input
+							type="text"
+							tabindex="-1"
+							readonly
+							placeholder="tu@correo.dev"
+							aria-label="Campo de ejemplo"
+							class="ea-campo px-3 py-2 text-sm outline-none"
+						/>
+						<div class="flex flex-wrap gap-2">
+							<span class="ea-primario px-4 py-2 text-sm">Suscribirme</span>
+							<span class="ea-secundario px-4 py-2 text-sm">Ahora no</span>
+						</div>
+						<p class="ea-exito px-3 py-2 text-sm">Guardado sin problemas.</p>
+						<p class="ea-error px-3 py-2 text-sm">Falta el correo.</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<p data-ea-resumen class="text-sm text-mark" aria-live="polite"></p>
+				<ul data-ea-tabla class="flex flex-col border border-line"></ul>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Variables CSS</span>
+				<pre data-ea-css class="max-h-72 overflow-auto border border-line bg-panel p-4 text-sm whitespace-pre-wrap text-mark"></pre>
+				<div>
+					<button type="button" data-ea-copiar class={BOTON}>
+						<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+						<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+						<span data-ea-copiar-texto aria-live="polite">Copiar</span>
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-ea-base]::-webkit-color-swatch-wrapper,
+	[data-ea-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-ea-base]::-webkit-color-swatch,
+	[data-ea-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-ea-base]::-moz-color-swatch,
+	[data-ea-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* La interfaz de prueba solo usa los colores del esquema. */
+	.ea-vista {
+		background: var(--ea-fondo);
+		color: var(--ea-texto);
+		transition: filter 0.2s;
+	}
+	.ea-vista[data-simular='gris'] {
+		filter: grayscale(1);
+	}
+	.ea-vista[data-simular='borroso'] {
+		filter: blur(1.5px);
+	}
+	.ea-cabecera {
+		background: var(--ea-superficie);
+		border-bottom: 1px solid var(--ea-borde);
+	}
+	.ea-enlace {
+		color: var(--ea-enlace);
+	}
+	.ea-suave {
+		color: var(--ea-suave);
+	}
+	.ea-tarjeta {
+		background: var(--ea-superficie);
+		border: 1px solid var(--ea-borde);
+	}
+	.ea-campo {
+		background: var(--ea-superficie);
+		color: var(--ea-texto);
+		border: 1px solid var(--ea-borde);
+	}
+	.ea-campo::placeholder {
+		color: var(--ea-suave);
+	}
+	.ea-primario {
+		background: var(--ea-primario);
+		color: var(--ea-sobrePrimario);
+	}
+	.ea-secundario {
+		color: var(--ea-texto);
+		border: 1px solid var(--ea-borde);
+	}
+	.ea-exito {
+		color: var(--ea-exito);
+		border-left: 4px solid var(--ea-exito);
+	}
+	.ea-error {
+		color: var(--ea-error);
+		border-left: 4px solid var(--ea-error);
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-ea-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-ea-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-ea-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-ea-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-ea-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	import { hslToRgb, rgbToHsl } from '../lib/color';
+	import { contraste, hexDe, tinta } from '../lib/color-lab';
+
+	type Rol = 'fondo' | 'superficie' | 'texto' | 'suave' | 'borde' | 'primario' | 'sobrePrimario' | 'enlace' | 'exito' | 'error';
+	type Modo = 'claro' | 'oscuro';
+	type Nivel = 'AA' | 'AAA';
+	type Simulacion = 'normal' | 'gris' | 'borroso';
+	type Estado = { base: string; modo: Modo; nivel: Nivel; simulacion: Simulacion; colores: Record<Rol, string> };
+
+	// Qué color va delante y cuál detrás, y cuál se mueve al arreglar. En el
+	// botón se mueve el primario: la letra blanca o negra se deja como está.
+	type Pareja = { que: string; delante: Rol; detras: Rol; tipo: 'texto' | 'ui'; mueve: Rol };
+
+	const ROLES: Rol[] = ['fondo', 'superficie', 'texto', 'suave', 'borde', 'primario', 'sobrePrimario', 'enlace', 'exito', 'error'];
+	const VARIABLES: Record<Rol, string> = {
+		fondo: 'fondo',
+		superficie: 'superficie',
+		texto: 'texto',
+		suave: 'texto-suave',
+		borde: 'borde',
+		primario: 'primario',
+		sobrePrimario: 'sobre-primario',
+		enlace: 'enlace',
+		exito: 'exito',
+		error: 'error',
+	};
+	const PAREJAS: Pareja[] = [
+		{ que: 'Texto sobre fondo', delante: 'texto', detras: 'fondo', tipo: 'texto', mueve: 'texto' },
+		{ que: 'Texto sobre superficie', delante: 'texto', detras: 'superficie', tipo: 'texto', mueve: 'texto' },
+		{ que: 'Texto suave sobre fondo', delante: 'suave', detras: 'fondo', tipo: 'texto', mueve: 'suave' },
+		{ que: 'Texto suave sobre superficie', delante: 'suave', detras: 'superficie', tipo: 'texto', mueve: 'suave' },
+		{ que: 'Enlace sobre fondo', delante: 'enlace', detras: 'fondo', tipo: 'texto', mueve: 'enlace' },
+		{ que: 'Enlace sobre superficie', delante: 'enlace', detras: 'superficie', tipo: 'texto', mueve: 'enlace' },
+		{ que: 'Botón primario', delante: 'sobrePrimario', detras: 'primario', tipo: 'texto', mueve: 'primario' },
+		{ que: 'Borde del campo', delante: 'borde', detras: 'superficie', tipo: 'ui', mueve: 'borde' },
+		{ que: 'Éxito sobre superficie', delante: 'exito', detras: 'superficie', tipo: 'texto', mueve: 'exito' },
+		{ que: 'Error sobre superficie', delante: 'error', detras: 'superficie', tipo: 'texto', mueve: 'error' },
+	];
+
+	const CLAVE = 'tuweb:accesible';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const MODOS: Modo[] = ['claro', 'oscuro'];
+	const NIVELES: Nivel[] = ['AA', 'AAA'];
+	const SIMULACIONES: Simulacion[] = ['normal', 'gris', 'borroso'];
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="accesible"]');
+	const base = panel?.querySelector<HTMLInputElement>('[data-ea-base]');
+	const baseHex = panel?.querySelector<HTMLInputElement>('[data-ea-base-hex]');
+	const vista = panel?.querySelector<HTMLElement>('[data-ea-vista]');
+	const tabla = panel?.querySelector<HTMLElement>('[data-ea-tabla]');
+	const resumen = panel?.querySelector<HTMLElement>('[data-ea-resumen]');
+	const salida = panel?.querySelector<HTMLElement>('[data-ea-css]');
+	const icono = panel?.querySelector<HTMLTemplateElement>('[data-ea-icono]');
+	const campos = panel?.querySelectorAll<HTMLInputElement>('[data-ea-color]') ?? [];
+	const modos = panel?.querySelectorAll<HTMLButtonElement>('[data-ea-modo]') ?? [];
+	const niveles = panel?.querySelectorAll<HTMLButtonElement>('[data-ea-nivel]') ?? [];
+	const simulaciones = panel?.querySelectorAll<HTMLButtonElement>('[data-ea-simular]') ?? [];
+	const copiar = panel?.querySelector<HTMLButtonElement>('[data-ea-copiar]');
+	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-ea-copiar-texto]');
+
+	const aRgb = (hex: string) => ({
+		r: parseInt(hex.slice(1, 3), 16) / 255,
+		g: parseInt(hex.slice(3, 5), 16) / 255,
+		b: parseInt(hex.slice(5, 7), 16) / 255,
+	});
+	const deHsl = (h: number, s: number, l: number) => hexDe({ ...hslToRgb(h, s, l), a: 1 });
+
+	// Texto normal: 4.5:1 en AA y 7:1 en AAA. Bordes y controles: 3:1 (1.4.11).
+	const minimo = (tipo: Pareja['tipo'], nivel: Nivel) => (tipo === 'ui' ? 3 : nivel === 'AAA' ? 7 : 4.5);
+
+	// Mueve solo la luz, con el mismo tono y saturación, hasta llegar al
+	// contraste pedido: sobre algo claro oscurece, sobre algo oscuro aclara.
+	function ajustar(color: string, contra: string, objetivo: number) {
+		if (contraste(color, contra) >= objetivo) return color;
+		const { h, s, l } = rgbToHsl(aRgb(color));
+		const paso = tinta(contra) === '#000000' ? -0.01 : 0.01;
+		for (let luz = l; luz >= 0 && luz <= 1; luz += paso) {
+			const nuevo = deHsl(h, s, luz);
+			if (contraste(nuevo, contra) >= objetivo) return nuevo;
+		}
+		return paso < 0 ? '#000000' : '#ffffff';
+	}
+
+	function arreglar(colores: Record<Rol, string>, pareja: Pareja, nivel: Nivel) {
+		const otro = pareja.mueve === pareja.delante ? pareja.detras : pareja.delante;
+		colores[pareja.mueve] = ajustar(colores[pareja.mueve], colores[otro], minimo(pareja.tipo, nivel));
+	}
+
+	// Dos vueltas: arreglar una pareja puede mover un color que sale en otra.
+	function arreglarTodo(colores: Record<Rol, string>, nivel: Nivel) {
+		for (let vuelta = 0; vuelta < 2; vuelta++) PAREJAS.forEach((p) => arreglar(colores, p, nivel));
+		return colores;
+	}
+
+	// Los neutros llevan un poco del tono de la marca; éxito y error van en verde
+	// y rojo de siempre. Luego todo pasa por el arreglo.
+	function generar(marca: string, modo: Modo, nivel: Nivel) {
+		const { h, s } = rgbToHsl(aRgb(marca));
+		const claro = modo === 'claro';
+		const colores: Record<Rol, string> = {
+			fondo: deHsl(h, s * 0.2, claro ? 0.98 : 0.08),
+			superficie: deHsl(h, s * 0.25, claro ? 0.94 : 0.13),
+			texto: deHsl(h, s * 0.3, claro ? 0.12 : 0.93),
+			suave: deHsl(h, s * 0.15, claro ? 0.42 : 0.68),
+			borde: deHsl(h, s * 0.15, claro ? 0.72 : 0.32),
+			primario: marca,
+			sobrePrimario: tinta(marca),
+			enlace: marca,
+			exito: deHsl(140, 0.6, claro ? 0.32 : 0.6),
+			error: deHsl(0, 0.7, claro ? 0.45 : 0.65),
+		};
+		return arreglarTodo(colores, nivel);
+	}
+
+	const INICIAL_BASE = '#c2410c';
+
+	function cargar(): Estado {
+		try {
+			const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (guardado && HEX.test(String(guardado.base)) && guardado.colores) {
+				const nivel: Nivel = NIVELES.includes(guardado.nivel) ? guardado.nivel : 'AA';
+				const modo: Modo = MODOS.includes(guardado.modo) ? guardado.modo : 'claro';
+				const generado = generar(guardado.base, modo, nivel);
+				const colores = Object.fromEntries(
+					ROLES.map((rol) => [rol, HEX.test(String(guardado.colores[rol])) ? String(guardado.colores[rol]).toLowerCase() : generado[rol]]),
+				) as Record<Rol, string>;
+				return {
+					base: String(guardado.base).toLowerCase(),
+					modo,
+					nivel,
+					simulacion: SIMULACIONES.includes(guardado.simulacion) ? guardado.simulacion : 'normal',
+					colores,
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return { base: INICIAL_BASE, modo: 'claro', nivel: 'AA', simulacion: 'normal', colores: generar(INICIAL_BASE, 'claro', 'AA') };
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento: la herramienta sigue igual.
+		}
+	}
+
+	function etiqueta(ratio: number, tipo: Pareja['tipo']) {
+		if (tipo === 'ui') return ratio >= 3 ? 'Pasa' : 'No pasa';
+		if (ratio >= 7) return 'AAA';
+		if (ratio >= 4.5) return 'AA';
+		if (ratio >= 3) return 'Solo texto grande';
+		return 'No pasa';
+	}
+
+	function css() {
+		const lineas = ROLES.map((rol) => `  --${VARIABLES[rol]}: ${estado.colores[rol]};`);
+		return `/* Esquema ${estado.modo} · WCAG ${estado.nivel} · tuweb.dev */\n:root {\n${lineas.join('\n')}\n}\n`;
+	}
+
+	function pintarTabla() {
+		if (!tabla) return;
+		let cumplen = 0;
+		tabla.replaceChildren(
+			...PAREJAS.map((pareja) => {
+				const delante = estado.colores[pareja.delante];
+				const detras = estado.colores[pareja.detras];
+				const ratio = contraste(delante, detras);
+				const pide = minimo(pareja.tipo, estado.nivel);
+				const ok = ratio >= pide;
+				if (ok) cumplen++;
+
+				const fila = document.createElement('li');
+				fila.className = 'flex flex-wrap items-center gap-3 border-b border-line px-3 py-2 text-sm last:border-b-0';
+
+				const muestra = document.createElement('span');
+				muestra.className = 'inline-flex size-8 shrink-0 items-center justify-center border border-line font-pixel';
+				muestra.style.background = detras;
+				muestra.style.color = delante;
+				muestra.textContent = 'Aa';
+				muestra.setAttribute('aria-hidden', 'true');
+
+				const que = document.createElement('span');
+				que.className = 'min-w-0 flex-1';
+				que.textContent = pareja.que;
+
+				const cifra = document.createElement('span');
+				cifra.className = 'text-muted';
+				cifra.textContent = `${ratio.toFixed(2)}:1 · pide ${pide}:1`;
+
+				const nota = document.createElement('span');
+				nota.className = `w-32 text-right ${ok ? 'text-ok' : 'text-heart'}`;
+				nota.textContent = etiqueta(ratio, pareja.tipo);
+
+				fila.append(muestra, que, cifra, nota);
+
+				if (!ok) {
+					const boton = document.createElement('button');
+					boton.type = 'button';
+					boton.className = 'inline-flex items-center gap-2 border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent';
+					const dibujo = icono?.content.firstElementChild?.cloneNode(true);
+					if (dibujo) boton.append(dibujo);
+					boton.append('Arreglar');
+					boton.addEventListener('click', () => {
+						arreglar(estado.colores, pareja, estado.nivel);
+						actualizar();
+					});
+					fila.append(boton);
+				}
+				return fila;
+			}),
+		);
+		if (resumen) {
+			resumen.textContent =
+				cumplen === PAREJAS.length
+					? `Las ${PAREJAS.length} parejas cumplen WCAG ${estado.nivel}.`
+					: `${cumplen} de ${PAREJAS.length} parejas cumplen WCAG ${estado.nivel}.`;
+		}
+	}
+
+	function pintar() {
+		ROLES.forEach((rol) => vista?.style.setProperty(`--ea-${rol}`, estado.colores[rol]));
+		if (vista) vista.dataset.simular = estado.simulacion;
+		campos.forEach((campo) => {
+			const rol = campo.dataset.eaColor as Rol;
+			if (estado.colores[rol]) campo.value = estado.colores[rol];
+		});
+		if (base) base.value = estado.base;
+		if (baseHex && document.activeElement !== baseHex) baseHex.value = estado.base;
+		modos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.eaModo === estado.modo)));
+		niveles.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.eaNivel === estado.nivel)));
+		simulaciones.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.eaSimular === estado.simulacion)));
+		pintarTabla();
+		if (salida) salida.textContent = css();
+	}
+
+	function actualizar() {
+		pintar();
+		guardar();
+	}
+
+	function regenerar() {
+		estado.colores = generar(estado.base, estado.modo, estado.nivel);
+		actualizar();
+	}
+
+	function ponerBase(valor: string) {
+		estado.base = valor.toLowerCase();
+		regenerar();
+	}
+
+	base?.addEventListener('input', () => ponerBase(base.value));
+	baseHex?.addEventListener('input', () => {
+		let valor = baseHex.value.trim();
+		if (!valor.startsWith('#')) valor = `#${valor}`;
+		// #abc vale como #aabbcc, igual que en CSS.
+		if (/^#[0-9a-f]{3}$/i.test(valor)) valor = `#${[...valor.slice(1)].map((c) => c + c).join('')}`;
+		if (HEX.test(valor)) ponerBase(valor);
+	});
+	baseHex?.addEventListener('blur', () => {
+		baseHex.value = estado.base;
+	});
+
+	campos.forEach((campo) => {
+		campo.addEventListener('input', () => {
+			const rol = campo.dataset.eaColor as Rol;
+			if (!ROLES.includes(rol)) return;
+			estado.colores[rol] = campo.value.toLowerCase();
+			actualizar();
+		});
+	});
+
+	modos.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.modo = boton.dataset.eaModo === 'oscuro' ? 'oscuro' : 'claro';
+			regenerar();
+		});
+	});
+
+	// Cambiar de nivel no rehace el esquema: solo sube lo que se quede corto.
+	niveles.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			estado.nivel = boton.dataset.eaNivel === 'AAA' ? 'AAA' : 'AA';
+			if (estado.nivel === 'AAA') arreglarTodo(estado.colores, estado.nivel);
+			actualizar();
+		});
+	});
+
+	simulaciones.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegida = SIMULACIONES.find((s) => s === boton.dataset.eaSimular);
+			if (!elegida) return;
+			estado.simulacion = elegida;
+			actualizar();
+		});
+	});
+
+	panel?.querySelector('[data-ea-generar]')?.addEventListener('click', regenerar);
+	panel?.querySelector('[data-ea-arreglar-todo]')?.addEventListener('click', () => {
+		arreglarTodo(estado.colores, estado.nivel);
+		actualizar();
+	});
+	panel?.querySelector('[data-ea-azar]')?.addEventListener('click', () => {
+		ponerBase(deHsl(Math.random() * 360, 0.55 + Math.random() * 0.35, 0.35 + Math.random() * 0.25));
+	});
+
+	let reloj: number | undefined;
+	copiar?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(css());
+			hecho = true;
+		} catch {
+			// Sin portapapeles: el CSS sigue ahí para seleccionarlo.
+		}
+		copiar.dataset.state = hecho ? 'done' : 'error';
+		if (copiarTexto) copiarTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => {
+			copiar.removeAttribute('data-state');
+			if (copiarTexto) copiarTexto.textContent = 'Copiar';
+		}, 2000);
+	});
+
+	pintar();
+</script>
