@@ -1,0 +1,98 @@
+---
+/**
+ * Las insignias del reto diario, en tu perfil. Salen del mismo progreso que
+ * guarda /reto-diario en tu navegador: aquí solo se leen y se pintan.
+ */
+import { INSIGNIAS } from '../lib/diario';
+import Icon from './Icon.astro';
+---
+
+<section id="perfil-diario" class="flex flex-col gap-4 border border-line bg-panel p-4">
+	<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="calendar-code" class="size-5 shrink-0 text-accent" />
+			Reto diario
+		</h2>
+		<span data-diario-cuenta class="text-sm tabular-nums text-muted"></span>
+	</div>
+
+	<p class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+		<span class="inline-flex items-center gap-2">
+			Nivel <span data-diario-nivel class="text-fg"></span>
+		</span>
+		<span class="inline-flex items-center gap-2">
+			Puntos <span data-diario-xp class="tabular-nums text-fg"></span>
+		</span>
+		<span class="inline-flex items-center gap-2">
+			Racha <span data-diario-racha class="tabular-nums text-fg"></span>
+		</span>
+	</p>
+
+	<ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+		{
+			INSIGNIAS.map((insignia) => (
+				<li
+					data-diario-insignia={insignia.key}
+					data-hecha="false"
+					hidden
+					class="flex items-start gap-3 border border-accent bg-bg p-3 text-sm"
+				>
+					<Icon name={insignia.icon} class="mt-0.5 size-5 shrink-0 text-accent" />
+					<span class="flex min-w-0 flex-col gap-0.5">
+						<span class="font-pixel">{insignia.title}</span>
+						<span class="text-muted">{insignia.detail}</span>
+					</span>
+				</li>
+			))
+		}
+	</ul>
+
+	<p data-diario-vacio class="text-sm text-muted">
+		Ninguna todavía. Resuelve el <a href="/reto-diario" class="text-accent hover:underline">reto diario</a>
+		de JavaScript, sube en la clasificación y las insignias que ganes salen aquí.
+	</p>
+	<p data-diario-mas hidden class="text-sm text-muted">
+		Te faltan <span data-diario-faltan class="tabular-nums"></span>. Están en el
+		<a href="/reto-diario" class="text-accent hover:underline">reto diario</a>.
+	</p>
+</section>
+
+<style is:global>
+	#perfil-diario [hidden] {
+		display: none;
+	}
+</style>
+
+<script>
+	import { INSIGNIAS, dayKey, levelOf, readProgress, statsOf } from '../lib/diario';
+
+	const raiz = document.querySelector<HTMLElement>('#perfil-diario');
+
+	if (raiz) {
+		const $ = (selector: string) => raiz.querySelector(selector) as HTMLElement;
+
+		function pintar() {
+			const stats = statsOf(readProgress(), dayKey(new Date()));
+			let hechas = 0;
+			INSIGNIAS.forEach((insignia) => {
+				const hecha = insignia.count(stats) >= insignia.goal;
+				if (hecha) hechas += 1;
+				const fila = $(`[data-diario-insignia="${insignia.key}"]`);
+				fila.hidden = !hecha;
+				fila.dataset.hecha = String(hecha);
+			});
+
+			$('[data-diario-nivel]').textContent = `${stats.level} · ${levelOf(stats.xp).current.title}`;
+			$('[data-diario-xp]').textContent = String(stats.xp);
+			$('[data-diario-racha]').textContent = String(stats.streak);
+			$('[data-diario-cuenta]').textContent = `${hechas} de ${INSIGNIAS.length}`;
+			$('[data-diario-vacio]').hidden = hechas > 0;
+			$('[data-diario-mas]').hidden = hechas === 0 || hechas === INSIGNIAS.length;
+			$('[data-diario-faltan]').textContent = String(INSIGNIAS.length - hechas);
+		}
+
+		pintar();
+		// Si resuelves en otra pestaña, el perfil se pone al día solo.
+		window.addEventListener('storage', pintar);
+	}
+</script>
