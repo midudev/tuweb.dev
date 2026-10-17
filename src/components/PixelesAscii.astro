@@ -2,7 +2,8 @@
 /**
  * Píxeles ASCII: un lienzo de 48 × 24 que se pinta a píxeles y se escribe solo
  * en ASCII, un carácter por tono, con el ratón o con comandos desde la consola. Va en directo entre las pestañas de tu
- * navegador con BroadcastChannel y, para sumar a otra gente, el dibujo viaja en
+ * navegador con BroadcastChannel —cursores con firma y destello en lo que llega—
+ * y, para sumar a otra gente, el dibujo viaja en
  * el enlace: quien lo abre lo junta con el suyo y sigue. Cada hora se queda una
  * copia del lienzo, las últimas 24, para volver a ella. No hay servidor.
  */
@@ -242,24 +243,55 @@ const BOTON =
 		if (!nodo) return;
 		if (!canal) nodo.textContent = 'Tu navegador no deja.';
 		else if (!otras.size) nodo.textContent = 'Solo esta pestaña. Lo que pintes sale al momento en las demás.';
-		else nodo.textContent = `${otras.size + 1} pestañas pintando el mismo lienzo.`;
+		else nodo.textContent = `${otras.size + 1} pestañas pintando el mismo lienzo. Su cursor va con su firma y lo que pintan brilla un momento.`;
 	}
+
+	// Lo que llega de otras pestañas se ve: su cursor con su firma y un destello en
+	// cada píxel que pintan, que se apaga en un segundo y medio.
+	const BRILLO = 1500;
+	const cursores = new Map<string, { i: number; firma: string }>();
+	const recientes = new Map<number, number>();
+	let latido = 0;
+
+	function animar() {
+		if (latido) return;
+		const paso = () => {
+			const limite = Date.now() - BRILLO;
+			recientes.forEach((t, i) => t < limite && recientes.delete(i));
+			pintarTela();
+			latido = recientes.size ? requestAnimationFrame(paso) : 0;
+		};
+		latido = requestAnimationFrame(paso);
+	}
+
+	const celdaValida = (i: unknown): i is number => Number.isInteger(i) && (i as number) >= 0 && (i as number) < TOTAL;
 
 	canal?.addEventListener('message', ({ data }) => {
 		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
-		if (data.tipo === 'adios') otras.delete(data.de);
-		else otras.set(data.de, Date.now());
+		if (data.tipo === 'adios') {
+			otras.delete(data.de);
+			cursores.delete(data.de);
+			pintarTela();
+		} else otras.set(data.de, Date.now());
 		if (data.tipo === 'hola') enviar({ tipo: 'aqui' });
+		if (data.tipo === 'cursor') {
+			if (celdaValida(data.i)) cursores.set(data.de, { i: data.i, firma: limpiarFirma(data.firma) });
+			else cursores.delete(data.de);
+			pintarTela();
+		}
 		if (data.tipo === 'trazo' && Array.isArray(data.trazo)) {
 			let puestos = 0;
+			const ahora = Date.now();
 			data.trazo.forEach((p: unknown) => {
 				if (!Array.isArray(p)) return;
 				const [i, t] = p;
-				if (Number.isInteger(i) && i >= 0 && i < TOTAL && Number.isInteger(t) && t >= 0 && t < TONOS.length) {
+				if (celdaValida(i) && Number.isInteger(t) && t >= 0 && t < TONOS.length) {
 					celdas[i] = t;
+					recientes.set(i, ahora);
 					puestos++;
 				}
 			});
+			if (puestos) animar();
 			if (typeof data.firma === 'string' && data.firma) firmas = limpiarFirmas([...firmas, data.firma]);
 			if (puestos) apuntar(limpiarFirma(data.firma) || 'otra pestaña', puestos);
 			todo();
@@ -276,8 +308,13 @@ const BOTON =
 	setInterval(() => {
 		enviar({ tipo: 'aqui' });
 		const limite = Date.now() - 10_000;
-		otras.forEach((visto, id) => visto < limite && otras.delete(id));
+		otras.forEach((visto, id) => {
+			if (visto >= limite) return;
+			otras.delete(id);
+			cursores.delete(id);
+		});
 		pintarPestanas();
+		pintarTela();
 	}, 4_000);
 
 	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
@@ -341,6 +378,7 @@ const BOTON =
 				ctx.fillStyle = tinta('--color-accent', '#9a3412');
 				ctx.fillRect((encima % ANCHO) * ESCALA + 2, Math.floor(encima / ANCHO) * ESCALA + ESCALA - 3, ESCALA - 4, 2);
 			}
+			pintarAjenos();
 			return;
 		}
 		ctx.fillStyle = tinta('--color-line', '#e8d9c8');
@@ -358,6 +396,34 @@ const BOTON =
 			ctx.lineWidth = 2;
 			ctx.strokeRect((encima % ANCHO) * ESCALA + 1, Math.floor(encima / ANCHO) * ESCALA + 1, ESCALA - 2, ESCALA - 2);
 		}
+		pintarAjenos();
+	}
+
+	/** Encima de todo, lo que llega de fuera: el destello de lo recién pintado y los cursores con su firma. */
+	function pintarAjenos() {
+		if (!ctx || !tela) return;
+		const ahora = Date.now();
+		const color = tinta('--color-accent', '#9a3412');
+		ctx.fillStyle = color;
+		recientes.forEach((t, i) => {
+			ctx.globalAlpha = Math.max(0, 1 - (ahora - t) / BRILLO) * 0.5;
+			ctx.fillRect((i % ANCHO) * ESCALA, Math.floor(i / ANCHO) * ESCALA, ESCALA, ESCALA);
+		});
+		ctx.globalAlpha = 1;
+		ctx.strokeStyle = color;
+		ctx.lineWidth = 2;
+		ctx.setLineDash([3, 3]);
+		ctx.font = `600 11px ${tinta('--font-mono', 'monospace')}`;
+		ctx.textBaseline = 'bottom';
+		cursores.forEach(({ i, firma: suya }) => {
+			const x = (i % ANCHO) * ESCALA;
+			const y = Math.floor(i / ANCHO) * ESCALA;
+			ctx.strokeRect(x + 1, y + 1, ESCALA - 2, ESCALA - 2);
+			const derecha = x > tela.width / 2;
+			ctx.textAlign = derecha ? 'right' : 'left';
+			ctx.fillText(suya || 'otra pestaña', derecha ? x + ESCALA : x, y > 12 ? y - 2 : y + ESCALA + 13);
+		});
+		ctx.setLineDash([]);
 	}
 
 	function pintarDatos() {
@@ -433,6 +499,8 @@ const BOTON =
 		}
 		if (i === encima) return;
 		encima = i;
+		// Solo sale al cambiar de casilla: las demás pestañas ven dónde estás.
+		enviar({ tipo: 'cursor', i, firma });
 		if (casilla) casilla.textContent = i === null ? SIN_CASILLA : `x ${i % ANCHO} · y ${Math.floor(i / ANCHO)}`;
 		pintarTela();
 	});
@@ -441,6 +509,7 @@ const BOTON =
 	tela?.addEventListener('pointercancel', soltar);
 	tela?.addEventListener('pointerleave', () => {
 		encima = null;
+		enviar({ tipo: 'cursor', i: null });
 		if (casilla) casilla.textContent = SIN_CASILLA;
 		pintarTela();
 	});
