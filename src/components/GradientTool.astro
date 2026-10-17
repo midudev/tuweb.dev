@@ -2,8 +2,9 @@
 /**
  * Generador de gradientes CSS: dos o más colores con su posición, lineal o
  * radial, con ángulo o con centro. La vista previa es el propio CSS aplicado a
- * una caja, y debajo a un elemento de prueba (botón, tarjeta o texto) para verlo
- * en uso. A la muestra se le cambia el texto, el tamaño, el color de la letra
+ * una caja, y debajo a un elemento de prueba (botón, tarjeta, texto, borde o una
+ * página entera con cabecera, titular y botones) para verlo en uso. Con el
+ * borde, el código exportado sale como border-image. A la muestra se le cambia el texto, el tamaño, el color de la letra
  * y el fondo sobre el que se ve. Se exporta como CSS, variable, SCSS, estilo de React, clase de
  * Tailwind, SVG o PNG; el SVG y el PNG
  * usan la misma geometría que el navegador para el CSS, así lo que se baja es
@@ -64,6 +65,8 @@ const PRUEBAS = [
 	{ id: 'boton', label: 'Botón', icon: 'click' },
 	{ id: 'tarjeta', label: 'Tarjeta', icon: 'layout-cards' },
 	{ id: 'texto', label: 'Texto', icon: 'typography' },
+	{ id: 'borde', label: 'Borde', icon: 'border-outer' },
+	{ id: 'pagina', label: 'Página', icon: 'browser' },
 ];
 
 // Sobre qué fondo se ve la muestra: los colores de la propia web.
@@ -304,6 +307,25 @@ const FORMATOS = [
 					<p data-gr-muestra="texto" hidden data-gr-texto data-gr-rotulo="tuweb.dev" class="font-pixel text-center text-5xl leading-tight break-all">
 						tuweb.dev
 					</p>
+					<div data-gr-muestra="borde" hidden data-gr-borde class="flex w-full max-w-xs flex-col gap-1 border-4 bg-bg p-5">
+						<strong data-gr-rotulo="Borde de prueba" class="font-pixel text-lg">Borde de prueba</strong>
+						<span class="text-sm text-muted">El gradiente hace de marco.</span>
+					</div>
+					<div data-gr-muestra="pagina" hidden class="flex w-full max-w-md flex-col border border-line bg-bg text-left">
+						<div data-gr-fondo class="flex items-center justify-between gap-3 px-4 py-2 text-xs" style="color: #ffffff;">
+							<span class="font-pixel">mi-web</span>
+							<span class="flex gap-3"><span>Inicio</span><span>Blog</span><span>Contacto</span></span>
+						</div>
+						<div class="flex flex-col gap-3 p-5">
+							<strong data-gr-texto data-gr-rotulo="Tu web, a tu manera" class="font-pixel text-2xl leading-tight">Tu web, a tu manera</strong>
+							<span class="text-sm text-muted">Así se ve el gradiente en la cabecera, el titular, el botón y el borde a la vez.</span>
+							<div class="flex flex-wrap items-center gap-3">
+								<span data-gr-fondo class="inline-flex px-4 py-2 text-sm" style="color: #ffffff;">Empezar</span>
+								<span data-gr-borde class="inline-flex border-2 px-4 py-2 text-sm">Saber más</span>
+							</div>
+							<div data-gr-fondo class="h-1"></div>
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -456,11 +478,11 @@ const FORMATOS = [
 		// del botón y fondo sobre el que se ve.
 		muestra: { texto: string; escala: number; letra: string; fondo: Escenario };
 	};
-	type Prueba = 'boton' | 'tarjeta' | 'texto';
+	type Prueba = 'boton' | 'tarjeta' | 'texto' | 'borde' | 'pagina';
 	type Escenario = 'panel' | 'bg' | 'fg';
 
 	const FORMATOS: Formato[] = ['css', 'variable', 'scss', 'react', 'tailwind', 'svg'];
-	const PRUEBAS: Prueba[] = ['boton', 'tarjeta', 'texto'];
+	const PRUEBAS: Prueba[] = ['boton', 'tarjeta', 'texto', 'borde', 'pagina'];
 	const ESCENARIOS: Escenario[] = ['panel', 'bg', 'fg'];
 
 	const CLAVE = 'tuweb:gradientes';
@@ -507,6 +529,7 @@ const FORMATOS = [
 	const centros = panel?.querySelectorAll<HTMLInputElement>('[data-gr-centro]') ?? [];
 	const centrosTexto = panel?.querySelectorAll<HTMLElement>('[data-gr-centro-texto]') ?? [];
 	const pintables = panel?.querySelectorAll<HTMLElement>('[data-gr-muestra="boton"], [data-gr-fondo], [data-gr-texto]') ?? [];
+	const bordes = panel?.querySelectorAll<HTMLElement>('[data-gr-borde]') ?? [];
 	const escenario = panel?.querySelector<HTMLElement>('[data-gr-escenario]');
 	const rotulos = panel?.querySelectorAll<HTMLElement>('[data-gr-rotulo]') ?? [];
 	const mTexto = panel?.querySelector<HTMLInputElement>('[data-gr-m-texto]');
@@ -661,6 +684,22 @@ const FORMATOS = [
 	function exportar(formato: Formato) {
 		const css = gradiente();
 		const liso = ordenadas()[0]?.color ?? '#000000';
+		// Probando sobre un borde, todo sale como border-image en vez de fondo.
+		if (estado.prueba === 'borde' && formato !== 'svg') {
+			if (formato === 'variable') {
+				return `:root {\n  --gradiente: ${css};\n}\n\n.borde {\n  border: 4px solid ${liso};\n  border-image: var(--gradiente) 1;\n}`;
+			}
+			if (formato === 'scss') {
+				return `$gradiente: ${css};\n\n.borde {\n  border: 4px solid ${liso};\n  border-image: $gradiente 1;\n}`;
+			}
+			if (formato === 'react') {
+				return `const borde = {\n  border: '4px solid ${liso}',\n  borderImage: '${css} 1',\n};\n\n<div style={borde} />`;
+			}
+			if (formato === 'tailwind') {
+				return `border-4 [border-image:${css.replace(/,\s+/g, ',').replace(/\s+/g, '_')}_1]`;
+			}
+			return `border: 4px solid ${liso};\nborder-image: ${css} 1;`;
+		}
 		if (formato === 'variable') {
 			return `:root {\n  --gradiente: ${css};\n}\n\n.fondo {\n  background: ${liso};\n  background: var(--gradiente);\n}`;
 		}
@@ -690,6 +729,10 @@ const FORMATOS = [
 		// backgroundImage y no background: el atajo pisaría el background-clip del texto.
 		pintables.forEach((el) => {
 			el.style.backgroundImage = css;
+		});
+		// En el borde el gradiente va en border-image, con el 1 para que lo llene entero.
+		bordes.forEach((el) => {
+			el.style.borderImage = `${css} 1`;
 		});
 		if (vista) {
 			vista.style.background = css;
