@@ -51,6 +51,7 @@ import SvgAnimTool from './SvgAnimTool.astro';
 import ThemeTool from './ThemeTool.astro';
 import TransitionTool from './TransitionTool.astro';
 import TypeTool from './TypeTool.astro';
+import UiKitTool from './UiKitTool.astro';
 import UnitTool from './UnitTool.astro';
 import WallpaperTool from './WallpaperTool.astro';
 
@@ -79,6 +80,7 @@ const tools = [
 	{ id: 'secuencias', label: 'Secuencias CSS', icon: 'timeline-event' },
 	{ id: 'carga', label: 'Animaciones de carga', icon: 'loader-2' },
 	{ id: 'componentes', label: 'Componentes animados', icon: 'components' },
+	{ id: 'ui-css', label: 'Componentes UI', icon: 'template' },
 	{ id: 'animaciones-svg', label: 'Animaciones SVG', icon: 'svg' },
 	{ id: 'parallax', label: 'Parallax', icon: 'stack-2' },
 	{ id: 'maquetador', label: 'Maquetador', icon: 'layout-board' },
@@ -276,6 +278,8 @@ const firstLink = `${Astro.url.host}${Astro.url.pathname}#${tools[0].id}`;
 	<LoaderTool />
 
 	<ComponentTool />
+
+	<UiKitTool />
 
 	<SvgAnimTool />
 

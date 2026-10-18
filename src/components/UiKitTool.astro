@@ -1,0 +1,481 @@
+---
+/**
+ * Componentes UI: un pequeño kit de piezas (botón, campo, tarjeta, aviso,
+ * interruptor, acordeón e insignia) hecho con CSS moderno —variables, anidado,
+ * color-mix(), :has(), :user-invalid—. Las variables de diseño se tocan desde
+ * el panel y el código sale listo para pegar. La vista previa va dentro de un
+ * shadow root, así lo que se ve es lo mismo que se copia. Todo pasa en el
+ * navegador y solo se guardan los ajustes, en localStorage.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+const COLOR = 'h-10 w-10 shrink-0 cursor-pointer border border-line bg-panel p-1';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+
+const PIEZAS = [
+	{ id: 'kit', label: 'Kit completo' },
+	{ id: 'boton', label: 'Botón' },
+	{ id: 'campo', label: 'Campo' },
+	{ id: 'tarjeta', label: 'Tarjeta' },
+	{ id: 'aviso', label: 'Aviso' },
+	{ id: 'interruptor', label: 'Interruptor' },
+	{ id: 'acordeon', label: 'Acordeón' },
+	{ id: 'insignia', label: 'Insignia' },
+];
+
+const TEMAS = [
+	{ id: 'claro', label: 'Claro' },
+	{ id: 'oscuro', label: 'Oscuro' },
+	{ id: 'suave', label: 'Suave' },
+	{ id: 'contraste', label: 'Contraste' },
+];
+
+const COLORES = [
+	{ id: 'acento', label: 'Acento' },
+	{ id: 'fondo', label: 'Fondo' },
+	{ id: 'texto', label: 'Texto' },
+];
+
+const RANGOS = [
+	{ id: 'radio', label: 'Radio', min: 0, max: 24, step: 1 },
+	{ id: 'espacio', label: 'Espacio', min: 4, max: 24, step: 1 },
+	{ id: 'borde', label: 'Borde', min: 0, max: 4, step: 1 },
+	{ id: 'fuente', label: 'Tamaño de letra', min: 12, max: 22, step: 1 },
+	{ id: 'sombra', label: 'Sombra', min: 0, max: 24, step: 1 },
+];
+---
+
+<div
+	role="tabpanel"
+	id="ui-css"
+	aria-labelledby="tab-ui-css"
+	data-panel="ui-css"
+	hidden
+	class="flex flex-col gap-6"
+>
+	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+		<div class="flex flex-col gap-5">
+			<div class="flex flex-col gap-2">
+				<span id="ui-pieza" class="text-sm text-muted">Componente</span>
+				<div role="group" aria-labelledby="ui-pieza" class="flex flex-wrap gap-2">
+					{
+						PIEZAS.map((pieza) => (
+							<button type="button" data-ui-pieza={pieza.id} aria-pressed="false" class={OPCION}>
+								{pieza.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span id="ui-tema" class="text-sm text-muted">Punto de partida</span>
+				<div role="group" aria-labelledby="ui-tema" class="flex flex-wrap gap-2">
+					{
+						TEMAS.map((tema) => (
+							<button type="button" data-ui-tema={tema.id} class={BOTON}>
+								{tema.label}
+							</button>
+						))
+					}
+				</div>
+			</div>
+
+			<div class="flex flex-wrap gap-5">
+				{
+					COLORES.map((color) => (
+						<label class="flex items-center gap-2 text-sm text-muted">
+							<input type="color" data-ui-color={color.id} aria-label={color.label} class={COLOR} />
+							{color.label}
+						</label>
+					))
+				}
+			</div>
+
+			{
+				RANGOS.map((rango) => (
+					<label class="flex flex-col gap-2">
+						<span class="flex justify-between text-sm text-muted">
+							{rango.label} <span data-ui-salida={rango.id} class="text-fg" />
+						</span>
+						<input
+							type="range"
+							min={rango.min}
+							max={rango.max}
+							step={rango.step}
+							data-ui-rango={rango.id}
+							class="w-full accent-accent"
+						/>
+					</label>
+				))
+			}
+
+			<label class="flex flex-col gap-2">
+				<span class="text-sm text-muted">Prefijo de clases y variables</span>
+				<input
+					type="text"
+					data-ui-prefijo
+					maxlength="16"
+					placeholder="ui"
+					autocomplete="off"
+					spellcheck="false"
+					class={CAMPO}
+				/>
+			</label>
+
+			<div class="flex flex-wrap gap-2">
+				<button type="button" data-ui-reset class={BOTON}>
+					<Icon name="refresh" class="size-4 shrink-0" />
+					Restablecer
+				</button>
+			</div>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-4">
+			<div data-ui-vista class="min-h-64 w-full border border-line bg-panel"></div>
+
+			<div class="flex flex-col gap-2">
+				<span class="text-sm text-muted">HTML y CSS</span>
+				<pre
+					data-ui-codigo
+					class="max-h-96 overflow-auto border border-line bg-panel p-4 text-sm break-words whitespace-pre-wrap text-mark"></pre>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="button" data-ui-copiar="todo" class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="copy" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-ui-copiar-texto aria-live="polite">Copiar</span>
+				</button>
+				<button type="button" data-ui-copiar="variables" class={BOTON}>
+					<span data-icon="copy" class="inline-flex"><Icon name="variable" class="size-4 shrink-0" /></span>
+					<span data-icon="check" class="inline-flex"><Icon name="check" class="size-4 shrink-0" /></span>
+					<span data-ui-copiar-texto aria-live="polite">Copiar variables</span>
+				</button>
+				<button type="button" data-ui-bajar class={BOTON}>
+					<Icon name="download" class="size-4 shrink-0" />
+					Descargar .html
+				</button>
+			</div>
+			<p class="text-xs text-muted">
+				Cambia las variables de :root y todo el kit se adapta. Se guarda solo en tu navegador.
+			</p>
+		</div>
+	</div>
+</div>
+
+<style>
+	[data-ui-color]::-webkit-color-swatch-wrapper {
+		padding: 0;
+	}
+	[data-ui-color]::-webkit-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	[data-ui-color]::-moz-color-swatch {
+		border: none;
+		border-radius: 0;
+	}
+	/* El check solo sale cuando la copia ha ido bien. */
+	[data-ui-copiar] [data-icon='check'] {
+		display: none;
+	}
+	[data-ui-copiar][data-state='done'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+	[data-ui-copiar][data-state='done'] [data-icon='copy'] {
+		display: none;
+	}
+	[data-ui-copiar][data-state='done'] [data-icon='check'] {
+		display: inline-flex;
+	}
+	[data-ui-copiar][data-state='error'] {
+		color: var(--color-heart);
+	}
+</style>
+
+<script>
+	type Estado = {
+		pieza: string;
+		acento: string;
+		fondo: string;
+		texto: string;
+		radio: number;
+		espacio: number;
+		borde: number;
+		fuente: number;
+		sombra: number;
+		prefijo: string;
+	};
+
+	const CLAVE = 'tuweb:ui-css';
+	const HEX = /^#[0-9a-f]{6}$/i;
+	const INICIAL: Estado = {
+		pieza: 'kit',
+		acento: '#c2410c',
+		fondo: '#fffaf3',
+		texto: '#1c1917',
+		radio: 0,
+		espacio: 12,
+		borde: 2,
+		fuente: 16,
+		sombra: 0,
+		prefijo: 'ui',
+	};
+
+	// Cada tema solo cambia colores y medidas: la pieza y el prefijo se quedan.
+	const TEMAS: Record<string, Partial<Estado>> = {
+		claro: { acento: '#c2410c', fondo: '#fffaf3', texto: '#1c1917', radio: 0, borde: 2, sombra: 0 },
+		oscuro: { acento: '#f59e0b', fondo: '#111111', texto: '#f5f5f4', radio: 0, borde: 1, sombra: 0 },
+		suave: { acento: '#4f46e5', fondo: '#f8fafc', texto: '#1e293b', radio: 10, borde: 1, sombra: 12 },
+		contraste: { acento: '#000000', fondo: '#ffffff', texto: '#000000', radio: 0, borde: 3, sombra: 0 },
+	};
+
+	const LIMITES: Record<string, [number, number]> = {
+		radio: [0, 24],
+		espacio: [4, 24],
+		borde: [0, 4],
+		fuente: [12, 22],
+		sombra: [0, 24],
+	};
+
+	const panel = document.querySelector<HTMLElement>('[data-panel="ui-css"]');
+	const vista = panel?.querySelector<HTMLElement>('[data-ui-vista]');
+	const codigo = panel?.querySelector<HTMLElement>('[data-ui-codigo]');
+	const prefijo = panel?.querySelector<HTMLInputElement>('[data-ui-prefijo]');
+	const piezas = [...(panel?.querySelectorAll<HTMLButtonElement>('[data-ui-pieza]') ?? [])];
+	const colores = panel?.querySelectorAll<HTMLInputElement>('[data-ui-color]') ?? [];
+	const rangos = panel?.querySelectorAll<HTMLInputElement>('[data-ui-rango]') ?? [];
+	const validas = piezas.map((b) => b.dataset.uiPieza ?? '');
+
+	// El shadow root aísla la vista previa: sus clases no se cruzan con las de la
+	// página ni las de la página con las suyas.
+	const raiz = vista?.attachShadow({ mode: 'open' });
+
+	// Los enlaces de ejemplo apuntan a "#": en la vista previa no deben tocar la
+	// URL, que es la que dice qué herramienta está abierta.
+	raiz?.addEventListener('click', (evento) => {
+		if ((evento.target as Element | null)?.closest('a')) evento.preventDefault();
+	});
+
+	const limitar = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+	const limpiarPrefijo = (v: string) =>
+		v.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^[^a-z]+/, '').slice(0, 16);
+
+	function sanear(g: Record<string, unknown>): Estado {
+		const color = (k: 'acento' | 'fondo' | 'texto') =>
+			HEX.test(String(g[k])) ? String(g[k]).toLowerCase() : INICIAL[k];
+		const num = (k: 'radio' | 'espacio' | 'borde' | 'fuente' | 'sombra') => {
+			const v = Number(g[k]);
+			const [min, max] = LIMITES[k];
+			return Number.isFinite(v) ? Math.round(limitar(v, min, max)) : INICIAL[k];
+		};
+		return {
+			pieza: validas.includes(String(g.pieza)) ? String(g.pieza) : INICIAL.pieza,
+			acento: color('acento'),
+			fondo: color('fondo'),
+			texto: color('texto'),
+			radio: num('radio'),
+			espacio: num('espacio'),
+			borde: num('borde'),
+			fuente: num('fuente'),
+			sombra: num('sombra'),
+			prefijo: limpiarPrefijo(String(g.prefijo ?? '')) || INICIAL.prefijo,
+		};
+	}
+
+	function cargar(): Estado {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && typeof g === 'object') return sanear(g);
+		} catch {
+			// Si lo guardado está roto, se empieza de cero.
+		}
+		return { ...INICIAL };
+	}
+
+	let estado = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify(estado));
+		} catch {
+			// Sin almacenamiento (modo privado, cuota): la herramienta sigue igual.
+		}
+	}
+
+	// ——— Las variables de diseño ———
+	function variables(e: Estado, selector: string) {
+		const v = `--${e.prefijo}`;
+		const sombra =
+			e.sombra === 0
+				? 'none'
+				: `0 ${Math.round(e.sombra / 3)}px ${e.sombra}px color-mix(in oklab, var(${v}-texto) 18%, transparent)`;
+		return `${selector} {\n  ${v}-acento: ${e.acento};\n  ${v}-fondo: ${e.fondo};\n  ${v}-texto: ${e.texto};\n  ${v}-radio: ${e.radio}px;\n  ${v}-espacio: ${e.espacio}px;\n  ${v}-borde: ${e.borde}px;\n  ${v}-fuente: ${e.fuente}px;\n  ${v}-sombra: ${sombra};\n  /* Derivadas: salen solas de las de arriba. */\n  ${v}-linea: color-mix(in oklab, var(${v}-texto) 25%, var(${v}-fondo));\n  ${v}-suave: color-mix(in oklab, var(${v}-acento) 12%, var(${v}-fondo));\n  ${v}-hover: color-mix(in oklab, var(${v}-acento) 82%, var(${v}-texto));\n}`;
+	}
+
+	// ——— El HTML y el CSS de cada pieza ———
+	// Las medidas van todas en función de las variables: cambiar una del :root
+	// recoloca el kit entero sin tocar nada más.
+	function pieza(id: string, e: Estado): [string, string] {
+		const p = e.prefijo;
+		const c = `.${p}-${id}`;
+		const v = (nombre: string) => `var(--${p}-${nombre})`;
+		const foco = `outline: 2px solid ${v('acento')};\n    outline-offset: 3px;`;
+
+		if (id === 'campo') {
+			return [
+				`<label class="${p}-campo">\n  <span>Correo</span>\n  <input type="email" placeholder="tu@correo.dev" required>\n  <small>Escribe uno válido para verlo en rojo si no.</small>\n</label>`,
+				`${c} {\n  display: grid;\n  gap: calc(${v('espacio')} * 0.4);\n  width: min(100%, 20rem);\n  color: ${v('texto')};\n  font-size: ${v('fuente')};\n\n  & input {\n    padding: calc(${v('espacio')} * 0.6) ${v('espacio')};\n    border: ${v('borde')} solid ${v('linea')};\n    border-radius: ${v('radio')};\n    background: ${v('fondo')};\n    color: inherit;\n    font: inherit;\n    outline: none;\n  }\n  & input:focus-visible {\n    border-color: ${v('acento')};\n  }\n  & small {\n    font-size: 0.8em;\n    opacity: 0.7;\n  }\n  &:has(input:user-invalid) :is(input, small) {\n    border-color: #dc2626;\n    color: #dc2626;\n  }\n}`,
+			];
+		}
+		if (id === 'tarjeta') {
+			return [
+				`<article class="${p}-tarjeta">\n  <h3>Tu componente</h3>\n  <p>Cambia una variable y toda la tarjeta la sigue.</p>\n  <a href="#">Leer más</a>\n</article>`,
+				`${c} {\n  width: min(100%, 20rem);\n  box-sizing: border-box;\n  padding: calc(${v('espacio')} * 1.5);\n  border: ${v('borde')} solid ${v('linea')};\n  border-radius: ${v('radio')};\n  background: ${v('fondo')};\n  color: ${v('texto')};\n  font-size: ${v('fuente')};\n  box-shadow: ${v('sombra')};\n  transition: border-color 0.15s;\n\n  & h3 {\n    margin: 0 0 calc(${v('espacio')} * 0.5);\n    font-size: 1.2em;\n  }\n  & p {\n    margin: 0 0 ${v('espacio')};\n    opacity: 0.8;\n  }\n  & a {\n    color: ${v('acento')};\n  }\n  &:has(a:hover, a:focus-visible) {\n    border-color: ${v('acento')};\n  }\n}`,
+			];
+		}
+		if (id === 'aviso') {
+			return [
+				`<div class="${p}-aviso" role="status">\n  <strong>Guardado.</strong> Los cambios ya están en su sitio.\n</div>`,
+				`${c} {\n  width: min(100%, 24rem);\n  box-sizing: border-box;\n  padding: ${v('espacio')} calc(${v('espacio')} * 1.25);\n  border-inline-start: calc(${v('borde')} + 2px) solid ${v('acento')};\n  border-radius: ${v('radio')};\n  background: ${v('suave')};\n  color: ${v('texto')};\n  font-size: ${v('fuente')};\n\n  & strong {\n    color: ${v('acento')};\n  }\n}`,
+			];
+		}
+		if (id === 'interruptor') {
+			return [
+				`<label class="${p}-interruptor">\n  <input type="checkbox" role="switch" checked>\n  Avisos por correo\n</label>`,
+				`${c} {\n  display: inline-flex;\n  align-items: center;\n  gap: calc(${v('espacio')} * 0.6);\n  color: ${v('texto')};\n  font-size: ${v('fuente')};\n  cursor: pointer;\n\n  & input {\n    appearance: none;\n    position: relative;\n    box-sizing: border-box;\n    width: 2.75em;\n    height: 1.5em;\n    margin: 0;\n    border: ${v('borde')} solid ${v('linea')};\n    border-radius: ${v('radio')};\n    background: ${v('linea')};\n    cursor: inherit;\n    transition: background 0.2s, border-color 0.2s;\n  }\n  & input::before {\n    content: "";\n    position: absolute;\n    inset: 0.15em auto 0.15em 0.15em;\n    aspect-ratio: 1;\n    border-radius: inherit;\n    background: ${v('fondo')};\n    transition: translate 0.2s;\n  }\n  & input:checked {\n    border-color: ${v('acento')};\n    background: ${v('acento')};\n  }\n  & input:checked::before {\n    translate: 1.25em 0;\n  }\n  & input:focus-visible {\n    ${foco}\n  }\n}`,
+			];
+		}
+		if (id === 'acordeon') {
+			return [
+				`<details class="${p}-acordeon" open>\n  <summary>¿Qué es esto?</summary>\n  <p>Un acordeón sin JavaScript: details y summary de toda la vida.</p>\n</details>`,
+				`${c} {\n  width: min(100%, 24rem);\n  border: ${v('borde')} solid ${v('linea')};\n  border-radius: ${v('radio')};\n  background: ${v('fondo')};\n  color: ${v('texto')};\n  font-size: ${v('fuente')};\n\n  & summary {\n    display: flex;\n    justify-content: space-between;\n    padding: ${v('espacio')};\n    list-style: none;\n    cursor: pointer;\n  }\n  & summary::-webkit-details-marker {\n    display: none;\n  }\n  & summary::after {\n    content: "+";\n    color: ${v('acento')};\n  }\n  &[open] summary::after {\n    content: "−";\n  }\n  & summary:focus-visible {\n    ${foco}\n  }\n  & p {\n    margin: 0;\n    padding: 0 ${v('espacio')} ${v('espacio')};\n    opacity: 0.8;\n  }\n}`,
+			];
+		}
+		if (id === 'insignia') {
+			return [
+				`<span class="${p}-insignia">Nuevo</span>`,
+				`${c} {\n  display: inline-block;\n  padding: calc(${v('espacio')} * 0.25) calc(${v('espacio')} * 0.6);\n  border: ${v('borde')} solid ${v('acento')};\n  border-radius: ${v('radio')};\n  background: ${v('suave')};\n  color: ${v('acento')};\n  font-size: calc(${v('fuente')} * 0.75);\n  letter-spacing: 0.05em;\n  text-transform: uppercase;\n}`,
+			];
+		}
+		return [
+			`<button class="${p}-boton" type="button">Apúntate</button>\n<button class="${p}-boton" type="button" data-variante="fantasma">Ahora no</button>`,
+			`${c} {\n  padding: calc(${v('espacio')} * 0.75) calc(${v('espacio')} * 1.5);\n  border: ${v('borde')} solid ${v('acento')};\n  border-radius: ${v('radio')};\n  background: ${v('acento')};\n  color: ${v('fondo')};\n  font: inherit;\n  font-size: ${v('fuente')};\n  box-shadow: ${v('sombra')};\n  cursor: pointer;\n  transition: background 0.15s, translate 0.15s;\n\n  &:hover {\n    border-color: ${v('hover')};\n    background: ${v('hover')};\n  }\n  &:active {\n    translate: 0 1px;\n  }\n  &:focus-visible {\n    ${foco}\n  }\n  &[data-variante="fantasma"] {\n    background: transparent;\n    color: ${v('acento')};\n  }\n  &[data-variante="fantasma"]:hover {\n    background: ${v('suave')};\n  }\n}`,
+		];
+	}
+
+	const ORDEN = ['boton', 'campo', 'tarjeta', 'aviso', 'interruptor', 'acordeon', 'insignia'];
+
+	function partes(e: Estado) {
+		const ids = e.pieza === 'kit' ? ORDEN : [e.pieza];
+		const lista = ids.map((id) => pieza(id, e));
+		return {
+			html: lista.map(([h]) => h).join('\n\n'),
+			css: lista.map(([, c]) => c).join('\n\n'),
+			fin: `@media (prefers-reduced-motion: reduce) {\n  [class^="${e.prefijo}-"],\n  [class^="${e.prefijo}-"] * {\n    transition: none !important;\n  }\n}`,
+		};
+	}
+
+	function fragmento() {
+		const { html, css, fin } = partes(estado);
+		return `${html}\n\n<style>\n${variables(estado, ':root')}\n\n${css}\n\n${fin}\n</style>`;
+	}
+
+	function pintar() {
+		const { html, css, fin } = partes(estado);
+		if (raiz) {
+			// En el shadow root no hay :root, así que las variables cuelgan de :host.
+			// Todo lo que entra aquí está validado: HEX, números acotados, piezas de
+			// la lista y un prefijo limpio.
+			raiz.innerHTML = `<style>${variables(estado, ':host')}\n:host { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1.5rem; min-height: 16rem; padding: 2rem; box-sizing: border-box; background: var(--${estado.prefijo}-fondo); color: var(--${estado.prefijo}-texto); font-family: system-ui, sans-serif; }\n${css}\n${fin}</style>${html}`;
+		}
+		if (codigo) codigo.textContent = fragmento();
+	}
+
+	function pintarControles() {
+		const valores = estado as unknown as Record<string, string | number>;
+		piezas.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.uiPieza === estado.pieza)));
+		colores.forEach((input) => {
+			input.value = String(valores[input.dataset.uiColor ?? '']);
+		});
+		rangos.forEach((input) => {
+			input.value = String(valores[input.dataset.uiRango ?? '']);
+		});
+		panel?.querySelectorAll<HTMLElement>('[data-ui-salida]').forEach((salida) => {
+			salida.textContent = `${valores[salida.dataset.uiSalida ?? '']}px`;
+		});
+		if (prefijo && document.activeElement !== prefijo) prefijo.value = estado.prefijo;
+	}
+
+	function cambiar(parcial: Record<string, unknown>) {
+		estado = sanear({ ...estado, ...parcial });
+		pintarControles();
+		pintar();
+		guardar();
+	}
+
+	piezas.forEach((boton) => {
+		boton.addEventListener('click', () => cambiar({ pieza: boton.dataset.uiPieza }));
+	});
+	panel?.querySelectorAll<HTMLButtonElement>('[data-ui-tema]').forEach((boton) => {
+		boton.addEventListener('click', () => cambiar({ ...TEMAS[boton.dataset.uiTema ?? 'claro'] }));
+	});
+	colores.forEach((input) => {
+		input.addEventListener('input', () => cambiar({ [input.dataset.uiColor ?? '']: input.value }));
+	});
+	rangos.forEach((input) => {
+		input.addEventListener('input', () => cambiar({ [input.dataset.uiRango ?? '']: Number(input.value) }));
+	});
+	prefijo?.addEventListener('input', () => cambiar({ prefijo: prefijo.value }));
+	prefijo?.addEventListener('blur', () => {
+		prefijo.value = estado.prefijo;
+	});
+
+	panel?.querySelector('[data-ui-reset]')?.addEventListener('click', () => cambiar({ ...INICIAL }));
+
+	panel?.querySelectorAll<HTMLButtonElement>('[data-ui-copiar]').forEach((boton) => {
+		const etiqueta = boton.querySelector<HTMLElement>('[data-ui-copiar-texto]');
+		const original = etiqueta?.textContent ?? 'Copiar';
+		let reloj: number | undefined;
+
+		boton.addEventListener('click', async () => {
+			const texto = boton.dataset.uiCopiar === 'variables' ? variables(estado, ':root') : fragmento();
+			let hecho = false;
+			try {
+				await navigator.clipboard.writeText(texto);
+				hecho = true;
+			} catch {
+				// Sin portapapeles o sin permiso: el código sigue ahí para seleccionarlo.
+			}
+			boton.dataset.state = hecho ? 'done' : 'error';
+			if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+			clearTimeout(reloj);
+			reloj = window.setTimeout(() => {
+				boton.removeAttribute('data-state');
+				if (etiqueta) etiqueta.textContent = original;
+			}, 2000);
+		});
+	});
+
+	panel?.querySelector('[data-ui-bajar]')?.addEventListener('click', () => {
+		const { html, css, fin } = partes(estado);
+		const p = estado.prefijo;
+		const pagina = `<!doctype html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>Componentes ${p}</title>\n<style>\n${variables(estado, ':root')}\n\nbody {\n  margin: 0;\n  min-height: 100vh;\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  justify-content: center;\n  gap: 1.5rem;\n  padding: 2rem;\n  box-sizing: border-box;\n  background: var(--${p}-fondo);\n  color: var(--${p}-texto);\n  font-family: system-ui, sans-serif;\n}\n\n${css}\n\n${fin}\n</style>\n</head>\n<body>\n${html}\n</body>\n</html>\n`;
+		const url = URL.createObjectURL(new Blob([pagina], { type: 'text/html' }));
+		const enlace = document.createElement('a');
+		enlace.href = url;
+		enlace.download = `${p}-${estado.pieza}.html`;
+		enlace.click();
+		// Soltar la URL en el mismo tick corta la descarga en algún navegador.
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	});
+
+	pintarControles();
+	pintar();
+</script>
