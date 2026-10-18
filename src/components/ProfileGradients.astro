@@ -1,0 +1,172 @@
+---
+/**
+ * Tus gradientes en el perfil: los que has subido a la galería de
+ * /herramientas. Se leen de la misma galería guardada en este navegador, así
+ * que no hay nada que sincronizar. Cada uno se abre en el editor, se copia
+ * como CSS o se comparte con su enlace directo; y la colección entera viaja en
+ * un enlace de galería para que la junte quien lo abra.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-2 py-1 text-sm text-muted hover:border-accent hover:text-accent';
+---
+
+<section id="mis-gradientes" class="flex flex-col gap-4 border border-line bg-panel p-4">
+	<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+		<h2 class="inline-flex items-center gap-2 font-pixel text-lg font-normal">
+			<Icon name="color-swatch" class="size-5 shrink-0 text-accent" />
+			Tus gradientes
+		</h2>
+		<span data-pg-n class="text-sm tabular-nums text-muted"></span>
+	</div>
+
+	<ul data-pg-lista class="grid gap-3 sm:grid-cols-2 md:grid-cols-3"></ul>
+	<p data-pg-vacio class="text-sm text-muted">
+		Aún no has subido ninguno. Crea uno en el
+		<a href="/herramientas#gradientes" class="text-accent hover:underline">generador de gradientes</a> y súbelo a la
+		galería: aparecerá aquí.
+	</p>
+
+	<div data-pg-acciones hidden class="flex flex-wrap items-center gap-3">
+		<button type="button" data-pg-coleccion class={`${BOTON} px-3 py-2`}>
+			<Icon name="share" class="size-4 shrink-0" />
+			Compartir tu colección
+		</button>
+		<span data-pg-estado role="status" class="text-sm text-muted"></span>
+	</div>
+
+	<template data-pg-molde>
+		<li class="flex flex-col border border-line bg-bg">
+			<div data-pg-muestra class="h-24 border-b border-line"></div>
+			<div class="flex flex-col gap-3 p-3">
+				<div class="flex min-w-0 flex-col">
+					<strong data-pg-titulo class="truncate font-pixel text-lg"></strong>
+					<span data-pg-votos class="text-xs text-muted"></span>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					<a data-pg-abrir class={BOTON}>
+						<Icon name="brush" class="size-4 shrink-0" />
+						Abrir
+					</a>
+					<button type="button" data-pg-css class={BOTON}>
+						<Icon name="file-type-css" class="size-4 shrink-0" />
+						CSS
+					</button>
+					<button type="button" data-pg-enlace class={BOTON}>
+						<Icon name="link" class="size-4 shrink-0" />
+						Enlace
+					</button>
+				</div>
+			</div>
+		</li>
+	</template>
+</section>
+
+<script>
+	type Diseno = { codigo: string; nombre: string; votos: number };
+
+	// La misma clave y el mismo código corto que la galería y el editor.
+	const CLAVE = 'tuweb:galeria-gradientes';
+	const CODIGO = /^(?:l(\d{1,3})|r([ce])(?:@(\d{1,3})\.(\d{1,3}))?)((?:-[0-9a-f]{6}\.\d{1,3}){2,8})$/i;
+
+	const section = document.querySelector<HTMLElement>('#mis-gradientes');
+	const lista = section?.querySelector<HTMLElement>('[data-pg-lista]');
+	const molde = section?.querySelector<HTMLTemplateElement>('[data-pg-molde]');
+	const estado = section?.querySelector<HTMLElement>('[data-pg-estado]');
+
+	function aCss(codigo: string) {
+		const m = codigo.match(CODIGO);
+		if (!m) return '';
+		const paradas = m[5]
+			.slice(1)
+			.split('-')
+			.map((t) => {
+				const [hex, pos] = t.split('.');
+				return { hex, pos: Number(pos) };
+			})
+			.sort((a, b) => a.pos - b.pos)
+			.map((p) => `#${p.hex} ${p.pos}%`)
+			.join(', ');
+		if (m[1] !== undefined) return `linear-gradient(${m[1]}deg, ${paradas})`;
+		const forma = m[2].toLowerCase() === 'e' ? 'ellipse' : 'circle';
+		const centro = m[3] === undefined ? '' : ` at ${m[3]}% ${m[4]}%`;
+		return `radial-gradient(${forma}${centro}, ${paradas})`;
+	}
+
+	// Solo los tuyos, con lo guardado tal cual lo dejó la galería.
+	function leer(): { mios: Diseno[]; crudos: unknown[] } {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (!g || !Array.isArray(g.disenos) || !Array.isArray(g.mios)) return { mios: [], crudos: [] };
+			const crudos = g.disenos.filter(
+				(d: unknown) => Array.isArray(d) && typeof d[0] === 'string' && CODIGO.test(d[0]) && g.mios.includes(d[0]),
+			);
+			const mios = crudos.map((d: unknown[]) => ({
+				codigo: String(d[0]).toLowerCase(),
+				nombre: String(d[1] ?? '').slice(0, 30) || 'Sin nombre',
+				votos: typeof d[3] === 'number' && Number.isFinite(d[3]) ? Math.max(0, Math.round(d[3])) : 0,
+			}));
+			return { mios: mios.reverse(), crudos };
+		} catch {
+			return { mios: [], crudos: [] };
+		}
+	}
+
+	let reloj: number | undefined;
+
+	async function copiar(texto: string, hecho: string) {
+		if (!estado) return;
+		try {
+			await navigator.clipboard.writeText(texto);
+			estado.textContent = hecho;
+		} catch {
+			estado.textContent = 'No se pudo copiar.';
+		}
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => (estado.textContent = ''), 3000);
+	}
+
+	function pintar() {
+		if (!section || !lista || !molde) return;
+		const { mios } = leer();
+		section.querySelector<HTMLElement>('[data-pg-vacio]')!.hidden = mios.length > 0;
+		section.querySelector<HTMLElement>('[data-pg-acciones]')!.hidden = mios.length === 0;
+		const n = section.querySelector<HTMLElement>('[data-pg-n]');
+		if (n) n.textContent = mios.length === 0 ? '' : mios.length === 1 ? '1 diseño' : `${mios.length} diseños`;
+		lista.replaceChildren(
+			...mios.map((d) => {
+				const li = molde.content.firstElementChild!.cloneNode(true) as HTMLElement;
+				const q = <T extends HTMLElement>(s: string) => li.querySelector<T>(s)!;
+				const css = aCss(d.codigo);
+				const directo = `/herramientas?gradiente=${d.codigo}#gradientes`;
+				q('[data-pg-muestra]').style.backgroundImage = css;
+				q('[data-pg-titulo]').textContent = d.nombre;
+				q('[data-pg-votos]').textContent = d.votos === 1 ? '1 voto' : `${d.votos} votos`;
+				q<HTMLAnchorElement>('[data-pg-abrir]').href = directo;
+				q('[data-pg-css]').addEventListener('click', () =>
+					copiar(`background: ${css};`, `CSS de «${d.nombre}» copiado.`),
+				);
+				q('[data-pg-enlace]').addEventListener('click', () =>
+					copiar(`${location.origin}${directo}`, `Enlace de «${d.nombre}» copiado.`),
+				);
+				return li;
+			}),
+		);
+	}
+
+	// La colección es un enlace de galería solo con los tuyos.
+	section?.querySelector('[data-pg-coleccion]')?.addEventListener('click', () => {
+		const datos = encodeURIComponent(JSON.stringify(leer().crudos));
+		copiar(
+			`${location.origin}/herramientas?galeria=${datos}#gradientes`,
+			'Enlace copiado. Quien lo abra suma tus diseños a su galería.',
+		);
+	});
+
+	// Si subes uno en /herramientas en otra pestaña, aquí sale.
+	window.addEventListener('storage', (e) => {
+		if (e.key === null || e.key === CLAVE) pintar();
+	});
+	pintar();
+</script>
