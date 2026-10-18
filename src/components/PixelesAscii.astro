@@ -441,9 +441,17 @@ const BOTON =
 		});
 	}
 
+	/** La galería de debajo lee el lienzo y la firma de aquí. */
+	function exponer() {
+		if (!raiz) return;
+		raiz.dataset.paCeldas = celdas.join('');
+		raiz.dataset.paFirma = firma;
+	}
+
 	function todo() {
 		pintarTela();
 		pintarDatos();
+		exponer();
 	}
 
 	// --- Pintar ---
@@ -537,8 +545,22 @@ const BOTON =
 		firmaCampo.addEventListener('input', () => {
 			firma = limpiarFirma(firmaCampo.value);
 			guardar();
+			exponer();
 		});
 	}
+
+	// Un diseño de la galería entra en el lienzo, con sus firmas.
+	raiz?.addEventListener('pa:cargar', (evento) => {
+		const detalle = (evento as CustomEvent).detail;
+		if (!detalle || !textoValido(detalle.celdas)) return;
+		celdas = [...detalle.celdas].map(Number);
+		firmas = limpiarFirmas([...firmas, ...limpiarFirmas(detalle.firmas)]);
+		guardar();
+		enviarTodo();
+		avisar(`«${limpiarFirma(detalle.nombre) || 'Diseño'}» abierto en el lienzo.`);
+		todo();
+		raiz?.scrollIntoView({ block: 'start' });
+	});
 
 	raiz?.querySelector('[data-pa-limpiar]')?.addEventListener('click', () => {
 		if (!celdas.some(Boolean)) return;

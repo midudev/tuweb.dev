@@ -1,0 +1,425 @@
+---
+/**
+ * Galería de la comunidad para Píxeles ASCII. Guardas el lienzo con un nombre y
+ * tu firma, votas los que más te gustan y se ordenan solos. No hay servidor: la
+ * galería se guarda en este navegador, sale al momento en las demás pestañas y
+ * viaja en un enlace (?galeria=…). Quien lo abre junta esos diseños con los suyos,
+ * guarda los que quiera y lo vuelve a pasar. Al juntar, de cada diseño se queda
+ * la cuenta de votos más alta.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const CAMPO = 'w-full border border-line bg-bg px-3 py-2 text-sm text-fg outline-none focus-visible:border-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<section data-pg class="mt-10 flex flex-col gap-4 border-t border-line pt-6" aria-labelledby="pg-titulo">
+	<div class="flex flex-col gap-1">
+		<h2 id="pg-titulo" class="font-pixel text-2xl">Galería de la comunidad</h2>
+		<p class="text-sm text-muted">
+			Guarda el lienzo, vota los mejores y pasa el enlace. Quien lo abre suma sus diseños y los votos se juntan.
+		</p>
+	</div>
+
+	<form data-pg-form class="grid gap-3 border border-line bg-panel p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,12rem)_auto] sm:items-end">
+		<label class="flex flex-col gap-1 text-xs text-muted">
+			Nombre del diseño
+			<input type="text" data-pg-nombre maxlength="30" required placeholder="Gato en la terminal" spellcheck="false" autocomplete="off" class={CAMPO} />
+		</label>
+		<label class="flex flex-col gap-1 text-xs text-muted">
+			Tu firma
+			<input type="text" data-pg-firma maxlength="20" placeholder="anónimo" spellcheck="false" autocomplete="off" class={CAMPO} />
+		</label>
+		<button type="submit" class={`${BOTON} justify-center`}>
+			<Icon name="device-floppy" class="size-4 shrink-0" />
+			Guardar el lienzo
+		</button>
+	</form>
+	<p data-pg-aviso class="text-sm text-mark empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-wrap items-center justify-between gap-2">
+		<div class="flex flex-wrap gap-2" role="group" aria-label="Orden">
+			<button type="button" data-pg-orden="votos" aria-pressed="true" class={OPCION}>Más votados</button>
+			<button type="button" data-pg-orden="nuevos" aria-pressed="false" class={OPCION}>Recientes</button>
+			<button type="button" data-pg-orden="mios" aria-pressed="false" class={OPCION}>Los míos</button>
+		</div>
+		<button type="button" data-pg-enlace class={BOTON}>
+			<Icon name="link" class="size-4 shrink-0" />
+			<span data-pg-enlace-texto aria-live="polite">Copiar enlace de la galería</span>
+		</button>
+	</div>
+
+	<ol data-pg-lista class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"></ol>
+	<p data-pg-vacio hidden class="text-sm text-muted">Aún no has guardado ninguno.</p>
+
+	<template data-pg-molde>
+		<li class="flex flex-col border border-line bg-panel">
+			<div class="relative overflow-hidden border-b border-line bg-bg p-3">
+				<pre data-pg-muestra class="m-0 font-mono text-[6px] leading-[1] text-fg" aria-hidden="true"></pre>
+				<span data-pg-puesto class="absolute top-2 left-2 bg-panel px-2 py-0.5 font-pixel text-sm text-accent"></span>
+			</div>
+			<div class="flex flex-col gap-3 p-3">
+				<div class="flex min-w-0 flex-col">
+					<strong data-pg-titulo class="truncate font-pixel text-lg"></strong>
+					<span data-pg-autor class="truncate text-xs text-muted"></span>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-pg-votar aria-pressed="false" class={`${OPCION} inline-flex items-center gap-2 px-2 py-1`}>
+						<Icon name="heart" class="size-4 shrink-0" />
+						<span data-pg-votos></span>
+					</button>
+					<button type="button" data-pg-abrir class={`${BOTON} px-2 py-1`}>
+						<Icon name="brush" class="size-4 shrink-0" />
+						Abrir
+					</button>
+					<button type="button" data-pg-txt aria-label="Descargar .txt" class={`${BOTON} px-2 py-1`}>
+						<Icon name="file-download" class="size-4 shrink-0" />
+					</button>
+					<button type="button" data-pg-quitar aria-label="Quitar de la galería" class={`${BOTON} px-2 py-1`}>
+						<Icon name="trash" class="size-4 shrink-0" />
+					</button>
+				</div>
+			</div>
+		</li>
+	</template>
+</section>
+
+<script>
+	type Diseno = { celdas: string; nombre: string; autor: string; votos: number };
+	type Orden = 'votos' | 'nuevos' | 'mios';
+	type Galeria = { disenos: Diseno[]; votados: string[]; mios: string[]; firma: string };
+
+	const TONOS = [' ', '.', ':', '+', '#', '@'];
+	const ANCHO = 48;
+	const ALTO = 24;
+	const TOTAL = ANCHO * ALTO;
+	const CLAVE = 'tuweb:pixeles-galeria';
+	const MAX = 30;
+
+	const raiz = document.querySelector<HTMLElement>('[data-pg]');
+	const lienzo = document.querySelector<HTMLElement>('#pixeles-ascii');
+	const form = raiz?.querySelector<HTMLFormElement>('[data-pg-form]');
+	const nombre = raiz?.querySelector<HTMLInputElement>('[data-pg-nombre]');
+	const firma = raiz?.querySelector<HTMLInputElement>('[data-pg-firma]');
+	const aviso = raiz?.querySelector<HTMLElement>('[data-pg-aviso]');
+	const lista = raiz?.querySelector<HTMLElement>('[data-pg-lista]');
+	const vacio = raiz?.querySelector<HTMLElement>('[data-pg-vacio]');
+	const molde = raiz?.querySelector<HTMLTemplateElement>('[data-pg-molde]');
+	const ordenes = raiz?.querySelectorAll<HTMLButtonElement>('[data-pg-orden]') ?? [];
+	const enlace = raiz?.querySelector<HTMLButtonElement>('[data-pg-enlace]');
+	const enlaceTexto = raiz?.querySelector<HTMLElement>('[data-pg-enlace-texto]');
+
+	let orden: Orden = 'votos';
+
+	const decir = (texto: string) => aviso && (aviso.textContent = texto);
+	const celdasValidas = (t: unknown): t is string => typeof t === 'string' && t.length === TOTAL && /^[0-5]*$/.test(t);
+
+	// Texto de otra gente: sin saltos ni caracteres de control, y corto.
+	const limpio = (v: unknown, max: number) =>
+		typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '';
+
+	// --- Tiradas: el carácter, cuántas veces en base 36 y una coma ---
+
+	function comprimir(texto: string) {
+		let salida = '';
+		for (let i = 0; i < texto.length; ) {
+			let j = i;
+			while (j < texto.length && texto[j] === texto[i]) j++;
+			salida += `${texto[i]}${(j - i).toString(36)},`;
+			i = j;
+		}
+		return salida;
+	}
+
+	function descomprimir(tiradas: unknown) {
+		if (typeof tiradas !== 'string' || tiradas.length > TOTAL * 4) return null;
+		let texto = '';
+		let i = 0;
+		while (i < tiradas.length) {
+			const fin = tiradas.indexOf(',', i + 1);
+			const veces = tiradas.slice(i + 1, fin);
+			if (fin < 0 || !/^[0-9a-z]+$/.test(veces)) return null;
+			const n = parseInt(veces, 36);
+			if (n < 1 || texto.length + n > TOTAL) return null;
+			texto += tiradas[i].repeat(n);
+			i = fin + 1;
+		}
+		return celdasValidas(texto) ? texto : null;
+	}
+
+	function valido(v: unknown): Diseno | null {
+		if (!Array.isArray(v)) return null;
+		const [tiradas, titulo, autor, votos] = v;
+		const celdas = descomprimir(tiradas);
+		const t = limpio(titulo, 30);
+		if (!celdas || !t || !/[1-5]/.test(celdas)) return null;
+		return {
+			celdas,
+			nombre: t,
+			autor: limpio(autor, 20) || 'anónimo',
+			votos: typeof votos === 'number' && Number.isFinite(votos) ? Math.min(Math.max(Math.round(votos), 0), 9999) : 0,
+		};
+	}
+
+	const empaquetar = (d: Diseno) => [comprimir(d.celdas), d.nombre, d.autor, d.votos];
+
+	// --- La semilla, para que una galería nueva no salga vacía ---
+
+	function dibujo(tono: (x: number, y: number) => number) {
+		let celdas = '';
+		for (let y = 0; y < ALTO; y++) for (let x = 0; x < ANCHO; x++) celdas += String(tono(x, y));
+		return celdas;
+	}
+
+	const SEMILLA: Diseno[] = [
+		{
+			// Los píxeles son el doble de altos que de anchos: x va a la mitad.
+			celdas: dibujo((x, y) => {
+				const a = (x - 23.5) / 12;
+				const b = (11 - y) / 9;
+				const f = (a * a + b * b - 1) ** 3 - a * a * b ** 3;
+				return f <= -0.3 ? 5 : f <= -0.05 ? 4 : f <= 0 ? 2 : 0;
+			}),
+			nombre: 'Corazón',
+			autor: 'tuweb',
+			votos: 3,
+		},
+		{
+			celdas: dibujo((x, y) => {
+				const d = Math.hypot((x - 23.5) / 2, y - 11.5);
+				return d > 11.5 ? 0 : 5 - (Math.floor(d / 2.4) % 5);
+			}),
+			nombre: 'Diana',
+			autor: 'tuweb',
+			votos: 2,
+		},
+		{
+			celdas: dibujo((x, y) => (y > 17 ? 1 + ((x + y) % 2) : y > 20 - Math.abs(((x * 3) % 32) - 16) ? 4 : 0)),
+			nombre: 'Sierra',
+			autor: 'tuweb',
+			votos: 1,
+		},
+	];
+
+	// --- Lo guardado ---
+
+	function cargar(): Galeria {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && Array.isArray(g.disenos)) {
+				const textos = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+				return {
+					disenos: g.disenos.map(valido).filter((d: Diseno | null): d is Diseno => d !== null).slice(0, MAX),
+					votados: textos(g.votados),
+					mios: textos(g.mios),
+					firma: limpio(g.firma, 20),
+				};
+			}
+		} catch {
+			// Si lo guardado está roto, se empieza con la semilla.
+		}
+		return { disenos: structuredClone(SEMILLA), votados: [], mios: [], firma: '' };
+	}
+
+	let galeria = cargar();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ ...galeria, disenos: galeria.disenos.map(empaquetar) }));
+		} catch {
+			// Sin almacenamiento la galería dura lo que la pestaña.
+		}
+	}
+
+	// Lo que llega se suma a lo que hay; si sobran, se van los menos votados.
+	function juntar(entrantes: Diseno[]) {
+		let nuevos = 0;
+		for (const d of entrantes) {
+			const ya = galeria.disenos.find((x) => x.celdas === d.celdas);
+			if (ya) ya.votos = Math.max(ya.votos, d.votos);
+			else {
+				galeria.disenos.push(d);
+				nuevos++;
+			}
+		}
+		if (galeria.disenos.length > MAX) {
+			const mejores = [...galeria.disenos].sort((a, b) => b.votos - a.votos).slice(0, MAX);
+			galeria.disenos = galeria.disenos.filter((d) => mejores.includes(d));
+		}
+		return nuevos;
+	}
+
+	// --- El enlace: JSON en base64 para URL ---
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(texto: string) {
+		try {
+			const binario = atob(texto.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	// Un enlace de galería se junta con la tuya y luego se quita de la URL.
+	const params = new URLSearchParams(location.search);
+	const compartida = params.get('galeria');
+	if (compartida !== null) {
+		const datos = /^[A-Za-z0-9_-]+$/.test(compartida) ? deBase64(compartida) : null;
+		if (Array.isArray(datos)) {
+			const nuevos = juntar(datos.slice(0, MAX).map(valido).filter((d): d is Diseno => d !== null));
+			guardar();
+			decir(nuevos ? `Han llegado ${nuevos} diseños nuevos a tu galería.` : 'Ya tenías todos los diseños de ese enlace.');
+		} else decir('Ese enlace de galería no se entiende.');
+		history.replaceState(null, '', '/pixeles-ascii');
+	}
+
+	// --- Pintado ---
+
+	const comoTexto = (celdas: string) =>
+		Array.from({ length: ALTO }, (_, y) =>
+			[...celdas.slice(y * ANCHO, (y + 1) * ANCHO)]
+				.map((c) => TONOS[Number(c)])
+				.join('')
+				.trimEnd(),
+		).join('\n');
+
+	function ordenados() {
+		const indice = (d: Diseno) => galeria.disenos.indexOf(d);
+		const todos = [...galeria.disenos];
+		if (orden === 'nuevos') return todos.sort((a, b) => indice(b) - indice(a));
+		if (orden === 'mios') return todos.filter((d) => galeria.mios.includes(d.celdas)).sort((a, b) => indice(b) - indice(a));
+		return todos.sort((a, b) => b.votos - a.votos || indice(a) - indice(b));
+	}
+
+	function descargar(d: Diseno) {
+		const texto = `${comoTexto(d.celdas)}\n\n-- «${d.nombre}», de ${d.autor} · tuweb.dev/pixeles-ascii\n`;
+		const url = URL.createObjectURL(new Blob([texto], { type: 'text/plain;charset=utf-8' }));
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${d.nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'diseno'}.txt`;
+		a.click();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
+	function pintar() {
+		if (!lista || !molde) return;
+		ordenes.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pgOrden === orden)));
+		const elegidos = ordenados();
+		// El puesto es siempre el del ranking por votos, se mire como se mire.
+		const ranking = [...galeria.disenos].sort((a, b) => b.votos - a.votos);
+		if (vacio) vacio.hidden = elegidos.length > 0;
+		lista.replaceChildren(
+			...elegidos.map((d) => {
+				const li = molde.content.firstElementChild?.cloneNode(true) as HTMLElement;
+				const q = <T extends HTMLElement>(s: string) => li.querySelector<T>(s)!;
+				q('[data-pg-muestra]').textContent = comoTexto(d.celdas);
+				const puesto = ranking.indexOf(d) + 1;
+				q('[data-pg-puesto]').textContent = `#${puesto}`;
+				q('[data-pg-puesto]').hidden = puesto > 3 || d.votos === 0;
+				q('[data-pg-titulo]').textContent = d.nombre;
+				q('[data-pg-autor]').textContent = `por ${d.autor}`;
+				q('[data-pg-votos]').textContent = String(d.votos);
+				const votar = q<HTMLButtonElement>('[data-pg-votar]');
+				const votado = galeria.votados.includes(d.celdas);
+				votar.setAttribute('aria-pressed', String(votado));
+				votar.setAttribute('aria-label', votado ? `Quitar tu voto a ${d.nombre}` : `Votar ${d.nombre}`);
+				votar.addEventListener('click', () => {
+					if (galeria.votados.includes(d.celdas)) {
+						galeria.votados = galeria.votados.filter((c) => c !== d.celdas);
+						d.votos = Math.max(0, d.votos - 1);
+					} else {
+						galeria.votados.push(d.celdas);
+						d.votos++;
+					}
+					guardar();
+					pintar();
+				});
+				q('[data-pg-abrir]').addEventListener('click', () => {
+					if (/[1-5]/.test(lienzo?.dataset.paCeldas ?? '') && !confirm(`¿Abrir «${d.nombre}»? Sustituye el lienzo, también en las demás pestañas.`)) return;
+					lienzo?.dispatchEvent(new CustomEvent('pa:cargar', { detail: { celdas: d.celdas, nombre: d.nombre, firmas: [d.autor] } }));
+				});
+				q('[data-pg-txt]').addEventListener('click', () => descargar(d));
+				// Solo se quita lo que guardaste tú: lo de otros vuelve con cada enlace.
+				const quitar = q('[data-pg-quitar]');
+				if (galeria.mios.includes(d.celdas)) {
+					quitar.addEventListener('click', () => {
+						galeria.disenos = galeria.disenos.filter((x) => x !== d);
+						galeria.mios = galeria.mios.filter((c) => c !== d.celdas);
+						galeria.votados = galeria.votados.filter((c) => c !== d.celdas);
+						guardar();
+						pintar();
+					});
+				} else quitar.remove();
+				return li;
+			}),
+		);
+	}
+
+	form?.addEventListener('submit', (e) => {
+		e.preventDefault();
+		const celdas = lienzo?.dataset.paCeldas ?? '';
+		const titulo = limpio(nombre?.value, 30);
+		if (!titulo) return;
+		if (!celdasValidas(celdas) || !/[1-5]/.test(celdas)) return decir('El lienzo está en blanco: pinta algo antes de guardarlo.');
+		galeria.firma = limpio(firma?.value, 20);
+		const ya = galeria.disenos.find((d) => d.celdas === celdas);
+		if (ya) return decir(`Ese dibujo ya está en la galería: «${ya.nombre}».`);
+		if (galeria.disenos.length >= MAX) {
+			// Llena: se hace sitio quitando el menos votado que no sea tuyo.
+			const fuera = [...galeria.disenos].sort((a, b) => a.votos - b.votos).find((d) => !galeria.mios.includes(d.celdas));
+			if (!fuera) return decir(`Caben ${MAX} diseños. Quita alguno de los tuyos.`);
+			galeria.disenos = galeria.disenos.filter((d) => d !== fuera);
+		}
+		galeria.disenos.push({ celdas, nombre: titulo, autor: galeria.firma || 'anónimo', votos: 0 });
+		galeria.mios.push(celdas);
+		guardar();
+		if (nombre) nombre.value = '';
+		decir(`«${titulo}» ya está en la galería. Pasa el enlace para que lo vean.`);
+		orden = 'nuevos';
+		pintar();
+	});
+
+	ordenes.forEach((boton) => {
+		boton.addEventListener('click', () => {
+			const elegido = (['votos', 'nuevos', 'mios'] as Orden[]).find((o) => o === boton.dataset.pgOrden);
+			if (!elegido) return;
+			orden = elegido;
+			pintar();
+		});
+	});
+
+	let reloj: number | undefined;
+
+	enlace?.addEventListener('click', async () => {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(`${location.origin}/pixeles-ascii?galeria=${aBase64(galeria.disenos.map(empaquetar))}`);
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso.
+		}
+		if (enlaceTexto) enlaceTexto.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		clearTimeout(reloj);
+		reloj = window.setTimeout(() => enlaceTexto && (enlaceTexto.textContent = 'Copiar enlace de la galería'), 2000);
+	});
+
+	// Otra pestaña guarda o vota: esta lo ve al momento.
+	window.addEventListener('storage', (e) => {
+		if (e.key !== CLAVE) return;
+		galeria = cargar();
+		pintar();
+	});
+
+	// Sin firma propia aún, se toma la del lienzo.
+	if (firma) firma.value = galeria.firma || lienzo?.dataset.paFirma || '';
+	pintar();
+</script>
