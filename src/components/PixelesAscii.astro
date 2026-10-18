@@ -6,6 +6,10 @@
  * y, para sumar a otra gente, el dibujo viaja en
  * el enlace: quien lo abre lo junta con el suyo y sigue. Cada hora se queda una
  * copia del lienzo, las últimas 24, para volver a ella. No hay servidor.
+ *
+ * La obra no tiene bordes: el lienzo es una zona y al lado de cada zona hay
+ * otra. Se cambia de zona con las flechas, el mapa o «ir x y», y cada zona se
+ * guarda, viaja en el enlace y se comparte en directo como la primera.
  */
 import Icon from './Icon.astro';
 
@@ -17,6 +21,31 @@ const BOTON =
 <section id="pixeles-ascii" class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
 	<div class="flex min-w-0 flex-col gap-4">
 		<p data-pa-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+		<div class="flex flex-wrap items-center gap-3">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="map" class="size-4 shrink-0 text-accent" />
+				<span data-pa-zona aria-live="polite">Zona 0 · 0</span>
+			</span>
+			<div role="group" aria-label="Moverse por la obra" class="ml-auto flex">
+				{
+					[
+						['-1,0', 'arrow-left', 'Zona de la izquierda'],
+						['0,-1', 'arrow-up', 'Zona de arriba'],
+						['0,1', 'arrow-down', 'Zona de abajo'],
+						['1,0', 'arrow-right', 'Zona de la derecha'],
+					].map(([paso, icono, titulo], n) => (
+						<button type="button" data-pa-paso={paso} title={titulo} aria-label={titulo} class={`${BOTON} ${n ? '-ml-px' : ''}`}>
+							<Icon name={icono} class="size-4 shrink-0" />
+						</button>
+					))
+				}
+				<button type="button" data-pa-centro title="Volver a la zona 0 · 0" class={`${BOTON} -ml-px`}>
+					<Icon name="home" class="size-4 shrink-0" />
+					Centro
+				</button>
+			</div>
+		</div>
 
 		<div class="border border-line bg-panel p-4">
 			<canvas
@@ -92,6 +121,10 @@ const BOTON =
 				<Icon name="file-download" class="size-4 shrink-0" />
 				Descargar .txt
 			</button>
+			<button type="button" data-pa-obra class={BOTON}>
+				<Icon name="world-download" class="size-4 shrink-0" />
+				La obra entera .txt
+			</button>
 			<button type="button" data-pa-copiar class={BOTON}>
 				<Icon name="copy" class="size-4 shrink-0" />
 				Copiar texto
@@ -110,6 +143,22 @@ const BOTON =
 				En directo
 			</span>
 			<p data-pa-pestanas class="text-sm text-fg">…</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="map-2" class="size-4 shrink-0 text-accent" />
+				El mapa de la obra
+			</span>
+			<canvas
+				data-pa-mapa
+				width="220"
+				height="140"
+				role="img"
+				aria-label="Las zonas de alrededor: pulsa una para ir"
+				class="block aspect-[11/7] w-full cursor-pointer border border-line bg-bg [image-rendering:pixelated]"
+			></canvas>
+			<span data-pa-mapa-texto class="text-xs text-muted"></span>
 		</div>
 
 		<div class="flex flex-col gap-2">
@@ -196,6 +245,32 @@ const BOTON =
 	let firmas: string[] = [];
 	let vista: 'pixeles' | 'texto' = 'pixeles';
 
+	// La obra infinita: celdas es la zona en la que estás; zonas, todas las pintadas.
+	type Zona = [number, number];
+	const MAX_ZONA = 9999;
+	const MAX_ZONAS = 400;
+	let zona: Zona = [0, 0];
+	let zonas: Record<string, string> = {};
+	const claveZona = (z: Zona = zona) => `${z[0]},${z[1]}`;
+	const zonaValida = (k: unknown): k is string => typeof k === 'string' && /^-?\d{1,4},-?\d{1,4}$/.test(k);
+	const deClave = (k: string): Zona => k.split(',').map(Number) as Zona;
+
+	function limpiarZonas(lista: unknown) {
+		const limpias: Record<string, string> = {};
+		if (!lista || typeof lista !== 'object') return limpias;
+		Object.entries(lista)
+			.slice(0, MAX_ZONAS)
+			.forEach(([k, t]) => zonaValida(k) && textoValido(t) && /[1-5]/.test(t) && (limpias[k] = t));
+		return limpias;
+	}
+
+	/** La zona en la que estás pasa a la lista; si queda en blanco, sale de ella. */
+	function sincronizar() {
+		const texto = celdas.join('');
+		if (/[1-5]/.test(texto)) zonas[claveZona()] = texto;
+		else delete zonas[claveZona()];
+	}
+
 	function leer() {
 		try {
 			const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
@@ -212,6 +287,8 @@ const BOTON =
 		firma = limpiarFirma(guardado.firma);
 		firmas = limpiarFirmas(guardado.firmas);
 		if (guardado.vista === 'texto') vista = 'texto';
+		zonas = limpiarZonas(guardado.zonas);
+		if (zonaValida(guardado.zona)) zona = deClave(guardado.zona);
 	}
 
 	const hora = () => new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -222,8 +299,12 @@ const BOTON =
 	}
 
 	function guardar() {
+		sincronizar();
 		try {
-			localStorage.setItem(CLAVE, JSON.stringify({ celdas: celdas.join(''), tono, firma, firmas, vista }));
+			localStorage.setItem(
+				CLAVE,
+				JSON.stringify({ celdas: celdas.join(''), tono, firma, firmas, vista, zona: claveZona(), zonas }),
+			);
 			marcarGuardado(`Guardado solo a las ${hora()}. El .txt es el mismo para quien lo tenga.`);
 		} catch {
 			// Sin almacenamiento se pinta igual; solo que no se guarda.
@@ -235,7 +316,9 @@ const BOTON =
 
 	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
 	const otras = new Map<string, number>();
-	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: YO });
+	// Todo mensaje lleva la zona en la que está quien lo manda.
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ zona: claveZona(), ...mensaje, de: YO });
+	const donde = new Map<string, string>();
 	const enviarTodo = () => enviar({ tipo: 'todo', celdas: celdas.join(''), firmas });
 
 	function pintarPestanas() {
@@ -249,7 +332,7 @@ const BOTON =
 	// Lo que llega de otras pestañas se ve: su cursor con su firma y un destello en
 	// cada píxel que pintan, que se apaga en un segundo y medio.
 	const BRILLO = 1500;
-	const cursores = new Map<string, { i: number; firma: string }>();
+	const cursores = new Map<string, { i: number; firma: string; zona: string }>();
 	const recientes = new Map<number, number>();
 	let latido = 0;
 
@@ -268,38 +351,60 @@ const BOTON =
 
 	canal?.addEventListener('message', ({ data }) => {
 		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		// Las pestañas de antes no mandan zona: pintan en la del centro.
+		const suya = zonaValida(data.zona) ? data.zona : '0,0';
+		const aqui = suya === claveZona();
 		if (data.tipo === 'adios') {
 			otras.delete(data.de);
 			cursores.delete(data.de);
+			donde.delete(data.de);
 			pintarTela();
-		} else otras.set(data.de, Date.now());
+		} else {
+			otras.set(data.de, Date.now());
+			donde.set(data.de, suya);
+		}
 		if (data.tipo === 'hola') enviar({ tipo: 'aqui' });
 		if (data.tipo === 'cursor') {
-			if (celdaValida(data.i)) cursores.set(data.de, { i: data.i, firma: limpiarFirma(data.firma) });
+			if (celdaValida(data.i)) cursores.set(data.de, { i: data.i, firma: limpiarFirma(data.firma), zona: suya });
 			else cursores.delete(data.de);
 			pintarTela();
 		}
 		if (data.tipo === 'trazo' && Array.isArray(data.trazo)) {
 			let puestos = 0;
 			const ahora = Date.now();
+			// Lo de otra zona se apunta en la suya, aunque no la estés viendo.
+			const destino = aqui ? celdas : [...(zonas[suya] ?? '0'.repeat(TOTAL))].map(Number);
 			data.trazo.forEach((p: unknown) => {
 				if (!Array.isArray(p)) return;
 				const [i, t] = p;
 				if (celdaValida(i) && Number.isInteger(t) && t >= 0 && t < TONOS.length) {
-					celdas[i] = t;
-					recientes.set(i, ahora);
+					destino[i] = t;
+					if (aqui) recientes.set(i, ahora);
 					puestos++;
 				}
 			});
-			if (puestos) animar();
+			if (!aqui && puestos) {
+				if (destino.some(Boolean)) zonas[suya] = destino.join('');
+				else delete zonas[suya];
+			}
+			if (aqui && puestos) animar();
 			if (typeof data.firma === 'string' && data.firma) firmas = limpiarFirmas([...firmas, data.firma]);
-			if (puestos) apuntar(limpiarFirma(data.firma) || 'otra pestaña', puestos);
+			if (puestos) apuntar(`${limpiarFirma(data.firma) || 'otra pestaña'}${aqui ? '' : ` en la zona ${suya.replace(',', ' · ')}`}`, puestos);
 			todo();
 		}
 		if (data.tipo === 'todo' && textoValido(data.celdas)) {
-			celdas = [...data.celdas].map(Number);
+			if (aqui) celdas = [...data.celdas].map(Number);
+			else if (/[1-5]/.test(data.celdas)) zonas[suya] = data.celdas;
+			else delete zonas[suya];
 			firmas = limpiarFirmas(data.firmas);
-			decir(`[${hora()}] El lienzo entero llega de otra pestaña.`, 'text-accent');
+			if (aqui) decir(`[${hora()}] Esta zona entera llega de otra pestaña.`, 'text-accent');
+			todo();
+		}
+		if (data.tipo === 'obra') {
+			zonas = limpiarZonas(data.zonas);
+			celdas = [...(zonas[claveZona()] ?? '0'.repeat(TOTAL))].map(Number);
+			firmas = limpiarFirmas(data.firmas);
+			decir(`[${hora()}] La obra entera llega de otra pestaña.`, 'text-accent');
 			todo();
 		}
 		pintarPestanas();
@@ -312,6 +417,7 @@ const BOTON =
 			if (visto >= limite) return;
 			otras.delete(id);
 			cursores.delete(id);
+			donde.delete(id);
 		});
 		pintarPestanas();
 		pintarTela();
@@ -415,7 +521,8 @@ const BOTON =
 		ctx.setLineDash([3, 3]);
 		ctx.font = `600 11px ${tinta('--font-mono', 'monospace')}`;
 		ctx.textBaseline = 'bottom';
-		cursores.forEach(({ i, firma: suya }) => {
+		cursores.forEach(({ i, firma: suya, zona: la }) => {
+			if (la !== claveZona()) return;
 			const x = (i % ANCHO) * ESCALA;
 			const y = Math.floor(i / ANCHO) * ESCALA;
 			ctx.strokeRect(x + 1, y + 1, ESCALA - 2, ESCALA - 2);
@@ -451,8 +558,91 @@ const BOTON =
 	function todo() {
 		pintarTela();
 		pintarDatos();
+		pintarMapa();
 		exponer();
 	}
+
+	// --- La obra infinita ---
+
+	const mapa = raiz?.querySelector<HTMLCanvasElement>('[data-pa-mapa]');
+	const MAPA_ANCHO = 11;
+	const MAPA_ALTO = 7;
+
+	/** Las zonas de alrededor: más oscuras cuanto más pintadas; con un punto, donde hay otra pestaña. */
+	function pintarMapa() {
+		sincronizar();
+		const etiqueta = raiz?.querySelector<HTMLElement>('[data-pa-zona]');
+		if (etiqueta) etiqueta.textContent = `Zona ${zona[0]} · ${zona[1]}`;
+		const texto = raiz?.querySelector<HTMLElement>('[data-pa-mapa-texto]');
+		const n = Object.keys(zonas).length;
+		if (texto) texto.textContent = `${n} ${n === 1 ? 'zona pintada' : 'zonas pintadas'}. Pulsa una para ir.`;
+		const m = mapa?.getContext('2d');
+		if (!m || !mapa) return;
+		const lado = mapa.width / MAPA_ANCHO;
+		const ocupadas = new Set(donde.values());
+		m.clearRect(0, 0, mapa.width, mapa.height);
+		for (let fy = 0; fy < MAPA_ALTO; fy++) {
+			for (let fx = 0; fx < MAPA_ANCHO; fx++) {
+				const k = claveZona([zona[0] + fx - (MAPA_ANCHO >> 1), zona[1] + fy - (MAPA_ALTO >> 1)]);
+				const x = fx * lado;
+				const y = fy * lado;
+				m.fillStyle = tinta('--color-line', '#e8d9c8');
+				m.fillRect(x, y, lado, 1);
+				m.fillRect(x, y, 1, lado);
+				const pintada = zonas[k];
+				if (pintada) {
+					const llenos = pintada.replace(/0/g, '').length;
+					m.fillStyle = tinta('--color-fg', '#1c1917');
+					m.globalAlpha = 0.15 + 0.85 * Math.min(1, (llenos / TOTAL) * 3);
+					m.fillRect(x + 2, y + 2, lado - 3, lado - 3);
+					m.globalAlpha = 1;
+				}
+				if (k === '0,0') {
+					m.fillStyle = tinta('--color-muted', '#78716c');
+					m.fillRect(x + lado / 2 - 1, y + lado / 2 - 1, 2, 2);
+				}
+				if (ocupadas.has(k)) {
+					m.fillStyle = tinta('--color-accent', '#c2410c');
+					m.fillRect(x + lado - 7, y + 3, 4, 4);
+				}
+			}
+		}
+		m.strokeStyle = tinta('--color-accent', '#c2410c');
+		m.lineWidth = 2;
+		m.strokeRect((MAPA_ANCHO >> 1) * lado + 1, (MAPA_ALTO >> 1) * lado + 1, lado - 1, lado - 1);
+	}
+
+	/** Cambia de zona: la de ahora se guarda y se abre la otra, pintada o en blanco. */
+	function ir(nueva: Zona) {
+		if (nueva.some((n) => !Number.isInteger(n) || Math.abs(n) > MAX_ZONA)) return false;
+		sincronizar();
+		if (!zonas[claveZona(nueva)] && Object.keys(zonas).length >= MAX_ZONAS) return false;
+		zona = nueva;
+		celdas = [...(zonas[claveZona()] ?? '0'.repeat(TOTAL))].map(Number);
+		recientes.clear();
+		encima = null;
+		guardar();
+		enviar({ tipo: 'cursor', i: null });
+		todo();
+		return true;
+	}
+
+	raiz?.querySelectorAll<HTMLButtonElement>('[data-pa-paso]').forEach((b) => {
+		b.addEventListener('click', () => {
+			const [dx, dy] = (b.dataset.paPaso ?? '0,0').split(',').map(Number);
+			ir([zona[0] + dx, zona[1] + dy]);
+		});
+	});
+
+	raiz?.querySelector('[data-pa-centro]')?.addEventListener('click', () => ir([0, 0]));
+
+	mapa?.addEventListener('click', (evento) => {
+		const caja = mapa.getBoundingClientRect();
+		if (!caja.width || !caja.height) return;
+		const fx = Math.floor(((evento.clientX - caja.left) / caja.width) * MAPA_ANCHO);
+		const fy = Math.floor(((evento.clientY - caja.top) / caja.height) * MAPA_ALTO);
+		ir([zona[0] + fx - (MAPA_ANCHO >> 1), zona[1] + fy - (MAPA_ALTO >> 1)]);
+	});
 
 	// --- Pintar ---
 
@@ -509,7 +699,11 @@ const BOTON =
 		encima = i;
 		// Solo sale al cambiar de casilla: las demás pestañas ven dónde estás.
 		enviar({ tipo: 'cursor', i, firma });
-		if (casilla) casilla.textContent = i === null ? SIN_CASILLA : `x ${i % ANCHO} · y ${Math.floor(i / ANCHO)}`;
+		if (casilla) {
+			// En la obra entera: la zona más la casilla.
+			casilla.textContent =
+				i === null ? SIN_CASILLA : `x ${zona[0] * ANCHO + (i % ANCHO)} · y ${zona[1] * ALTO + Math.floor(i / ANCHO)}`;
+		}
 		pintarTela();
 	});
 
@@ -564,11 +758,11 @@ const BOTON =
 
 	raiz?.querySelector('[data-pa-limpiar]')?.addEventListener('click', () => {
 		if (!celdas.some(Boolean)) return;
-		if (!confirm('¿Borrar el lienzo entero? También se borra en las demás pestañas.')) return;
+		if (!confirm('¿Borrar esta zona entera? También se borra en las demás pestañas. Las otras zonas se quedan.')) return;
 		celdas = Array(TOTAL).fill(0);
 		guardar();
 		enviarTodo();
-		avisar('Lienzo en blanco.');
+		avisar('Zona en blanco.');
 		todo();
 	});
 
@@ -590,6 +784,37 @@ const BOTON =
 
 	raiz?.querySelector('[data-pa-txt]')?.addEventListener('click', () => descargar(archivo(), 'pixeles-ascii.txt'));
 
+	/** Todas las zonas pintadas, cosidas en su sitio; los huecos entre ellas, en blanco. */
+	function obraComoTexto() {
+		sincronizar();
+		const claves = Object.keys(zonas).map(deClave);
+		if (!claves.length) return '';
+		const xs = claves.map((z) => z[0]);
+		const ys = claves.map((z) => z[1]);
+		const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+		if (x1 - x0 >= 40 || y1 - y0 >= 40) return null;
+		const filas: string[] = [];
+		for (let zy = y0; zy <= y1; zy++) {
+			for (let y = 0; y < ALTO; y++) {
+				let fila = '';
+				for (let zx = x0; zx <= x1; zx++) {
+					const t = zonas[claveZona([zx, zy])];
+					fila += t ? [...t.slice(y * ANCHO, (y + 1) * ANCHO)].map((c) => TONOS[Number(c)]).join('') : ' '.repeat(ANCHO);
+				}
+				filas.push(fila.trimEnd());
+			}
+		}
+		return filas.join('\n').replace(/^\n+|\n+$/g, '');
+	}
+
+	raiz?.querySelector('[data-pa-obra]')?.addEventListener('click', () => {
+		const texto = obraComoTexto();
+		if (texto === null) return avisar('La obra es demasiado ancha para un .txt: bájala zona a zona.');
+		if (!texto) return avisar('Aún no hay nada pintado.');
+		const pie = firmas.length ? `\n\n-- ${firmas.join(', ')} · tuweb.dev/pixeles-ascii` : '\n\n-- tuweb.dev/pixeles-ascii';
+		descargar(`${texto}${pie}\n`, 'pixeles-ascii-obra.txt');
+	});
+
 	// --- La copia de cada hora ---
 
 	// Al cambiar la hora se guarda el lienzo tal cual, una copia por hora y
@@ -597,7 +822,7 @@ const BOTON =
 	const CLAVE_HORAS = `${CLAVE}:horas`;
 	const MAX_HORAS = 24;
 	const UNA_HORA = 3_600_000;
-	type Copia = { hora: number; celdas: string; firmas: string[] };
+	type Copia = { hora: number; celdas: string; firmas: string[]; zona: string };
 
 	const horaDe = (ms: number) => Math.floor(ms / UNA_HORA);
 	const aLas = (hora: number, dia = false) =>
@@ -613,7 +838,12 @@ const BOTON =
 			if (!Array.isArray(lista)) return [];
 			return lista
 				.filter((c) => c && Number.isInteger(c.hora) && textoValido(c.celdas))
-				.map((c) => ({ hora: c.hora, celdas: c.celdas, firmas: limpiarFirmas(c.firmas) }))
+				.map((c) => ({
+					hora: c.hora,
+					celdas: c.celdas,
+					firmas: limpiarFirmas(c.firmas),
+					zona: zonaValida(c.zona) ? c.zona : '0,0',
+				}))
 				.slice(-MAX_HORAS);
 		} catch {
 			return [];
@@ -627,8 +857,8 @@ const BOTON =
 		const texto = celdas.join('');
 		// Ya hay copia de esta hora, el lienzo está en blanco o no ha cambiado desde la última.
 		if (ultima && ultima.hora >= ahora) return;
-		if (!celdas.some(Boolean) || ultima?.celdas === texto) return;
-		horas.push({ hora: ahora, celdas: texto, firmas });
+		if (!celdas.some(Boolean) || (ultima?.celdas === texto && ultima.zona === claveZona())) return;
+		horas.push({ hora: ahora, celdas: texto, firmas, zona: claveZona() });
 		try {
 			localStorage.setItem(CLAVE_HORAS, JSON.stringify(horas.slice(-MAX_HORAS)));
 		} catch {
@@ -661,9 +891,10 @@ const BOTON =
 					const cuando = document.createElement('span');
 					cuando.className = 'flex-1 font-mono text-xs text-fg';
 					const llenos = [...copia.celdas].filter((c) => c !== '0').length;
-					cuando.textContent = `${aLas(copia.hora, true)} · ${llenos} px`;
+					cuando.textContent = `${aLas(copia.hora, true)} · zona ${copia.zona.replace(',', ' · ')} · ${llenos} px`;
 					const volver = boton('Volver', () => {
 						if (!confirm(`¿Volver a la copia de las ${aLas(copia.hora)}? También cambia en las demás pestañas.`)) return;
+						if (copia.zona !== claveZona() && !ir(deClave(copia.zona))) return;
 						celdas = [...copia.celdas].map(Number);
 						firmas = limpiarFirmas([...firmas, ...copia.firmas]);
 						guardar();
@@ -743,10 +974,14 @@ const BOTON =
 	}
 
 	raiz?.querySelector('[data-pa-enlace]')?.addEventListener('click', async () => {
-		const url = `${location.origin}/pixeles-ascii#a=${aBase64({ c: comprimir(celdas.join('')), f: firmas })}`;
+		// La obra entera va dentro, zona a zona, y quien lo abre aparece en la tuya.
+		sincronizar();
+		const z: Record<string, string> = {};
+		Object.entries(zonas).forEach(([k, t]) => (z[k] = comprimir(t)));
+		const url = `${location.origin}/pixeles-ascii#a=${aBase64({ z, p: claveZona(), f: firmas })}`;
 		try {
 			await navigator.clipboard.writeText(url);
-			avisar('Enlace copiado. Quien lo abra junta este dibujo con el suyo y sigue pintando.');
+			avisar('Enlace copiado. Quien lo abra junta la obra entera con la suya y sigue pintando.');
 		} catch {
 			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
 		}
@@ -767,6 +1002,7 @@ const BOTON =
 		'  rellenar x y ancho alto [tono]',
 		'  circulo x y radio [tono]',
 		'  borrar x y ancho alto',
+		'  ir zx zy                         a otra zona de la obra; ir 0 0, al centro',
 		'  tono t · firma nombre · enlace · ver · vaciar · limpiar',
 		'Flechas arriba y abajo: los comandos de antes.',
 	];
@@ -863,6 +1099,12 @@ const BOTON =
 			pintarDatos();
 			return decir(`Tono ${t}: ${TONOS[t]}`);
 		}
+		if (orden === 'ir') {
+			if (partes.length !== 2 || !partes.every((n) => /^-?\d{1,4}$/.test(n))) return decir('Uso: ir zx zy', 'text-mark');
+			const [zx, zy] = partes.map(Number);
+			if (!ir([zx, zy])) return decir(`No se puede: la obra llega hasta ${MAX_ZONAS} zonas pintadas.`, 'text-mark');
+			return decir(`Zona ${zx} · ${zy}${zonas[claveZona()] ? '' : ', en blanco'}.`);
+		}
 		if (orden === 'firma') {
 			firma = limpiarFirma(partes.join(' '));
 			if (firmaCampo) firmaCampo.value = firma;
@@ -937,19 +1179,43 @@ const BOTON =
 	const recibido = /^#a=([A-Za-z0-9_-]+)$/.exec(location.hash);
 	if (recibido) {
 		const datos = deBase64(recibido[1]);
-		const texto = datos && typeof datos.c === 'string' ? descomprimir(datos.c) : null;
-		if (texto) {
-			[...texto].forEach((c, i) => c !== '0' && (celdas[i] = Number(c)));
+		// Los enlaces de antes traen un solo dibujo (c), que se junta con la zona en la que estés.
+		const traidas: Record<string, string> = {};
+		if (datos && typeof datos.c === 'string') {
+			const texto = descomprimir(datos.c);
+			if (texto) traidas[claveZona()] = texto;
+		}
+		if (datos && datos.z && typeof datos.z === 'object') {
+			Object.entries(datos.z)
+				.slice(0, MAX_ZONAS)
+				.forEach(([k, c]) => {
+					const texto = zonaValida(k) && typeof c === 'string' ? descomprimir(c) : null;
+					if (texto) traidas[k] = texto;
+				});
+		}
+		if (Object.keys(traidas).length) {
+			sincronizar();
+			Object.entries(traidas).forEach(([k, texto]) => {
+				if (!zonas[k] && Object.keys(zonas).length >= MAX_ZONAS) return;
+				const base = zonas[k] ?? '0'.repeat(TOTAL);
+				const junta = [...texto].map((c, i) => (c !== '0' ? c : base[i])).join('');
+				if (/[1-5]/.test(junta)) zonas[k] = junta;
+			});
+			if (zonaValida(datos.p)) zona = deClave(datos.p);
+			celdas = [...(zonas[claveZona()] ?? '0'.repeat(TOTAL))].map(Number);
 			firmas = limpiarFirmas([...firmas, ...limpiarFirmas(datos.f)]);
 			guardar();
-			enviarTodo();
-			avisar('Dibujo del enlace juntado con el tuyo. Sigue pintando y pásalo.');
+			enviar({ tipo: 'obra', zonas, firmas });
+			avisar('La obra del enlace, juntada con la tuya. Sigue pintando y pásala.');
 		} else avisar('El enlace está roto: sigue el dibujo que tenías.');
 		history.replaceState(null, '', '/pixeles-ascii');
 	}
 
 	// El tema puede cambiar de claro a oscuro: la rejilla y la tinta siguen sus colores.
-	new MutationObserver(pintarTela).observe(document.documentElement, { attributes: true, attributeFilter: ['data-modo'] });
+	new MutationObserver(() => {
+		pintarTela();
+		pintarMapa();
+	}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-modo'] });
 
 	// La vista de terminal escribe con Geist Mono: se repinta cuando acaba de cargar.
 	document.fonts?.ready.then(pintarTela);
