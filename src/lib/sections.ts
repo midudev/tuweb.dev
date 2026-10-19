@@ -41,9 +41,9 @@ export const GROUPS: Group[] = [
 		id: 'curiosidades',
 		title: 'Curiosidades',
 		icon: 'sparkles',
-		card: 'Lo que está aquí porque sí: chistes, mascota, templo, mosaico y diseño.',
+		card: 'Lo que está aquí porque sí: chistes, ánimo, mascota, templo, mosaico y diseño.',
 		intro:
-			'Lo que no es una herramienta ni un juego y merece estar: chistes contados en voz alta, la mascota de la casa, el templo de midudev, un mosaico ASCII sin bordes que se llena de carácter en carácter, cómo está hecha esta web por dentro y el escaparate de proyectos.',
+			'Lo que no es una herramienta ni un juego y merece estar: chistes contados en voz alta, un generador de ánimo que te manda a una herramienta, un canal y un juego, la mascota de la casa, el templo de midudev, un mosaico ASCII sin bordes que se llena de carácter en carácter, cómo está hecha esta web por dentro y el escaparate de proyectos.',
 	},
 	{
 		id: 'canales',
@@ -320,6 +320,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un chiste, un botón y una voz que te lo cuenta con su pausa.',
 		intro:
 			'Le das al botón y sale un chiste: de programadores, malos, de animales, de oficina, de colegio o de bar. El remate viene tapado; lo destapas tú o deja que te lo cuenten. Si le das a la voz, el navegador lee el planteamiento, hace la pausa y remata. Elige voz, velocidad y tono, y guarda los que te hagan gracia. No hay servidor: lee tu navegador y lo que guardas se queda en él.',
+	},
+	{
+		href: '/animo',
+		title: 'Estado de ánimo',
+		icon: 'mood-puzzled',
+		group: 'curiosidades',
+		card: 'Dices cómo estás y sale una herramienta, un canal y un juego para hoy.',
+		intro:
+			'Elige cómo estás —contento, cabreado, perdido, sin pilas— o deja que lo elija el azar, y sale una herramienta, un canal y un juego de la web que le van a ese ánimo. Si no te convence, otra combinación. Es para dar con rincones que no conocías. No se guarda nada: el ánimo solo viaja en el enlace.',
 	},
 	{
 		href: '/diseno',

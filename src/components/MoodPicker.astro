@@ -1,0 +1,149 @@
+---
+/**
+ * El generador de estados de ánimo. Eliges cómo estás —o que lo elija el
+ * azar— y salen una herramienta, un canal y un juego de la web para ese día.
+ *
+ * Las tarjetas de todas las secciones se pintan aquí, tapadas, con su icono;
+ * el script solo destapa las que tocan. Los ánimos están en src/lib/animo.ts.
+ */
+import { MOODS, SLOTS, checkMoods } from '../lib/animo';
+import { sectionsOf } from '../lib/sections';
+import Icon from './Icon.astro';
+
+checkMoods();
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+---
+
+<section id="animo" class="flex flex-col gap-6">
+	<div class="flex flex-col gap-2">
+		<span class="text-sm text-muted">Cómo estás</span>
+		<div class="flex flex-wrap gap-2" role="group" aria-label="Estado de ánimo">
+			{
+				MOODS.map((mood) => (
+					<button type="button" data-an-mood={mood.id} aria-pressed="false" class={BOTON}>
+						<Icon name={mood.icon} class="size-4 shrink-0" />
+						{mood.label}
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="flex flex-wrap items-center gap-3">
+		<button type="button" data-an-random class={`${BOTON} border-accent text-accent`}>
+			<Icon name="arrows-shuffle" class="size-4 shrink-0" />
+			Ánimo al azar
+		</button>
+		<button type="button" data-an-reroll disabled class={BOTON}>
+			<Icon name="refresh" class="size-4 shrink-0" />
+			Otra combinación
+		</button>
+	</div>
+
+	<div class="flex flex-col gap-4 border border-line bg-panel p-6">
+		<p data-an-line aria-live="polite" class="font-pixel text-lg text-pretty">
+			Elige cómo estás y te digo por dónde tirar.
+		</p>
+
+		<div data-an-result hidden class="grid gap-4 md:grid-cols-3">
+			{
+				SLOTS.map((slot) => (
+					<div class="flex flex-col gap-2">
+						<span class="text-xs text-muted">{slot.label}</span>
+						{sectionsOf(slot.group).map((section) => (
+							<a
+								href={section.href}
+								data-an-slot={slot.id}
+								data-an-href={section.href}
+								hidden
+								class="flex grow flex-col gap-2 border border-line bg-bg p-4 hover:border-accent"
+							>
+								<span class="flex items-center gap-2 text-sm text-mark">
+									<Icon name={section.icon} class="size-4 shrink-0 text-accent" />
+									{section.title}
+								</span>
+								<span class="text-xs text-pretty text-muted">{section.card}</span>
+							</a>
+						))}
+					</div>
+				))
+			}
+		</div>
+	</div>
+
+	<p class="text-sm text-muted">
+		Cada vez sale una mezcla distinta. El enlace lleva tu ánimo para pasárselo a quien quieras.
+	</p>
+</section>
+
+<style>
+	/* Las tarjetas tapadas no ocupan sitio aunque lleven flex. */
+	[data-an-slot][hidden] {
+		display: none;
+	}
+</style>
+
+<script>
+	import { MOODS, SLOTS, getMood, pickOne, type Mood, type SlotId } from '../lib/animo';
+
+	const frase = document.querySelector<HTMLElement>('[data-an-line]');
+	const resultado = document.querySelector<HTMLElement>('[data-an-result]');
+	const otra = document.querySelector<HTMLButtonElement>('[data-an-reroll]');
+
+	if (frase && resultado && otra) {
+		let actual: Mood | null = null;
+		const elegidas: Partial<Record<SlotId, string>> = {};
+
+		function pintar() {
+			if (!actual) return;
+			const mood = actual;
+
+			document.querySelectorAll<HTMLButtonElement>('[data-an-mood]').forEach((boton) => {
+				boton.setAttribute('aria-pressed', String(boton.dataset.anMood === mood.id));
+			});
+
+			frase.textContent = mood.line;
+			resultado.hidden = false;
+			otra.disabled = false;
+
+			document.querySelectorAll<HTMLAnchorElement>('[data-an-slot]').forEach((tarjeta) => {
+				const slot = tarjeta.dataset.anSlot as SlotId;
+				tarjeta.hidden = elegidas[slot] !== tarjeta.dataset.anHref;
+			});
+		}
+
+		/** Saca una herramienta, un canal y un juego del ánimo, sin repetir los de antes. */
+		function sortear() {
+			if (!actual) return;
+			for (const slot of SLOTS) {
+				elegidas[slot.id] = pickOne(actual.picks[slot.id], elegidas[slot.id]);
+			}
+			pintar();
+		}
+
+		function elegir(mood: Mood) {
+			actual = mood;
+			history.replaceState(null, '', `#${mood.id}`);
+			sortear();
+		}
+
+		document.querySelectorAll<HTMLButtonElement>('[data-an-mood]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				const mood = getMood(boton.dataset.anMood ?? '');
+				if (mood) elegir(mood);
+			});
+		});
+
+		document.querySelector<HTMLButtonElement>('[data-an-random]')?.addEventListener('click', () => {
+			elegir(pickOne(MOODS, actual ?? undefined));
+		});
+
+		otra.addEventListener('click', sortear);
+
+		// Si el enlace trae un ánimo, se entra con él ya elegido.
+		const deEnlace = getMood(location.hash.slice(1));
+		if (deEnlace) elegir(deEnlace);
+	}
+</script>
