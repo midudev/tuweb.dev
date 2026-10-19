@@ -234,6 +234,10 @@ const BOTON =
 	const textoValido = (t: unknown): t is string => typeof t === 'string' && t.length === TOTAL && /^[0-5]*$/.test(t);
 	const limpiarFirma = (s: unknown) =>
 		typeof s === 'string' ? s.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 20) : '';
+	// Lo que se dice por la consola: una línea, sin caracteres de control y corta.
+	const MAX_DICHO = 100;
+	const limpiarDicho = (s: unknown) =>
+		typeof s === 'string' ? s.replace(/[\p{C}]/gu, '').replace(/\s+/g, ' ').trim().slice(0, MAX_DICHO) : '';
 	const limpiarFirmas = (lista: unknown) =>
 		Array.isArray(lista) ? [...new Set(lista.map(limpiarFirma).filter(Boolean))].slice(-MAX_FIRMAS) : [];
 
@@ -399,6 +403,10 @@ const BOTON =
 			firmas = limpiarFirmas(data.firmas);
 			if (aqui) decir(`[${hora()}] Esta zona entera llega de otra pestaña.`, 'text-accent');
 			todo();
+		}
+		if (data.tipo === 'di') {
+			const dicho = limpiarDicho(data.texto);
+			if (dicho) decir(`[${hora()}] ${limpiarFirma(data.firma) || 'otra pestaña'}: ${dicho}`, 'text-fg');
 		}
 		if (data.tipo === 'obra') {
 			zonas = limpiarZonas(data.zonas);
@@ -1003,6 +1011,7 @@ const BOTON =
 		'  circulo x y radio [tono]',
 		'  borrar x y ancho alto',
 		'  ir zx zy                         a otra zona de la obra; ir 0 0, al centro',
+		'  di mensaje                       lo leen las demás pestañas, con tu firma',
 		'  tono t · firma nombre · enlace · ver · vaciar · limpiar',
 		'Flechas arriba y abajo: los comandos de antes.',
 	];
@@ -1104,6 +1113,15 @@ const BOTON =
 			const [zx, zy] = partes.map(Number);
 			if (!ir([zx, zy])) return decir(`No se puede: la obra llega hasta ${MAX_ZONAS} zonas pintadas.`, 'text-mark');
 			return decir(`Zona ${zx} · ${zy}${zonas[claveZona()] ? '' : ', en blanco'}.`);
+		}
+		if (orden === 'di') {
+			const dicho = limpiarDicho(partes.join(' '));
+			if (!dicho) return decir('Uso: di mensaje', 'text-mark');
+			if (!canal) return decir('Tu navegador no deja hablar con las demás pestañas.', 'text-mark');
+			enviar({ tipo: 'di', texto: dicho, firma });
+			decir(`[${hora()}] ${firma || 'tú'}: ${dicho}`, 'text-accent');
+			if (!otras.size) decir('No hay otras pestañas abiertas: no lo lee nadie aún.');
+			return;
 		}
 		if (orden === 'firma') {
 			firma = limpiarFirma(partes.join(' '));
