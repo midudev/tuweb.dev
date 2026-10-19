@@ -5,7 +5,8 @@
  * navegador con BroadcastChannel —cursores con firma y destello en lo que llega—
  * y, para sumar a otra gente, el dibujo viaja en
  * el enlace: quien lo abre lo junta con el suyo y sigue. Cada hora se queda una
- * copia del lienzo, las últimas 24, para volver a ella. No hay servidor.
+ * copia del lienzo, las últimas 24, para volver a ella, y cada píxel se apunta
+ * en un diario para repetir cómo se pintó la zona. No hay servidor.
  *
  * La obra no tiene bordes: el lienzo es una zona y al lado de cada zona hay
  * otra. Se cambia de zona con las flechas, el mapa o «ir x y», y cada zona se
@@ -124,6 +125,10 @@ const BOTON =
 			<button type="button" data-pa-obra class={BOTON}>
 				<Icon name="world-download" class="size-4 shrink-0" />
 				La obra entera .txt
+			</button>
+			<button type="button" data-pa-repe aria-pressed="false" class={`${BOTON} aria-pressed:border-accent aria-pressed:text-accent`}>
+				<Icon name="player-play" class="size-4 shrink-0" />
+				<span data-pa-repe-texto>Repetición</span>
 			</button>
 			<button type="button" data-pa-copiar class={BOTON}>
 				<Icon name="copy" class="size-4 shrink-0" />
@@ -316,12 +321,62 @@ const BOTON =
 		}
 	}
 
+	// --- El diario de trazos ---
+
+	// Cada píxel que se pinta, aquí o en otra pestaña, se apunta con su zona y su
+	// firma: los últimos MAX_DIARIO. Con ellos se repite cómo se pintó cada zona.
+	const CLAVE_DIARIO = `${CLAVE}:diario`;
+	const MAX_DIARIO = 4000;
+	type Apunte = [zona: string, i: number, t: number, quien: string];
+	let diario: Apunte[] = [];
+	let guardarDiario: number | undefined;
+
+	try {
+		const leido = JSON.parse(localStorage.getItem(CLAVE_DIARIO) ?? '[]');
+		if (Array.isArray(leido)) {
+			diario = leido
+				.filter(
+					(a) =>
+						Array.isArray(a) &&
+						zonaValida(a[0]) &&
+						Number.isInteger(a[1]) &&
+						a[1] >= 0 &&
+						a[1] < TOTAL &&
+						Number.isInteger(a[2]) &&
+						a[2] >= 0 &&
+						a[2] < TONOS.length,
+				)
+				.map((a): Apunte => [a[0], a[1], a[2], limpiarFirma(a[3])])
+				.slice(-MAX_DIARIO);
+		}
+	} catch {
+		diario = [];
+	}
+
+	function anotar(z: string, trazo: [number, number][], quien: string) {
+		if (!Array.isArray(trazo) || !trazo.length) return;
+		trazo.forEach(([i, t]) => diario.push([z, i, t, quien]));
+		if (diario.length > MAX_DIARIO) diario = diario.slice(-MAX_DIARIO);
+		clearTimeout(guardarDiario);
+		guardarDiario = window.setTimeout(() => {
+			try {
+				localStorage.setItem(CLAVE_DIARIO, JSON.stringify(diario));
+			} catch {
+				// Sin almacenamiento, la repetición dura lo que dure la pestaña.
+			}
+		}, 1000);
+	}
+
 	// --- En directo entre pestañas ---
 
 	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
 	const otras = new Map<string, number>();
 	// Todo mensaje lleva la zona en la que está quien lo manda.
-	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ zona: claveZona(), ...mensaje, de: YO });
+	function enviar(mensaje: Record<string, unknown>) {
+		// Lo que pintas tú se apunta en el diario, aunque no haya otras pestañas.
+		if (mensaje.tipo === 'trazo') anotar(claveZona(), mensaje.trazo as [number, number][], firma);
+		canal?.postMessage({ zona: claveZona(), ...mensaje, de: YO });
+	}
 	const donde = new Map<string, string>();
 	const enviarTodo = () => enviar({ tipo: 'todo', celdas: celdas.join(''), firmas });
 
@@ -376,6 +431,7 @@ const BOTON =
 		if (data.tipo === 'trazo' && Array.isArray(data.trazo)) {
 			let puestos = 0;
 			const ahora = Date.now();
+			const llegados: [number, number][] = [];
 			// Lo de otra zona se apunta en la suya, aunque no la estés viendo.
 			const destino = aqui ? celdas : [...(zonas[suya] ?? '0'.repeat(TOTAL))].map(Number);
 			data.trazo.forEach((p: unknown) => {
@@ -384,9 +440,11 @@ const BOTON =
 				if (celdaValida(i) && Number.isInteger(t) && t >= 0 && t < TONOS.length) {
 					destino[i] = t;
 					if (aqui) recientes.set(i, ahora);
+					llegados.push([i, t]);
 					puestos++;
 				}
 			});
+			anotar(suya, llegados, limpiarFirma(data.firma));
 			if (!aqui && puestos) {
 				if (destino.some(Boolean)) zonas[suya] = destino.join('');
 				else delete zonas[suya];
@@ -466,6 +524,7 @@ const BOTON =
 	// --- Pintado ---
 
 	let encima: number | null = null;
+	let repeticion: number[] | null = null;
 
 	function avisar(texto: string) {
 		if (!aviso) return;
@@ -479,13 +538,15 @@ const BOTON =
 	function pintarTela() {
 		if (!ctx || !tela) return;
 		ctx.clearRect(0, 0, tela.width, tela.height);
+		// Durante la repetición se ve el lienzo de la repetición, no el de ahora.
+		const lienzo = repeticion ?? celdas;
 		if (vista === 'texto') {
 			// La vista de terminal: cada celda, su carácter, tal cual saldrá en el .txt.
 			ctx.fillStyle = tinta('--color-fg', '#0f0f0f');
 			ctx.font = `600 ${ESCALA}px ${tinta('--font-mono', 'monospace')}`;
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
-			celdas.forEach((t, i) => {
+			lienzo.forEach((t, i) => {
 				if (t) ctx.fillText(TONOS[t], (i % ANCHO) * ESCALA + ESCALA / 2, Math.floor(i / ANCHO) * ESCALA + ESCALA / 2 + 1);
 			});
 			if (encima !== null) {
@@ -499,7 +560,7 @@ const BOTON =
 		for (let x = 0; x <= ANCHO; x++) ctx.fillRect(x * ESCALA, 0, 1, tela.height);
 		for (let y = 0; y <= ALTO; y++) ctx.fillRect(0, y * ESCALA, tela.width, 1);
 		ctx.fillStyle = tinta('--color-fg', '#1c1917');
-		celdas.forEach((t, i) => {
+		lienzo.forEach((t, i) => {
 			if (!t) return;
 			ctx.globalAlpha = t / (TONOS.length - 1);
 			ctx.fillRect((i % ANCHO) * ESCALA, Math.floor(i / ANCHO) * ESCALA, ESCALA, ESCALA);
@@ -625,6 +686,7 @@ const BOTON =
 		if (nueva.some((n) => !Number.isInteger(n) || Math.abs(n) > MAX_ZONA)) return false;
 		sincronizar();
 		if (!zonas[claveZona(nueva)] && Object.keys(zonas).length >= MAX_ZONAS) return false;
+		pararRepeticion();
 		zona = nueva;
 		celdas = [...(zonas[claveZona()] ?? '0'.repeat(TOTAL))].map(Number);
 		recientes.clear();
@@ -689,6 +751,7 @@ const BOTON =
 	tela?.addEventListener('pointerdown', (evento) => {
 		const i = celda(evento);
 		if (i === null) return;
+		if (repeticion) return avisar('Se está repitiendo la zona: espera a que acabe o dale a parar.');
 		evento.preventDefault();
 		tela?.setPointerCapture(evento.pointerId);
 		pintando = true;
@@ -773,6 +836,66 @@ const BOTON =
 		avisar('Zona en blanco.');
 		todo();
 	});
+
+	// --- La repetición ---
+
+	// Pinta otra vez la zona desde blanco, píxel a píxel y en el orden en que llegó,
+	// con la firma de quien pinta cada tramo. Dura unos seis segundos sea cual sea.
+	const REPE_FOTOGRAMAS = 360;
+	const repeBoton = raiz?.querySelector<HTMLButtonElement>('[data-pa-repe]');
+	const repeTexto = raiz?.querySelector<HTMLElement>('[data-pa-repe-texto]');
+	let repeLatido = 0;
+
+	function marcarRepeticion() {
+		repeBoton?.setAttribute('aria-pressed', String(Boolean(repeticion)));
+		if (repeTexto) repeTexto.textContent = repeticion ? 'Parar' : 'Repetición';
+	}
+
+	function pararRepeticion(mensaje?: string) {
+		if (!repeticion) return;
+		cancelAnimationFrame(repeLatido);
+		repeticion = null;
+		marcarRepeticion();
+		if (mensaje) avisar(mensaje);
+		pintarTela();
+	}
+
+	function repetir() {
+		const pasos = diario.filter((a) => a[0] === claveZona());
+		if (!pasos.length) return avisar('Aún no hay trazos apuntados en esta zona: pinta algo y vuelve a darle.');
+		repeticion = Array(TOTAL).fill(0);
+		marcarRepeticion();
+		const porFotograma = Math.max(1, Math.ceil(pasos.length / REPE_FOTOGRAMAS));
+		let n = 0;
+		let quien = '';
+		const paso = () => {
+			if (!repeticion) return;
+			const ahora = Date.now();
+			for (const [, i, t, suya] of pasos.slice(n, n + porFotograma)) {
+				repeticion[i] = t;
+				recientes.set(i, ahora);
+				if ((suya || 'sin firma') !== quien) {
+					quien = suya || 'sin firma';
+					avisar(`Repetición: pinta ${quien}.`);
+				}
+			}
+			n += porFotograma;
+			const limite = ahora - BRILLO;
+			recientes.forEach((t, i) => t < limite && recientes.delete(i));
+			pintarTela();
+			if (n < pasos.length) {
+				repeLatido = requestAnimationFrame(paso);
+				return;
+			}
+			const cuantos = `${pasos.length} ${pasos.length === 1 ? 'píxel' : 'píxeles'}`;
+			pararRepeticion(`Repetición de ${cuantos}${pasos.length >= MAX_DIARIO ? ', los últimos que se guardan' : ''}.`);
+			// Lo último que se repitió se apaga despacio sobre el lienzo de ahora.
+			animar();
+		};
+		repeLatido = requestAnimationFrame(paso);
+	}
+
+	repeBoton?.addEventListener('click', () => (repeticion ? pararRepeticion('Repetición parada.') : repetir()));
 
 	// --- Llevárselo ---
 
@@ -1012,6 +1135,7 @@ const BOTON =
 		'  borrar x y ancho alto',
 		'  ir zx zy                         a otra zona de la obra; ir 0 0, al centro',
 		'  di mensaje                       lo leen las demás pestañas, con tu firma',
+		'  repeticion                       la zona pintada otra vez, píxel a píxel',
 		'  tono t · firma nombre · enlace · ver · vaciar · limpiar',
 		'Flechas arriba y abajo: los comandos de antes.',
 	];
@@ -1096,6 +1220,7 @@ const BOTON =
 		}
 		if (orden === 'ver') return comoTexto().split('\n').forEach((l) => decir(l || ' ', 'text-fg'));
 		if (orden === 'enlace') return raiz?.querySelector<HTMLButtonElement>('[data-pa-enlace]')?.click();
+		if (orden === 'repeticion') return repeBoton?.click();
 		if (orden === 'vaciar') {
 			raiz?.querySelector<HTMLButtonElement>('[data-pa-limpiar]')?.click();
 			return decir(celdas.some(Boolean) ? 'Sigue como estaba.' : 'Lienzo en blanco.');
