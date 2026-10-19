@@ -6,7 +6,7 @@
  * página entera con cabecera, titular y botones) para verlo en uso. Con el
  * borde, el código exportado sale como border-image. A la muestra se le cambia el texto, el tamaño, el color de la letra
  * y el fondo sobre el que se ve. Se exporta como CSS, variable, SCSS, estilo de React, clase de
- * Tailwind, SVG o PNG; el SVG y el PNG
+ * Tailwind, SVG, página HTML lista para abrir o PNG; el SVG y el PNG
  * usan la misma geometría que el navegador para el CSS, así lo que se baja es
  * lo que se ve. Todo pasa en el navegador y
  * lo único que se guarda es el estado, en localStorage.
@@ -83,6 +83,7 @@ const FORMATOS = [
 	{ id: 'react', label: 'React', icon: 'brand-react' },
 	{ id: 'tailwind', label: 'Tailwind', icon: 'brand-tailwind' },
 	{ id: 'svg', label: 'SVG', icon: 'file-type-svg' },
+	{ id: 'html', label: 'HTML', icon: 'file-type-html' },
 ];
 ---
 
@@ -368,6 +369,10 @@ const FORMATOS = [
 					<Icon name="file-type-svg" class="size-4 shrink-0" />
 					Descargar .svg
 				</button>
+				<button type="button" data-gr-bajar="html" class={BOTON}>
+					<Icon name="file-type-html" class="size-4 shrink-0" />
+					Descargar .html
+				</button>
 				<label class="inline-flex items-center gap-2 text-sm text-muted">
 					<span class="sr-only">Tamaño del PNG</span>
 					<select data-gr-tamano class={`${CAMPO} w-auto`}>
@@ -462,7 +467,7 @@ const FORMATOS = [
 
 <script>
 	type Parada = { color: string; pos: number };
-	type Formato = 'css' | 'variable' | 'scss' | 'react' | 'tailwind' | 'svg';
+	type Formato = 'css' | 'variable' | 'scss' | 'react' | 'tailwind' | 'svg' | 'html';
 	type Estado = {
 		tipo: 'linear' | 'radial';
 		angulo: number;
@@ -481,7 +486,7 @@ const FORMATOS = [
 	type Prueba = 'boton' | 'tarjeta' | 'texto' | 'borde' | 'pagina';
 	type Escenario = 'panel' | 'bg' | 'fg';
 
-	const FORMATOS: Formato[] = ['css', 'variable', 'scss', 'react', 'tailwind', 'svg'];
+	const FORMATOS: Formato[] = ['css', 'variable', 'scss', 'react', 'tailwind', 'svg', 'html'];
 	const PRUEBAS: Prueba[] = ['boton', 'tarjeta', 'texto', 'borde', 'pagina'];
 	const ESCENARIOS: Escenario[] = ['panel', 'bg', 'fg'];
 
@@ -681,7 +686,44 @@ const FORMATOS = [
 		].join('\n');
 	}
 
+	// Una página entera que se abre tal cual: el gradiente aplicado según lo que
+	// estés probando (fondo, texto o borde).
+	function html() {
+		const css = gradiente();
+		const liso = ordenadas()[0]?.color ?? '#000000';
+		// El texto lo escribe quien usa la herramienta: se escapa antes de meterlo.
+		const escapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+		const texto = (estado.muestra.texto.trim() || 'Mi gradiente').replace(/[&<>"]/g, (c) => escapes[c] ?? c);
+		let estilo = `    body {\n      margin: 0;\n      min-height: 100vh;\n      display: grid;\n      place-items: center;\n      font-family: system-ui, sans-serif;\n`;
+		let cuerpo = `  <h1>${texto}</h1>`;
+		if (estado.prueba === 'texto') {
+			estilo += `      background: #111111;\n    }\n    h1 {\n      font-size: 4rem;\n      background: ${css};\n      -webkit-background-clip: text;\n      background-clip: text;\n      color: transparent;\n    }`;
+		} else if (estado.prueba === 'borde') {
+			estilo += `      background: #111111;\n      color: #ffffff;\n    }\n    .borde {\n      padding: 2rem 3rem;\n      border: 4px solid ${liso};\n      border-image: ${css} 1;\n    }`;
+			cuerpo = `  <div class="borde">\n    <h1>${texto}</h1>\n  </div>`;
+		} else {
+			estilo += `      color: ${estado.muestra.letra};\n      background: ${liso};\n      background: ${css};\n    }`;
+		}
+		return [
+			'<!doctype html>',
+			'<html lang="es">',
+			'<head>',
+			'  <meta charset="utf-8">',
+			'  <meta name="viewport" content="width=device-width, initial-scale=1">',
+			'  <title>Gradiente</title>',
+			'  <style>',
+			estilo,
+			'  </style>',
+			'</head>',
+			'<body>',
+			cuerpo,
+			'</body>',
+			'</html>',
+		].join('\n');
+	}
+
 	function exportar(formato: Formato) {
+		if (formato === 'html') return html();
 		const css = gradiente();
 		const liso = ordenadas()[0]?.color ?? '#000000';
 		// Probando sobre un borde, todo sale como border-image en vez de fondo.
@@ -854,6 +896,8 @@ const FORMATOS = [
 		boton.addEventListener('click', () => {
 			if (boton.dataset.grBajar === 'svg') {
 				bajar(new Blob([svg()], { type: 'image/svg+xml' }), `${nombre()}-${estado.tamano}.svg`);
+			} else if (boton.dataset.grBajar === 'html') {
+				bajar(new Blob([`${html()}\n`], { type: 'text/html' }), `${nombre()}.html`);
 			} else {
 				bajar(new Blob([`${exportar('variable')}\n`], { type: 'text/css' }), `${nombre()}.css`);
 			}
@@ -1307,6 +1351,8 @@ const FORMATOS = [
 	function cambiarMuestra(cambio: Partial<Estado['muestra']>) {
 		estado.muestra = { ...estado.muestra, ...cambio };
 		pintarMuestra();
+		// El HTML lleva el texto y la letra de la muestra.
+		if (salida && estado.formato === 'html') salida.textContent = exportar('html');
 		guardar();
 	}
 
