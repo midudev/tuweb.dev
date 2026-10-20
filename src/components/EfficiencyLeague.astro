@@ -6,7 +6,7 @@
  * tuya. Se comparte en un enlace y todo se queda en tu navegador.
  */
 import Icon from './Icon.astro';
-import { ALGO_MAX, LENGUAJES, MARCAS_MAX, MEMORIAS, TIEMPOS } from '../lib/eficiencia';
+import { ALGO_MAX, LENGUAJES, MARCAS_MAX, MEMORIAS, RIVALES_MIN, TIEMPOS } from '../lib/eficiencia';
 import { FIRMA_MAX } from '../lib/soluciones';
 
 const BOTON =
@@ -27,6 +27,23 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 		Resolverlo da medalla; aquí se compite por cómo. Gana el menor coste, luego la menor memoria y luego el
 		reloj con tu entrada de la semana. Solo cuenta mejorar: una marca peor no pisa la tuya.
 	</p>
+
+	<div class="flex flex-col gap-2 border border-line bg-bg p-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+			<h3 class="inline-flex items-center gap-2 text-sm font-normal">
+				<Icon name="math-function" class="size-4 shrink-0 text-accent" />
+				La función a optimizar
+			</h3>
+			<span data-ef-casa-coste class="text-xs tabular-nums text-muted"></span>
+		</div>
+		<pre class="overflow-x-auto text-xs leading-relaxed"><code data-ef-casa></code></pre>
+		<p class="text-xs text-muted">
+			La de la casa: da la respuesta buena, pero a lo bruto. Tu marca entra si le gana en coste o, con el
+			mismo coste, en memoria.
+		</p>
+	</div>
+
+	<p data-ef-puesto class="text-sm text-muted" aria-live="polite"></p>
 
 	<ol data-ef-tabla class="flex flex-col text-sm"></ol>
 
@@ -114,7 +131,9 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 	<p class="border-t border-line pt-3 text-xs text-muted">
 		Aquí no se ejecuta nada: mide en tu máquina con la entrada de la semana y apunta lo que sale. Cada marca
 		es la palabra de quien la firma. Pasa tu enlace y pide el de los demás; caben {MARCAS_MAX} por semana. Si
-		alguien mejora y te lo vuelve a pasar, se pone al día. El lunes, liga nueva.
+		alguien mejora y te lo vuelve a pasar, se pone al día. El lunes, liga nueva, y el podio de la que cierra
+		—oro, plata y bronce, con al menos {RIVALES_MIN} en la tabla— sale como medalla en tu
+		<a href="/perfil" class="text-accent hover:underline">perfil</a>.
 	</p>
 </section>
 
@@ -128,6 +147,9 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 	#eficiencia [data-fila]:first-child [data-pos] {
 		color: var(--color-mark);
 	}
+	#eficiencia [data-fila][data-casa='no'] {
+		opacity: 0.5;
+	}
 </style>
 
 <script>
@@ -135,12 +157,16 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 		CAMBIO_EFICIENCIA,
 		LENGUAJES,
 		MEMORIAS,
+		RIVALES_MIN,
 		TIEMPOS,
 		addMarca,
+		casaDe,
 		enlaceDe,
 		marcaDeEnlace,
+		mejoraLaCasa,
 		msTexto,
 		nuevaMarca,
+		puestoDe,
 		readEficiencia,
 		removeMarca,
 		saveEficiencia,
@@ -171,6 +197,12 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 		firma && algo && ms && lang && tiempo && memoria && enlace
 	) {
 		const week = weekIndex(weekStart(Date.now()));
+		const casa = casaDe(week);
+
+		if (casa) {
+			q<HTMLElement>('[data-ef-casa]')!.textContent = casa.codigo;
+			q<HTMLElement>('[data-ef-casa-coste]')!.textContent = `${TIEMPOS[casa.tiempo]} · mem. ${MEMORIAS[casa.memoria]}`;
+		}
 
 		const avisar = (texto: string, clase = 'text-muted') => {
 			estado.className = `text-sm ${clase}`;
@@ -188,14 +220,17 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 			lista!.replaceChildren(
 				...filas.map(({ marca, tu }, index) => {
 					const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+					const gana = !casa || mejoraLaCasa(marca, casa);
 					node.dataset.tu = tu ? 'si' : 'no';
-					node.querySelector('[data-pos]')!.textContent = String(index + 1).padStart(2, '0');
+					node.dataset.casa = gana ? 'si' : 'no';
+					node.querySelector('[data-pos]')!.textContent = gana ? String(index + 1).padStart(2, '0') : '--';
 					node.querySelector('[data-nombre]')!.textContent = tu ? `${marca.nombre} (tú)` : marca.nombre;
 					node.querySelector('[data-coste]')!.textContent =
 						`${TIEMPOS[marca.tiempo]} · mem. ${MEMORIAS[marca.memoria]} · ${LENGUAJES[marca.lang]}`;
 					node.querySelector('[data-ms]')!.textContent = msTexto(marca.ms);
 					const mejoras = marca.mejoras === 0 ? '' : ` · mejorada ${marca.mejoras} ${marca.mejoras === 1 ? 'vez' : 'veces'}`;
-					node.querySelector('[data-algo]')!.textContent = `${marca.algo}${mejoras}`;
+					const fuera = gana ? '' : ' · no gana a la de la casa';
+					node.querySelector('[data-algo]')!.textContent = `${marca.algo}${mejoras}${fuera}`;
 					node.querySelector('[data-quitar]')!.addEventListener('click', () => {
 						saveEficiencia(removeMarca(readEficiencia(), week, marca.nombre));
 						avisar(`${marca.nombre} sale de la liga.`);
@@ -205,6 +240,19 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 			);
 
 			total!.textContent = filas.length === 0 ? 'Nadie todavía' : `${filas.length} en la liga`;
+
+			const puesto = q<HTMLElement>('[data-ef-puesto]')!;
+			const mio = puestoDe(guardado, week);
+			puesto.className = `text-sm ${mio?.medalla ? 'text-mark' : 'text-muted'}`;
+			if (!mio)
+				puesto.textContent = guardado.mias[String(week)]
+					? 'Tu marca no gana a la de la casa: no entra en el podio.'
+					: 'Sin marca tuya esta semana: apunta una que gane a la de la casa.';
+			else if (mio.medalla)
+				puesto.textContent = `Vas ${mio.puesto}.º de ${mio.de}: si sigue así el lunes, ${mio.medalla} en tu perfil.`;
+			else if (mio.de < RIVALES_MIN)
+				puesto.textContent = `Vas solo. Pasa tu enlace: hacen falta ${RIVALES_MIN} para que haya podio.`;
+			else puesto.textContent = `Vas ${mio.puesto}.º de ${mio.de}. El podio son los tres primeros: afina.`;
 		}
 
 		function recibir(texto: string) {
@@ -249,6 +297,7 @@ const CAMPO = 'border border-line bg-bg px-3 py-2 text-sm text-fg outline-none f
 				antes,
 				{ nombre, algo: algo.value, ms: ms.value, lang: lang.value, tiempo: tiempo.value, memoria: memoria.value },
 				Date.now(),
+				casa,
 			);
 			if (typeof marca === 'string') return avisar(marca, 'text-heart');
 

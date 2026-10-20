@@ -5,6 +5,8 @@
  * cada marca es la palabra de quien la firma. Se pasa en un enlace, y quien lo
  * abre la suma a su tabla. Solo vale mejorar: una marca peor no pisa la tuya.
  */
+import { LENTAS, type Lenta } from './lentas';
+import { type Medalla, problemaDe } from './problemas';
 import { FIRMA_MAX } from './soluciones';
 
 /** De mejor a peor: el índice es lo que se compara y lo que viaja en el enlace. */
@@ -137,7 +139,12 @@ export function compara(a: Marca, b: Marca) {
  * Tu marca nueva, o el motivo por el que no entra. La primera entra siempre;
  * después, solo si mejora la que tenías.
  */
-export function nuevaMarca(antes: Marca | undefined, draft: Record<string, unknown>, now: number): Marca | string {
+export function nuevaMarca(
+	antes: Marca | undefined,
+	draft: Record<string, unknown>,
+	now: number,
+	casa?: Lenta,
+): Marca | string {
 	const ms = limpiaMs(draft.ms);
 	if (ms === null) return `El tiempo va en milisegundos, de 0 a ${MS_MAX.toLocaleString('es-ES')}.`;
 	const algo = linea(String(draft.algo ?? ''), ALGO_MAX);
@@ -145,9 +152,51 @@ export function nuevaMarca(antes: Marca | undefined, draft: Record<string, unkno
 
 	const marca = marcaDe({ ...draft, ms, algo, mejoras: antes ? antes.mejoras + 1 : 0, at: now });
 	if (!marca) return 'Ponte una firma en los retos para entrar en la tabla.';
+	if (casa && !mejoraLaCasa(marca, casa)) return 'Eso no mejora la función de la casa: baja el coste o la memoria.';
 	// El reloj de cada máquina va a su aire: empatar en coste y memoria pide bajar el tiempo.
 	if (antes && compara({ ...marca, at: 0 }, { ...antes, at: 0 }) >= 0) return 'No mejora tu marca. Afina y vuelve.';
 	return marca;
+}
+
+/* ---------- La función de la casa y el podio ---------- */
+
+/** La función lenta que toca optimizar esa semana. */
+export function casaDe(week: number): Lenta | undefined {
+	return LENTAS[problemaDe(week).id];
+}
+
+/** Gana a la de la casa si baja el coste, o lo iguala y pide menos memoria. */
+export function mejoraLaCasa(marca: Marca, casa: Lenta) {
+	return marca.tiempo < casa.tiempo || (marca.tiempo === casa.tiempo && marca.memoria < casa.memoria);
+}
+
+/** Para que haya medalla tiene que haber contra quién: tú solo no ganas nada. */
+export const RIVALES_MIN = 2;
+const PODIO: readonly Medalla[] = ['oro', 'plata', 'bronce'];
+
+/** Tu puesto en la liga de una semana, contando solo las marcas que ganan a la casa. */
+export function puestoDe(guardado: Guardado, week: number) {
+	const casa = casaDe(week);
+	const filas = tablaEficiencia(guardado, week).filter(({ marca }) => !casa || mejoraLaCasa(marca, casa));
+	const index = filas.findIndex((fila) => fila.tu);
+	if (index < 0) return null;
+	const medalla = filas.length >= RIVALES_MIN ? (PODIO[index] ?? null) : null;
+	return { puesto: index + 1, de: filas.length, medalla };
+}
+
+/**
+ * Las semanas ya cerradas en las que tienes marca, de la más nueva a la más
+ * vieja. La de ahora no cuenta: el podio se decide el lunes.
+ */
+export function palmaresEficiencia(guardado: Guardado, actual: number) {
+	return Object.keys(guardado.mias)
+		.map(Number)
+		.filter((week) => week < actual)
+		.sort((a, b) => b - a)
+		.flatMap((week) => {
+			const puesto = puestoDe(guardado, week);
+			return puesto ? [{ week, marca: guardado.mias[String(week)], ...puesto }] : [];
+		});
 }
 
 /* ---------- El enlace ---------- */
