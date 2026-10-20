@@ -1,0 +1,699 @@
+---
+/**
+ * El relato entre todos: cada persona pone una sola frase y el relato crece
+ * hasta el largo que eligió quien lo empezó. Se ve en directo entre las
+ * pestañas de tu navegador con BroadcastChannel —también lo que se está
+ * escribiendo— y para sumar a otra gente viaja en el enlace: quien lo abre pone
+ * su frase y lo pasa. Al completarse se baja en PDF con la impresión del
+ * navegador. No hay servidor: no se envía nada.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const LARGOS = [8, 12, 16, 24];
+const MAX_FRASE = 200;
+---
+
+<section id="relato" data-largos={LARGOS.join(',')} data-max={MAX_FRASE} class="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+	<div class="flex min-w-0 flex-col gap-4">
+		<form data-relato-empezar hidden class="flex flex-col gap-4 border border-accent bg-panel p-5">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="book-2" class="size-4 shrink-0 text-accent" />
+				Un relato nuevo
+			</span>
+			<label class="flex flex-col gap-2 text-sm text-muted">
+				Título
+				<input
+					type="text"
+					name="titulo"
+					maxlength="60"
+					required
+					placeholder="La noche que se cayó producción"
+					class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+				/>
+			</label>
+			<label class="flex flex-col gap-2 text-sm text-muted">
+				Cuántas frases tendrá
+				<select name="largo" class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent">
+					{LARGOS.map((n) => <option value={n} selected={n === 12}>{n} frases</option>)}
+				</select>
+			</label>
+			<button type="submit" class={`${BOTON} self-start border-accent text-accent`}>
+				<Icon name="player-play" class="size-4 shrink-0" />
+				Empezar el relato
+			</button>
+		</form>
+
+		<div data-relato-vista hidden class="flex flex-col gap-4">
+			<div class="flex flex-col gap-4 border border-line bg-panel p-5">
+				<div class="flex flex-wrap items-baseline justify-between gap-2">
+					<h2 data-relato-titulo class="font-pixel text-marca font-normal text-mark"></h2>
+					<span data-relato-cuenta class="text-xs text-muted"></span>
+				</div>
+				<div data-relato-barra class="flex gap-1" aria-hidden="true"></div>
+				<p data-relato-texto aria-live="polite" class="text-base text-fg"></p>
+				<p data-relato-fin hidden class="flex items-center gap-2 border-t border-line pt-3 text-sm text-mark">
+					<Icon name="books" class="size-4 shrink-0" />
+					Relato terminado. Ya no entra ni una frase más: bájalo en PDF.
+				</p>
+			</div>
+
+			<div data-relato-escribir class="flex flex-col gap-2">
+				<label for="relato-frase" class="flex justify-between gap-2 text-sm text-muted">
+					<span>Tu frase</span>
+					<span data-relato-largo class="font-mono text-xs"></span>
+				</label>
+				<textarea
+					id="relato-frase"
+					data-relato-frase
+					rows="3"
+					maxlength={MAX_FRASE}
+					placeholder="Y entonces alguien hizo git push --force."
+					class="resize-y border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent disabled:opacity-50"
+				></textarea>
+				<p data-relato-regla class="text-xs text-muted"></p>
+				<button type="button" data-relato-poner class={`${BOTON} self-start border-accent text-accent`}>
+					<Icon name="send" class="size-4 shrink-0" />
+					Poner mi frase
+				</button>
+			</div>
+
+			<p data-relato-aviso class="text-sm text-mark" aria-live="polite" hidden></p>
+
+			<div class="flex flex-wrap items-center gap-3">
+				<button type="button" data-relato-enlace class={BOTON}>
+					<Icon name="link" class="size-4 shrink-0" />
+					Pasar el enlace
+				</button>
+				<button type="button" data-relato-copiar class={BOTON}>
+					<Icon name="clipboard-copy" class="size-4 shrink-0" />
+					Copiar el texto
+				</button>
+				<button type="button" data-relato-pdf class={BOTON}>
+					<Icon name="file-type-pdf" class="size-4 shrink-0" />
+					Bajar en PDF
+				</button>
+				<button type="button" data-relato-nuevo class={BOTON}>
+					<Icon name="book-2" class="size-4 shrink-0" />
+					Empezar otro
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-5 border border-line bg-panel p-5">
+		<div class="flex flex-col gap-1">
+			<span class="flex items-center gap-2 text-xs text-muted">
+				<Icon name="broadcast" class="size-4 shrink-0 text-accent" />
+				En directo
+			</span>
+			<p data-relato-pestanas class="text-sm text-fg">…</p>
+		</div>
+
+		<label class="flex flex-col gap-2 text-sm text-muted">
+			Tu firma
+			<input
+				type="text"
+				data-relato-firma
+				maxlength="20"
+				placeholder="Cómo te llaman"
+				class="border border-line bg-bg px-3 py-2 text-fg outline-none focus:border-accent"
+			/>
+			<span class="text-xs">Va con tu frase y sale en el PDF.</span>
+		</label>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="users-group" class="size-4 shrink-0 text-accent" />
+				Quién ha escrito
+			</span>
+			<ol data-relato-autores class="flex flex-col gap-1 text-xs text-muted"></ol>
+			<p data-relato-sin-autores class="text-xs text-muted">Nadie aún.</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<button type="button" data-relato-otra class={`${BOTON} self-start`}>
+				<Icon name="user-plus" class="size-4 shrink-0" />
+				Otra persona en este equipo
+			</button>
+			<p class="text-xs text-muted">Una frase por persona. Si os pasáis el mismo ordenador, pulsa esto antes de dejarle el teclado.</p>
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<span class="flex items-center gap-2 text-sm text-muted">
+				<Icon name="history" class="size-4 shrink-0 text-accent" />
+				Tus relatos guardados
+			</span>
+			<ul data-relato-guardados class="flex flex-col gap-2 text-xs text-muted"></ul>
+			<p data-relato-sin-guardados class="text-xs text-muted">Ninguno. Los que dejes aparcados salen aquí.</p>
+		</div>
+	</div>
+</section>
+
+<article data-relato-hoja class="hidden font-mono">
+	<h1 data-hoja-titulo></h1>
+	<p data-hoja-texto></p>
+	<p data-hoja-firmas></p>
+	<p data-hoja-pie></p>
+</article>
+
+<style is:global>
+	/* Al imprimir solo sale la hoja del relato: es lo que se guarda como PDF. */
+	@media print {
+		body > :not([data-relato-hoja]) {
+			display: none !important;
+		}
+
+		body::before {
+			display: none;
+		}
+
+		html,
+		body {
+			background: #fff !important;
+		}
+
+		[data-relato-hoja] {
+			display: block !important;
+			color: #000;
+			font-size: 12pt;
+			line-height: 1.7;
+		}
+
+		[data-relato-hoja] h1 {
+			margin: 0 0 1.5em;
+			font-family: var(--font-pixel);
+			font-size: 22pt;
+			font-weight: 400;
+			line-height: 1.15;
+		}
+
+		[data-relato-hoja] p {
+			margin: 0 0 1.2em;
+		}
+
+		[data-hoja-firmas],
+		[data-hoja-pie] {
+			font-size: 9pt;
+			color: #404040;
+		}
+	}
+
+	@page {
+		margin: 2cm;
+	}
+</style>
+
+<script>
+	/** Una frase puesta: id, texto, firma, quién la puso y cuándo. */
+	type Frase = [string, string, string, string, number];
+	interface Relato {
+		id: string;
+		titulo: string;
+		largo: number;
+		inicio: number;
+		frases: Frase[];
+	}
+
+	const raiz = document.querySelector<HTMLElement>('#relato');
+	const LARGOS = (raiz?.dataset.largos ?? '12').split(',').map(Number);
+	const MAX_FRASE = Number(raiz?.dataset.max) || 200;
+	const CLAVE = 'tuweb:relato';
+	const MAX_GUARDADOS = 12;
+	/** Lo que se está escribiendo en otra pestaña se deja de ver si se calla. */
+	const BORRADOR = 5_000;
+	const PESTANA = Math.random().toString(36).slice(2, 10);
+
+	const $ = <T extends HTMLElement>(sel: string) => raiz?.querySelector<T>(sel) ?? null;
+	const empezar = $<HTMLFormElement>('[data-relato-empezar]');
+	const vista = $('[data-relato-vista]');
+	const texto = $('[data-relato-texto]');
+	const campo = $<HTMLTextAreaElement>('[data-relato-frase]');
+	const ponerBoton = $<HTMLButtonElement>('[data-relato-poner]');
+	const pdfBoton = $<HTMLButtonElement>('[data-relato-pdf]');
+	const firmaCampo = $<HTMLInputElement>('[data-relato-firma]');
+	const aviso = $('[data-relato-aviso]');
+	const hoja = document.querySelector<HTMLElement>('[data-relato-hoja]');
+	// La hoja cuelga del body para que al imprimir se pueda esconder todo lo demás.
+	if (hoja) document.body.append(hoja);
+
+	// --- Validación ---
+
+	const nuevoId = () => Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+	const esId = (s: unknown): s is string => typeof s === 'string' && /^[a-z0-9]{8}$/.test(s);
+	const limpiarTexto = (s: unknown, max = MAX_FRASE) =>
+		typeof s === 'string' ? s.replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '';
+	const limpiarFirma = (s: unknown) =>
+		typeof s === 'string' ? s.replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 20) : '';
+
+	function limpiarFrase(p: unknown): Frase | null {
+		if (!Array.isArray(p)) return null;
+		const [id, t, f, autor, cuando] = p;
+		const limpio = limpiarTexto(t, MAX_FRASE + 1);
+		if (!esId(id) || !esId(autor) || limpio.length < 2 || !Number.isFinite(cuando)) return null;
+		return [id, limpio, limpiarFirma(f), autor, cuando];
+	}
+
+	/** Sin repetidas y en el orden en que se pusieron. */
+	function ordenar(lista: Frase[]) {
+		const unicas = new Map(lista.map((f) => [f[0], f]));
+		return [...unicas.values()].sort((a, b) => a[4] - b[4] || a[0].localeCompare(b[0]));
+	}
+
+	function limpiarRelato(r: unknown): Relato | null {
+		if (!r || typeof r !== 'object') return null;
+		const { id, titulo, largo, inicio, frases } = r as Record<string, unknown>;
+		if (!esId(id) || !LARGOS.includes(largo as number) || !Number.isFinite(inicio)) return null;
+		const lista = Array.isArray(frases) ? frases.map(limpiarFrase).filter((f): f is Frase => !!f) : [];
+		return {
+			id,
+			titulo: limpiarTexto(titulo, 60) || 'Sin título',
+			largo: largo as number,
+			inicio: inicio as number,
+			frases: ordenar(lista).slice(0, largo as number),
+		};
+	}
+
+	/** Junta en a las frases de b. Si dos entran a la vez y sobra una, se queda fuera la última. */
+	function juntar(a: Relato, b: Relato) {
+		const antes = a.frases.length;
+		a.frases = ordenar([...a.frases, ...b.frases]).slice(0, a.largo);
+		return a.frases.length - antes;
+	}
+
+	const terminado = (r: Relato) => r.frases.length >= r.largo;
+	const firmas = (r: Relato) => [...new Set(r.frases.map((f) => f[2]).filter(Boolean))];
+
+	// --- Lo guardado ---
+
+	let yo = nuevoId();
+	let firma = '';
+	let actual: Relato | null = null;
+	let guardados: Relato[] = [];
+	/** La frase recién llegada, para resaltarla un momento. */
+	let nueva = '';
+	let ajeno: { texto: string; hasta: number } | null = null;
+
+	function leer() {
+		try {
+			const leido = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			return leido && typeof leido === 'object' ? leido : null;
+		} catch {
+			return null;
+		}
+	}
+
+	const guardado = leer();
+	if (guardado) {
+		if (esId(guardado.yo)) yo = guardado.yo;
+		firma = limpiarFirma(guardado.firma);
+		actual = limpiarRelato(guardado.actual);
+		if (Array.isArray(guardado.guardados))
+			guardados = guardado.guardados.map(limpiarRelato).filter((r: Relato | null): r is Relato => !!r).slice(0, MAX_GUARDADOS);
+	}
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ yo, firma, actual, guardados }));
+		} catch {
+			// Sin almacenamiento se escribe igual; solo que no se guarda.
+		}
+	}
+
+	/** Aparca un relato en la lista de guardados, si tiene algo. */
+	function aparcar(r: Relato | null) {
+		if (!r || !r.frases.length) return;
+		guardados = [r, ...guardados.filter((g) => g.id !== r.id)].slice(0, MAX_GUARDADOS);
+	}
+
+	/** Pone r delante: si es el mismo, junta frases; si no, aparca el que había. */
+	function adoptar(r: Relato) {
+		if (actual?.id === r.id) return juntar(actual, r);
+		const previo = guardados.find((g) => g.id === r.id);
+		if (previo) {
+			juntar(r, previo);
+			guardados = guardados.filter((g) => g.id !== r.id);
+		}
+		aparcar(actual);
+		actual = r;
+		return r.frases.length;
+	}
+
+	// --- En directo entre pestañas ---
+
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CLAVE) : null;
+	const otras = new Map<string, number>();
+	const enviar = (mensaje: Record<string, unknown>) => canal?.postMessage({ ...mensaje, de: PESTANA });
+
+	function pintarPestanas() {
+		const nodo = $('[data-relato-pestanas]');
+		if (!nodo) return;
+		if (!canal) nodo.textContent = 'Tu navegador no deja.';
+		else if (!otras.size) nodo.textContent = 'Solo esta pestaña. Cada frase, y lo que se escribe, sale al momento en las demás.';
+		else nodo.textContent = `${otras.size + 1} pestañas leyendo el mismo relato.`;
+	}
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === PESTANA) return;
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, Date.now());
+		if (data.tipo === 'hola' && actual) enviar({ tipo: 'relato', relato: actual });
+		if (data.tipo === 'relato') {
+			const r = limpiarRelato(data.relato);
+			if (r) {
+				adoptar(r);
+				pintar();
+			}
+		}
+		if (data.tipo === 'frase' && actual && data.relato === actual.id) {
+			const f = limpiarFrase(data.frase);
+			if (f) {
+				// La otra pestaña es tu mismo navegador: su frase también es la tuya.
+				if (esId(data.yo)) yo = data.yo;
+				juntar(actual, { ...actual, frases: [f] });
+				resaltar(f[0]);
+				ajeno = null;
+				pintar();
+			}
+		}
+		if (data.tipo === 'escribe' && actual && data.relato === actual.id) {
+			const t = limpiarTexto(data.texto);
+			ajeno = t ? { texto: t, hasta: Date.now() + BORRADOR } : null;
+			pintarTexto();
+		}
+		pintarPestanas();
+	});
+
+	setInterval(() => {
+		enviar({ tipo: 'aqui' });
+		const limite = Date.now() - 10_000;
+		otras.forEach((visto, id) => visto < limite && otras.delete(id));
+		if (ajeno && ajeno.hasta < Date.now()) {
+			ajeno = null;
+			pintarTexto();
+		}
+		pintarPestanas();
+	}, 4_000);
+
+	window.addEventListener('pagehide', () => enviar({ tipo: 'adios' }));
+
+	// --- Pintado ---
+
+	function resaltar(id: string) {
+		nueva = id;
+		setTimeout(() => {
+			if (nueva !== id) return;
+			nueva = '';
+			pintarTexto();
+		}, 2_500);
+	}
+
+	function avisar(t: string) {
+		if (!aviso) return;
+		aviso.textContent = t;
+		aviso.hidden = false;
+	}
+
+	function span(t: string, clase = '') {
+		const s = document.createElement('span');
+		s.textContent = t;
+		if (clase) s.className = clase;
+		return s;
+	}
+
+	function pintarTexto() {
+		if (!texto || !actual) return;
+		const trozos: Node[] = actual.frases.map((f, i) => {
+			const s = span(`${f[1]} `, f[0] === nueva ? 'bg-accent/15 text-mark' : 'hover:text-accent');
+			s.title = `${i + 1}. ${f[2] || 'Sin firma'}`;
+			return s;
+		});
+		const mio = limpiarTexto(campo?.value);
+		const borrador = !campo?.disabled && mio ? mio : ajeno?.texto;
+		if (borrador && !terminado(actual)) trozos.push(span(`${borrador}_`, 'text-muted underline decoration-dotted'));
+		if (!trozos.length) trozos.push(span('Aún no hay ni una frase. Pon la primera.', 'text-muted'));
+		texto.replaceChildren(...trozos);
+	}
+
+	function pintar() {
+		if (empezar) empezar.hidden = !!actual;
+		if (vista) vista.hidden = !actual;
+		pintarGuardados();
+		if (firmaCampo && document.activeElement !== firmaCampo) firmaCampo.value = firma;
+		const autores = $<HTMLOListElement>('[data-relato-autores]');
+		const sinAutores = $('[data-relato-sin-autores]');
+		if (!actual) {
+			autores?.replaceChildren();
+			if (sinAutores) sinAutores.hidden = false;
+			return;
+		}
+
+		const r = actual;
+		const n = r.frases.length;
+		const fin = terminado(r);
+		const escrito = r.frases.some((f) => f[3] === yo);
+		const titulo = $('[data-relato-titulo]');
+		if (titulo) titulo.textContent = r.titulo;
+		const cuenta = $('[data-relato-cuenta]');
+		if (cuenta) cuenta.textContent = `${n} de ${r.largo} frases`;
+		$('[data-relato-barra]')?.replaceChildren(
+			...Array.from({ length: r.largo }, (_, i) => span('', `h-2 flex-1 border ${i < n ? 'border-accent bg-accent' : 'border-line'}`)),
+		);
+		const finNodo = $('[data-relato-fin]');
+		if (finNodo) finNodo.hidden = !fin;
+		const escribir = $('[data-relato-escribir]');
+		if (escribir) escribir.hidden = fin;
+		if (campo) campo.disabled = escrito;
+		if (ponerBoton) ponerBoton.disabled = escrito;
+		const regla = $('[data-relato-regla]');
+		if (regla)
+			regla.textContent = escrito
+				? 'Ya has puesto tu frase. Pasa el enlace para que siga otra persona.'
+				: `Una sola frase, de hasta ${MAX_FRASE} caracteres. Puesta, no se cambia.`;
+		pintarLargo();
+		if (pdfBoton) {
+			pdfBoton.disabled = !fin;
+			pdfBoton.title = fin ? 'Elige «Guardar como PDF» al imprimir' : 'Se baja cuando el relato está completo';
+		}
+
+		if (sinAutores) sinAutores.hidden = n > 0;
+		autores?.replaceChildren(
+			...r.frases.map((f, i) => {
+				const li = document.createElement('li');
+				const hora = new Date(f[4]).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+				li.textContent = `${String(i + 1).padStart(2, '0')} · ${f[2] || 'Sin firma'}${f[3] === yo ? ' (tú)' : ''} · ${hora}`;
+				return li;
+			}),
+		);
+		pintarTexto();
+	}
+
+	function pintarLargo() {
+		const nodo = $('[data-relato-largo]');
+		if (nodo) nodo.textContent = `${campo?.value.length ?? 0}/${MAX_FRASE}`;
+	}
+
+	function pintarGuardados() {
+		const lista = $<HTMLUListElement>('[data-relato-guardados]');
+		const sin = $('[data-relato-sin-guardados]');
+		if (sin) sin.hidden = guardados.length > 0;
+		lista?.replaceChildren(
+			...guardados.map((g) => {
+				const li = document.createElement('li');
+				li.className = 'flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2';
+				li.append(span(`${g.titulo} · ${g.frases.length}/${g.largo}`, 'text-fg'));
+				const acciones = document.createElement('span');
+				acciones.className = 'flex gap-3';
+				const boton = (t: string, accion: () => void) => {
+					const b = document.createElement('button');
+					b.type = 'button';
+					b.className = 'text-muted hover:text-accent hover:underline';
+					b.textContent = t;
+					b.addEventListener('click', accion);
+					return b;
+				};
+				acciones.append(
+					boton('Retomar', () => {
+						adoptar(g);
+						guardar();
+						pintar();
+					}),
+				);
+				if (terminado(g)) acciones.append(boton('PDF', () => imprimir(g)));
+				li.append(acciones);
+				return li;
+			}),
+		);
+	}
+
+	// --- Escribir ---
+
+	/** Una frase y solo una: con su cierre y empezando en mayúscula. */
+	function preparar(bruto: unknown): { frase: string } | { error: string } {
+		let t = limpiarTexto(bruto);
+		if (t.length < 3) return { error: 'Escribe algo más: una frase entera.' };
+		if (/[.!?…]["»”)]*\s+\S/.test(t)) return { error: 'Solo una frase: quita el punto del medio.' };
+		if (!/[.!?…]["»”)]*$/.test(t)) t += '.';
+		return { frase: t.charAt(0).toLocaleUpperCase('es') + t.slice(1) };
+	}
+
+	function poner() {
+		if (!actual) return;
+		// Otra pestaña ha podido poner antes: manda lo guardado.
+		const leido = leer();
+		if (leido && esId(leido.yo)) yo = leido.yo;
+		const r = limpiarRelato(leido?.actual);
+		if (r && r.id === actual.id) juntar(actual, r);
+		if (terminado(actual)) return pintar();
+		if (actual.frases.some((f) => f[3] === yo)) {
+			avisar('Ya tienes tu frase en este relato. Una por persona.');
+			return pintar();
+		}
+		const listo = preparar(campo?.value);
+		if ('error' in listo) return avisar(listo.error);
+
+		const frase: Frase = [nuevoId(), listo.frase, firma, yo, Date.now()];
+		juntar(actual, { ...actual, frases: [frase] });
+		resaltar(frase[0]);
+		if (campo) campo.value = '';
+		guardar();
+		enviar({ tipo: 'frase', relato: actual.id, frase, yo });
+		avisar(terminado(actual) ? 'Era la última. Relato terminado: bájalo en PDF.' : 'Puesta. Pasa el enlace para que siga otra persona.');
+		pintar();
+	}
+
+	ponerBoton?.addEventListener('click', poner);
+
+	campo?.addEventListener('input', () => {
+		pintarLargo();
+		pintarTexto();
+		if (actual) enviar({ tipo: 'escribe', relato: actual.id, texto: campo.value });
+	});
+
+	campo?.addEventListener('keydown', (evento) => {
+		if (evento.key === 'Enter' && !evento.shiftKey) {
+			evento.preventDefault();
+			poner();
+		}
+	});
+
+	empezar?.addEventListener('submit', (evento) => {
+		evento.preventDefault();
+		const datos = new FormData(empezar);
+		const largo = Number(datos.get('largo'));
+		const titulo = limpiarTexto(datos.get('titulo'), 60);
+		if (!titulo) return;
+		adoptar({ id: nuevoId(), titulo, largo: LARGOS.includes(largo) ? largo : 12, inicio: Date.now(), frases: [] });
+		empezar.reset();
+		guardar();
+		enviar({ tipo: 'relato', relato: actual });
+		pintar();
+		campo?.focus();
+	});
+
+	$('[data-relato-nuevo]')?.addEventListener('click', () => {
+		aparcar(actual);
+		actual = null;
+		guardar();
+		pintar();
+		empezar?.querySelector('input')?.focus();
+	});
+
+	$('[data-relato-otra]')?.addEventListener('click', () => {
+		yo = nuevoId();
+		firma = '';
+		guardar();
+		avisar('Listo: lo siguiente que se ponga cuenta como otra persona. Que firme con su nombre.');
+		pintar();
+		firmaCampo?.focus();
+	});
+
+	if (firmaCampo) {
+		firmaCampo.value = firma;
+		firmaCampo.addEventListener('input', () => {
+			firma = limpiarFirma(firmaCampo.value);
+			guardar();
+		});
+	}
+
+	// --- Llevárselo ---
+
+	function aBase64(datos: unknown) {
+		let binario = '';
+		new TextEncoder().encode(JSON.stringify(datos)).forEach((b) => (binario += String.fromCharCode(b)));
+		return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	function deBase64(t: string) {
+		try {
+			const binario = atob(t.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(new TextDecoder().decode(Uint8Array.from(binario, (c) => c.charCodeAt(0))));
+		} catch {
+			return null;
+		}
+	}
+
+	async function copiar(t: string, bien: string) {
+		try {
+			await navigator.clipboard.writeText(t);
+			avisar(bien);
+		} catch {
+			avisar('No se pudo copiar. Tu navegador no deja usar el portapapeles.');
+		}
+	}
+
+	const enTexto = (r: Relato) => r.frases.map((f) => f[1]).join(' ');
+
+	$('[data-relato-enlace]')?.addEventListener('click', () => {
+		if (!actual) return;
+		const url = `${location.origin}/relato#r=${aBase64(actual)}`;
+		copiar(url, terminado(actual) ? 'Enlace copiado. Quien lo abra puede leerlo y bajarlo.' : 'Enlace copiado. Quien lo abra pone su frase y lo pasa.');
+	});
+
+	$('[data-relato-copiar]')?.addEventListener('click', () => {
+		if (!actual) return;
+		const quien = firmas(actual);
+		copiar(`${actual.titulo}\n\n${enTexto(actual)}${quien.length ? `\n\n— ${quien.join(', ')}` : ''}`, 'Copiado el relato, en texto.');
+	});
+
+	function imprimir(r: Relato) {
+		if (!hoja || !terminado(r)) return;
+		const rellenar = (sel: string, t: string) => {
+			const nodo = hoja.querySelector<HTMLElement>(sel);
+			if (nodo) nodo.textContent = t;
+		};
+		const quien = firmas(r);
+		const personas = new Set(r.frases.map((f) => f[3])).size;
+		const fecha = new Date(r.frases[r.frases.length - 1][4]).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+		rellenar('[data-hoja-titulo]', r.titulo);
+		rellenar('[data-hoja-texto]', enTexto(r));
+		rellenar('[data-hoja-firmas]', quien.length ? `Lo escribieron: ${quien.join(', ')}.` : '');
+		rellenar('[data-hoja-pie]', `${r.frases.length} frases de ${personas} ${personas === 1 ? 'persona' : 'personas'} · terminado el ${fecha} · tuweb.dev/relato`);
+		window.print();
+	}
+
+	pdfBoton?.addEventListener('click', () => {
+		if (actual) imprimir(actual);
+	});
+
+	// --- Arranque ---
+
+	// Un relato que llega en el enlace se pone delante; si ya lo tenías, se juntan las frases.
+	const recibido = /^#r=([A-Za-z0-9_-]+)$/.exec(location.hash);
+	if (recibido) {
+		const r = limpiarRelato(deBase64(recibido[1]));
+		if (r) {
+			adoptar(r);
+			guardar();
+			enviar({ tipo: 'relato', relato: actual });
+			avisar(actual && terminado(actual) ? 'Este relato ya está completo. Léelo y bájalo en PDF.' : 'Relato del enlace abierto. Pon tu frase y pásalo.');
+		} else avisar('El enlace está roto: sigue el relato que tenías.');
+		history.replaceState(null, '', '/relato');
+	}
+
+	enviar({ tipo: 'hola' });
+	pintarPestanas();
+	pintar();
+</script>

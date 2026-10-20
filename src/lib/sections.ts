@@ -51,7 +51,7 @@ export const GROUPS: Group[] = [
 		icon: 'messages',
 		card: 'Donde se junta la gente: hablar, con nombre o sin él, y el reto de la semana.',
 		intro:
-			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número—, un mural ASCII que se pasa de mano en mano, un lienzo común de un píxel por hora, un taller para dibujar a la vez con versiones y chat, y los retos semanales: el problema de la semana con su liga de eficiencia, tres de la casa cada lunes, los que propone la gente, un tablón de soluciones para cada uno con la mejor coronada y las más creativas al muro de la portada, votos con insignia para el que gana y tu perfil con las insignias especiales. En los chats sale el reto de la semana, por si quieres hablar de él.',
+			'Donde se junta la gente. Dos chats —con tu nombre de GitHub o con un número—, un mural ASCII que se pasa de mano en mano, un lienzo común de un píxel por hora, un taller para dibujar a la vez con versiones y chat, un relato que se escribe a frase por persona y se baja en PDF, y los retos semanales: el problema de la semana con su liga de eficiencia, tres de la casa cada lunes, los que propone la gente, un tablón de soluciones para cada uno con la mejor coronada y las más creativas al muro de la portada, votos con insignia para el que gana y tu perfil con las insignias especiales. En los chats sale el reto de la semana, por si quieres hablar de él.',
 	},
 	{
 		id: 'proceso',
@@ -428,6 +428,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un lienzo para dibujar entre varios a la vez, con versiones a las que volver y chat al lado.',
 		intro:
 			'Un lienzo de 32 × 32 para dibujar entre varios, sin turnos: lápiz, goma y cubo con la paleta de dieciséis, y deshacer. Cada trazo sale al momento en todas las pestañas que tengas abiertas. Guarda versiones con nombre y vuelve a la que quieras, y habla del dibujo en el chat de al lado. Para sumar a más gente pasa el enlace: lleva el dibujo, las últimas versiones y la charla. Te lo llevas en PNG. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
+	},
+	{
+		href: '/relato',
+		title: 'Relato entre todos',
+		icon: 'book-2',
+		group: 'canales',
+		card: 'Un cuento que se escribe a frase por persona, en directo y pasándose el enlace. Completo, se baja en PDF.',
+		intro:
+			'Alguien le pone título y largo, y a partir de ahí cada persona pone una sola frase. Se ve en directo en todas tus pestañas, hasta lo que se está escribiendo. Para sumar a más gente pasa el enlace: lleva el relato entero, quien lo abre pone su frase y lo pasa. Cuando llega a la última frase se cierra y se baja en PDF con sus firmas. No hay servidor: se guarda en tu navegador y solo viaja en el enlace que tú pases.',
 	},
 	{
 		href: '/retos',
