@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, una terminal donde los acertijos se abren con comandos de Linux y un lienzo de píxeles compartido y sin bordes que se escribe solo en ASCII, se baja en .txt y se cuelga en la galería de la comunidad. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, tres micro-retos de algoritmos optimizados al día con su ranking de la comunidad, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, una terminal donde los acertijos se abren con comandos de Linux y un lienzo de píxeles compartido y sin bordes que se escribe solo en ASCII, se baja en .txt y se cuelga en la galería de la comunidad. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',
@@ -284,6 +284,15 @@ export const SECTIONS: Section[] = [
 		card: 'Un algoritmo al día y gana quien lo resuelve en menos líneas, con su clasificación en vivo.',
 		intro:
 			'Cada día, un hoyo: un problema de algoritmos con su coste pedido —una pasada, una pila, una criba— y unas pruebas. Escribe la función en las menos líneas que puedas: se cuentan según escribes, sin vacías ni comentarios, y una línea de más de 80 caracteres cuenta por cada 80. El par es una solución limpia de la casa. Pásala en el playground, márcala y entras en la clasificación del día, que se ordena por líneas y luego por caracteres y se mueve en vivo con los códigos que te pasen. Aquí no se ejecuta nada y lo que escribes se queda en tu navegador.',
+	},
+	{
+		href: '/micro-retos',
+		title: 'Micro-retos',
+		icon: 'cpu',
+		group: 'juegos',
+		card: 'Tres algoritmos optimizados al día, con números nuevos, contra el reloj. Ranking de hoy y de siempre.',
+		intro:
+			'Cada día salen tres micro-retos generados con la fecha: búsqueda binaria, Fibonacci con memoria, ventana deslizante, dos punteros, Kadane o la criba, cada uno con sus números del día, los mismos para todo el mundo. Lees el código y escribes lo que sale por consola. Cien puntos por acierto, la mitad al segundo intento, y lo que te sobre de tres minutos suma. Al cerrar los tres sale tu código: pásalo o mándalo en un enlace, pega los que te pasen y escala en la clasificación de hoy o en la de siempre, que suma todos los días. Aquí no se ejecuta nada y lo que llevas se queda en tu navegador.',
 	},
 	{
 		href: '/acertijos',

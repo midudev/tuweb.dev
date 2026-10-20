@@ -1,0 +1,423 @@
+---
+/**
+ * Los micro-retos: tres algoritmos optimizados al día, con los números
+ * generados a partir de la fecha. Aquí no se ejecuta nada: se escribe lo que
+ * sale por consola y se compara con lo que calcula src/lib/micro.ts. El reloj
+ * corre desde que le das a empezar hasta que cierras los tres. Todo se queda
+ * en tu navegador.
+ */
+import { NOMBRE_MAX } from '../lib/diario';
+import { BONO_MAX, POR_DIA, PUNTOS, TRIES } from '../lib/micro';
+import Icon from './Icon.astro';
+
+const MARCADOR = [
+	{ id: 'hoy', label: 'puntos de hoy', icon: 'bolt' },
+	{ id: 'total', label: 'puntos totales', icon: 'sum' },
+	{ id: 'dias', label: 'días jugados', icon: 'calendar-month' },
+];
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted';
+const CAMPO = 'border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-accent';
+const MODO =
+	'border border-line px-2 py-1 text-muted aria-pressed:relative aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<section id="micro" class="flex flex-col gap-8">
+	<div class="flex min-w-0 flex-col gap-4">
+		<dl class="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-3">
+			{
+				MARCADOR.map((dato) => (
+					<div class="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+						<dt class="flex items-baseline gap-2 text-muted">
+							<Icon name={dato.icon} class="size-3.5 shrink-0 self-center" />
+							{dato.label}
+						</dt>
+						<dd data-dato={dato.id} class="font-pixel tabular-nums">0</dd>
+					</div>
+				))
+			}
+		</dl>
+
+		<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+			<span class="inline-flex items-center gap-2">
+				<Icon name="cpu" class="size-4 shrink-0 text-accent" />
+				<span data-titulo>Micro-retos del día</span>
+			</span>
+			<span class="inline-flex items-center gap-1.5 tabular-nums text-muted" title="Tiempo">
+				<Icon name="clock" class="size-4 shrink-0" />
+				<span data-reloj>0:00</span>
+			</span>
+		</div>
+
+		<div data-arranque class="flex flex-col items-start gap-3 border border-line bg-panel p-4 text-sm" hidden>
+			<p class="max-w-[62ch] text-muted">
+				{POR_DIA} algoritmos optimizados con los números de hoy. El código sale cuando le das y el reloj
+				corre hasta que cierras los {POR_DIA}: recargar no lo para. {PUNTOS} por acierto, la mitad al
+				segundo intento, y un punto por cada segundo que te sobre de {BONO_MAX / 60} minutos.
+			</p>
+			<button type="button" data-empezar class={`${BOTON} border-accent text-accent`}>
+				<Icon name="player-play" class="size-4 shrink-0" />
+				Empezar
+			</button>
+		</div>
+
+		<ol data-retos class="flex flex-col gap-4"></ol>
+		<p data-resumen class="border border-line bg-panel p-4 text-sm" hidden></p>
+		<p class="text-sm text-muted">
+			<span data-cuenta>Los siguientes salen a medianoche.</span> Tienes {TRIES} intentos por reto. Aquí
+			no se ejecuta nada: la respuesta la calcula la web con su copia del algoritmo.
+		</p>
+	</div>
+
+	<template data-plantilla>
+		<li class="flex flex-col gap-3 border border-line p-4">
+			<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+				<span data-reto-titulo class="font-pixel"></span>
+				<span data-reto-estado class="tabular-nums text-muted"></span>
+			</div>
+			<ol data-reto-codigo class="flex flex-col overflow-x-auto bg-panel p-3 text-sm"></ol>
+			<form data-reto-form class="flex flex-wrap gap-2">
+				<input type="text" inputmode="numeric" autocomplete="off" spellcheck="false" maxlength="12"
+					placeholder="Lo que sale por consola" aria-label="Lo que sale por consola" class={`min-w-0 grow ${CAMPO}`} />
+				<button type="submit" class={`${BOTON} border-accent text-accent`}>
+					<Icon name="send" class="size-4 shrink-0" />
+					Comprobar
+				</button>
+			</form>
+			<p data-reto-porque class="max-w-[62ch] text-sm text-muted" hidden></p>
+		</li>
+	</template>
+
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+			<h2 class="flex items-center gap-2 font-pixel text-lg">
+				<Icon name="list-numbers" class="size-4 shrink-0 text-accent" />
+				Clasificación
+			</h2>
+			<span class="flex items-center gap-3 text-sm">
+				<span class="flex" role="group" aria-label="Qué ranking ver">
+					<button type="button" data-modo="hoy" aria-pressed="true" class={MODO}>Hoy</button>
+					<button type="button" data-modo="siempre" aria-pressed="false" class={`-ml-px ${MODO}`}>Siempre</button>
+				</span>
+				<span data-liga-cuenta class="tabular-nums text-muted"></span>
+			</span>
+		</div>
+
+		<p class="max-w-[62ch] text-sm text-muted">
+			Al cerrar los {POR_DIA} sale tu código del día. Pásaselo a quien quieras y pega aquí los suyos: hoy
+			se ordena por puntos y luego por tiempo; en siempre se suman todos los días que tengas de cada cual.
+		</p>
+
+		<div class="grid gap-3 md:grid-cols-2">
+			<div class="flex flex-col gap-2 border border-line p-3">
+				<label for="micro-nombre" class="text-sm text-muted">Tu nombre en la tabla</label>
+				<input id="micro-nombre" type="text" autocomplete="off" spellcheck="false" maxlength={NOMBRE_MAX}
+					placeholder="anon" class={CAMPO} />
+				<div class="flex flex-wrap items-center gap-2">
+					<code data-liga-codigo class="min-w-0 grow truncate bg-panel px-3 py-2 text-sm"></code>
+					<button type="button" data-liga-copiar class={BOTON}>
+						<Icon name="copy" class="size-4 shrink-0" />
+						<span>Copiar</span>
+					</button>
+				</div>
+			</div>
+
+			<form data-liga-pegar class="flex flex-col gap-2 border border-line p-3">
+				<label for="micro-pegado" class="text-sm text-muted">El código de otra persona</label>
+				<input id="micro-pegado" type="text" autocomplete="off" spellcheck="false" maxlength="80"
+					placeholder="micro.nombre.2026-10-20.320.95.3" class={CAMPO} />
+				<div class="flex flex-wrap items-center gap-2">
+					<button type="submit" class={BOTON}>
+						<Icon name="user-plus" class="size-4 shrink-0" />
+						Añadir a la tabla
+					</button>
+					<span data-liga-aviso class="text-sm text-heart"></span>
+				</div>
+			</form>
+		</div>
+
+		<p data-liga-movida class="text-sm" aria-live="polite"></p>
+		<p data-vacio class="border-y border-line py-2.5 text-sm text-muted">Nadie en la tabla todavía.</p>
+		<ol data-liga class="flex flex-col"></ol>
+
+		<p class="text-sm text-muted">
+			La tabla vive en este navegador y cada código dice lo que dice quien lo pasa: es una liga entre
+			gente que se fía. Al lado de cada puesto sale cuánto sube o baja con cada código que entra y cada
+			reto que cierras, también desde otras pestañas.
+		</p>
+	</div>
+</section>
+
+<style is:global>
+	/* Lo pinta el script y algunas cajas llevan flex: que hidden gane. */
+	#micro [hidden] {
+		display: none;
+	}
+</style>
+
+<script>
+	import { dayKey, limpiaNombre, readLiga as readLigaReto, tiempo } from '../lib/diario';
+	import { acierta, addRival, cerrado, clasificacion, codigoDe, KEY, leeCodigo, LIGA_KEY } from '../lib/micro';
+	import { POR_DIA, PUNTOS, puntosDe, readLiga, readProgreso, retosDelDia } from '../lib/micro';
+	import { saveLiga, saveProgreso, terminado, TRIES, type Dia, type Fila, type Modo } from '../lib/micro';
+
+	const raiz = document.querySelector<HTMLElement>('#micro');
+
+	if (raiz) {
+		function $(selector: string) {
+			return raiz!.querySelector(selector) as HTMLElement;
+		}
+
+		function el(tag: string, className = '', texto = '') {
+			const nodo = document.createElement(tag);
+			nodo.className = className;
+			nodo.textContent = texto;
+			return nodo;
+		}
+
+		const plantilla = $('[data-plantilla]') as HTMLTemplateElement;
+		const nombre = $('#micro-nombre') as HTMLInputElement;
+		const pegar = $('[data-liga-pegar]') as HTMLFormElement;
+		const pegado = pegar.querySelector('input')!;
+		const aviso = $('[data-liga-aviso]');
+		const copiar = $('[data-liga-copiar]') as HTMLButtonElement;
+
+		let progreso = readProgreso();
+		let liga = readLiga();
+		// Si ya tienes nombre en la liga del reto diario, vale el mismo.
+		if (!liga.nombre) liga = { ...liga, nombre: readLigaReto().nombre };
+		let hoy = dayKey(new Date());
+		let retos = retosDelDia(hoy);
+		let modo: Modo = 'hoy';
+
+		const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
+		/** Los puestos de antes del último cambio: contra ellos se cuenta quién sube y quién baja. */
+		let antes: Record<Modo, Map<string, number>> = { hoy: new Map(), siempre: new Map() };
+		function foto() {
+			for (const cual of ['hoy', 'siempre'] as const) {
+				antes[cual] = new Map(clasificacion(liga, progreso, hoy, cual).map((fila) => [fila.id, fila.position]));
+			}
+		}
+		const sube = (fila: Fila) => {
+			const previo = antes[modo].get(fila.id);
+			return previo === undefined ? null : previo - fila.position;
+		};
+
+		function tarjetaDe(dia: Dia, i: number) {
+			const reto = retos[i];
+			const tarjeta = (plantilla.content.cloneNode(true) as DocumentFragment).firstElementChild as HTMLElement;
+			const parte = (selector: string) => tarjeta.querySelector(selector) as HTMLElement;
+			parte('[data-reto-titulo]').textContent = `${i + 1}. ${reto.titulo}`;
+			parte('[data-reto-codigo]').replaceChildren(
+				...reto.code.map((linea, n) => {
+					const fila = el('li', 'flex gap-3 whitespace-pre');
+					fila.append(el('span', 'min-w-6 text-end text-muted select-none', String(n + 1)), el('code', '', linea));
+					return fila;
+				}),
+			);
+
+			const ok = dia.ok[i];
+			const fin = cerrado(dia, i);
+			const estado = parte('[data-reto-estado]');
+			const quedan = plural(TRIES - dia.tries[i], 'intento', 'intentos');
+			estado.textContent = ok ? `bien, +${dia.tries[i] === 1 ? PUNTOS : PUNTOS / 2}` : fin ? 'fallado' : quedan;
+			estado.style.color = ok ? 'var(--color-ok)' : fin ? 'var(--color-heart)' : '';
+			if (fin) tarjeta.style.borderColor = estado.style.color;
+			const porque = parte('[data-reto-porque]');
+			porque.hidden = !fin;
+			porque.textContent = `${ok ? '' : `Salía ${reto.respuesta}. `}${reto.porque}`;
+
+			const form = parte('[data-reto-form]') as HTMLFormElement;
+			form.hidden = fin;
+			form.addEventListener('submit', (event) => {
+				event.preventDefault();
+				const valor = form.querySelector('input')!.value;
+				if (!valor.trim()) return;
+				responder(i, valor);
+				raiz!.querySelector<HTMLInputElement>('[data-reto-form]:not([hidden]) input')?.focus();
+			});
+			return tarjeta;
+		}
+
+		function pintarRetos() {
+			const dia = progreso[hoy];
+			const fecha = new Date(`${hoy}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+			$('[data-titulo]').textContent = `Micro-retos del ${fecha}`;
+			$('[data-arranque]').hidden = !!dia;
+			$('[data-retos]').replaceChildren(...(dia ? retos.map((_, i) => tarjetaDe(dia, i)) : []));
+
+			const resumen = $('[data-resumen]');
+			resumen.hidden = !terminado(dia);
+			if (terminado(dia)) {
+				const { aciertos, base, bono, total } = puntosDe(dia);
+				const rapidez = bono ? ` y ${bono} por rapidez` : '';
+				resumen.textContent = `${aciertos} de ${POR_DIA} en ${tiempo(dia.segundos ?? 0)}: ${base} por aciertos${rapidez}. Hoy llevas ${total}.`;
+			}
+
+			const jugados = Object.values(progreso).filter(terminado);
+			const dato = (id: string, valor: number) => ($(`[data-dato="${id}"]`).textContent = String(valor));
+			dato('hoy', terminado(dia) ? puntosDe(dia).total : 0);
+			dato('total', jugados.reduce((s, d) => s + puntosDe(d).total, 0));
+			dato('dias', jugados.length);
+			pintarLiga();
+		}
+
+		function responder(i: number, valor: string) {
+			const dia = progreso[hoy];
+			if (!dia || cerrado(dia, i)) return;
+			foto();
+			dia.tries[i] += 1;
+			dia.ok[i] = acierta(retos[i], valor);
+			if (terminado(dia)) dia.segundos = Math.max(0, Math.floor((Date.now() - dia.inicio) / 1000));
+			saveProgreso(progreso);
+			pintarRetos();
+			pintarCrono();
+		}
+
+		function pintarLiga() {
+			const dia = progreso[hoy];
+			const mia = terminado(dia)
+				? { nombre: liga.nombre, dia: hoy, puntos: puntosDe(dia).total, segundos: dia.segundos ?? 0, aciertos: puntosDe(dia).aciertos }
+				: null;
+			$('[data-liga-codigo]').textContent = mia ? codigoDe(mia) : 'Cierra los tres y sale tu código.';
+			copiar.disabled = !mia;
+
+			const filas = clasificacion(liga, progreso, hoy, modo);
+			$('[data-liga-cuenta]').textContent = plural(filas.length, 'persona', 'personas');
+			$('[data-vacio]').hidden = filas.length > 0;
+
+			const yo = filas.find((fila) => fila.yo);
+			const mio = yo ? sube(yo) : null;
+			const movida = $('[data-liga-movida]');
+			const donde = yo ? `vas ${yo.position}.º de ${filas.length}.` : '';
+			movida.textContent = !yo
+				? ''
+				: mio
+					? `${mio > 0 ? 'Subes' : 'Bajas'} ${plural(Math.abs(mio), 'puesto', 'puestos')}: ${donde}`
+					: `Ahora ${donde}`;
+			movida.style.color = mio ? (mio > 0 ? 'var(--color-ok)' : 'var(--color-heart)') : '';
+			$('[data-liga]').replaceChildren(...filas.map(filaDe));
+		}
+
+		function filaDe(fila: Fila) {
+			const li = el(
+				'li',
+				`grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-4 border-t border-line py-2.5 text-sm last:border-b${fila.yo ? ' bg-panel' : ''}`,
+			);
+			const puesto = el('span', `font-pixel tabular-nums ${fila.position <= 3 ? 'text-accent' : 'text-muted'}`, String(fila.position));
+
+			const quien = el('span', 'flex min-w-0 flex-col');
+			const detalle =
+				modo === 'hoy'
+					? `${fila.aciertos} de ${POR_DIA} · ${tiempo(fila.segundos)}`
+					: `${plural(fila.dias, 'día', 'días')} · ${plural(fila.aciertos, 'acierto', 'aciertos')}`;
+			quien.append(el('span', 'truncate', fila.yo ? `${fila.nombre || 'anon'} (tú)` : fila.nombre), el('span', 'text-muted', detalle));
+
+			// El +2 o -1 desde el último cambio, o «nuevo» si acaba de entrar.
+			const cambio = sube(fila);
+			const flecha = el(
+				'span',
+				`w-12 text-end tabular-nums ${cambio === null ? 'text-mark' : cambio > 0 ? 'text-ok' : 'text-heart'}`,
+				cambio === null ? (antes[modo].size ? 'nuevo' : '') : cambio > 0 ? `+${cambio}` : cambio ? String(cambio) : '',
+			);
+			const lado = el('span', 'flex items-baseline gap-3');
+			lado.append(flecha, el('span', 'font-pixel tabular-nums', String(fila.puntos)));
+
+			li.append(puesto, quien, lado);
+			return li;
+		}
+
+		raiz.querySelectorAll<HTMLButtonElement>('[data-modo]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				modo = boton.dataset.modo === 'siempre' ? 'siempre' : 'hoy';
+				raiz.querySelectorAll<HTMLButtonElement>('[data-modo]').forEach((otro) => {
+					otro.setAttribute('aria-pressed', String(otro === boton));
+				});
+				pintarLiga();
+			});
+		});
+
+		nombre.value = liga.nombre;
+		nombre.addEventListener('input', () => {
+			const limpio = limpiaNombre(nombre.value);
+			if (limpio !== nombre.value) nombre.value = limpio;
+			liga = { ...liga, nombre: limpio };
+			saveLiga(liga);
+			pintarLiga();
+		});
+
+		pegar.addEventListener('submit', (event) => {
+			event.preventDefault();
+			const marca = leeCodigo(pegado.value);
+			const nueva = marca ? addRival(liga, marca) : 'Ese código no cuadra. Tiene que ser como micro.nombre.2026-10-20.320.95.3.';
+			if (typeof nueva === 'string') {
+				aviso.textContent = nueva;
+				return;
+			}
+			aviso.textContent = '';
+			pegado.value = '';
+			foto();
+			liga = nueva;
+			saveLiga(liga);
+			pintarLiga();
+		});
+
+		copiar.addEventListener('click', async () => {
+			const texto = copiar.querySelector('span')!;
+			try {
+				await navigator.clipboard.writeText($('[data-liga-codigo]').textContent ?? '');
+				texto.textContent = 'Copiado';
+			} catch {
+				texto.textContent = 'Cópialo a mano';
+			}
+			setTimeout(() => (texto.textContent = 'Copiar'), 1500);
+		});
+
+		$('[data-empezar]').addEventListener('click', () => {
+			if (progreso[hoy]) return;
+			progreso[hoy] = { inicio: Date.now(), tries: Array(POR_DIA).fill(0), ok: Array(POR_DIA).fill(false) };
+			saveProgreso(progreso);
+			pintarRetos();
+			pintarCrono();
+			raiz.querySelector<HTMLInputElement>('[data-reto-form] input')?.focus();
+		});
+
+		// Lo que hagas en otra pestaña llega aquí al momento.
+		window.addEventListener('storage', (event) => {
+			if (event.key !== null && event.key !== KEY && event.key !== LIGA_KEY) return;
+			foto();
+			progreso = readProgreso();
+			liga = readLiga();
+			if (document.activeElement !== nombre) nombre.value = liga.nombre;
+			pintarRetos();
+		});
+
+		/** El tiempo de hoy: corriendo si está abierto, quieto si ya se cerró. */
+		function pintarCrono() {
+			const dia = progreso[hoy];
+			const corre = dia ? Math.max(0, Math.floor((Date.now() - dia.inicio) / 1000)) : 0;
+			$('[data-reloj]').textContent = tiempo(dia?.segundos ?? corre);
+		}
+
+		/** La cuenta atrás hasta medianoche. Si cambia el día con la página abierta, salen los nuevos. */
+		function reloj() {
+			const ya = new Date();
+			if (dayKey(ya) !== hoy) {
+				hoy = dayKey(ya);
+				progreso = readProgreso();
+				retos = retosDelDia(hoy);
+				antes = { hoy: new Map(), siempre: new Map() };
+				pintarRetos();
+			}
+			pintarCrono();
+			const falta = Math.ceil((new Date(ya).setHours(24, 0, 0, 0) - ya.getTime()) / 60000);
+			$('[data-cuenta]').textContent = `Los siguientes salen en ${Math.floor(falta / 60)} h ${falta % 60} min.`;
+		}
+
+		pintarRetos();
+		reloj();
+		setInterval(reloj, 1000);
+	}
+</script>
