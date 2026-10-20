@@ -5,7 +5,9 @@
  * contraste de WCAG 2 en el nivel elegido, AA o AAA. Se ve al momento en una
  * interfaz de prueba y cada color se toca a mano; si una pareja deja de cumplir,
  * «Arreglar» mueve solo la luz de ese color, sin cambiarle el tono, hasta que
- * cumpla. Las cuentas de contraste son las de src/lib/color-lab.ts. Se guarda en
+ * cumpla. Las cuentas de contraste son las de src/lib/color-lab.ts. La vista se
+ * puede ver como la ve alguien con protanopía, deuteranopía o tritanopía, y se
+ * avisa si con alguna de ellas el éxito y el error se confunden. Se guarda en
  * localStorage y no sale del navegador.
  */
 import Icon from './Icon.astro';
@@ -27,6 +29,17 @@ const SIMULACIONES = [
 	{ id: 'normal', label: 'Normal' },
 	{ id: 'gris', label: 'En gris' },
 	{ id: 'borroso', label: 'Borroso' },
+	{ id: 'protan', label: 'Protanopía' },
+	{ id: 'deutan', label: 'Deuteranopía' },
+	{ id: 'tritan', label: 'Tritanopía' },
+];
+
+// Matrices de Machado (2009) con severidad completa, en RGB lineal. Las mismas
+// pintan el filtro SVG de la vista y las cuentas del script.
+const DALTONISMO = [
+	{ id: 'protan', valores: '0.152286 1.052583 -0.204868 0 0 0.114503 0.786281 0.099216 0 0 -0.003882 -0.048116 1.051998 0 0 0 0 0 1 0' },
+	{ id: 'deutan', valores: '0.367322 0.860646 -0.227968 0 0 0.280085 0.672501 0.047413 0 0 -0.011820 0.042940 0.968881 0 0 0 0 0 1 0' },
+	{ id: 'tritan', valores: '1.255528 -0.076749 -0.178779 0 0 -0.078411 0.930809 0.147602 0 0 0.004733 0.691367 0.303900 0 0 0 0 0 1 0' },
 ];
 
 const BOTON =
@@ -44,6 +57,16 @@ const OPCION =
 	class="flex flex-col gap-6"
 >
 	<template data-ea-icono><Icon name="wand" class="size-4 shrink-0" /></template>
+
+	<svg aria-hidden="true" class="absolute size-0">
+		{
+			DALTONISMO.map((d) => (
+				<filter id={`ea-${d.id}`} color-interpolation-filters="linearRGB">
+					<feColorMatrix type="matrix" values={d.valores} />
+				</filter>
+			))
+		}
+	</svg>
 
 	<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
 		<div class="flex flex-col gap-5">
@@ -169,8 +192,12 @@ const OPCION =
 							<span class="ea-primario px-4 py-2 text-sm">Suscribirme</span>
 							<span class="ea-secundario px-4 py-2 text-sm">Ahora no</span>
 						</div>
-						<p class="ea-exito px-3 py-2 text-sm">Guardado sin problemas.</p>
-						<p class="ea-error px-3 py-2 text-sm">Falta el correo.</p>
+						<p class="ea-exito flex items-center gap-2 px-3 py-2 text-sm">
+							<Icon name="circle-check" class="size-4 shrink-0" />Guardado sin problemas.
+						</p>
+						<p class="ea-error flex items-center gap-2 px-3 py-2 text-sm">
+							<Icon name="alert-circle" class="size-4 shrink-0" />Falta el correo.
+						</p>
 					</div>
 				</div>
 			</div>
@@ -178,6 +205,17 @@ const OPCION =
 			<div class="flex flex-col gap-2">
 				<p data-ea-resumen class="text-sm text-mark" aria-live="polite"></p>
 				<ul data-ea-tabla class="flex flex-col border border-line"></ul>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="eye" class="size-4 shrink-0" />
+					Éxito y error con daltonismo
+				</span>
+				<ul data-ea-dalton class="flex flex-col border border-line"></ul>
+				<span class="text-xs text-muted">
+					Aunque se distingan, acompaña el color con un icono o un texto: el color solo no basta.
+				</span>
 			</div>
 
 			<div class="flex flex-col gap-2">
@@ -221,6 +259,15 @@ const OPCION =
 	}
 	.ea-vista[data-simular='borroso'] {
 		filter: blur(1.5px);
+	}
+	.ea-vista[data-simular='protan'] {
+		filter: url(#ea-protan);
+	}
+	.ea-vista[data-simular='deutan'] {
+		filter: url(#ea-deutan);
+	}
+	.ea-vista[data-simular='tritan'] {
+		filter: url(#ea-tritan);
 	}
 	.ea-cabecera {
 		background: var(--ea-superficie);
@@ -286,7 +333,8 @@ const OPCION =
 	type Rol = 'fondo' | 'superficie' | 'texto' | 'suave' | 'borde' | 'primario' | 'sobrePrimario' | 'enlace' | 'exito' | 'error';
 	type Modo = 'claro' | 'oscuro';
 	type Nivel = 'AA' | 'AAA';
-	type Simulacion = 'normal' | 'gris' | 'borroso';
+	type Daltonismo = 'protan' | 'deutan' | 'tritan';
+	type Simulacion = 'normal' | 'gris' | 'borroso' | Daltonismo;
 	type Estado = { base: string; modo: Modo; nivel: Nivel; simulacion: Simulacion; colores: Record<Rol, string> };
 
 	// Qué color va delante y cuál detrás, y cuál se mueve al arreglar. En el
@@ -323,7 +371,28 @@ const OPCION =
 	const HEX = /^#[0-9a-f]{6}$/i;
 	const MODOS: Modo[] = ['claro', 'oscuro'];
 	const NIVELES: Nivel[] = ['AA', 'AAA'];
-	const SIMULACIONES: Simulacion[] = ['normal', 'gris', 'borroso'];
+	const SIMULACIONES: Simulacion[] = ['normal', 'gris', 'borroso', 'protan', 'deutan', 'tritan'];
+
+	// Las mismas matrices que los filtros SVG de arriba, fila a fila.
+	const DALTONISMOS: { id: Daltonismo; que: string; matriz: number[][] }[] = [
+		{
+			id: 'protan',
+			que: 'Protanopía (sin rojo)',
+			matriz: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+		},
+		{
+			id: 'deutan',
+			que: 'Deuteranopía (sin verde)',
+			matriz: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+		},
+		{
+			id: 'tritan',
+			que: 'Tritanopía (sin azul)',
+			matriz: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]],
+		},
+	];
+	// Distancia en OKLab por debajo de la cual dos colores de aviso se confunden.
+	const MINIMA_DISTANCIA = 0.1;
 
 	const panel = document.querySelector<HTMLElement>('[data-panel="accesible"]');
 	const base = panel?.querySelector<HTMLInputElement>('[data-ea-base]');
@@ -339,6 +408,7 @@ const OPCION =
 	const simulaciones = panel?.querySelectorAll<HTMLButtonElement>('[data-ea-simular]') ?? [];
 	const copiar = panel?.querySelector<HTMLButtonElement>('[data-ea-copiar]');
 	const copiarTexto = copiar?.querySelector<HTMLElement>('[data-ea-copiar-texto]');
+	const dalton = panel?.querySelector<HTMLElement>('[data-ea-dalton]');
 
 	const aRgb = (hex: string) => ({
 		r: parseInt(hex.slice(1, 3), 16) / 255,
@@ -503,6 +573,83 @@ const OPCION =
 		}
 	}
 
+	const aLineal = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+	const deLineal = (c: number) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+
+	// Cómo ve el color alguien con ese daltonismo: en RGB lineal y de vuelta.
+	function simular(hex: string, matriz: number[][]) {
+		const { r, g, b } = aRgb(hex);
+		const lineal = [r, g, b].map(aLineal);
+		const [sr, sg, sb] = matriz.map((fila) =>
+			deLineal(Math.min(1, Math.max(0, fila[0] * lineal[0] + fila[1] * lineal[1] + fila[2] * lineal[2]))),
+		);
+		return hexDe({ r: sr, g: sg, b: sb, a: 1 }, false);
+	}
+
+	function oklab(hex: string) {
+		const { r, g, b } = aRgb(hex);
+		const [lr, lg, lb] = [r, g, b].map(aLineal);
+		const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+		const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+		const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+		return [
+			0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+			1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+			0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+		];
+	}
+
+	function distancia(uno: string, otro: string) {
+		const a = oklab(uno);
+		const b = oklab(otro);
+		return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+	}
+
+	function pintarDalton() {
+		if (!dalton) return;
+		dalton.replaceChildren(
+			...DALTONISMOS.map((tipo) => {
+				const exito = simular(estado.colores.exito, tipo.matriz);
+				const error = simular(estado.colores.error, tipo.matriz);
+				const ok = distancia(exito, error) >= MINIMA_DISTANCIA;
+
+				const fila = document.createElement('li');
+				fila.className = 'flex flex-wrap items-center gap-3 border-b border-line px-3 py-2 text-sm last:border-b-0';
+
+				const muestras = document.createElement('span');
+				muestras.className = 'flex shrink-0';
+				muestras.setAttribute('aria-hidden', 'true');
+				[exito, error].forEach((color) => {
+					const muestra = document.createElement('span');
+					muestra.className = 'size-8 border border-line';
+					muestra.style.background = color;
+					muestras.append(muestra);
+				});
+
+				const que = document.createElement('span');
+				que.className = 'min-w-0 flex-1';
+				que.textContent = tipo.que;
+
+				const nota = document.createElement('span');
+				nota.className = `w-32 text-right ${ok ? 'text-ok' : 'text-heart'}`;
+				nota.textContent = ok ? 'Se distinguen' : 'Se confunden';
+
+				const ver = document.createElement('button');
+				ver.type = 'button';
+				ver.className = 'border border-line px-2 py-1 text-xs text-muted hover:border-accent hover:text-accent';
+				ver.textContent = 'Ver';
+				ver.setAttribute('aria-label', `Ver la interfaz con ${tipo.que.toLowerCase()}`);
+				ver.addEventListener('click', () => {
+					estado.simulacion = tipo.id;
+					actualizar();
+				});
+
+				fila.append(muestras, que, nota, ver);
+				return fila;
+			}),
+		);
+	}
+
 	function pintar() {
 		ROLES.forEach((rol) => vista?.style.setProperty(`--ea-${rol}`, estado.colores[rol]));
 		if (vista) vista.dataset.simular = estado.simulacion;
@@ -516,6 +663,7 @@ const OPCION =
 		niveles.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.eaNivel === estado.nivel)));
 		simulaciones.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.eaSimular === estado.simulacion)));
 		pintarTabla();
+		pintarDalton();
 		if (salida) salida.textContent = css();
 	}
 
