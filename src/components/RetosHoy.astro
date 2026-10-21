@@ -1,0 +1,252 @@
+---
+/**
+ * Los retos de código de hoy, juntos en la pestaña Juegos: el reto diario, los
+ * micro-retos y el hoyo de golf. Cada uno sigue en su página; aquí sale qué toca
+ * hoy, cómo vas y tu puesto en su clasificación. No guarda nada propio: lee lo
+ * que dejan los tres en tu navegador y se repinta en cuanto juegas en otra
+ * pestaña o te pegan un código.
+ */
+import { getSection } from '../lib/sections';
+import Icon from './Icon.astro';
+import SectionLabel from './SectionLabel.astro';
+
+const retos = [
+	{ id: 'reto', tabla: 'del mes', section: getSection('/reto-diario') },
+	{ id: 'micro', tabla: 'de hoy', section: getSection('/micro-retos') },
+	{ id: 'golf', tabla: 'de hoy', section: getSection('/golf') },
+];
+---
+
+<section id="retos-hoy" class="flex flex-col gap-4" aria-labelledby="retos-hoy-titulo">
+	<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+		<SectionLabel forId="retos-hoy-titulo">RETOS DE CÓDIGO DE HOY</SectionLabel>
+		<span class="text-sm tabular-nums text-muted" data-cuenta></span>
+	</div>
+
+	<p class="max-w-[62ch] text-sm text-pretty text-muted">
+		Tres retos de algoritmos al día, los mismos para todo el mundo. Aquí ves qué toca, cómo vas y tu puesto en
+		cada clasificación; se mueve en vivo cuando juegas en otra pestaña o pegas el código de alguien.
+	</p>
+
+	<ul class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
+		{
+			retos.map(({ id, tabla, section }) => (
+				<li class="flex" data-reto={id}>
+					<a
+						href={section.href}
+						class="group flex grow flex-col gap-3 border border-line bg-panel px-4 py-5 transition-colors hover:border-accent sm:px-5"
+					>
+						<span class="flex items-center gap-2.5 font-pixel text-lg">
+							<Icon name={section.icon} class="size-5 shrink-0 text-accent" />
+							{section.title}
+						</span>
+						<span class="text-sm text-pretty" data-que>
+							&nbsp;
+						</span>
+						<span class="text-sm text-muted" data-estado>
+							Sin empezar
+						</span>
+						<span class="flex items-baseline gap-2 border-t border-line pt-3 text-sm">
+							<span class="font-pixel text-lg tabular-nums" data-puesto>
+								—
+							</span>
+							<span class="text-muted" data-de data-tabla={tabla}>
+								sin marca todavía
+							</span>
+							<span class="ml-auto font-pixel tabular-nums" data-mueve />
+						</span>
+						<span class="mt-auto inline-flex items-center gap-2 text-sm text-accent group-hover:underline">
+							Jugar
+							<Icon
+								name="arrow-right"
+								class="size-4 shrink-0 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+							/>
+						</span>
+					</a>
+				</li>
+			))
+		}
+	</ul>
+
+	<p class="text-sm text-muted" data-resumen aria-live="polite"></p>
+</section>
+
+<script>
+	import {
+		CLAVES_VIVAS,
+		DIFICULTADES,
+		TEMAS,
+		clasificacion as tablaReto,
+		dayKey,
+		isClosed,
+		readLiga as readLigaReto,
+		readProgress,
+		retoDelDia,
+		retoPorId,
+		statsOf,
+	} from '../lib/diario';
+	import * as golf from '../lib/golf';
+	import * as micro from '../lib/micro';
+
+	const raiz = document.querySelector<HTMLElement>('#retos-hoy');
+
+	if (raiz) {
+		const vivas = new Set([...CLAVES_VIVAS, micro.KEY, micro.LIGA_KEY, golf.KEY, golf.LIGA_KEY]);
+		/** El último puesto pintado de cada reto: así se ve si subes o bajas sin salir de aquí. */
+		const antes = new Map<string, number>();
+		const $resumen = raiz.querySelector('[data-resumen]') as HTMLElement;
+		const $cuenta = raiz.querySelector('[data-cuenta]') as HTMLElement;
+		let hoy = dayKey(new Date());
+
+		interface Estado {
+			que: string;
+			estado: string;
+			cerrado: boolean;
+			/** Tu puesto y cuántos hay en la tabla, o null si aún no tienes marca. */
+			puesto: { position: number; total: number } | null;
+		}
+
+		function retoDiario(): Estado {
+			const progress = readProgress();
+			const dia = progress[hoy];
+			const reto = retoPorId(dia?.reto ?? '') ?? retoDelDia(hoy);
+			const cerrado = isClosed(dia);
+			const filas = tablaReto(readLigaReto(), statsOf(progress, hoy), 'mes');
+			const yo = filas.find((fila) => fila.yo);
+			return {
+				que: `${TEMAS[reto.tema ?? 'lenguaje'].label} · ${DIFICULTADES[reto.dificultad].label} · qué sale por consola`,
+				estado: !dia ? 'Sin empezar' : !cerrado ? 'En juego' : dia.ok ? `Acertado · ${dia.xp} XP` : 'Fallado por hoy',
+				cerrado,
+				// En la del mes siempre sales, pero sin puntos no es un puesto de verdad.
+				puesto: yo && yo.xp > 0 ? { position: yo.position, total: filas.length } : null,
+			};
+		}
+
+		function microRetos(): Estado {
+			const progreso = micro.readProgreso();
+			const dia = progreso[hoy];
+			const cerrado = micro.terminado(dia);
+			const filas = micro.clasificacion(micro.readLiga(), progreso, hoy, 'hoy');
+			const yo = filas.find((fila) => fila.yo);
+			const hechos = dia ? dia.ok.filter((_, i) => micro.cerrado(dia, i)).length : 0;
+			const { aciertos, total } = dia ? micro.puntosDe(dia) : { aciertos: 0, total: 0 };
+			return {
+				que: micro
+					.retosDelDia(hoy)
+					.map((item) => item.titulo)
+					.join(' · '),
+				estado: !dia
+					? 'Sin empezar'
+					: cerrado
+						? `${aciertos} de ${micro.POR_DIA} · ${total} puntos`
+						: `${hechos} de ${micro.POR_DIA} cerrados`,
+				cerrado,
+				puesto: yo ? { position: yo.position, total: filas.length } : null,
+			};
+		}
+
+		function hoyoDeGolf(): Estado {
+			const tarjetas = golf.readTarjetas();
+			const tarjeta = tarjetas[hoy];
+			const hoyo = golf.hoyoPorId(tarjeta?.hoyo ?? '') ?? golf.hoyoDelDia(hoy);
+			let liga = golf.readLiga();
+			// Igual que en su página: si no tienes nombre en el golf, vale el del reto diario.
+			if (!liga.nombre) liga = { ...liga, nombre: readLigaReto().nombre };
+			const { lineas, caracteres } = golf.medir(tarjeta?.codigo ?? '');
+			const mio =
+				tarjeta?.probado && lineas
+					? { nombre: liga.nombre || 'anon', hoyo: hoyo.id, dia: hoy, lineas, caracteres }
+					: null;
+			const filas = golf.clasificacion(liga, mio, hoyo.id, hoy);
+			const yo = filas.find((fila) => fila.yo);
+			return {
+				que: `${hoyo.titulo} · ${hoyo.coste} · par ${golf.par(hoyo)}`,
+				estado: mio
+					? `${lineas} ${lineas === 1 ? 'línea' : 'líneas'} · ${golf.contraPar(lineas, hoyo)}`
+					: lineas
+						? 'Escribiendo, sin marcar como probada'
+						: 'Sin empezar',
+				cerrado: mio !== null,
+				puesto: yo ? { position: yo.position, total: filas.length } : null,
+			};
+		}
+
+		const LECTORES: Record<string, () => Estado> = {
+			reto: retoDiario,
+			micro: microRetos,
+			golf: hoyoDeGolf,
+		};
+
+		function pintar() {
+			let cerrados = 0;
+			let primeros = 0;
+
+			for (const li of raiz!.querySelectorAll<HTMLElement>('[data-reto]')) {
+				const id = li.dataset.reto ?? '';
+				const leer = LECTORES[id];
+				if (!leer) continue;
+				const estado = leer();
+				const $ = (selector: string) => li.querySelector(selector) as HTMLElement;
+
+				$('[data-que]').textContent = estado.que;
+				const linea = $('[data-estado]');
+				linea.textContent = estado.estado;
+				linea.classList.toggle('text-muted', !estado.cerrado);
+				linea.classList.toggle('text-accent', estado.cerrado);
+				if (estado.cerrado) cerrados += 1;
+
+				const puesto = $('[data-puesto]');
+				const mueve = $('[data-mueve]');
+				puesto.textContent = estado.puesto ? `${estado.puesto.position}º` : '—';
+				puesto.classList.toggle('text-accent', !!estado.puesto && estado.puesto.position <= 3);
+				const de = $('[data-de]');
+				de.textContent = estado.puesto
+					? `de ${estado.puesto.total} en la tabla ${de.dataset.tabla ?? ''}`
+					: 'sin marca todavía';
+				if (estado.puesto?.position === 1) primeros += 1;
+
+				// Lo que has escalado desde que abriste la página: positivo sube.
+				const previo = antes.get(id);
+				const ahora = estado.puesto?.position;
+				const salto = previo !== undefined && ahora !== undefined ? previo - ahora : 0;
+				mueve.textContent = salto > 0 ? `sube ${salto}` : salto < 0 ? `baja ${-salto}` : '';
+				mueve.classList.toggle('text-ok', salto > 0);
+				mueve.classList.toggle('text-heart', salto < 0);
+				if (ahora !== undefined) antes.set(id, ahora);
+				else antes.delete(id);
+			}
+
+			const total = Object.keys(LECTORES).length;
+			$resumen.textContent =
+				cerrados === total
+					? `Pleno: los ${total} cerrados${primeros ? `, y vas primero en ${primeros}` : ''}. Mañana, más.`
+					: `Hoy llevas ${cerrados} de ${total} cerrados${primeros ? ` y vas primero en ${primeros}` : ''}.`;
+		}
+
+		/** La cuenta atrás hasta medianoche. Si cambia el día con la página abierta, salen los de mañana. */
+		function reloj() {
+			const ahora = new Date();
+			if (dayKey(ahora) !== hoy) {
+				hoy = dayKey(ahora);
+				antes.clear();
+				pintar();
+			}
+			const manana = new Date(ahora);
+			manana.setHours(24, 0, 0, 0);
+			const falta = Math.max(0, Math.floor((manana.getTime() - ahora.getTime()) / 1000));
+			const h = Math.floor(falta / 3600);
+			const m = String(Math.floor((falta % 3600) / 60)).padStart(2, '0');
+			const s = String(falta % 60).padStart(2, '0');
+			$cuenta.textContent = `Cambian en ${h}:${m}:${s}`;
+		}
+
+		// Lo que juegas o pegas en otra pestaña llega aquí al momento.
+		window.addEventListener('storage', (event) => {
+			if (event.key === null || vivas.has(event.key)) pintar();
+		});
+
+		pintar();
+		reloj();
+		setInterval(reloj, 1000);
+	}
+</script>

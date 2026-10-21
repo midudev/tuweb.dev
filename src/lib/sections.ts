@@ -35,7 +35,7 @@ export const GROUPS: Group[] = [
 		icon: 'device-gamepad-2',
 		card: 'Todo lo que se juega, junto en el mismo sitio.',
 		intro:
-			'El salón de la casa: todo lo que se juega, junto. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, tres micro-retos de algoritmos optimizados al día con su ranking de la comunidad, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, una terminal donde los acertijos se abren con comandos de Linux y un lienzo de píxeles compartido y sin bordes que se escribe solo en ASCII, se baja en .txt y se cuelga en la galería de la comunidad. Cada uno guarda su récord en tu navegador.',
+			'El salón de la casa: todo lo que se juega, junto. Arriba, los retos de código de hoy con tu puesto en cada tabla, en vivo. La serpiente de siempre, un arcade de cuatro máquinas, el puesto de perritos, el laberinto del build, los retos de Python y el reto diario de JavaScript, algoritmos y optimización, con su clasificación, el golf de código: un algoritmo al día y gana quien use menos líneas, tres micro-retos de algoritmos optimizados al día con su ranking de la comunidad, acertijos de lógica en equipo contra el reloj, con insignias y ranking colaborativo, una terminal donde los acertijos se abren con comandos de Linux y un lienzo de píxeles compartido y sin bordes que se escribe solo en ASCII, se baja en .txt y se cuelga en la galería de la comunidad. Cada uno guarda su récord en tu navegador.',
 	},
 	{
 		id: 'curiosidades',

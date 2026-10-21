@@ -10,6 +10,7 @@ import BackLink from '../../components/BackLink.astro';
 import Footer from '../../components/Footer.astro';
 import GroupNav from '../../components/GroupNav.astro';
 import Icon from '../../components/Icon.astro';
+import RetosHoy from '../../components/RetosHoy.astro';
 import SectionCards from '../../components/SectionCards.astro';
 import SectionLabel from '../../components/SectionLabel.astro';
 import { findGroup, sectionsOf } from '../../lib/sections';
@@ -41,6 +42,8 @@ if (!group) Astro.response.status = 404;
 								</h1>
 								<p class="max-w-[62ch] text-sm text-pretty text-muted">{group.intro}</p>
 							</div>
+
+							{group.id === 'juegos' && <RetosHoy />}
 
 							<SectionCards sections={sections} />
 						</>
