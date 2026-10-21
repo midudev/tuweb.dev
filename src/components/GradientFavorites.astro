@@ -1,0 +1,362 @@
+---
+/**
+ * Favoritos y edición en directo del generador de gradientes. Los favoritos son
+ * tuyos: se guardan con un nombre en este navegador y cada uno copia su CSS de
+ * un clic, o todos juntos como variables. En directo, las pestañas que lo
+ * activan comparten el gradiente del editor: lo que toca una sale en las demás
+ * con su firma. No hay servidor: va por BroadcastChannel y localStorage.
+ *
+ * Lee el gradiente de data-gr-codigo del panel y pide abrir uno con gr:cargar,
+ * igual que la galería.
+ */
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent';
+const CAMPO = 'w-full border border-line bg-panel px-3 py-2 text-sm outline-none focus-visible:border-accent';
+const OPCION =
+	'border border-line px-3 py-2 text-sm text-muted hover:text-fg aria-pressed:border-accent aria-pressed:text-accent';
+---
+
+<section data-gf class="flex flex-col gap-4 border-t border-line pt-6" aria-labelledby="gf-titulo">
+	<div class="flex flex-col gap-1">
+		<h3 id="gf-titulo" class="font-pixel text-2xl">Favoritos y en directo</h3>
+		<p class="text-sm text-muted">
+			Guarda los que te sirvan y cópialos para tu proyecto. Activa el directo y editad el mismo gradiente desde varias pestañas.
+		</p>
+	</div>
+
+	<div class="flex flex-col gap-3 border border-line bg-panel p-4">
+		<div class="flex flex-wrap items-end gap-3">
+			<button type="button" data-gf-directo aria-pressed="false" class={`${OPCION} inline-flex items-center gap-2`}>
+				<Icon name="broadcast" class="size-4 shrink-0" />
+				<span data-gf-directo-texto>Editar en directo</span>
+			</button>
+			<label class="flex min-w-40 flex-1 flex-col gap-1 text-xs text-muted">
+				Tu firma
+				<input type="text" data-gf-firma maxlength="20" placeholder="anónimo" spellcheck="false" autocomplete="off" class={CAMPO} />
+			</label>
+		</div>
+		<p data-gf-estado class="text-sm text-mark" aria-live="polite"></p>
+	</div>
+
+	<form data-gf-form class="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-end">
+		<span data-gf-actual class="h-10 w-full border border-line sm:w-16" aria-hidden="true"></span>
+		<label class="flex flex-col gap-1 text-xs text-muted">
+			Nombre
+			<input type="text" data-gf-nombre maxlength="30" required placeholder="Cabecera del blog" spellcheck="false" autocomplete="off" class={CAMPO} />
+		</label>
+		<button type="submit" class={`${BOTON} justify-center`}>
+			<Icon name="star" class="size-4 shrink-0" />
+			Guardar en favoritos
+		</button>
+	</form>
+	<p data-gf-aviso class="text-sm text-mark empty:hidden" aria-live="polite"></p>
+
+	<div class="flex flex-wrap items-center justify-between gap-2">
+		<span data-gf-cuenta class="text-sm text-muted"></span>
+		<button type="button" data-gf-todas class={`${BOTON} disabled:opacity-40`}>
+			<Icon name="variable" class="size-4 shrink-0" />
+			<span data-gf-todas-texto aria-live="polite">Copiar todos como variables</span>
+		</button>
+	</div>
+
+	<ul data-gf-lista class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"></ul>
+	<p data-gf-vacio hidden class="text-sm text-muted">Aún no tienes favoritos. Guarda el que tienes en el editor.</p>
+
+	<template data-gf-molde>
+		<li class="flex flex-col border border-line bg-panel">
+			<div data-gf-muestra class="h-20 border-b border-line"></div>
+			<div class="flex flex-col gap-3 p-3">
+				<strong data-gf-titulo class="truncate font-pixel text-lg"></strong>
+				<code data-gf-css class="line-clamp-2 text-xs break-all text-muted"></code>
+				<div class="flex flex-wrap gap-2">
+					<button type="button" data-gf-copiar class={`${BOTON} px-2 py-1`}>
+						<Icon name="copy" class="size-4 shrink-0" />
+						<span data-gf-copiar-texto>Copiar CSS</span>
+					</button>
+					<button type="button" data-gf-abrir class={`${BOTON} px-2 py-1`}>
+						<Icon name="brush" class="size-4 shrink-0" />
+						Abrir
+					</button>
+					<button type="button" data-gf-quitar class={`${BOTON} px-2 py-1`}>
+						<Icon name="trash" class="size-4 shrink-0" />
+						<span class="sr-only">Quitar de favoritos</span>
+					</button>
+				</div>
+			</div>
+		</li>
+	</template>
+</section>
+
+<script>
+	type Favorito = { codigo: string; nombre: string };
+
+	const CLAVE = 'tuweb:gradientes-favoritos';
+	const CANAL = 'tuweb:gradientes-directo';
+	const MAX = 30;
+	// El mismo código corto que usan el editor y la galería.
+	const CODIGO = /^(?:l(\d{1,3})|r([ce])(?:@(\d{1,3})\.(\d{1,3}))?)((?:-[0-9a-f]{6}\.\d{1,3}){2,8})$/i;
+	const YO = Math.random().toString(36).slice(2, 10);
+
+	const raiz = document.querySelector<HTMLElement>('[data-gf]');
+	const panel = raiz?.closest<HTMLElement>('[data-panel="gradientes"]');
+	const q = <T extends HTMLElement>(s: string) => raiz?.querySelector<T>(s) ?? null;
+	const form = q<HTMLFormElement>('[data-gf-form]');
+	const nombre = q<HTMLInputElement>('[data-gf-nombre]');
+	const firma = q<HTMLInputElement>('[data-gf-firma]');
+	const actual = q('[data-gf-actual]');
+	const aviso = q('[data-gf-aviso]');
+	const lista = q('[data-gf-lista]');
+	const vacio = q('[data-gf-vacio]');
+	const cuenta = q('[data-gf-cuenta]');
+	const molde = q<HTMLTemplateElement>('[data-gf-molde]');
+	const todas = q<HTMLButtonElement>('[data-gf-todas]');
+	const todasTexto = q('[data-gf-todas-texto]');
+	const directo = q<HTMLButtonElement>('[data-gf-directo]');
+	const directoTexto = q('[data-gf-directo-texto]');
+	const estadoTexto = q('[data-gf-estado]');
+
+	const limpio = (v: unknown, max: number) =>
+		typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '';
+
+	function aCss(codigo: string) {
+		const m = codigo.match(CODIGO);
+		if (!m) return '';
+		const paradas = m[5]
+			.slice(1)
+			.split('-')
+			.map((t) => {
+				const [hex, pos] = t.split('.');
+				return { hex, pos: Number(pos) };
+			})
+			.sort((a, b) => a.pos - b.pos)
+			.map((p) => `#${p.hex} ${p.pos}%`)
+			.join(', ');
+		if (m[1] !== undefined) return `linear-gradient(${m[1]}deg, ${paradas})`;
+		const forma = m[2].toLowerCase() === 'e' ? 'ellipse' : 'circle';
+		const centro = m[3] === undefined ? '' : ` at ${m[3]}% ${m[4]}%`;
+		return `radial-gradient(${forma}${centro}, ${paradas})`;
+	}
+
+	// El primer color va delante como fondo liso, igual que en el editor.
+	const liso = (codigo: string) => `#${codigo.match(/-([0-9a-f]{6})\./i)?.[1] ?? '000000'}`;
+	const cssDe = (codigo: string) => `background: ${liso(codigo)};\nbackground: ${aCss(codigo)};`;
+
+	// «Cabecera del blog» → --gradiente-cabecera-del-blog
+	const variable = (texto: string, i: number) => {
+		const slug = texto
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[̀-ͯ]/g, '')
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '');
+		return `--gradiente-${slug || i + 1}`;
+	};
+
+	// ——— Favoritos ———
+	function leerFavoritos(): { favoritos: Favorito[]; firma: string } {
+		try {
+			const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+			if (g && Array.isArray(g.favoritos)) {
+				const favoritos = g.favoritos
+					.map((f: unknown): Favorito | null => {
+						if (!Array.isArray(f) || typeof f[0] !== 'string' || !CODIGO.test(f[0])) return null;
+						const n = limpio(f[1], 30);
+						return n ? { codigo: f[0].toLowerCase(), nombre: n } : null;
+					})
+					.filter((f: Favorito | null): f is Favorito => f !== null)
+					.slice(0, MAX);
+				return { favoritos, firma: limpio(g.firma, 20) };
+			}
+		} catch {
+			// Roto: se empieza sin favoritos.
+		}
+		return { favoritos: [], firma: '' };
+	}
+
+	let { favoritos, firma: miFirma } = leerFavoritos();
+
+	function guardar() {
+		try {
+			localStorage.setItem(CLAVE, JSON.stringify({ favoritos: favoritos.map((f) => [f.codigo, f.nombre]), firma: miFirma }));
+		} catch {
+			// Sin almacenamiento los favoritos duran lo que la pestaña.
+		}
+	}
+
+	const relojes = new Map<HTMLElement, number>();
+
+	async function copiar(boton: HTMLButtonElement, etiqueta: HTMLElement | null, reposo: string, texto: string) {
+		let hecho = false;
+		try {
+			await navigator.clipboard.writeText(texto);
+			hecho = true;
+		} catch {
+			// Sin portapapeles o sin permiso.
+		}
+		if (etiqueta) etiqueta.textContent = hecho ? 'Copiado' : 'No se pudo copiar';
+		boton.classList.toggle('text-accent', hecho);
+		clearTimeout(relojes.get(boton));
+		relojes.set(
+			boton,
+			window.setTimeout(() => {
+				if (etiqueta) etiqueta.textContent = reposo;
+				boton.classList.remove('text-accent');
+			}, 2000),
+		);
+	}
+
+	const codigoActual = () => panel?.dataset.grCodigo ?? '';
+
+	function pintar() {
+		if (!lista || !molde) return;
+		if (vacio) vacio.hidden = favoritos.length > 0;
+		if (cuenta) cuenta.textContent = `${favoritos.length} de ${MAX} favoritos`;
+		if (todas) todas.disabled = favoritos.length === 0;
+		lista.replaceChildren(
+			...favoritos.map((f) => {
+				const li = molde.content.firstElementChild?.cloneNode(true) as HTMLElement;
+				const en = <T extends HTMLElement>(s: string) => li.querySelector<T>(s)!;
+				en('[data-gf-muestra]').style.backgroundImage = aCss(f.codigo);
+				en('[data-gf-titulo]').textContent = f.nombre;
+				en('[data-gf-css]').textContent = aCss(f.codigo);
+				const boton = en<HTMLButtonElement>('[data-gf-copiar]');
+				boton.addEventListener('click', () => copiar(boton, en('[data-gf-copiar-texto]'), 'Copiar CSS', cssDe(f.codigo)));
+				en('[data-gf-abrir]').addEventListener('click', () => {
+					panel?.dispatchEvent(new CustomEvent('gr:cargar', { detail: f.codigo }));
+					panel?.scrollIntoView({ block: 'start' });
+				});
+				en('[data-gf-quitar]').addEventListener('click', () => {
+					favoritos = favoritos.filter((x) => x !== f);
+					guardar();
+					pintar();
+				});
+				return li;
+			}),
+		);
+	}
+
+	form?.addEventListener('submit', (e) => {
+		e.preventDefault();
+		const codigo = codigoActual();
+		const titulo = limpio(nombre?.value, 30);
+		if (!CODIGO.test(codigo) || !titulo) return;
+		const ya = favoritos.find((f) => f.codigo === codigo);
+		if (ya) {
+			if (aviso) aviso.textContent = `Ya lo tienes en favoritos: «${ya.nombre}».`;
+			return;
+		}
+		if (favoritos.length >= MAX) {
+			if (aviso) aviso.textContent = `Caben ${MAX}. Quita alguno antes.`;
+			return;
+		}
+		favoritos.unshift({ codigo, nombre: titulo });
+		guardar();
+		if (nombre) nombre.value = '';
+		if (aviso) aviso.textContent = `«${titulo}» guardado en favoritos.`;
+		pintar();
+	});
+
+	todas?.addEventListener('click', () => {
+		const lineas = favoritos.map((f, i) => `  ${variable(f.nombre, i)}: ${aCss(f.codigo)};`);
+		copiar(todas, todasTexto, 'Copiar todos como variables', `:root {\n${lineas.join('\n')}\n}`);
+	});
+
+	// Otra pestaña ha tocado los favoritos: se releen.
+	window.addEventListener('storage', (e) => {
+		if (e.key !== CLAVE) return;
+		favoritos = leerFavoritos().favoritos;
+		pintar();
+	});
+
+	// ——— En directo ———
+	// Solo hablan las pestañas con el directo encendido. Quien entra pide el
+	// gradiente y se queda con el de la primera que conteste.
+	const canal = 'BroadcastChannel' in window ? new BroadcastChannel(CANAL) : null;
+	const otras = new Map<string, string>();
+	let enDirecto = false;
+	let esperando = false;
+	// El último código que ha pasado por el canal, para no devolver el eco.
+	let ultimo = codigoActual();
+	let ultimoCambio = '';
+
+	const enviar = (mensaje: Record<string, unknown>) =>
+		canal?.postMessage({ ...mensaje, de: YO, firma: miFirma || 'anónimo' });
+
+	function pintarDirecto() {
+		directo?.setAttribute('aria-pressed', String(enDirecto));
+		if (directoTexto) directoTexto.textContent = enDirecto ? 'En directo' : 'Editar en directo';
+		if (!estadoTexto) return;
+		if (!canal) estadoTexto.textContent = 'Tu navegador no deja editar en directo.';
+		else if (!enDirecto) estadoTexto.textContent = 'Apagado: lo que tocas se queda en esta pestaña.';
+		else if (!otras.size) estadoTexto.textContent = 'Solo esta pestaña. Abre la herramienta en otra y activa el directo.';
+		else {
+			const quienes = [...new Set(otras.values())].join(', ');
+			estadoTexto.textContent = `${otras.size + 1} pestañas con el mismo gradiente: tú y ${quienes}.${ultimoCambio ? ` Último cambio de ${ultimoCambio}.` : ''}`;
+		}
+	}
+
+	function aplicar(codigo: unknown) {
+		if (typeof codigo !== 'string' || !CODIGO.test(codigo) || codigo === codigoActual()) return;
+		ultimo = codigo;
+		panel?.dispatchEvent(new CustomEvent('gr:cargar', { detail: codigo }));
+	}
+
+	canal?.addEventListener('message', ({ data }) => {
+		if (!enDirecto || !data || typeof data !== 'object' || typeof data.de !== 'string' || data.de === YO) return;
+		const quien = limpio(data.firma, 20) || 'anónimo';
+		if (data.tipo === 'adios') otras.delete(data.de);
+		else otras.set(data.de, quien);
+		if (data.tipo === 'hola') enviar({ tipo: 'aqui', codigo: codigoActual() });
+		if (data.tipo === 'aqui' && esperando) {
+			esperando = false;
+			aplicar(data.codigo);
+		}
+		if (data.tipo === 'cambio') {
+			ultimoCambio = quien;
+			aplicar(data.codigo);
+		}
+		pintarDirecto();
+	});
+
+	directo?.addEventListener('click', () => {
+		if (!canal) return;
+		enDirecto = !enDirecto;
+		otras.clear();
+		ultimoCambio = '';
+		if (enDirecto) {
+			esperando = true;
+			ultimo = codigoActual();
+			enviar({ tipo: 'hola' });
+		} else enviar({ tipo: 'adios' });
+		pintarDirecto();
+	});
+
+	firma?.addEventListener('input', () => {
+		miFirma = limpio(firma.value, 20);
+		guardar();
+		if (enDirecto) enviar({ tipo: 'aqui', codigo: codigoActual() });
+	});
+
+	window.addEventListener('pagehide', () => {
+		if (enDirecto) enviar({ tipo: 'adios' });
+	});
+
+	// El editor cambia el gradiente: se pinta la muestra y, en directo, se manda.
+	if (panel) {
+		new MutationObserver(() => {
+			const codigo = codigoActual();
+			if (actual) actual.style.backgroundImage = aCss(codigo);
+			if (!enDirecto || codigo === ultimo) return;
+			ultimo = codigo;
+			esperando = false;
+			enviar({ tipo: 'cambio', codigo });
+		}).observe(panel, { attributes: true, attributeFilter: ['data-gr-codigo'] });
+	}
+
+	if (firma) firma.value = miFirma;
+	if (actual) actual.style.backgroundImage = aCss(codigoActual());
+	pintar();
+	pintarDirecto();
+</script>

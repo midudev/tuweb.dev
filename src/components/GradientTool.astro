@@ -22,9 +22,11 @@
  * Encima de la lista de colores hay una barra con el gradiente de izquierda a
  * derecha: se pulsa para añadir un color en ese punto y se arrastran las marcas.
  *
- * Debajo va la galería de la comunidad (GradientGallery): lee el gradiente de
- * data-gr-codigo y pide abrir uno con el evento gr:cargar.
+ * Debajo van los favoritos con el directo entre pestañas (GradientFavorites) y
+ * la galería de la comunidad (GradientGallery): los dos leen el gradiente de
+ * data-gr-codigo y piden abrir uno con el evento gr:cargar.
  */
+import GradientFavorites from './GradientFavorites.astro';
 import GradientGallery from './GradientGallery.astro';
 import Icon from './Icon.astro';
 
@@ -386,6 +388,8 @@ const FORMATOS = [
 			</div>
 		</div>
 	</div>
+
+	<GradientFavorites />
 
 	<GradientGallery />
 
