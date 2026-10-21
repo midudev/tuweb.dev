@@ -41,9 +41,9 @@ export const GROUPS: Group[] = [
 		id: 'curiosidades',
 		title: 'Curiosidades',
 		icon: 'sparkles',
-		card: 'Lo que está aquí porque sí: chistes, ánimo, mascota, templo, mosaico y diseño.',
+		card: 'Lo que está aquí porque sí: chistes, ánimo, historia de la web, mascota, templo, mosaico y diseño.',
 		intro:
-			'Lo que no es una herramienta ni un juego y merece estar: chistes contados en voz alta, un generador de ánimo que te manda a una herramienta, un canal y un juego, la mascota de la casa, el templo de midudev, un mosaico ASCII sin bordes que se llena de carácter en carácter, cómo está hecha esta web por dentro y el escaparate de proyectos.',
+			'Lo que no es una herramienta ni un juego y merece estar: chistes contados en voz alta, un generador de ánimo que te manda a una herramienta, un canal y un juego, la historia del diseño web época a época con su código, la mascota de la casa, el templo de midudev, un mosaico ASCII sin bordes que se llena de carácter en carácter, cómo está hecha esta web por dentro y el escaparate de proyectos.',
 	},
 	{
 		id: 'canales',
@@ -347,6 +347,15 @@ export const SECTIONS: Section[] = [
 		card: 'Cómo está hecha esta web: colores, tipos, piezas y la portada en maqueta.',
 		intro:
 			'El diseño de esta web, recreado pieza a pieza: los siete colores y los dos tipos que salen de global.css, y los trozos con los que está montada. Arriba, la portada en maqueta: cámbiale el montaje, las columnas y el espaciado para ver cómo quedaría. La maqueta no toca nada; cuando des con algo mejor, cópialo como idea y proponlo.',
+	},
+	{
+		href: '/historia-web',
+		title: 'Historia del diseño web',
+		icon: 'world-www',
+		group: 'curiosidades',
+		card: 'De la primera web del CERN a las container queries: una línea de tiempo con el código y el ejemplo de cada época.',
+		intro:
+			'Treinta años de diseño web en una línea de tiempo. Pulsa un año o arrastra la barra y sale su época: lo que la marcó, el código como se escribía entonces —etiquetas en mayúsculas, tablas para maquetar, floats, degradados, media queries, grid, variables— y al lado cómo se veía, en escritorio o en móvil. Toca el código y el ejemplo se repinta según escribes. Son recreaciones; todo corre en tu navegador y no se guarda nada.',
 	},
 	{
 		href: '/mascota',

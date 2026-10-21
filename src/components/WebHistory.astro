@@ -1,0 +1,254 @@
+---
+/**
+ * La historia del diseño web en una línea de tiempo. Cada época se elige en la
+ * fila de años, con la barra o con las flechas, y sale con sus rasgos, su
+ * código y el ejemplo pintado al lado. El código se puede tocar y el ejemplo
+ * se repinta según escribes; con restaurar vuelve el de la época.
+ *
+ * El ejemplo va en un iframe con sandbox vacío: ni scripts ni nada que cargue
+ * fuera. Las épocas están en src/lib/eras-web.ts.
+ */
+import { ERAS } from '../lib/eras-web';
+import Icon from './Icon.astro';
+
+const BOTON =
+	'inline-flex items-center gap-2 border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent aria-pressed:border-accent aria-pressed:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted';
+
+const primera = ERAS[0];
+---
+
+<section id="historia-web" class="flex flex-col gap-6">
+	<div class="flex flex-col gap-3">
+		<div
+			class="flex gap-2 overflow-x-auto pb-1"
+			role="group"
+			aria-label="Épocas del diseño web"
+			data-hw-rail
+		>
+			{
+				ERAS.map((era, i) => (
+					<button
+						type="button"
+						data-hw-year={era.year}
+						aria-pressed={i === 0 ? 'true' : 'false'}
+						class={`${BOTON} shrink-0 font-pixel`}
+					>
+						{era.year}
+					</button>
+				))
+			}
+		</div>
+
+		<div class="flex items-center gap-3">
+			<button type="button" data-hw-prev class={BOTON} aria-label="Época anterior" disabled>
+				<Icon name="chevron-left" class="size-4 shrink-0" />
+			</button>
+			<input
+				type="range"
+				min="0"
+				max={ERAS.length - 1}
+				value="0"
+				step="1"
+				data-hw-range
+				aria-label="Año"
+				aria-valuetext={String(primera.year)}
+				class="grow accent-accent"
+			/>
+			<button type="button" data-hw-next class={BOTON} aria-label="Época siguiente">
+				<Icon name="chevron-right" class="size-4 shrink-0" />
+			</button>
+		</div>
+	</div>
+
+	<div class="flex flex-col gap-3 border border-line bg-panel p-6" aria-live="polite">
+		<div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+			<span data-hw-y class="font-pixel text-titulo text-accent">{primera.year}</span>
+			<h2 data-hw-title class="font-pixel text-lg font-normal text-mark">{primera.title}</h2>
+		</div>
+		<p data-hw-line class="max-w-[62ch] text-sm text-pretty">{primera.line}</p>
+		<ul data-hw-traits class="flex flex-wrap gap-2">
+			{primera.traits.map((t) => <li class="border border-line bg-bg px-2 py-0.5 text-xs text-muted">{t}</li>)}
+		</ul>
+	</div>
+
+	<div class="grid gap-4 lg:grid-cols-2">
+		<div class="flex min-w-0 flex-col gap-2">
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<label for="hw-code" class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="code" class="size-4 shrink-0 text-accent" />
+					Código de la época
+				</label>
+				<div class="flex gap-2">
+					<button type="button" data-hw-copy class={BOTON}>
+						<Icon name="copy" class="size-4 shrink-0" />
+						<span data-hw-copy-label>Copiar</span>
+					</button>
+					<button type="button" data-hw-reset class={BOTON} disabled>
+						<Icon name="refresh" class="size-4 shrink-0" />
+						Restaurar
+					</button>
+				</div>
+			</div>
+			<textarea
+				id="hw-code"
+				data-hw-code
+				spellcheck="false"
+				autocomplete="off"
+				wrap="off"
+				class="h-96 w-full resize-y border border-line bg-bg p-3 font-mono text-xs text-fg focus:border-accent focus:outline-none"
+			>{primera.code}</textarea>
+			<p class="text-xs text-muted">Tócalo: el ejemplo se repinta según escribes.</p>
+		</div>
+
+		<div class="flex min-w-0 flex-col gap-2">
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<span class="flex items-center gap-2 text-sm text-muted">
+					<Icon name="world-www" class="size-4 shrink-0 text-accent" />
+					Así se veía
+				</span>
+				<div class="flex gap-2" role="group" aria-label="Ancho de la vista">
+					<button type="button" data-hw-width="escritorio" aria-pressed="true" class={BOTON}>
+						<Icon name="device-desktop" class="size-4 shrink-0" />
+						Escritorio
+					</button>
+					<button type="button" data-hw-width="movil" aria-pressed="false" class={BOTON}>
+						<Icon name="device-mobile" class="size-4 shrink-0" />
+						Móvil
+					</button>
+				</div>
+			</div>
+			<div class="flex h-96 justify-center border border-line bg-panel">
+				<iframe
+					data-hw-preview
+					title="Ejemplo de la época"
+					sandbox=""
+					srcdoc={primera.code}
+					class="h-full w-full max-w-full bg-white"></iframe>
+			</div>
+			<p class="text-xs text-muted">Recreaciones de cada época, no copias de webs reales.</p>
+		</div>
+	</div>
+
+	<p class="text-sm text-muted">
+		El enlace lleva el año para pasárselo a quien quieras. Lo que cambies en el código no se guarda.
+	</p>
+</section>
+
+<script>
+	import { ERAS } from '../lib/eras-web';
+
+	const rango = document.querySelector<HTMLInputElement>('[data-hw-range]');
+	const codigo = document.querySelector<HTMLTextAreaElement>('[data-hw-code]');
+	const vista = document.querySelector<HTMLIFrameElement>('[data-hw-preview]');
+	const anterior = document.querySelector<HTMLButtonElement>('[data-hw-prev]');
+	const siguiente = document.querySelector<HTMLButtonElement>('[data-hw-next]');
+	const restaurar = document.querySelector<HTMLButtonElement>('[data-hw-reset]');
+	const anio = document.querySelector<HTMLElement>('[data-hw-y]');
+	const titulo = document.querySelector<HTMLElement>('[data-hw-title]');
+	const linea = document.querySelector<HTMLElement>('[data-hw-line]');
+	const rasgos = document.querySelector<HTMLElement>('[data-hw-traits]');
+
+	if (rango && codigo && vista && anterior && siguiente && restaurar && anio && titulo && linea && rasgos) {
+		let actual = 0;
+		// Lo que se ha tocado de cada época, mientras dure la pestaña.
+		const editados = new Map<number, string>();
+		let espera = 0;
+
+		function repintar() {
+			vista!.srcdoc = codigo!.value;
+		}
+
+		function ir(i: number, enlace = true) {
+			actual = Math.max(0, Math.min(ERAS.length - 1, i));
+			const era = ERAS[actual];
+
+			anio!.textContent = String(era.year);
+			titulo!.textContent = era.title;
+			linea!.textContent = era.line;
+			rasgos!.replaceChildren(
+				...era.traits.map((t) => {
+					const li = document.createElement('li');
+					li.className = 'border border-line bg-bg px-2 py-0.5 text-xs text-muted';
+					li.textContent = t;
+					return li;
+				}),
+			);
+
+			codigo!.value = editados.get(era.year) ?? era.code;
+			restaurar!.disabled = !editados.has(era.year);
+			repintar();
+
+			rango!.value = String(actual);
+			rango!.setAttribute('aria-valuetext', String(era.year));
+			anterior!.disabled = actual === 0;
+			siguiente!.disabled = actual === ERAS.length - 1;
+
+			document.querySelectorAll<HTMLButtonElement>('[data-hw-year]').forEach((boton) => {
+				const activo = boton.dataset.hwYear === String(era.year);
+				boton.setAttribute('aria-pressed', String(activo));
+				if (activo) boton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+			});
+
+			if (enlace) history.replaceState(null, '', `#${era.year}`);
+		}
+
+		document.querySelectorAll<HTMLButtonElement>('[data-hw-year]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				ir(ERAS.findIndex((era) => String(era.year) === boton.dataset.hwYear));
+			});
+		});
+
+		// La barra repinta mientras se arrastra, no solo al soltar.
+		rango.addEventListener('input', () => ir(Number(rango.value)));
+		anterior.addEventListener('click', () => ir(actual - 1));
+		siguiente.addEventListener('click', () => ir(actual + 1));
+
+		document.querySelector<HTMLElement>('[data-hw-rail]')?.addEventListener('keydown', (e) => {
+			if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+			e.preventDefault();
+			ir(actual + (e.key === 'ArrowLeft' ? -1 : 1));
+			document.querySelector<HTMLButtonElement>(`[data-hw-year="${ERAS[actual].year}"]`)?.focus();
+		});
+
+		// Se repinta al dejar de teclear un momento, para no recargar a cada letra.
+		codigo.addEventListener('input', () => {
+			const era = ERAS[actual];
+			if (codigo.value === era.code) editados.delete(era.year);
+			else editados.set(era.year, codigo.value);
+			restaurar.disabled = !editados.has(era.year);
+			clearTimeout(espera);
+			espera = window.setTimeout(repintar, 250);
+		});
+
+		restaurar.addEventListener('click', () => {
+			editados.delete(ERAS[actual].year);
+			ir(actual, false);
+		});
+
+		const copiarTexto = document.querySelector<HTMLElement>('[data-hw-copy-label]');
+		document.querySelector<HTMLButtonElement>('[data-hw-copy]')?.addEventListener('click', async () => {
+			if (!copiarTexto) return;
+			try {
+				await navigator.clipboard.writeText(codigo.value);
+				copiarTexto.textContent = 'Copiado';
+			} catch {
+				copiarTexto.textContent = 'No se pudo';
+			}
+			setTimeout(() => (copiarTexto.textContent = 'Copiar'), 1500);
+		});
+
+		document.querySelectorAll<HTMLButtonElement>('[data-hw-width]').forEach((boton) => {
+			boton.addEventListener('click', () => {
+				const movil = boton.dataset.hwWidth === 'movil';
+				vista.style.width = movil ? '375px' : '';
+				document.querySelectorAll<HTMLButtonElement>('[data-hw-width]').forEach((otro) => {
+					otro.setAttribute('aria-pressed', String(otro === boton));
+				});
+			});
+		});
+
+		// Si el enlace trae un año, se entra en esa época.
+		const deEnlace = ERAS.findIndex((era) => `#${era.year}` === location.hash);
+		if (deEnlace > 0) ir(deEnlace, false);
+	}
+</script>
