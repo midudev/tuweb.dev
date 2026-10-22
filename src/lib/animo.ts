@@ -67,7 +67,7 @@ export const MOODS: Mood[] = [
 	{
 		id: 'perdido',
 		label: 'Perdido',
-		icon: 'mood-confuzed',
+		icon: 'mood-confused',
 		line: 'No sabes ni por dónde empezar. Empieza por aquí.',
 		picks: {
 			herramienta: ['/guia-ia', '/prompts', '/consejos', '/herramientas'],
