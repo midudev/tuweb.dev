@@ -1160,7 +1160,7 @@ const DATO = 'inline-flex items-center gap-2';
 			loading = true;
 			clearTimeout(retryTimer);
 
-			const res = await pedir('/api/retos');
+			const res = await pedir('/api/retos.json');
 			const data = res.data;
 			loading = false;
 

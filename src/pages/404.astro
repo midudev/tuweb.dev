@@ -1,0 +1,39 @@
+---
+/**
+ * Lo que no existe. Cloudflare sirve esta página para cualquier ruta que no
+ * esté en dist/, con los apartados debajo para seguir por algún sitio.
+ */
+import BackLink from '../components/BackLink.astro';
+import Footer from '../components/Footer.astro';
+import GroupNav from '../components/GroupNav.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Esta página no existe — tuweb.dev">
+	<div class="flex min-h-dvh flex-col">
+		<div class="aire">
+			<div class="zona flex flex-col gap-8">
+				<BackLink />
+
+				<div class="flex flex-col gap-3">
+					<h1 class="font-pixel text-titulo font-normal">Esta página no existe</h1>
+					<p class="max-w-[62ch] text-sm text-pretty text-muted">
+						La web está repartida en estos apartados, y debajo los tienes todos.
+					</p>
+				</div>
+			</div>
+		</div>
+
+		<div class="grow"></div>
+
+		<nav data-canvas class="border-t border-line bg-panel" aria-label="Apartados">
+			<div class="zona flex flex-col gap-4 py-8">
+				<SectionLabel>APARTADOS</SectionLabel>
+				<GroupNav />
+			</div>
+		</nav>
+
+		<Footer />
+	</div>
+</Layout>

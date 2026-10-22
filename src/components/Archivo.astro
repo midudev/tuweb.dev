@@ -1,0 +1,171 @@
+---
+/**
+ * El aviso de que el experimento está parado. Sale al entrar, una vez por
+ * visita, y vuelve a salir si alguien intenta algo que necesitaba el servidor:
+ * entrar con GitHub, enviar una idea, votar, comentar o escribir en el chat.
+ */
+import { getArchiveSummary } from '../lib/db/queries';
+import Icon from './Icon.astro';
+
+const { shipped, firstAt, lastAt } = getArchiveSummary();
+
+const fecha = (iso: string, conAño = false) =>
+	new Date(iso).toLocaleDateString('es-ES', {
+		day: 'numeric',
+		month: 'long',
+		...(conAño ? { year: 'numeric' } : {}),
+	});
+
+const BOTON = 'inline-flex items-center gap-2 border px-4 py-2.5 text-sm no-underline hover:no-underline';
+---
+
+<dialog data-archivo aria-labelledby="archivo-titulo" class="text-fg">
+	<div class="flex flex-col gap-5 border border-line bg-panel p-6">
+		<p class="font-pixel text-xs tracking-wide text-accent">EXPERIMENTO TERMINADO</p>
+
+		<div class="flex flex-col gap-3">
+			<h2 id="archivo-titulo" class="flex items-center gap-2.5 font-pixel text-[22px] font-normal">
+				<Icon name="flask" class="size-5 shrink-0 text-accent" />
+				Hemos parado el experimento
+			</h2>
+			<p class="text-sm text-pretty text-muted">
+				tuweb.dev era una web que construía quien la visitaba: la gente proponía ideas y una IA
+				implementaba la más repetida, sin que nadie tocara el código.{
+					shipped > 0 && firstAt && lastAt && (
+						<>
+							{' '}Entre el {fecha(firstAt)} y el {fecha(lastAt, true)} entraron{' '}
+							<span class="text-fg">{shipped} cambios</span>.
+						</>
+					)
+				}
+			</p>
+			<p class="text-sm text-pretty text-muted">
+				Lo que ves es la web tal y como quedó. Puedes recorrerla entera para ver cómo fue creciendo,
+				pero ya no se pueden enviar ideas, votar, comentar ni chatear.
+			</p>
+			<p class="text-sm text-pretty">
+				Pronto haremos una segunda versión para llevarlo más lejos.
+			</p>
+		</div>
+
+		<div class="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+			<a href="/changelog" class="inline-flex items-center gap-2 text-sm text-muted hover:text-fg">
+				<Icon name="history" class="size-4 shrink-0" />
+				Cómo fue evolucionando
+			</a>
+			<button
+				type="button"
+				data-archivo-cerrar
+				autofocus
+				class:list={[BOTON, 'border-accent bg-accent text-bg hover:border-mark hover:bg-mark']}
+			>
+				Ver la web
+				<Icon name="arrow-right" class="size-4 shrink-0" />
+			</button>
+		</div>
+	</div>
+</dialog>
+
+<style>
+	[data-archivo] {
+		position: fixed;
+		inset: auto;
+		top: 50%;
+		left: 50%;
+		translate: -50% -50%;
+		width: min(
+			36rem,
+			calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right))
+		);
+		max-height: calc(100dvh - 3rem);
+		margin: 0;
+		overflow-y: auto;
+		border: 0;
+		padding: 0;
+		background: transparent;
+	}
+
+	[data-archivo]::backdrop {
+		background: color-mix(in oklab, var(--color-fg, #3b2d24) 35%, transparent);
+	}
+</style>
+
+<script>
+	const dialog = document.querySelector<HTMLDialogElement>('[data-archivo]');
+	const KEY = 'tuweb:archivo';
+
+	function abrir() {
+		if (dialog && !dialog.open) dialog.showModal();
+	}
+
+	dialog?.addEventListener('close', () => {
+		try {
+			sessionStorage.setItem(KEY, '1');
+		} catch {
+			// Sin sessionStorage vuelve a salir en la página siguiente: no pasa nada.
+		}
+	});
+
+	// Un clic en el velo cierra, como el Escape.
+	dialog?.addEventListener('click', (event) => {
+		if (event.target === dialog) dialog.close();
+	});
+	document.querySelector('[data-archivo-cerrar]')?.addEventListener('click', () => dialog?.close());
+
+	const esApi = (url: string) => {
+		const destino = new URL(url, location.href);
+		return destino.origin === location.origin && destino.pathname.startsWith('/api/');
+	};
+
+	// Entrar con GitHub y salir eran enlaces y formularios a /api: ya no hay
+	// servidor detrás, así que en vez de un 404 sale el aviso.
+	document.addEventListener(
+		'click',
+		(event) => {
+			const enlace = (event.target as Element | null)?.closest?.('a[href]');
+			if (!enlace || !esApi(enlace.getAttribute('href') ?? '')) return;
+			event.preventDefault();
+			abrir();
+		},
+		true,
+	);
+
+	document.addEventListener(
+		'submit',
+		(event) => {
+			const form = event.target as HTMLFormElement;
+			if (!esApi(form.getAttribute('action') ?? location.href)) return;
+			event.preventDefault();
+			abrir();
+		},
+		true,
+	);
+
+	// Leer sigue funcionando: lo que había al parar está congelado en /api/*.json.
+	// Escribir (votar, comentar, el chat anónimo...) contesta 410 sin salir del
+	// navegador y enseña el aviso.
+	const original = window.fetch.bind(window);
+	window.fetch = (input, init) => {
+		const peticion = input instanceof Request ? input : null;
+		const url = peticion ? peticion.url : String(input);
+		const metodo = (init?.method ?? peticion?.method ?? 'GET').toUpperCase();
+		if (metodo !== 'GET' && metodo !== 'HEAD' && esApi(url)) {
+			abrir();
+			return Promise.resolve(
+				new Response(JSON.stringify({ error: 'archivado' }), {
+					status: 410,
+					headers: { 'Content-Type': 'application/json' },
+				}),
+			);
+		}
+		return original(input, init);
+	};
+
+	let visto = false;
+	try {
+		visto = sessionStorage.getItem(KEY) === '1';
+	} catch {
+		// Sin sessionStorage, sale.
+	}
+	if (!visto) abrir();
+</script>

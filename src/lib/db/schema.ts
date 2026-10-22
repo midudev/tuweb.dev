@@ -1,4 +1,7 @@
-/** Las tablas. Se crean al arrancar si no están. */
+/**
+ * Las tablas, tal y como estaban al parar el experimento. La web ya no las crea:
+ * solo lee una copia de la base de producción (ver client.ts).
+ */
 export const TABLES = [
 	`CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,8 +64,8 @@ export const TABLES = [
 
 	// Lo que la gente comparte entre sí. Las fechas van en milisegundos enteros:
 	// ocupan menos que el texto ISO y la limpieza compara números, no cadenas.
-	// Todo lo que caduca lleva expires_at con su índice, y el barrido borra por
-	// ahí sin recorrer la tabla (ver maintenance.ts).
+	// Todo lo que caducaba lleva expires_at con su índice, y el barrido borraba
+	// por ahí sin recorrer la tabla.
 
 	// Las sesiones de login. Antes eran ficheros sueltos que no caducaban nunca.
 	`CREATE TABLE IF NOT EXISTS sessions (

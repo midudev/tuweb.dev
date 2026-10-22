@@ -482,7 +482,7 @@ const OPCION =
 			const n = ++pedido;
 			const modo = claveRecord();
 			try {
-				const res = await fetch(`/api/serpiente?mode=${encodeURIComponent(modo)}`);
+				const res = await fetch(`/api/serpiente/${modo.replace(':', '-')}.json`);
 				const datos: Respuesta = await res.json().catch(() => ({}));
 				if (n !== pedido) return;
 				if (!res.ok) throw new Error(motivo(res.status));

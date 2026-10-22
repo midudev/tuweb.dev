@@ -1,9 +1,9 @@
 ---
 /**
- * El recibimiento: un pop-up que sale la primera vez y cuenta de qué va esto,
- * con una parada en cada sección de la portada. Va en un <dialog> modal, así
- * que el foco y el Escape los lleva el navegador. Lo de si ya se ha visto vive
- * en el localStorage de quien mira; no sale de su navegador.
+ * El recorrido: un pop-up que cuenta de qué iba esto, con una parada en cada
+ * sección de la portada. Va en un <dialog> modal, así que el foco y el Escape
+ * los lleva el navegador. Antes salía solo la primera vez; con el experimento
+ * parado, al entrar sale el aviso (Archivo.astro) y este se abre desde el panel.
  *
  * Cada parada apunta a un trozo de la página con un selector. Ese trozo se
  * busca en el momento —no al cargar— porque la portada se repinta sola cada
@@ -146,33 +146,10 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 	const prev = document.querySelector<HTMLButtonElement>('[data-tour-prev]');
 	const next = document.querySelector<HTMLButtonElement>('[data-tour-next]');
 
-	// La clave lleva versión: si algún día el tour cambia de verdad, se sube el
-	// número y vuelve a salir una vez.
-	const KEY = 'tuweb:tour';
-	// Sube con el tour: ahora cada sección tiene su página y las paradas son otras.
-	const VALUE = '2';
-
 	const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	const behavior: ScrollBehavior = quieto ? 'auto' : 'smooth';
 
 	let index = 0;
-
-	function visto() {
-		try {
-			return localStorage.getItem(KEY) === VALUE;
-		} catch {
-			// Sin localStorage no hay forma de saberlo: mejor no dar la lata.
-			return true;
-		}
-	}
-
-	function marcar() {
-		try {
-			localStorage.setItem(KEY, VALUE);
-		} catch {
-			// Si no deja guardar, el tour se queda en esta visita.
-		}
-	}
 
 	function limpiar() {
 		for (const el of document.querySelectorAll('[data-tour-focus]')) {
@@ -217,10 +194,7 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 		mostrar(0);
 	}
 
-	dialog?.addEventListener('close', () => {
-		limpiar();
-		marcar();
-	});
+	dialog?.addEventListener('close', limpiar);
 
 	// Un clic fuera de la tarjeta cae en el propio <dialog>: eso es el velo, y el
 	// velo cierra. El Escape ya lo lleva el navegador.
@@ -250,10 +224,4 @@ const BOTON = 'inline-flex items-center gap-2 border border-line px-4 py-2.5 tex
 		abrir();
 	});
 
-	// Sale sola la primera vez. Si alguien llega a una herramienta concreta o
-	// vuelve de enviar su idea, ya está en otra cosa: ese día no se abre.
-	if (!visto() && !location.hash && !location.search) {
-		marcar();
-		abrir();
-	}
 </script>

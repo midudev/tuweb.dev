@@ -514,7 +514,7 @@ const user = await getSessionUser(Astro);
 			loading = true;
 			clearTimeout(retryTimer);
 
-			const res = await pedir('/api/consejos');
+			const res = await pedir('/api/consejos.json');
 			const data = res.data;
 			loading = false;
 

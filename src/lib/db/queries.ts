@@ -1,6 +1,6 @@
 import { WINDOW_MS } from '../window';
 import { memo } from '../memo';
-import { all, get, nowIso, run } from './client';
+import { all, get } from './client';
 import { FEATURE_COLUMNS, type Feature, type Release } from './schema';
 import { getLastRelease } from '../releases';
 
@@ -38,7 +38,7 @@ function getWindow() {
 		? null
 		: get<{ createdAt: string }>('SELECT created_at AS createdAt FROM prompts ORDER BY id ASC LIMIT 1');
 
-	const startedAt = lastCycle?.processedAt ?? firstPrompt?.createdAt ?? nowIso();
+	const startedAt = lastCycle?.processedAt ?? firstPrompt?.createdAt ?? new Date().toISOString();
 	const endsAt = new Date(new Date(startedAt).getTime() + WINDOW_MS).toISOString();
 	return { startedAt, endsAt };
 }
@@ -139,73 +139,6 @@ function computeDashboardData() {
 	};
 }
 
-export function createPrompt(userId: number, body: string, verdict: { keep: boolean; reason?: string }) {
-	const status = verdict.keep ? 'pending' : 'discarded';
-	const discardReason = verdict.keep ? null : (verdict.reason ?? 'spam');
-
-	return get<{ id: number; body: string; status: string }>(
-		`INSERT INTO prompts (user_id, body, status, discard_reason, created_at)
-		 VALUES (?, ?, ?, ?, ?)
-		 RETURNING id, body, status`,
-		userId,
-		body,
-		status,
-		discardReason,
-		nowIso(),
-	);
-}
-
-/**
- * Aparta un cambio antes de gastarlo. El UPDATE lleva la condición dentro, así
- * que contar y sumar pasan en la misma escritura: si el mismo usuario manda dos
- * peticiones a la vez, solo una se lleva el hueco y la otra no encuentra fila.
- *
- * Devuelve null cuando ya no quedan cambios. Quien lo llama tiene que parar ahí,
- * antes de pedirle nada al modelo.
- */
-export function claimEdit(id: number) {
-	return get<{ id: number; edits: number }>(
-		`UPDATE prompts
-		 SET edits = edits + 1
-		 WHERE id = ? AND edits < ?
-		 RETURNING id, edits`,
-		id,
-		MAX_EDITS,
-	);
-}
-
-/**
- * Cambiar una idea que ya estaba enviada. Pasa el mismo filtro que la primera
- * vez, así que un cambio puede acabar descartado o rescatar una descartada.
- *
- * No toca edits: el cambio se aparta antes con claimEdit.
- */
-export function updatePrompt(id: number, body: string, verdict: { keep: boolean; reason?: string }) {
-	return get<MyPrompt>(
-		`UPDATE prompts
-		 SET body = ?, status = ?, discard_reason = ?
-		 WHERE id = ?
-		 RETURNING id, body, status, discard_reason AS discardReason, edits`,
-		body,
-		verdict.keep ? 'pending' : 'discarded',
-		verdict.keep ? null : (verdict.reason ?? 'spam'),
-		id,
-	);
-}
-
-/** Guarda el veredicto final sobre una idea ya escrita, sin gastar un cambio. */
-export function applyReview(id: number, verdict: { keep: boolean; reason?: string }) {
-	return get<MyPrompt>(
-		`UPDATE prompts
-		 SET status = ?, discard_reason = ?
-		 WHERE id = ?
-		 RETURNING id, body, status, discard_reason AS discardReason, edits`,
-		verdict.keep ? 'pending' : 'discarded',
-		verdict.keep ? null : (verdict.reason ?? 'spam'),
-		id,
-	);
-}
-
 function computeChangelogData() {
 	const shipped = all<Feature>(
 		`SELECT ${FEATURE_COLUMNS} FROM features WHERE status = 'shipped' ORDER BY id ASC`,
@@ -234,8 +167,6 @@ function computeChangelogData() {
 	return { entries, queued, version: shipped.length };
 }
 
-export { run };
-
 /** getChangelogData, recordado unos segundos (ver memo.ts). */
 export function getChangelogData() {
 	return memo('changelog', () => computeChangelogData());
@@ -244,4 +175,20 @@ export function getChangelogData() {
 /** getDashboardData, recordado unos segundos (ver memo.ts). */
 export function getDashboardData() {
 	return memo('dashboard', () => computeDashboardData());
+}
+
+export interface ArchiveSummary {
+	shipped: number;
+	firstAt: string | null;
+	lastAt: string | null;
+}
+
+/** Lo que cuenta el aviso de experimento parado: cuántos cambios entraron y entre qué fechas. */
+export function getArchiveSummary() {
+	return memo('archivo', () =>
+		get<ArchiveSummary>(
+			`SELECT count(*) AS shipped, min(shipped_at) AS firstAt, max(shipped_at) AS lastAt
+			 FROM features WHERE status = 'shipped'`,
+		) ?? { shipped: 0, firstAt: null, lastAt: null },
+	);
 }

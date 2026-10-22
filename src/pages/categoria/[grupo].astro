@@ -3,8 +3,7 @@
  * La página de un apartado: solo sus secciones, sin nada más alrededor.
  * /categoria/juegos es el salón entero; /categoria/herramientas, la mesa de
  * trabajo. La lista sale de src/lib/sections.ts, así que un apartado nuevo se
- * abre solo. Si la URL trae un apartado que no existe, la página responde 404 y
- * enseña los que sí hay.
+ * abre solo. Un apartado que no existe cae en el 404, que enseña los que sí hay.
  */
 import BackLink from '../../components/BackLink.astro';
 import Footer from '../../components/Footer.astro';
@@ -13,49 +12,35 @@ import Icon from '../../components/Icon.astro';
 import RetosHoy from '../../components/RetosHoy.astro';
 import SectionCards from '../../components/SectionCards.astro';
 import SectionLabel from '../../components/SectionLabel.astro';
-import { findGroup, sectionsOf } from '../../lib/sections';
+import { GROUPS, sectionsOf, type Group } from '../../lib/sections';
 import Layout from '../../layouts/Layout.astro';
 
-const group = findGroup(Astro.params.grupo);
-const sections = group ? sectionsOf(group.id) : [];
+export function getStaticPaths() {
+	return GROUPS.map((group) => ({ params: { grupo: group.id }, props: { group } }));
+}
 
-if (!group) Astro.response.status = 404;
+const { group } = Astro.props as { group: Group };
+const sections = sectionsOf(group.id);
 ---
 
-<Layout
-	title={group ? `${group.title} — tuweb.dev` : 'Ese apartado no existe — tuweb.dev'}
-	description={group?.intro}
->
+<Layout title={`${group.title} — tuweb.dev`} description={group.intro}>
 	<div class="flex min-h-dvh flex-col">
 		<div class="aire">
 			<div class="zona flex flex-col gap-8">
 				<BackLink />
 
-				{
-					group ? (
-						<>
-							<div class="flex flex-col gap-3">
-								<h1 class="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-pixel text-titulo font-normal sm:gap-x-3">
-									<Icon name={group.icon} class="size-5 shrink-0 text-accent sm:size-6" />
-									{group.title}
-									<span class="text-lg tabular-nums text-muted">{sections.length}</span>
-								</h1>
-								<p class="max-w-[62ch] text-sm text-pretty text-muted">{group.intro}</p>
-							</div>
+				<div class="flex flex-col gap-3">
+					<h1 class="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-pixel text-titulo font-normal sm:gap-x-3">
+						<Icon name={group.icon} class="size-5 shrink-0 text-accent sm:size-6" />
+						{group.title}
+						<span class="text-lg tabular-nums text-muted">{sections.length}</span>
+					</h1>
+					<p class="max-w-[62ch] text-sm text-pretty text-muted">{group.intro}</p>
+				</div>
 
-							{group.id === 'juegos' && <RetosHoy />}
+				{group.id === 'juegos' && <RetosHoy />}
 
-							<SectionCards sections={sections} />
-						</>
-					) : (
-						<div class="flex flex-col gap-3">
-							<h1 class="font-pixel text-titulo font-normal">Ese apartado no existe</h1>
-							<p class="max-w-[62ch] text-sm text-pretty text-muted">
-								La web está repartida en estos, y debajo los tienes todos.
-							</p>
-						</div>
-					)
-				}
+				<SectionCards sections={sections} />
 			</div>
 		</div>
 
@@ -70,7 +55,7 @@ if (!group) Astro.response.status = 404;
 						<Icon name="arrow-right" class="size-4 shrink-0" />
 					</a>
 				</div>
-				<GroupNav current={group?.id} />
+				<GroupNav current={group.id} />
 			</div>
 		</nav>
 

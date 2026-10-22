@@ -261,7 +261,7 @@ const { login, version } = Astro.props;
 			if (document.visibilityState !== 'visible') return;
 			enCurso = true;
 			try {
-				const respuesta = await fetch(`${API}?since=${ultimo}`);
+				const respuesta = await fetch(`${API}.json`);
 				if (!respuesta.ok) throw new Error(String(respuesta.status));
 				const datos = (await respuesta.json()) as {
 					messages: Mensaje[];

@@ -355,7 +355,7 @@ const ENLACE = 'inline-flex items-center gap-2 text-sm text-muted hover:text-acc
 			loading = true;
 			clearTimeout(retryTimer);
 
-			const res = await pedir('/api/escaparate');
+			const res = await pedir('/api/escaparate.json');
 			const data = res.data;
 			loading = false;
 
