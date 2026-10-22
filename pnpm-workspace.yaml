@@ -1,5 +1,6 @@
 allowBuilds:
   esbuild: true
+  workerd: true
   sharp: true
 
 # Versiones mínimas por avisos de seguridad en dependencias de Astro.

@@ -7,26 +7,19 @@
 		"node": ">=24.0.0"
 	},
 	"scripts": {
-		"dev": "node --env-file-if-exists=.env node_modules/astro/bin/astro.mjs dev",
+		"dev": "astro dev",
 		"build": "astro build",
-		"preview": "astro preview",
-		"start": "node --env-file=.env dist/server/entry.mjs",
-		"astro": "astro",
-		"process": "node --env-file=.env scripts/process-prompts.mjs",
-		"release": "node --env-file=.env scripts/release.mjs",
-		"rollback": "node --env-file=.env scripts/rollback.mjs",
-		"iterate": "node --env-file=.env scripts/iterate.mjs",
-		"ideas:clear": "node --env-file=.env scripts/clear-ideas.mjs",
-		"test": "tsx --test tests/*.test.mjs"
+		"preview": "wrangler dev",
+		"deploy": "pnpm build && wrangler deploy",
+		"astro": "astro"
 	},
 	"dependencies": {
-		"@astrojs/node": "11.1.6",
 		"@iconify-json/tabler": "1.2.38",
 		"@tailwindcss/vite": "4.3.3",
 		"astro": "7.2.10",
 		"tailwindcss": "4.3.3"
 	},
 	"devDependencies": {
-		"tsx": "^4.19.0"
+		"wrangler": "4.150.0"
 	}
 }

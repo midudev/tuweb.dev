@@ -1,0 +1,16 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "tuweb",
+	// Miduga@gmail.com's Account: la sesión de wrangler ve más de una cuenta.
+	"account_id": "599228840df452ef6b4df93a2b67c0ee",
+	"compatibility_date": "2026-10-01",
+	// Solo ficheros estáticos: no hay Worker, ni API, ni nada que ejecutar.
+	"assets": {
+		"directory": "./dist",
+		"not_found_handling": "404-page",
+	},
+	"routes": [
+		{ "pattern": "tuweb.dev", "custom_domain": true },
+		{ "pattern": "www.tuweb.dev", "custom_domain": true },
+	],
+}

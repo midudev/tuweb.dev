@@ -17,23 +17,20 @@ pnpm-debug.log*
 .env
 .env.production
 
-# local Turso / libSQL
+# la copia de la base de producción contra la que se compila (data/tuweb.db)
 *.db
 *.db-journal
 *.db-shm
 *.db-wal
+
+# wrangler
+.wrangler/
 
 # macOS-specific files
 .DS_Store
 
 # jetbrains setting folder
 .idea/
-.release-sha
-
-# candado de la iteración en marcha y el cambio que la IA está arreglando
-.iterate.lock
-.iterate-broken.patch
 
 # guía de despliegue local
 GUIDE.md
-.iterate-backlog.json
